@@ -1,0 +1,27 @@
+# OS / IDE
+.DS_Store
+.idea/
+*.iml
+local.properties
+
+# Gradle / Android (when the app is scaffolded)
+.gradle/
+build/
+**/build/
+captures/
+*.apk
+*.aab
+*.ap_
+*.dex
+.cxx/
+
+# Secrets
+keystore.properties
+*.jks
+*.keystore
+.env
+.env.*
+
+# Graphify / scan dumps
+graphify-out/
+.security-scan/
