@@ -1,7 +1,10 @@
 package org.dhamma.dipi.staff.network
 
 import okhttp3.ResponseBody
+import retrofit2.Response
 import retrofit2.http.Body
+import retrofit2.http.FieldMap
+import retrofit2.http.FormUrlEncoded
 import retrofit2.http.GET
 import retrofit2.http.POST
 import retrofit2.http.Path
@@ -64,4 +67,22 @@ interface StaffApi {
         @Query("l") letterId: Int = 0,
         @Query("c") comment: String = "",
     ): ChangeStatusDto
+
+    /** Live desk: Drupal form that embeds `var dataset`. */
+    @GET("/search-app")
+    suspend fun searchAppLanding(): Response<ResponseBody>
+
+    @GET("/search-app/{cid}")
+    suspend fun searchAppForm(@Path("cid") centreId: Int): Response<ResponseBody>
+
+    @FormUrlEncoded
+    @POST("/search-app/{cid}")
+    suspend fun searchAppSubmit(
+        @Path("cid") centreId: Int,
+        @FieldMap fields: Map<String, String>,
+    ): Response<ResponseBody>
+
+    /** Live desk JSON. Permission: transfer course. Optional. */
+    @GET("/get-courses/{cid}")
+    suspend fun getCourses(@Path("cid") centreId: Int): List<LiveCourseDto>
 }

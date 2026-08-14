@@ -6,7 +6,7 @@ Governing spec: `docs/DIPI-STAFF-IMPLEMENTATION-PROMPT-GROK-4.6.md` (wins over o
 
 Vertical 1: login → course → today worklist → public card → `/change-status` → photo review → day summary → settings.
 
-No client tenancy/gender gating. No attended API. Fixed `BuildConfig.BASE_URL`. Mock server on in debug.
+No client tenancy/gender gating. No attended API. Fixed `BuildConfig.BASE_URL`. Talks to live `https://dipi.vridhamma.org` by default (Services login, `/search-app`, `/get-courses`, `/change-status`). Mock only with `-Pdipi.useMock=true`.
 
 See `AGENTS.md` and `docs/TODO-SERVER.md`.
 

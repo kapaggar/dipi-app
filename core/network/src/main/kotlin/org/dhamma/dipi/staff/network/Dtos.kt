@@ -34,7 +34,18 @@ data class LoginDto(
 )
 
 @Serializable
-data class LoginUserDto(val uid: Int = 0, val name: String = "")
+data class LoginUserDto(
+    @Serializable(with = FlexibleIntSerializer::class)
+    val uid: Int = 0,
+    val name: String = "",
+)
+
+@Serializable
+data class LiveCourseDto(
+    @Serializable(with = FlexibleIntSerializer::class)
+    val id: Int = 0,
+    val name: String = "",
+)
 
 @Serializable
 data class SessionDto(

@@ -24,11 +24,14 @@ android {
         applicationId = "org.dhamma.dipi.staff"
         minSdk = 26
         targetSdk = 35
-        versionCode = 3
-        versionName = "1.0.2"
+        versionCode = 4
+        versionName = "1.1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "BASE_URL", "\"${overrideUrl.trimEnd('/')}\"")
-        buildConfigField("boolean", "USE_MOCK", "true")
+        val useMock = ((findProperty("dipi.useMock") as String?)
+            ?: localProps.getProperty("dipi.useMock")
+            ?: "false").equals("true", ignoreCase = true)
+        buildConfigField("boolean", "USE_MOCK", if (useMock) "true" else "false")
     }
     buildTypes {
         release {
@@ -37,7 +40,7 @@ android {
             buildConfigField("String", "BASE_URL", "\"https://dipi.vridhamma.org\"")
         }
         debug {
-            buildConfigField("boolean", "USE_MOCK", "true")
+            // Live Drupal by default. Re-enable fixtures with -Pdipi.useMock=true
         }
     }
     compileOptions {

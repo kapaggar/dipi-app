@@ -44,8 +44,14 @@ fun CoursesScreen(session: Session, courses: List<Course>, onPick: (Course) -> U
                         .padding(vertical = 12.dp),
                 ) {
                     Text(course.name, fontFamily = DipiCondensed, fontSize = 18.sp, color = c.foreground)
-                    Text("${course.start} – ${course.end}", color = c.muted, fontSize = 13.sp)
-                    if (index == 0) {
+                    if (course.start.isNotBlank() || course.end.isNotBlank()) {
+                        Text(
+                            listOf(course.start, course.end).filter { it.isNotBlank() }.joinToString(" – "),
+                            color = c.muted,
+                            fontSize = 13.sp,
+                        )
+                    }
+                    if (index == 0 && days > 0) {
                         Text("STARTS IN $days DAYS", color = c.accent, fontFamily = DipiCondensed, fontSize = 12.sp)
                     }
                 }

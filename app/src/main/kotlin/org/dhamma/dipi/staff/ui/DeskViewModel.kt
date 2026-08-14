@@ -358,7 +358,7 @@ class DeskViewModel @Inject constructor(
         _state.update { it.copy(loading = true) }
         val status = if (unfiltered || s.selected.isEmpty()) null else s.selected.joinToString(",")
         val q = if (unfiltered) null else s.query.takeIf { it.isNotBlank() }
-        runCatching { repo.refreshApplicants(course.id, status, q) }
+        runCatching { repo.refreshApplicants(course.id, status, q, course.centreId) }
             .onSuccess { (_, counts) ->
                 _state.update { it.copy(counts = counts, loading = false) }
             }

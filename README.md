@@ -13,13 +13,19 @@ That file **supersedes** [docs/00-architecture.md](docs/00-architecture.md) and 
 
 ```bash
 # local.properties must contain sdk.dir=…
-# Debug uses the in-process MockWebServer by default (BuildConfig.USE_MOCK=true).
+# Live Drupal (https://dipi.vridhamma.org) is the default.
 ./gradlew :app:assembleDebug
 ./gradlew :app:testDebugUnitTest
 ./gradlew :core:model:test :core:audit:test
 ```
 
-Point debug at a real host (and set `USE_MOCK` false by changing the debug `buildConfigField` if you also want to skip the mock):
+Fixtures only if you opt in:
+
+```bash
+./gradlew :app:assembleDebug -Pdipi.useMock=true
+```
+
+Override host (debug only):
 
 ```properties
 # gradle.properties or -P

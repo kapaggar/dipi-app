@@ -52,32 +52,28 @@ object NetworkModule {
 
     @Provides
     @Singleton
+    fun cookieJar(tokens: TokenStore): SessionCookieJar = SessionCookieJar(tokens)
+
+    @Provides
+    @Singleton
     fun okHttp(
         tokens: TokenStore,
-        @Named("useMock") useMock: Boolean,
-        server: MockWebServer,
+        jar: SessionCookieJar,
     ): OkHttpClient {
-        val auth = Interceptor { chain ->
+        val csrf = Interceptor { chain ->
             val b = chain.request().newBuilder()
-            val cookie = runBlocking { tokens.sessionCookie() }
-            val csrf = runBlocking { tokens.csrf() }
-            if (!cookie.isNullOrBlank()) b.header("Cookie", cookie)
-            if (!csrf.isNullOrBlank() && chain.request().method != "GET") {
-                b.header("X-CSRF-Token", csrf)
+                .header("User-Agent", "DIPI-Staff/1.1 (Android; registrar desk)")
+            val token = runBlocking { tokens.csrf() }
+            if (!token.isNullOrBlank() && chain.request().method != "GET") {
+                b.header("X-CSRF-Token", token)
             }
             chain.proceed(b.build())
         }
-        val capture = Interceptor { chain ->
-            val resp = chain.proceed(chain.request())
-            val set = resp.header("Set-Cookie")
-            if (set != null) {
-                runBlocking { tokens.saveSession(set.substringBefore(";"), tokens.csrf()) }
-            }
-            resp
-        }
         return OkHttpClient.Builder()
-            .addInterceptor(auth)
-            .addInterceptor(capture)
+            .cookieJar(jar)
+            .followRedirects(true)
+            .followSslRedirects(true)
+            .addInterceptor(csrf)
             .build()
     }
 

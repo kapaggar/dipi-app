@@ -24,12 +24,16 @@ import org.dhamma.dipi.staff.model.StatusWrite
 import org.dhamma.dipi.staff.network.ApplicantDto
 import org.dhamma.dipi.staff.network.CropDto
 import org.dhamma.dipi.staff.network.DrupalAuthApi
+import org.dhamma.dipi.staff.network.FormTokens
 import org.dhamma.dipi.staff.network.LoginBody
 import org.dhamma.dipi.staff.network.PhotoUploadBody
+import org.dhamma.dipi.staff.network.SearchPageParser
+import org.dhamma.dipi.staff.network.SessionCookieJar
 import org.dhamma.dipi.staff.network.StaffApi
 import org.dhamma.dipi.staff.network.TokenStore
 import java.time.Instant
 import javax.inject.Inject
+import javax.inject.Named
 import javax.inject.Singleton
 
 @Singleton
@@ -41,7 +45,13 @@ class StaffRepository @Inject constructor(
     private val applicants: ApplicantDao,
     private val outbox: OutboxDao,
     private val json: Json,
+    private val cookies: SessionCookieJar,
+    @Named("useMock") private val useMock: Boolean,
+    @Named("baseUrl") private val baseUrl: String,
 ) {
+    @Volatile private var lastCentreId: Int? = null
+    @Volatile private var lastTokens: FormTokens? = null
+    @Volatile private var lastStatuses: List<String> = emptyList()
     fun observeApplicants(courseId: CourseId): Flow<List<ApplicantCard>> =
         applicants.observe(courseId.value).map { rows ->
             val cards = rows.map { json.decodeFromString(ApplicantDto.serializer(), it.payload).toModel() }
@@ -55,11 +65,17 @@ class StaffRepository @Inject constructor(
     suspend fun login(username: String, password: String): Session {
         return runCatching {
             val dto = auth.login(LoginBody(username, password))
-            val cookie = "${dto.session_name}=${dto.sessid}"
+            if (dto.sessid.isNotBlank() && dto.session_name.isNotBlank()) {
+                tokens.saveSession("${dto.session_name}=${dto.sessid}", dto.token.ifBlank { null })
+            }
             val csrf = runCatching { auth.csrfToken().string() }.getOrNull()
                 ?: dto.token.takeIf { it.isNotBlank() }
-            tokens.saveSession(cookie, csrf)
-            val session = api.session().toModel()
+            if (!csrf.isNullOrBlank()) tokens.saveSession(tokens.sessionCookie(), csrf)
+            val session = if (useMock) {
+                api.session().toModel()
+            } else {
+                liveSession(dto.user.uid, dto.user.name)
+            }
             sessionStore.setAccountJson(json.encodeToString(sessionLite(session)))
             session
         }.getOrElse { throw it.toApi() }
@@ -67,13 +83,14 @@ class StaffRepository @Inject constructor(
 
     suspend fun restoreSession(): Session? {
         if (tokens.sessionCookie().isNullOrBlank()) return null
-        return runCatching { api.session().toModel() }.getOrElse {
+        return runCatching {
+            if (useMock) api.session().toModel() else liveSession(0, "")
+        }.getOrElse {
             val ex = it.toApi()
             if (ex.unauthorized) {
                 logout()
                 throw ex
             }
-            // Offline: last account snapshot if we have one.
             sessionStore.accountJson()?.let { raw ->
                 runCatching { json.decodeFromString(SessionLite.serializer(), raw).toModel() }.getOrNull()
             }
@@ -81,11 +98,27 @@ class StaffRepository @Inject constructor(
     }
 
     suspend fun loadCourses(centreId: CentreId): List<Course> = runCatching {
-        api.courses(centreId.value, upcoming = 1).items.map { it.toModel() }
+        lastCentreId = centreId.value
+        if (useMock) {
+            return@runCatching api.courses(centreId.value, upcoming = 1).items.map { it.toModel() }
+        }
+        val fromJson = runCatching {
+            api.getCourses(centreId.value).map {
+                Course(org.dhamma.dipi.staff.model.CourseId(it.id), centreId, it.name, "", "")
+            }
+        }.getOrNull()
+        if (!fromJson.isNullOrEmpty()) return@runCatching fromJson
+        val page = fetchSearchForm(centreId.value)
+        page.courses.map {
+            Course(org.dhamma.dipi.staff.model.CourseId(it.id), centreId, it.label, "", "")
+        }
     }.getOrElse { throw it.toApi() }
 
     suspend fun loadStatuses(): List<String> = runCatching {
-        api.statuses().items.map { it.value }
+        if (useMock) return@runCatching api.statuses().items.map { it.value }
+        lastStatuses.ifEmpty {
+            lastCentreId?.let { fetchSearchForm(it).statuses }.orEmpty()
+        }
     }.getOrDefault(emptyList())
 
     /**
@@ -96,30 +129,59 @@ class StaffRepository @Inject constructor(
         courseId: CourseId,
         status: String? = null,
         q: String? = null,
+        centreId: CentreId? = null,
     ): Pair<List<ApplicantCard>, Map<String, Int>> {
         return runCatching {
-            val page = api.applicants(
-                courseId.value,
-                status = status?.takeIf { it.isNotBlank() },
-                q = q?.takeIf { it.isNotBlank() },
-            )
-            val unfiltered = status.isNullOrBlank() && q.isNullOrBlank()
-            if (unfiltered) {
-                val entities = page.items.map {
-                    ApplicantEntity(it.id, it.courseId, json.encodeToString(ApplicantDto.serializer(), it))
-                }
-                applicants.upsert(entities)
+            if (useMock) {
+                val page = api.applicants(
+                    courseId.value,
+                    status = status?.takeIf { it.isNotBlank() },
+                    q = q?.takeIf { it.isNotBlank() },
+                )
+                val unfiltered = status.isNullOrBlank() && q.isNullOrBlank()
+                if (unfiltered) persist(page.items)
+                sessionStore.setLastSync(Instant.now().toString())
+                return@runCatching page.toModel().items to page.counts
             }
+            val cid = centreId?.value ?: lastCentreId
+                ?: throw ApiException("No centre on the session")
+            lastCentreId = cid
+            val form = fetchSearchForm(cid)
+            val tokens = form.tokens ?: throw ApiException("Could not read the desk search form")
+            lastTokens = tokens
+            val fields = linkedMapOf(
+                "form_build_id" to tokens.formBuildId,
+                "form_token" to tokens.formToken,
+                "form_id" to tokens.formId,
+                "course" to courseId.value.toString(),
+                "type" to "Both",
+                "op" to "Search",
+            )
+            val posted = api.searchAppSubmit(cid, fields)
+            val html = posted.body()?.string().orEmpty()
+            if (html.contains("Access denied", ignoreCase = true)) {
+                throw ApiException("Access denied")
+            }
+            val result = SearchPageParser.parse(html, cid, baseUrl)
+            val rows = result.dataset.ifEmpty { form.dataset }.filter {
+                it.courseId == 0 || it.courseId == courseId.value
+            }
+            persist(rows)
             sessionStore.setLastSync(Instant.now().toString())
-            page.toModel().items to page.counts
+            val counts = linkedMapOf("All" to rows.size)
+            rows.groupingBy { it.status }.eachCount().forEach { (k, v) ->
+                if (k.isNotBlank()) counts[k] = v
+            }
+            rows.map { it.toModel() } to counts
         }.getOrElse { throw it.toApi() }
     }
 
     suspend fun loadCard(id: ApplicantId): ApplicantCard = runCatching {
+        if (!useMock) {
+            return@runCatching cachedCard(id) ?: throw ApiException("Applicant is not in the cached worklist")
+        }
         val dto = api.applicant(id.value)
-        applicants.upsert(
-            listOf(ApplicantEntity(dto.id, dto.courseId, json.encodeToString(ApplicantDto.serializer(), dto))),
-        )
+        persist(listOf(dto))
         dto.toModel()
     }.getOrElse { throw it.toApi() }
 
@@ -128,8 +190,9 @@ class StaffRepository @Inject constructor(
             json.decodeFromString(ApplicantDto.serializer(), it.payload).toModel()
         }
 
-    suspend fun photoReview(courseId: CourseId): List<PhotoReviewItem> = runCatching {
-        api.photoReview(courseId.value).items.map { it.toModel() }
+    suspend fun photoReview(courseId: CourseId): List<org.dhamma.dipi.staff.model.PhotoReviewItem> = runCatching {
+        if (useMock) return@runCatching api.photoReview(courseId.value).items.map { it.toModel() }
+        emptyList()
     }.getOrElse { throw it.toApi() }
 
     suspend fun changeStatus(
@@ -193,6 +256,7 @@ class StaffRepository @Inject constructor(
     ): Pair<Int, String> {
         val ready = edits.filter { it.value.done && !it.value.uploaded }
         if (ready.isEmpty()) return 0 to "No fixed, un-uploaded photos yet"
+        if (!useMock) return 0 to "Photo upload is not exposed on the live desk"
         var n = 0
         for ((id, edit) in ready) {
             runCatching {
@@ -211,9 +275,70 @@ class StaffRepository @Inject constructor(
 
     suspend fun logout() {
         runCatching { auth.logout() }
+        cookies.clear()
         applicants.clear()
         outbox.clear()
         sessionStore.clear()
+        lastCentreId = null
+        lastTokens = null
+    }
+
+    private suspend fun liveSession(uid: Int, name: String): Session {
+        val landing = api.searchAppLanding()
+        val html = landing.body()?.string().orEmpty()
+        if (html.contains("Access denied", ignoreCase = true) || landing.code() == 403) {
+            throw ApiException("Access denied")
+        }
+        val pathCid = SearchPageParser.centreIdFromPath(landing.raw().request.url.encodedPath)
+        val page = SearchPageParser.parse(html, pathCid, baseUrl)
+        lastTokens = page.tokens
+        lastStatuses = page.statuses
+        val centres = page.centres.ifEmpty {
+            pathCid?.let {
+                listOf(org.dhamma.dipi.staff.network.SelectOption(it, "Centre $it"))
+            }.orEmpty()
+        }
+        if (centres.isEmpty()) {
+            throw ApiException("Could not read your centre from the desk. Check that this account can open /search-app.")
+        }
+        lastCentreId = centres.first().id
+        val display = name.ifBlank {
+            SearchPageParser.stripTags(
+                Regex("""<title>([^<]+)</title>""", RegexOption.IGNORE_CASE).find(html)?.groupValues?.get(1).orEmpty(),
+            ).ifBlank { "registrar" }
+        }
+        return Session(
+            uid = uid,
+            name = display,
+            displayName = display,
+            centres = centres.map {
+                org.dhamma.dipi.staff.model.Centre(
+                    org.dhamma.dipi.staff.model.CentreId(it.id),
+                    it.label,
+                )
+            },
+            modeTest = false,
+        )
+    }
+
+    private suspend fun fetchSearchForm(centreId: Int) : org.dhamma.dipi.staff.network.SearchPage {
+        val resp = api.searchAppForm(centreId)
+        val html = resp.body()?.string().orEmpty()
+        if (html.contains("Access denied", ignoreCase = true) || resp.code() == 403) {
+            throw ApiException("Access denied")
+        }
+        val page = SearchPageParser.parse(html, centreId, baseUrl)
+        lastTokens = page.tokens ?: lastTokens
+        if (page.statuses.isNotEmpty()) lastStatuses = page.statuses
+        return page
+    }
+
+    private suspend fun persist(rows: List<ApplicantDto>) {
+        applicants.upsert(
+            rows.map {
+                ApplicantEntity(it.id, it.courseId, json.encodeToString(ApplicantDto.serializer(), it))
+            },
+        )
     }
 
     private suspend fun echoLocal(id: ApplicantId, status: String, confNo: String?) {
