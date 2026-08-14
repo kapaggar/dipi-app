@@ -16,6 +16,11 @@ data class FormTokens(
 
 data class SelectOption(val id: Int, val label: String)
 
+data class LoginBlock(
+    val formBuildId: String,
+    val formId: String,
+)
+
 data class SearchPage(
     val tokens: FormTokens?,
     val centres: List<SelectOption>,
@@ -39,6 +44,54 @@ object SearchPageParser {
             dataset = dataset(html, photoHost),
             pathCentreId = pathCentreId,
         )
+    }
+
+    fun loginBlock(html: String): LoginBlock? {
+        val build = namedValue(html, "form_build_id") ?: return null
+        val id = namedValue(html, "form_id") ?: "user_login_block"
+        return LoginBlock(build, id)
+    }
+
+    fun loginError(html: String): String? {
+        val m = Regex(
+            """(?:messages?\s+error|alert-danger|error["'])[^>]*>(.*?)</""",
+            setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL),
+        ).find(html)
+        val t = m?.groupValues?.get(1)?.let { stripTags(it) }
+        if (!t.isNullOrBlank() && t.length < 240) return t
+        return if (html.contains("unrecognized username or password", true)) {
+            "Sorry, unrecognized username or password."
+        } else {
+            null
+        }
+    }
+
+    fun centreName(html: String): String? {
+        val h1 = Regex("""<h1[^>]*>(.*?)</h1>""", setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL))
+            .find(html)?.groupValues?.get(1)?.let { stripTags(it) }
+        if (!h1.isNullOrBlank()) return h1.removePrefix("Manage ").trim()
+        val title = Regex("""<title>([^<]+)</title>""", RegexOption.IGNORE_CASE)
+            .find(html)?.groupValues?.get(1)?.substringBefore("|")?.trim()
+        return title?.removePrefix("Manage ")?.trim()?.takeIf { it.isNotBlank() }
+    }
+
+    fun coursesFromDashboard(html: String): List<SelectOption> {
+        val found = linkedMapOf<Int, String>()
+        val heading = Regex(
+            """class=["']table-heading["'][^>]*>\s*<a[^>]+href=["'][^"']*/course/(\d+)/(\d+)[^"']*["'][^>]*>(.*?)</a>""",
+            setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL),
+        )
+        heading.findAll(html).forEach { m ->
+            val id = m.groupValues[2].toIntOrNull() ?: return@forEach
+            found[id] = stripTags(m.groupValues[3])
+        }
+        if (found.isEmpty()) {
+            Regex("""/course/(\d+)/(\d+)""").findAll(html).forEach { m ->
+                val id = m.groupValues[2].toIntOrNull() ?: return@forEach
+                found.putIfAbsent(id, "Course $id")
+            }
+        }
+        return found.map { SelectOption(it.key, it.value) }
     }
 
     fun tokens(html: String): FormTokens? {
@@ -188,7 +241,7 @@ object SearchPageParser {
             .trim()
 
     fun centreIdFromPath(path: String): Int? {
-        val m = Regex("""/search-app/(\d+)""").find(path) ?: return null
+        val m = Regex("""/(?:search-app|centre|center|course)/(\d+)""").find(path) ?: return null
         return m.groupValues[1].toIntOrNull()
     }
 

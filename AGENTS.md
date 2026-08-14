@@ -20,7 +20,7 @@ Server reference (read-only): `/Users/wizops/DIPI/dipi-web` module `dh_manageapp
 5. No attendance writes in v1.
 6. Never parse HTML. Never use APP API / `get-app-detail`.
 7. No NPI columns in Room or logs (`ae_*`, Aadhaar, PAN, passport, voter id).
-8. Server URL is `BuildConfig.BASE_URL` (`https://dipi.vridhamma.org`). Debug talks to the **live** Drupal desk, not fixtures. Re-enable the mock only with `-Pdipi.useMock=true`. Do not invent `/staff` routes — the live reads are Services login, `/search-app/{centre}` (form + embedded `dataset`), `/get-courses/{centre}`, and `/change-status/{id}`.
+8. Server URL is `BuildConfig.BASE_URL` (`https://dipi.vridhamma.org`). Live protocol is the **browser desk** (see `docs/LIVE-DESK-HAR.md`), not Services `/api/user/login` and not `/staff/*`. Login = `GET /` then `POST /home?destination=home` (`form_id=user_login_block`). Dashboard = `GET /centre` → `/centre/{cid}`. Worklist = `GET /search-course/{cid}/{courseId}?s=&t=&g=&d=a` (`var dataset`). Status write = `GET /change-status/{id}?s=&l=0&c=`. Mock only with `-Pdipi.useMock=true`.
 9. Design file `docs/DIPI Staff.dc.html` wins every visual argument.
 10. Do not commit `local.properties`, keystores, or real student data.
 11. **SemVer on every shippable change.** Bump `versionName` + `versionCode` in `app/build.gradle.kts` before assembling:

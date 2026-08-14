@@ -90,9 +90,11 @@ Same shape as `dh_manageapp_search_results()`. Includes NPI (`aadhar`, `passport
 
 Change-status in the page is still `GET /change-status/{aid}?s=&l=&c=` (not hit in this HAR).
 
-## What this means for the Android client
+## Client (from 1.2.0)
 
-Do **not** call Services `POST /api/user/login`. Mirror the browser:
+The app mirrors this HAR. Do **not** call Services `POST /api/user/login` on the live host.
+
+Mirror the browser:
 
 1. `GET /` (or `/home`) → scrape `form_build_id` + `form_id=user_login_block`
 2. `POST /home?destination=home` with `name` / `pass` / tokens

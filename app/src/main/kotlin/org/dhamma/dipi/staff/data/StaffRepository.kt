@@ -24,7 +24,6 @@ import org.dhamma.dipi.staff.model.StatusWrite
 import org.dhamma.dipi.staff.network.ApplicantDto
 import org.dhamma.dipi.staff.network.CropDto
 import org.dhamma.dipi.staff.network.DrupalAuthApi
-import org.dhamma.dipi.staff.network.FormTokens
 import org.dhamma.dipi.staff.network.LoginBody
 import org.dhamma.dipi.staff.network.PhotoUploadBody
 import org.dhamma.dipi.staff.network.SearchPageParser
@@ -50,7 +49,6 @@ class StaffRepository @Inject constructor(
     @Named("baseUrl") private val baseUrl: String,
 ) {
     @Volatile private var lastCentreId: Int? = null
-    @Volatile private var lastTokens: FormTokens? = null
     @Volatile private var lastStatuses: List<String> = emptyList()
     fun observeApplicants(courseId: CourseId): Flow<List<ApplicantCard>> =
         applicants.observe(courseId.value).map { rows ->
@@ -64,18 +62,32 @@ class StaffRepository @Inject constructor(
 
     suspend fun login(username: String, password: String): Session {
         return runCatching {
-            val dto = auth.login(LoginBody(username, password))
-            if (dto.sessid.isNotBlank() && dto.session_name.isNotBlank()) {
-                tokens.saveSession("${dto.session_name}=${dto.sessid}", dto.token.ifBlank { null })
+            if (useMock) {
+                val dto = auth.login(LoginBody(username, password))
+                if (dto.sessid.isNotBlank() && dto.session_name.isNotBlank()) {
+                    tokens.saveSession("${dto.session_name}=${dto.sessid}", dto.token.ifBlank { null })
+                }
+                val session = api.session().toModel()
+                sessionStore.setAccountJson(json.encodeToString(sessionLite(session)))
+                return@runCatching session
             }
-            val csrf = runCatching { auth.csrfToken().string() }.getOrNull()
-                ?: dto.token.takeIf { it.isNotBlank() }
-            if (!csrf.isNullOrBlank()) tokens.saveSession(tokens.sessionCookie(), csrf)
-            val session = if (useMock) {
-                api.session().toModel()
-            } else {
-                liveSession(dto.user.uid, dto.user.name)
+            cookies.clear()
+            tokens.saveSession(null, null)
+            val root = api.siteRoot()
+            val rootHtml = root.body()?.string().orEmpty()
+            val block = SearchPageParser.loginBlock(rootHtml)
+                ?: throw ApiException("Could not read the desk login form")
+            val after = api.loginBlock(
+                name = username,
+                pass = password,
+                formBuildId = block.formBuildId,
+                formId = block.formId,
+            )
+            val html = after.body()?.string().orEmpty()
+            if (stillOnLogin(html)) {
+                throw ApiException(SearchPageParser.loginError(html) ?: "Login failed")
             }
+            val session = sessionFromDeskHtml(html, after.raw().request.url.encodedPath, username)
             sessionStore.setAccountJson(json.encodeToString(sessionLite(session)))
             session
         }.getOrElse { throw it.toApi() }
@@ -84,7 +96,12 @@ class StaffRepository @Inject constructor(
     suspend fun restoreSession(): Session? {
         if (tokens.sessionCookie().isNullOrBlank()) return null
         return runCatching {
-            if (useMock) api.session().toModel() else liveSession(0, "")
+            if (useMock) api.session().toModel() else {
+                val dash = api.centreLanding()
+                val html = dash.body()?.string().orEmpty()
+                if (stillOnLogin(html) || dash.code() == 403) throw ApiException("Access denied", unauthorized = true)
+                sessionFromDeskHtml(html, dash.raw().request.url.encodedPath, "")
+            }
         }.getOrElse {
             val ex = it.toApi()
             if (ex.unauthorized) {
@@ -102,23 +119,17 @@ class StaffRepository @Inject constructor(
         if (useMock) {
             return@runCatching api.courses(centreId.value, upcoming = 1).items.map { it.toModel() }
         }
-        val fromJson = runCatching {
-            api.getCourses(centreId.value).map {
-                Course(org.dhamma.dipi.staff.model.CourseId(it.id), centreId, it.name, "", "")
-            }
-        }.getOrNull()
-        if (!fromJson.isNullOrEmpty()) return@runCatching fromJson
-        val page = fetchSearchForm(centreId.value)
-        page.courses.map {
-            Course(org.dhamma.dipi.staff.model.CourseId(it.id), centreId, it.label, "", "")
+        val dash = api.centreDashboard(centreId.value)
+        val html = dash.body()?.string().orEmpty()
+        if (stillOnLogin(html) || dash.code() == 403) throw ApiException("Access denied", unauthorized = true)
+        SearchPageParser.coursesFromDashboard(html).map {
+            Course(CourseId(it.id), centreId, it.label, "", "")
         }
     }.getOrElse { throw it.toApi() }
 
     suspend fun loadStatuses(): List<String> = runCatching {
         if (useMock) return@runCatching api.statuses().items.map { it.value }
-        lastStatuses.ifEmpty {
-            lastCentreId?.let { fetchSearchForm(it).statuses }.orEmpty()
-        }
+        lastStatuses
     }.getOrDefault(emptyList())
 
     /**
@@ -146,32 +157,27 @@ class StaffRepository @Inject constructor(
             val cid = centreId?.value ?: lastCentreId
                 ?: throw ApiException("No centre on the session")
             lastCentreId = cid
-            val form = fetchSearchForm(cid)
-            val tokens = form.tokens ?: throw ApiException("Could not read the desk search form")
-            lastTokens = tokens
-            val fields = linkedMapOf(
-                "form_build_id" to tokens.formBuildId,
-                "form_token" to tokens.formToken,
-                "form_id" to tokens.formId,
-                "course" to courseId.value.toString(),
-                "type" to "Both",
-                "op" to "Search",
+            val resp = api.searchCourse(
+                centreId = cid,
+                courseId = courseId.value,
+                status = status.orEmpty(),
+                old = "",
+                gender = "",
+                db = "a",
             )
-            val posted = api.searchAppSubmit(cid, fields)
-            val html = posted.body()?.string().orEmpty()
-            if (html.contains("Access denied", ignoreCase = true)) {
-                throw ApiException("Access denied")
+            val html = resp.body()?.string().orEmpty()
+            if (stillOnLogin(html) || resp.code() == 403) {
+                throw ApiException("Access denied", unauthorized = true)
             }
             val result = SearchPageParser.parse(html, cid, baseUrl)
-            val rows = result.dataset.ifEmpty { form.dataset }.filter {
-                it.courseId == 0 || it.courseId == courseId.value
-            }
+            val rows = result.dataset
             persist(rows)
             sessionStore.setLastSync(Instant.now().toString())
             val counts = linkedMapOf("All" to rows.size)
             rows.groupingBy { it.status }.eachCount().forEach { (k, v) ->
                 if (k.isNotBlank()) counts[k] = v
             }
+            if (counts.keys.size > 1) lastStatuses = counts.keys.filter { it != "All" }
             rows.map { it.toModel() } to counts
         }.getOrElse { throw it.toApi() }
     }
@@ -224,7 +230,11 @@ class StaffRepository @Inject constructor(
         val snacks = mutableListOf<FlushSnack>()
         for (row in outbox.pending()) {
             val sent = runCatching {
-                api.changeStatus(row.applicantId, row.status, 0, row.comment).toModel()
+                if (useMock) {
+                    api.changeStatus(row.applicantId, row.status, 0, row.comment).toModel()
+                } else {
+                    api.changeStatusGet(row.applicantId, row.status, 0, row.comment).toModel()
+                }
             }
             if (sent.isFailure) {
                 val e = sent.exceptionOrNull()!!
@@ -274,63 +284,45 @@ class StaffRepository @Inject constructor(
     }
 
     suspend fun logout() {
-        runCatching { auth.logout() }
+        if (useMock) runCatching { auth.logout() } else runCatching { api.logoutGet() }
         cookies.clear()
         applicants.clear()
         outbox.clear()
         sessionStore.clear()
         lastCentreId = null
-        lastTokens = null
     }
 
-    private suspend fun liveSession(uid: Int, name: String): Session {
-        val landing = api.searchAppLanding()
-        val html = landing.body()?.string().orEmpty()
-        if (html.contains("Access denied", ignoreCase = true) || landing.code() == 403) {
-            throw ApiException("Access denied")
+    private fun stillOnLogin(html: String): Boolean =
+        html.contains("user_login_block") && html.contains("name=\"pass\"")
+
+    private suspend fun sessionFromDeskHtml(html: String, path: String, username: String): Session {
+        var body = html
+        var pathNow = path
+        if (!body.contains("table-heading") && !body.contains("/course/")) {
+            val dash = api.centreLanding()
+            body = dash.body()?.string().orEmpty()
+            pathNow = dash.raw().request.url.encodedPath
+            if (stillOnLogin(body) || dash.code() == 403) {
+                throw ApiException("Access denied", unauthorized = true)
+            }
         }
-        val pathCid = SearchPageParser.centreIdFromPath(landing.raw().request.url.encodedPath)
-        val page = SearchPageParser.parse(html, pathCid, baseUrl)
-        lastTokens = page.tokens
-        lastStatuses = page.statuses
-        val centres = page.centres.ifEmpty {
-            pathCid?.let {
-                listOf(org.dhamma.dipi.staff.network.SelectOption(it, "Centre $it"))
-            }.orEmpty()
-        }
-        if (centres.isEmpty()) {
-            throw ApiException("Could not read your centre from the desk. Check that this account can open /search-app.")
-        }
-        lastCentreId = centres.first().id
-        val display = name.ifBlank {
-            SearchPageParser.stripTags(
-                Regex("""<title>([^<]+)</title>""", RegexOption.IGNORE_CASE).find(html)?.groupValues?.get(1).orEmpty(),
-            ).ifBlank { "registrar" }
+        val cid = SearchPageParser.centreIdFromPath(pathNow)
+            ?: Regex("""/course/(\d+)/""").find(body)?.groupValues?.get(1)?.toIntOrNull()
+            ?: throw ApiException("Could not read your centre from /centre")
+        lastCentreId = cid
+        val name = SearchPageParser.centreName(body) ?: "Centre $cid"
+        val user = username.ifBlank {
+            sessionStore.accountJson()?.let {
+                runCatching { json.decodeFromString(SessionLite.serializer(), it).name }.getOrNull()
+            }.orEmpty().ifBlank { "registrar" }
         }
         return Session(
-            uid = uid,
-            name = display,
-            displayName = display,
-            centres = centres.map {
-                org.dhamma.dipi.staff.model.Centre(
-                    org.dhamma.dipi.staff.model.CentreId(it.id),
-                    it.label,
-                )
-            },
+            uid = 0,
+            name = user,
+            displayName = user,
+            centres = listOf(org.dhamma.dipi.staff.model.Centre(CentreId(cid), name)),
             modeTest = false,
         )
-    }
-
-    private suspend fun fetchSearchForm(centreId: Int) : org.dhamma.dipi.staff.network.SearchPage {
-        val resp = api.searchAppForm(centreId)
-        val html = resp.body()?.string().orEmpty()
-        if (html.contains("Access denied", ignoreCase = true) || resp.code() == 403) {
-            throw ApiException("Access denied")
-        }
-        val page = SearchPageParser.parse(html, centreId, baseUrl)
-        lastTokens = page.tokens ?: lastTokens
-        if (page.statuses.isNotEmpty()) lastStatuses = page.statuses
-        return page
     }
 
     private suspend fun persist(rows: List<ApplicantDto>) {

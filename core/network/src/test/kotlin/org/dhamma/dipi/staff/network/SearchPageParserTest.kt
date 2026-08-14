@@ -54,6 +54,32 @@ class SearchPageParserTest {
     @Test
     fun centreIdFromPath() {
         assertEquals(7, SearchPageParser.centreIdFromPath("/search-app/7"))
+        assertEquals(91, SearchPageParser.centreIdFromPath("/centre/91"))
         assertEquals(null, SearchPageParser.centreIdFromPath("/search-app"))
+    }
+
+    @Test
+    fun loginBlockAndDashboardCourses() {
+        val loginHtml = """
+            <form action="/home?destination=home" method="post" id="user-login-form">
+            <input type="hidden" name="form_build_id" value="form-XYZ" />
+            <input type="hidden" name="form_id" value="user_login_block" />
+            </form>
+        """.trimIndent()
+        val block = SearchPageParser.loginBlock(loginHtml)!!
+        assertEquals("form-XYZ", block.formBuildId)
+        assertEquals("user_login_block", block.formId)
+
+        val dash = """
+            <title>Manage Dhamma Ganga | Dīpi</title>
+            <h1>Manage Dhamma Ganga</h1>
+            <h2>Upcoming Courses</h2>
+            <div class="table-heading"><a href="/course/91/68669">Dhamma Ganga / STP / 2026 / 19th-Aug to 27th-Aug</a></div>
+            <div class="table-heading"><a href="/course/91/68670">Dhamma Ganga / 10 Day / 2026 / 2nd-Sep to 13th-Sep</a></div>
+        """.trimIndent()
+        assertEquals("Dhamma Ganga", SearchPageParser.centreName(dash))
+        val courses = SearchPageParser.coursesFromDashboard(dash)
+        assertEquals(listOf(68669, 68670), courses.map { it.id })
+        assertTrue(courses[0].label.contains("STP"))
     }
 }

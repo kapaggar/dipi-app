@@ -64,7 +64,9 @@ object NetworkModule {
             val b = chain.request().newBuilder()
                 .header("User-Agent", "DIPI-Staff/1.1 (Android; registrar desk)")
             val token = runBlocking { tokens.csrf() }
-            if (!token.isNullOrBlank() && chain.request().method != "GET") {
+            val path = chain.request().url.encodedPath
+            val skipCsrf = path == "/home" || path.startsWith("/user")
+            if (!token.isNullOrBlank() && chain.request().method != "GET" && !skipCsrf) {
                 b.header("X-CSRF-Token", token)
             }
             chain.proceed(b.build())

@@ -3,6 +3,7 @@ package org.dhamma.dipi.staff.network
 import okhttp3.ResponseBody
 import retrofit2.Response
 import retrofit2.http.Body
+import retrofit2.http.Field
 import retrofit2.http.FieldMap
 import retrofit2.http.FormUrlEncoded
 import retrofit2.http.GET
@@ -85,4 +86,38 @@ interface StaffApi {
     /** Live desk JSON. Permission: transfer course. Optional. */
     @GET("/get-courses/{cid}")
     suspend fun getCourses(@Path("cid") centreId: Int): List<LiveCourseDto>
+
+    /** HAR: anonymous GET / is 403 but includes user_login_block. */
+    @GET("/")
+    suspend fun siteRoot(): Response<ResponseBody>
+
+    @FormUrlEncoded
+    @POST("/home")
+    suspend fun loginBlock(
+        @Query("destination") destination: String = "home",
+        @Field("name") name: String,
+        @Field("pass") pass: String,
+        @Field("form_build_id") formBuildId: String,
+        @Field("form_id") formId: String = "user_login_block",
+        @Field("op") op: String = "Log in",
+    ): Response<ResponseBody>
+
+    @GET("/user/logout")
+    suspend fun logoutGet(): Response<ResponseBody>
+
+    @GET("/centre")
+    suspend fun centreLanding(): Response<ResponseBody>
+
+    @GET("/centre/{cid}")
+    suspend fun centreDashboard(@Path("cid") centreId: Int): Response<ResponseBody>
+
+    @GET("/search-course/{cid}/{courseId}")
+    suspend fun searchCourse(
+        @Path("cid") centreId: Int,
+        @Path("courseId") courseId: Int,
+        @Query("s") status: String = "",
+        @Query("t") old: String = "",
+        @Query("g") gender: String = "",
+        @Query("d") db: String = "a",
+    ): Response<ResponseBody>
 }
