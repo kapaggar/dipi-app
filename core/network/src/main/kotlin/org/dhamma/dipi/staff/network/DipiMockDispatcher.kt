@@ -28,7 +28,7 @@ class DipiMockDispatcher : Dispatcher() {
                             sessid = "sess-demo",
                             session_name = "SESS",
                             token = "csrf-demo",
-                            user = LoginUserDto(42, "registrar.giri"),
+                            user = LoginUserDto(42, "sudha.user"),
                         ),
                     ),
                 ).addHeader("Set-Cookie", "SESS=sess-demo; Path=/")

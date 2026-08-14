@@ -13,9 +13,9 @@ internal object MockFixtures {
 
     val session = SessionDto(
         uid = 42,
-        name = "registrar.giri",
-        displayName = "registrar.giri",
-        centres = listOf(CentreDto(CENTRE_ID, "Dhamma Giri")),
+        name = "sudha.user",
+        displayName = "sudha.user",
+        centres = listOf(CentreDto(CENTRE_ID, "Dhamma Sudha")),
         modeTest = true,
     )
 
@@ -43,7 +43,7 @@ internal object MockFixtures {
             home = "+91 20 2567 1120", dob = "11 Mar 1992", applied = "2 Jul 2026",
             photo = "good",
             history = HistoryDto(
-                "10 Jul 2018 · Dhamma Giri · Pundalik Ahire",
+                "10 Jul 2018 · Dhamma Sudha · Pundalik Ahire",
                 "1 Apr 2026 · Dhamma Pattana · Bhumidhar",
                 listOf(CountDto("10-day", 4), CountDto("Satipatthana", 1), CountDto("Dhamma service", 2)),
             ),
@@ -74,7 +74,7 @@ internal object MockFixtures {
             home = "+91 484 2334 771", dob = "2 Feb 1975", applied = "14 Jun 2026",
             history = HistoryDto(
                 "2 Feb 2001 · Dhamma Ketana · S. Ramanathan",
-                "12 Dec 2025 · Dhamma Giri · Bhumidhar",
+                "12 Dec 2025 · Dhamma Sudha · Bhumidhar",
                 listOf(CountDto("10-day", 11), CountDto("20-day", 1), CountDto("Satipatthana", 3), CountDto("Dhamma service", 9)),
             ),
             flags = listOf(FlagDto("SAFETY", "Emergency contact is their own mobile", "emergency_eq_self · 9447033218", "emergency_eq_self")),
@@ -141,8 +141,8 @@ internal object MockFixtures {
             mobile = "+91 90250 78003", email = "uma.rangan@dhamma.net",
             dob = "13 Jul 1964", applied = "2 Jun 2026",
             history = HistoryDto(
-                "3 Mar 1994 · Dhamma Giri · Goenkaji",
-                "5 May 2026 · Dhamma Giri · Bhumidhar",
+                "3 Mar 1994 · Dhamma Sudha · Goenkaji",
+                "5 May 2026 · Dhamma Sudha · Bhumidhar",
                 listOf(CountDto("10-day", 22), CountDto("45-day", 1), CountDto("Teacher self course", 3), CountDto("Dhamma service", 18)),
             ),
             flags = listOf(FlagDto("HARD", "Honorific left in the name field", "name_title_prefix · 'Sister'", "name_title_prefix")),

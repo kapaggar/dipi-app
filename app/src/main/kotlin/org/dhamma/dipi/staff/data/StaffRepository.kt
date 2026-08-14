@@ -21,6 +21,7 @@ import org.dhamma.dipi.staff.model.PhotoEdit
 import org.dhamma.dipi.staff.model.PhotoReviewItem
 import org.dhamma.dipi.staff.model.Session
 import org.dhamma.dipi.staff.model.StatusWrite
+import org.dhamma.dipi.staff.model.UserCentreMap
 import org.dhamma.dipi.staff.network.ApplicantDto
 import org.dhamma.dipi.staff.network.CropDto
 import org.dhamma.dipi.staff.network.DrupalAuthApi
@@ -68,7 +69,13 @@ class StaffRepository @Inject constructor(
                 if (dto.sessid.isNotBlank() && dto.session_name.isNotBlank()) {
                     tokens.saveSession("${dto.session_name}=${dto.sessid}", dto.token.ifBlank { null })
                 }
-                val session = api.session().toModel()
+                val mapped = UserCentreMap.name(username)
+                val base = api.session().toModel()
+                val session = base.copy(
+                    name = username,
+                    displayName = username,
+                    centres = base.centres.map { it.copy(name = mapped) },
+                )
                 sessionStore.setAccountJson(json.encodeToString(sessionLite(session)))
                 return@runCatching session
             }
@@ -102,6 +109,22 @@ class StaffRepository @Inject constructor(
             sessionStore.setAccountJson(json.encodeToString(sessionLite(session)))
             session
         }.getOrElse { throw it.toApi() }
+    }
+
+    /** Touch the Drupal session so the SESS cookie does not expire on a quiet desk. */
+    suspend fun keepAlive() {
+        if (useMock) {
+            val token = runCatching { auth.csrfToken().string() }.getOrNull()
+            if (!token.isNullOrBlank()) tokens.saveSession(tokens.sessionCookie(), token)
+            return
+        }
+        val token = runCatching { auth.csrfToken().string() }.getOrNull()
+        if (!token.isNullOrBlank()) tokens.saveSession(tokens.sessionCookie(), token)
+        val dash = api.centreLanding()
+        val html = dash.html()
+        if (stillOnLogin(html) || dash.code() == 403) {
+            throw ApiException("Session expired", unauthorized = true)
+        }
     }
 
     suspend fun restoreSession(): Session? {
@@ -304,7 +327,8 @@ class StaffRepository @Inject constructor(
     }
 
     private fun stillOnLogin(html: String): Boolean =
-        html.contains("user_login_block") && html.contains("name=\"pass\"")
+        html.contains("name=\"pass\"") &&
+            (html.contains("user_login_block") || html.contains("name=\"form_id\"") && html.contains("user_login"))
 
     private suspend fun sessionFromDeskHtml(html: String, path: String, username: String): Session {
         var body = html
@@ -317,11 +341,20 @@ class StaffRepository @Inject constructor(
                 throw ApiException("Access denied", unauthorized = true)
             }
         }
+        val mapped = SearchPageParser.selectOptions(body, "edit-centre")
         val cid = SearchPageParser.centreIdFromPath(pathNow)
             ?: Regex("""/course/(\d+)/""").find(body)?.groupValues?.get(1)?.toIntOrNull()
+            ?: mapped.firstOrNull()?.id
             ?: throw ApiException("Could not read your centre from /centre")
         lastCentreId = cid
-        val name = SearchPageParser.centreName(body) ?: "Centre $cid"
+        val name = SearchPageParser.centreName(body)
+            ?: mapped.firstOrNull { it.id == cid }?.label
+            ?: "Centre $cid"
+        val centres = if (mapped.isNotEmpty()) {
+            mapped.map { org.dhamma.dipi.staff.model.Centre(CentreId(it.id), it.label) }
+        } else {
+            listOf(org.dhamma.dipi.staff.model.Centre(CentreId(cid), name))
+        }
         val user = username.ifBlank {
             sessionStore.accountJson()?.let {
                 runCatching { json.decodeFromString(SessionLite.serializer(), it).name }.getOrNull()
@@ -331,7 +364,7 @@ class StaffRepository @Inject constructor(
             uid = 0,
             name = user,
             displayName = user,
-            centres = listOf(org.dhamma.dipi.staff.model.Centre(CentreId(cid), name)),
+            centres = centres,
             modeTest = false,
         )
     }

@@ -19,6 +19,7 @@ import org.dhamma.dipi.staff.datastore.SessionStore
 import org.dhamma.dipi.staff.model.ApplicantCard
 import org.dhamma.dipi.staff.model.ApplicantId
 import org.dhamma.dipi.staff.model.ApplicantStatus
+import org.dhamma.dipi.staff.model.Centre
 import org.dhamma.dipi.staff.model.Course
 import org.dhamma.dipi.staff.model.FlushSnack
 import org.dhamma.dipi.staff.model.PhotoEdit
@@ -35,6 +36,7 @@ data class DeskUiState(
     val password: String = "",
     val loginError: String? = null,
     val loginLoading: Boolean = false,
+    val remember: Boolean = false,
     val session: Session? = null,
     val courses: List<Course> = emptyList(),
     val course: Course? = null,
@@ -74,6 +76,7 @@ class DeskViewModel @Inject constructor(
 
     private var searchJob: Job? = null
     private var observeJob: Job? = null
+    private var keepAliveJob: Job? = null
     private var lastOffline: Boolean? = null
 
     init {
@@ -111,22 +114,48 @@ class DeskViewModel @Inject constructor(
                 }
             }
         }
-        viewModelScope.launch { restore() }
+        viewModelScope.launch {
+            val saved = sessionStore.remembered()
+            if (saved.on) {
+                _state.update {
+                    it.copy(username = saved.username, password = saved.password, remember = true)
+                }
+            }
+            restore()
+        }
     }
 
     fun onUser(v: String) { _state.update { it.copy(username = v) } }
     fun onPass(v: String) { _state.update { it.copy(password = v) } }
+    fun onRemember(v: Boolean) { _state.update { it.copy(remember = v) } }
 
     fun signIn() {
         val s = _state.value
         viewModelScope.launch {
             _state.update { it.copy(loginLoading = true, loginError = null) }
             runCatching { repo.login(s.username, s.password) }
-                .onSuccess { afterLogin(it) }
+                .onSuccess { session ->
+                    sessionStore.setRemembered(s.remember, s.username, s.password)
+                    afterLogin(session)
+                }
                 .onFailure { e ->
                     _state.update {
                         it.copy(loginLoading = false, loginError = e.message)
                     }
+                }
+        }
+    }
+
+    fun pickCentre(centre: Centre) {
+        viewModelScope.launch {
+            val session = _state.value.session ?: return@launch
+            val reordered = listOf(centre) + session.centres.filter { it.id != centre.id }
+            _state.update { it.copy(session = session.copy(centres = reordered), loading = true) }
+            runCatching { repo.loadCourses(centre.id) }
+                .onSuccess { list -> _state.update { it.copy(courses = list, loading = false) } }
+                .onFailure { e ->
+                    _state.update { it.copy(loading = false) }
+                    handleAuth(e)
                 }
         }
     }
@@ -312,9 +341,16 @@ class DeskViewModel @Inject constructor(
 
     fun logout() {
         viewModelScope.launch {
+            keepAliveJob?.cancel()
             repo.logout()
             photoStore.clear()
-            _state.value = DeskUiState(dark = _state.value.dark)
+            val saved = sessionStore.remembered()
+            _state.value = DeskUiState(
+                dark = _state.value.dark,
+                remember = saved.on,
+                username = if (saved.on) saved.username else "",
+                password = if (saved.on) saved.password else "",
+            )
         }
     }
 
@@ -333,6 +369,7 @@ class DeskViewModel @Inject constructor(
 
     private suspend fun afterLogin(session: Session) {
         _state.update { it.copy(session = session, loginLoading = false, loginError = null) }
+        startKeepAlive()
         val centre = session.centres.firstOrNull()
         if (centre != null) {
             runCatching { repo.loadCourses(centre.id) }
@@ -344,6 +381,21 @@ class DeskViewModel @Inject constructor(
         } else {
             _state.update { it.copy(screen = DeskScreen.Courses) }
         }
+    }
+
+    private fun startKeepAlive() {
+        keepAliveJob?.cancel()
+        keepAliveJob = viewModelScope.launch {
+            while (true) {
+                delay(KEEP_ALIVE_MS)
+                if (_state.value.session == null || _state.value.offline) continue
+                runCatching { repo.keepAlive() }.onFailure { handleAuth(it) }
+            }
+        }
+    }
+
+    companion object {
+        const val KEEP_ALIVE_MS = 20 * 60 * 1000L
     }
 
     private suspend fun restore() {
@@ -384,12 +436,17 @@ class DeskViewModel @Inject constructor(
     private fun handleAuth(e: Throwable) {
         if (e is ApiException && e.unauthorized) {
             viewModelScope.launch {
+                keepAliveJob?.cancel()
                 runCatching { repo.logout() }
                 photoStore.clear()
+                val saved = sessionStore.remembered()
                 _state.value = DeskUiState(
                     dark = _state.value.dark,
                     loginError = e.message,
                     screen = DeskScreen.Login,
+                    remember = saved.on,
+                    username = if (saved.on) saved.username else "",
+                    password = if (saved.on) saved.password else "",
                 )
             }
         } else if (_state.value.snack == null && e.message != null && e !is ApiException) {

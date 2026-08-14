@@ -46,8 +46,33 @@ class SessionStore @Inject constructor(
             .commit()
     }
 
+    data class Remembered(val on: Boolean, val username: String, val password: String)
+
+    fun remembered(): Remembered = Remembered(
+        on = secure.getBoolean(REMEMBER, false),
+        username = secure.getString(REMEMBER_USER, "").orEmpty(),
+        password = secure.getString(REMEMBER_PASS, "").orEmpty(),
+    )
+
+    fun setRemembered(on: Boolean, username: String, password: String) {
+        secure.edit()
+            .putBoolean(REMEMBER, on)
+            .apply {
+                if (on) {
+                    putString(REMEMBER_USER, username)
+                    putString(REMEMBER_PASS, password)
+                } else {
+                    remove(REMEMBER_USER)
+                    remove(REMEMBER_PASS)
+                }
+            }
+            .commit()
+    }
+
     override suspend fun clear() {
-        secure.edit().clear().apply()
+        val kept = remembered()
+        secure.edit().clear().commit()
+        if (kept.on) setRemembered(true, kept.username, kept.password)
         ds.edit { it.clear() }
     }
 
@@ -80,6 +105,9 @@ class SessionStore @Inject constructor(
     companion object {
         private const val COOKIE = "cookie"
         private const val CSRF = "csrf"
+        private const val REMEMBER = "remember"
+        private const val REMEMBER_USER = "remember_user"
+        private const val REMEMBER_PASS = "remember_pass"
         private val DARK = booleanPreferencesKey("dark")
         private val SYNC = stringPreferencesKey("sync")
         private val OFFLINE = booleanPreferencesKey("offline")

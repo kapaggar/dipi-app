@@ -53,7 +53,7 @@ class TodayScreenTest {
             DipiTheme {
                 TodayScreen(
                     course = course,
-                    centreName = "Dhamma Giri",
+                    centreName = "Dhamma Sudha",
                     query = "",
                     onQuery = {},
                     counts = mapOf("All" to 214, "Pending" to 61, "Confirmed" to 72),
@@ -83,7 +83,7 @@ class TodayScreenTest {
             DipiTheme {
                 TodayScreen(
                     course = course,
-                    centreName = "Dhamma Giri",
+                    centreName = "Dhamma Sudha",
                     query = "zzz",
                     onQuery = {},
                     counts = emptyMap(),
@@ -110,7 +110,7 @@ class TodayScreenTest {
             DipiTheme {
                 TodayScreen(
                     course = course,
-                    centreName = "Dhamma Giri",
+                    centreName = "Dhamma Sudha",
                     query = "",
                     onQuery = {},
                     counts = emptyMap(),

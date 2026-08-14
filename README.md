@@ -32,7 +32,7 @@ Override host (debug only):
 dipi.baseUrl=https://your-dipi-host.example
 ```
 
-Release `BuildConfig.BASE_URL` is `https://dipi.vridhamma.org`. There is **no URL field** on login; the centre comes from `GET /staff/session`.
+Release `BuildConfig.BASE_URL` is `https://dipi.vridhamma.org`. There is **no URL field** on login; the centre comes from Drupal user mapping (`dh_user_center`, e.g. `sudha.user` → Dhamma Sudha).
 
 ## Mock vs real
 
@@ -47,7 +47,7 @@ Settings has **Simulate offline** so you can enqueue a status change and see the
 
 ## What it is / is not
 
-Staff desk for Dhamma Giri registrars: find an applicant, read the card, change a status.  
+Staff desk for centre registrars: find an applicant, read the card, change a status. The signed-in user's `dh_user_center` mapping picks the centre.  
 Not student-apply, not a WebView, not AT/SMS/WhatsApp/IVR, not `/api` APP API, not attendance writes.
 
 ## Layout

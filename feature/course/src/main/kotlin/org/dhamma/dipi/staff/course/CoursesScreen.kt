@@ -13,6 +13,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import org.dhamma.dipi.staff.model.Centre
 import org.dhamma.dipi.staff.model.Course
 import org.dhamma.dipi.staff.model.Session
 import org.dhamma.dipi.staff.ui.theme.DipiCondensed
@@ -21,7 +22,12 @@ import java.time.LocalDate
 import java.time.temporal.ChronoUnit
 
 @Composable
-fun CoursesScreen(session: Session, courses: List<Course>, onPick: (Course) -> Unit) {
+fun CoursesScreen(
+    session: Session,
+    courses: List<Course>,
+    onPick: (Course) -> Unit,
+    onPickCentre: (Centre) -> Unit = {},
+) {
     val c = LocalDipi.current
     val centre = session.centres.firstOrNull()
     Column(Modifier.fillMaxSize().background(c.background).padding(20.dp)) {
@@ -31,6 +37,18 @@ fun CoursesScreen(session: Session, courses: List<Course>, onPick: (Course) -> U
             fontSize = 22.sp,
             color = c.foreground,
         )
+        if (session.centres.size > 1) {
+            session.centres.forEach { item ->
+                Text(
+                    item.name,
+                    color = if (item.id == centre?.id) c.accent else c.muted,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onPickCentre(item) }
+                        .padding(vertical = 6.dp),
+                )
+            }
+        }
         Text("Upcoming courses", color = c.muted, modifier = Modifier.padding(top = 16.dp, bottom = 8.dp))
         LazyColumn {
             itemsIndexed(courses, key = { _, it -> it.id.value }) { index, course ->

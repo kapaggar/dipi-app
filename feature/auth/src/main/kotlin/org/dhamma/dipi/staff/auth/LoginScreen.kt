@@ -9,11 +9,19 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material3.Button
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -31,12 +39,15 @@ fun LoginScreen(
     onUser: (String) -> Unit,
     onPass: (String) -> Unit,
     onSubmit: () -> Unit,
+    remember: Boolean = false,
+    onRemember: (Boolean) -> Unit = {},
 ) {
     val c = LocalDipi.current
     Column(
         Modifier
             .fillMaxSize()
             .background(c.background)
+            .verticalScroll(rememberScrollState())
             .padding(28.dp),
     ) {
         Spacer(Modifier.height(48.dp))
@@ -56,6 +67,17 @@ fun LoginScreen(
             keyboardActions = KeyboardActions(onDone = { onSubmit() }),
         )
         Spacer(Modifier.height(8.dp))
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .toggleable(value = remember, role = Role.Checkbox, onValueChange = onRemember)
+                .padding(vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Start,
+        ) {
+            Checkbox(checked = remember, onCheckedChange = null)
+            Text("Remember me", modifier = Modifier.padding(start = 8.dp), color = c.foreground, fontSize = 14.sp)
+        }
         Text("Your centre is read from your account after sign-in.", color = c.muted, fontSize = 13.sp)
         if (!error.isNullOrBlank()) {
             Spacer(Modifier.height(12.dp))

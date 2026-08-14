@@ -38,7 +38,7 @@ class DipiMockDispatcherTest {
     fun loginSuccessSetsSessCookie() {
         val req = Request.Builder()
             .url(server.url("/api/user/login"))
-            .post("""{"username":"registrar.giri","password":"ok"}""".toRequestBody(null))
+            .post("""{"username":"sudha.user","password":"ok"}""".toRequestBody(null))
             .build()
         client.newCall(req).execute().use { resp ->
             assertEquals(200, resp.code)

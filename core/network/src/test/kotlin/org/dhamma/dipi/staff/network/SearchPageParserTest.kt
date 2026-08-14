@@ -14,7 +14,7 @@ class SearchPageParserTest {
         <input type="hidden" name="form_id" value="dh_manageapp_search_form" />
         <select id="edit-course" name="course">
           <option value="">Choose</option>
-          <option value="42">Dhamma Giri / 10-Day / 20 Aug 2026 - 31 Aug 2026</option>
+          <option value="42">Dhamma Sudha / 10-Day / 20 Aug 2026 - 31 Aug 2026</option>
         </select>
         <select id="edit-app-status" name="status">
           <option value="">Choose</option>

@@ -34,6 +34,7 @@ class LoginScreenTest {
         rule.onNodeWithText("Centre admin desk").assertIsDisplayed()
         rule.onNodeWithText("Sign in").assertIsDisplayed()
         rule.onNodeWithText("Your centre is read from your account after sign-in.").assertIsDisplayed()
+        rule.onNodeWithText("Remember me").assertIsDisplayed()
         rule.onNodeWithText("https://", substring = true).assertDoesNotExist()
         rule.onNodeWithText("Server URL", substring = true).assertDoesNotExist()
     }

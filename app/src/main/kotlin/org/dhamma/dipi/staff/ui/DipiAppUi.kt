@@ -94,11 +94,13 @@ fun DipiAppUi(vm: DeskViewModel) {
                             onUser = vm::onUser,
                             onPass = vm::onPass,
                             onSubmit = vm::signIn,
+                            remember = state.remember,
+                            onRemember = vm::onRemember,
                         )
                         DeskScreen.Courses -> {
                             val session = state.session
                             if (session != null) {
-                                CoursesScreen(session, state.courses, vm::pickCourse)
+                                CoursesScreen(session, state.courses, vm::pickCourse, vm::pickCentre)
                             }
                         }
                         else -> DeskBody(vm, state, wide)
