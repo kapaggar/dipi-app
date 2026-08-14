@@ -30,6 +30,7 @@ class SessionCookieJar(
 
     fun clear() {
         synchronized(lock) { store.clear() }
+        runBlocking { tokens.saveSession(null, tokens.csrf()) }
     }
 
     private fun persist() {

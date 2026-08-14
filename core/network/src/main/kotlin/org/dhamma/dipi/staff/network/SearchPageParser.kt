@@ -19,6 +19,7 @@ data class SelectOption(val id: Int, val label: String)
 data class LoginBlock(
     val formBuildId: String,
     val formId: String,
+    val action: String,
 )
 
 data class SearchPage(
@@ -49,7 +50,21 @@ object SearchPageParser {
     fun loginBlock(html: String): LoginBlock? {
         val build = namedValue(html, "form_build_id") ?: return null
         val id = namedValue(html, "form_id") ?: "user_login_block"
-        return LoginBlock(build, id)
+        val action = loginFormAction(html)
+            ?: if (id == "user_login") "/user/login" else "/home?destination=home"
+        return LoginBlock(build, id, action)
+    }
+
+    fun loginFormAction(html: String): String? {
+        val tags = Regex("""<form\b[^>]*>""", RegexOption.IGNORE_CASE).findAll(html)
+        for (tag in tags) {
+            val open = tag.value
+            if (!open.contains("login", ignoreCase = true)) continue
+            val action = Regex("""action=["']([^"']+)["']""", RegexOption.IGNORE_CASE)
+                .find(open)?.groupValues?.get(1)
+            if (!action.isNullOrBlank()) return action.replace("&amp;", "&")
+        }
+        return null
     }
 
     fun loginError(html: String): String? {

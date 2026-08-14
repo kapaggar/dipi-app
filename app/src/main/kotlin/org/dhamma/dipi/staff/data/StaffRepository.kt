@@ -74,14 +74,21 @@ class StaffRepository @Inject constructor(
             }
             cookies.clear()
             tokens.saveSession(null, null)
-            var rootHtml = api.siteRoot().html()
+            // /user/login is 200; GET / and /centre are 403 and omit the form
+            // when a leftover authenticated cookie is still attached.
+            var rootHtml = api.userLogin().html()
             var block = SearchPageParser.loginBlock(rootHtml)
+            if (block == null) {
+                rootHtml = api.siteRoot().html()
+                block = SearchPageParser.loginBlock(rootHtml)
+            }
             if (block == null) {
                 rootHtml = api.centreLanding().html()
                 block = SearchPageParser.loginBlock(rootHtml)
             }
             val login = block ?: throw ApiException("Could not read the desk login form")
-            val after = api.loginBlock(
+            val after = api.submitLogin(
+                action = login.action,
                 name = username,
                 pass = password,
                 formBuildId = login.formBuildId,

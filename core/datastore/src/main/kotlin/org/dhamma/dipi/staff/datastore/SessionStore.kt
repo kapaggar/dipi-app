@@ -43,7 +43,7 @@ class SessionStore @Inject constructor(
                 if (cookie == null) remove(COOKIE) else putString(COOKIE, cookie)
                 if (csrf == null) remove(CSRF) else putString(CSRF, csrf)
             }
-            .apply()
+            .commit()
     }
 
     override suspend fun clear() {

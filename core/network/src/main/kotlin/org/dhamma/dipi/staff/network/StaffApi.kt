@@ -10,6 +10,7 @@ import retrofit2.http.GET
 import retrofit2.http.POST
 import retrofit2.http.Path
 import retrofit2.http.Query
+import retrofit2.http.Url
 
 interface DrupalAuthApi {
     @POST("/api/user/login")
@@ -91,6 +92,10 @@ interface StaffApi {
     @GET("/")
     suspend fun siteRoot(): Response<ResponseBody>
 
+    /** 200 HTML (unlike GET / which is 403). Use when the desk 403 page has no form. */
+    @GET("/user/login")
+    suspend fun userLogin(): Response<ResponseBody>
+
     @FormUrlEncoded
     @POST("/home")
     suspend fun loginBlock(
@@ -99,6 +104,17 @@ interface StaffApi {
         @Field("pass") pass: String,
         @Field("form_build_id") formBuildId: String,
         @Field("form_id") formId: String = "user_login_block",
+        @Field("op") op: String = "Log in",
+    ): Response<ResponseBody>
+
+    @FormUrlEncoded
+    @POST
+    suspend fun submitLogin(
+        @Url action: String,
+        @Field("name") name: String,
+        @Field("pass") pass: String,
+        @Field("form_build_id") formBuildId: String,
+        @Field("form_id") formId: String,
         @Field("op") op: String = "Log in",
     ): Response<ResponseBody>
 

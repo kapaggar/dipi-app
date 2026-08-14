@@ -69,6 +69,7 @@ class SearchPageParserTest {
         val block = SearchPageParser.loginBlock(loginHtml)!!
         assertEquals("form-XYZ", block.formBuildId)
         assertEquals("user_login_block", block.formId)
+        assertEquals("/home?destination=home", block.action)
 
         val dash = """
             <title>Manage Dhamma Ganga | Dīpi</title>
@@ -96,5 +97,22 @@ class SearchPageParserTest {
         val block = SearchPageParser.loginBlock(html)!!
         assertTrue(block.formBuildId.startsWith("form-9l"))
         assertEquals("user_login_block", block.formId)
+        assertEquals("/home?destination=home", block.action)
+    }
+
+    @Test
+    fun loginBlockFromUserLoginPage() {
+        val html = """
+            <title>User account | Dīpi</title>
+            <form action="/user/login" method="post" id="user-login" accept-charset="UTF-8">
+            <input type="hidden" name="form_build_id" value="form-user-login-page" />
+            <input type="hidden" name="form_id" value="user_login" />
+            <button type="submit" name="op" value="Log in">Log in</button>
+            </form>
+        """.trimIndent()
+        val block = SearchPageParser.loginBlock(html)!!
+        assertEquals("form-user-login-page", block.formBuildId)
+        assertEquals("user_login", block.formId)
+        assertEquals("/user/login", block.action)
     }
 }
