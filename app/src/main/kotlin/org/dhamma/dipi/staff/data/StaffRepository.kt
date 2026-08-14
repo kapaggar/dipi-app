@@ -30,6 +30,7 @@ import org.dhamma.dipi.staff.network.SearchPageParser
 import org.dhamma.dipi.staff.network.SessionCookieJar
 import org.dhamma.dipi.staff.network.StaffApi
 import org.dhamma.dipi.staff.network.TokenStore
+import org.dhamma.dipi.staff.network.html
 import java.time.Instant
 import javax.inject.Inject
 import javax.inject.Named
@@ -73,17 +74,20 @@ class StaffRepository @Inject constructor(
             }
             cookies.clear()
             tokens.saveSession(null, null)
-            val root = api.siteRoot()
-            val rootHtml = root.body()?.string().orEmpty()
-            val block = SearchPageParser.loginBlock(rootHtml)
-                ?: throw ApiException("Could not read the desk login form")
+            var rootHtml = api.siteRoot().html()
+            var block = SearchPageParser.loginBlock(rootHtml)
+            if (block == null) {
+                rootHtml = api.centreLanding().html()
+                block = SearchPageParser.loginBlock(rootHtml)
+            }
+            val login = block ?: throw ApiException("Could not read the desk login form")
             val after = api.loginBlock(
                 name = username,
                 pass = password,
-                formBuildId = block.formBuildId,
-                formId = block.formId,
+                formBuildId = login.formBuildId,
+                formId = login.formId,
             )
-            val html = after.body()?.string().orEmpty()
+            val html = after.html()
             if (stillOnLogin(html)) {
                 throw ApiException(SearchPageParser.loginError(html) ?: "Login failed")
             }
@@ -98,7 +102,7 @@ class StaffRepository @Inject constructor(
         return runCatching {
             if (useMock) api.session().toModel() else {
                 val dash = api.centreLanding()
-                val html = dash.body()?.string().orEmpty()
+                val html = dash.html()
                 if (stillOnLogin(html) || dash.code() == 403) throw ApiException("Access denied", unauthorized = true)
                 sessionFromDeskHtml(html, dash.raw().request.url.encodedPath, "")
             }
@@ -120,7 +124,7 @@ class StaffRepository @Inject constructor(
             return@runCatching api.courses(centreId.value, upcoming = 1).items.map { it.toModel() }
         }
         val dash = api.centreDashboard(centreId.value)
-        val html = dash.body()?.string().orEmpty()
+        val html = dash.html()
         if (stillOnLogin(html) || dash.code() == 403) throw ApiException("Access denied", unauthorized = true)
         SearchPageParser.coursesFromDashboard(html).map {
             Course(CourseId(it.id), centreId, it.label, "", "")
@@ -165,8 +169,8 @@ class StaffRepository @Inject constructor(
                 gender = "",
                 db = "a",
             )
-            val html = resp.body()?.string().orEmpty()
-            if (stillOnLogin(html) || resp.code() == 403) {
+            val html = resp.html()
+            if (stillOnLogin(html) || (resp.code() == 403 && !html.contains("var dataset"))) {
                 throw ApiException("Access denied", unauthorized = true)
             }
             val result = SearchPageParser.parse(html, cid, baseUrl)
@@ -300,7 +304,7 @@ class StaffRepository @Inject constructor(
         var pathNow = path
         if (!body.contains("table-heading") && !body.contains("/course/")) {
             val dash = api.centreLanding()
-            body = dash.body()?.string().orEmpty()
+            body = dash.html()
             pathNow = dash.raw().request.url.encodedPath
             if (stillOnLogin(body) || dash.code() == 403) {
                 throw ApiException("Access denied", unauthorized = true)

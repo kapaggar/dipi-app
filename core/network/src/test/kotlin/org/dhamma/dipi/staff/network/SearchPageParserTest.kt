@@ -82,4 +82,19 @@ class SearchPageParserTest {
         assertEquals(listOf(68669, 68670), courses.map { it.id })
         assertTrue(courses[0].label.contains("STP"))
     }
+
+    @Test
+    fun loginBlockFromLive403Snippet() {
+        val html = """
+            <title>Access denied | Dīpi</title>
+            <h1>Access denied</h1>
+            <form action="/home?destination=home" method="post" id="user-login-form" accept-charset="UTF-8">
+            <input type="hidden" name="form_build_id" value="form-9l-lBifyxxW8im7VDQskA8QTxthgW4IyYdqrvwz5EcM" />
+            <input type="hidden" name="form_id" value="user_login_block" />
+            </form>
+        """.trimIndent()
+        val block = SearchPageParser.loginBlock(html)!!
+        assertTrue(block.formBuildId.startsWith("form-9l"))
+        assertEquals("user_login_block", block.formId)
+    }
 }
