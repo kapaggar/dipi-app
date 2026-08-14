@@ -27,6 +27,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import org.dhamma.dipi.staff.BuildConfig
 import org.dhamma.dipi.staff.R
 import org.dhamma.dipi.staff.applicants.CardScreen
 import org.dhamma.dipi.staff.applicants.StatusSheet
@@ -100,9 +101,16 @@ fun DipiAppUi(vm: DeskViewModel) {
                         DeskScreen.Courses -> {
                             val session = state.session
                             if (session != null) {
-                                CoursesScreen(session, state.courses, vm::pickCourse, vm::pickCentre)
+                                CoursesScreen(
+                                    session,
+                                    state.courses,
+                                    vm::pickCourse,
+                                    vm::pickCentre,
+                                    vm::openSettings,
+                                )
                             }
                         }
+                        DeskScreen.Settings -> SettingsPane(vm, state)
                         else -> DeskBody(vm, state, wide)
                     }
                 }
@@ -189,19 +197,27 @@ private fun DeskBody(vm: DeskViewModel, state: DeskUiState, wide: Boolean) {
                 pendingUploads = vm.pendingUploads(),
             )
             DeskScreen.Summary -> DaySummaryScreen(course, state.rows)
-            DeskScreen.Settings -> SettingsScreen(
-                session = state.session,
-                dark = state.dark,
-                lastSync = state.lastSync,
-                queued = state.queuedCount,
-                offline = state.offline,
-                onToggleTheme = vm::toggleTheme,
-                onToggleOffline = vm::toggleOffline,
-                onLogout = vm::logout,
-            )
+            DeskScreen.Settings -> SettingsPane(vm, state)
             else -> today(Modifier.fillMaxSize())
         }
     }
+}
+
+@Composable
+private fun SettingsPane(vm: DeskViewModel, state: DeskUiState) {
+    BackHandler { vm.back() }
+    SettingsScreen(
+        session = state.session,
+        dark = state.dark,
+        lastSync = state.lastSync,
+        queued = state.queuedCount,
+        offline = state.offline,
+        onToggleTheme = vm::toggleTheme,
+        onToggleOffline = vm::toggleOffline,
+        onLogout = vm::logout,
+        onFactoryReset = vm::factoryReset,
+        appVersion = BuildConfig.VERSION_NAME,
+    )
 }
 
 @Composable

@@ -244,7 +244,9 @@ class DeskViewModel @Inject constructor(
         _state.update { cur ->
             cur.copy(
                 screen = when (cur.screen) {
-                    DeskScreen.Card, DeskScreen.Photos, DeskScreen.Summary, DeskScreen.Settings ->
+                    DeskScreen.Settings ->
+                        if (cur.course != null) DeskScreen.Today else DeskScreen.Courses
+                    DeskScreen.Card, DeskScreen.Photos, DeskScreen.Summary ->
                         DeskScreen.Today
                     DeskScreen.Today -> DeskScreen.Courses
                     else -> cur.screen
@@ -351,6 +353,15 @@ class DeskViewModel @Inject constructor(
                 username = if (saved.on) saved.username else "",
                 password = if (saved.on) saved.password else "",
             )
+        }
+    }
+
+    fun factoryReset() {
+        viewModelScope.launch {
+            keepAliveJob?.cancel()
+            repo.factoryReset()
+            photoStore.clear()
+            _state.value = DeskUiState()
         }
     }
 

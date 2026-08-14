@@ -76,6 +76,12 @@ class SessionStore @Inject constructor(
         ds.edit { it.clear() }
     }
 
+    /** Factory reset: drop cookies, remember-me, theme, and account. */
+    suspend fun wipeAll() {
+        secure.edit().clear().commit()
+        ds.edit { it.clear() }
+    }
+
     suspend fun setTheme(dark: Boolean) {
         ds.edit { it[DARK] = dark }
     }

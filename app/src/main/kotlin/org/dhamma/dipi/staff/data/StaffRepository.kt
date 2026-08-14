@@ -326,6 +326,15 @@ class StaffRepository @Inject constructor(
         lastCentreId = null
     }
 
+    suspend fun factoryReset() {
+        if (useMock) runCatching { auth.logout() } else runCatching { api.logoutGet() }
+        cookies.clear()
+        applicants.clear()
+        outbox.clear()
+        sessionStore.wipeAll()
+        lastCentreId = null
+    }
+
     private fun stillOnLogin(html: String): Boolean =
         html.contains("name=\"pass\"") &&
             (html.contains("user_login_block") || html.contains("name=\"form_id\"") && html.contains("user_login"))

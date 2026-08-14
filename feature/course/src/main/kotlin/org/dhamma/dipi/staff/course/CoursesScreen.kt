@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -27,6 +28,7 @@ fun CoursesScreen(
     courses: List<Course>,
     onPick: (Course) -> Unit,
     onPickCentre: (Centre) -> Unit = {},
+    onSettings: () -> Unit = {},
 ) {
     val c = LocalDipi.current
     val centre = session.centres.firstOrNull()
@@ -50,7 +52,7 @@ fun CoursesScreen(
             }
         }
         Text("Upcoming courses", color = c.muted, modifier = Modifier.padding(top = 16.dp, bottom = 8.dp))
-        LazyColumn {
+        LazyColumn(Modifier.weight(1f)) {
             itemsIndexed(courses, key = { _, it -> it.id.value }) { index, course ->
                 val days = runCatching {
                     ChronoUnit.DAYS.between(LocalDate.parse("2026-08-13"), LocalDate.parse(course.start))
@@ -74,6 +76,9 @@ fun CoursesScreen(
                     }
                 }
             }
+        }
+        TextButton(onClick = onSettings, modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
+            Text("Settings")
         }
     }
 }
