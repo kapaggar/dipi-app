@@ -1,24 +1,63 @@
-# DIPI Staff Android
+# DIPI Staff
 
-Native **centre-staff** client of the DIPI registrar desk (`dh_manageapp`).
+Native centre-staff client for the DIPI registrar desk (`dh_manageapp`). Package `org.dhamma.dipi.staff`.
 
-Not a student-apply app. Not a WebView of `dipi.vridhamma.org`. Not AT portal, SMS, WhatsApp, IVR, Mitra, or Patrika.
+**Governing spec:** [docs/DIPI-STAFF-IMPLEMENTATION-PROMPT-GROK-4.6.md](docs/DIPI-STAFF-IMPLEMENTATION-PROMPT-GROK-4.6.md)  
+That file **supersedes** [docs/00-architecture.md](docs/00-architecture.md) and [docs/DIPI-STAFF-ANDROID-GROK-PROMPT.md](docs/DIPI-STAFF-ANDROID-GROK-PROMPT.md) where they conflict (no client access control, no `/staff` status façade, no attendance write, fixed `BuildConfig.BASE_URL`).
 
-**Status (2026-08-13):** documentation only. No Android modules yet. Vertical 1 is waiting on P0 validation (Fable) and human approval.
+**Design:** [docs/DIPI Staff.dc.html](docs/DIPI%20Staff.dc.html) — visual source of truth.  
+**API:** [docs/openapi-staff.yaml](docs/openapi-staff.yaml) v0.2  
+**PHP still needed:** [docs/TODO-SERVER.md](docs/TODO-SERVER.md)
 
-## Read first
+## Run
 
-1. [docs/plans/2026-08-13-p0-fable-validation.md](docs/plans/2026-08-13-p0-fable-validation.md) — validate this before scaffolding
-2. [docs/00-architecture.md](docs/00-architecture.md)
-3. [docs/openapi-staff.yaml](docs/openapi-staff.yaml)
-4. [AGENTS.md](AGENTS.md) / [CLAUDE.md](CLAUDE.md)
+```bash
+# local.properties must contain sdk.dir=…
+# Debug uses the in-process MockWebServer by default (BuildConfig.USE_MOCK=true).
+./gradlew :app:assembleDebug
+./gradlew :app:testDebugUnitTest
+./gradlew :core:model:test :core:audit:test
+```
 
-## Vertical 1 (Today’s applications)
+Point debug at a real host (and set `USE_MOCK` false by changing the debug `buildConfigField` if you also want to skip the mock):
 
-Login as a Drupal centre user → pick centre + unfinalized course → worklist + search → public applicant card → change status (existing PHP path) → toggle `a_attended`.
+```properties
+# gradle.properties or -P
+dipi.baseUrl=https://your-dipi-host.example
+```
 
-Day-0 lists, seating, CameraX, letter admin, and the 50-field editor are **out**.
+Release `BuildConfig.BASE_URL` is `https://dipi.vridhamma.org`. There is **no URL field** on login; the centre comes from `GET /staff/session`.
 
-## Sibling server
+## Mock vs real
 
-`/Users/wizops/DIPI/dipi-web` — Drupal 7. Prefer local clone over guessing GitHub.
+| Build | `USE_MOCK` | Host |
+|---|---|---|
+| debug (default) | true | in-process MockWebServer (design fixtures) |
+| release | false | `https://dipi.vridhamma.org` |
+
+Mock `/change-status`: Rakesh Iyer is refused with the Area-teacher message; other Confirmed writes mint `NF129`. Login password `bad` returns `Unrecognized username or password.`
+
+Settings has **Simulate offline** so you can enqueue a status change and see the queued row + banner.
+
+## What it is / is not
+
+Staff desk for Dhamma Giri registrars: find an applicant, read the card, change a status.  
+Not student-apply, not a WebView, not AT/SMS/WhatsApp/IVR, not `/api` APP API, not attendance writes.
+
+## Layout
+
+```
+:app                 Hilt app, repository, ViewModel, chrome
+:core:model          ids, status, worklist filter, outbox reconciler
+:core:network        Retrofit + mock dispatcher/fixtures
+:core:database       Room + SQLCipher (one course + outbox)
+:core:datastore      Encrypted prefs (cookie/CSRF) + DataStore (theme)
+:core:ui             tokens, badge, row, chips
+:core:audit          client rules (never block)
+:feature:auth        login
+:feature:course      course list
+:feature:applicants  today, card, status sheet
+:feature:photos      photo review
+:feature:summary     day summary (read-only)
+:feature:settings
+```
