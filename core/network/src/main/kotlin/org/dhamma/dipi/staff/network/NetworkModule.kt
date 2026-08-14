@@ -12,6 +12,10 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.mockwebserver.MockWebServer
 import retrofit2.Retrofit
+import java.net.InetAddress
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 import javax.inject.Named
 import javax.inject.Singleton
 
@@ -24,9 +28,26 @@ object NetworkModule {
 
     @Provides
     @Singleton
-    fun mockServer(): MockWebServer = MockWebServer().apply {
-        dispatcher = DipiMockDispatcher()
-        start()
+    fun mockServer(@Named("useMock") useMock: Boolean): MockWebServer {
+        val server = MockWebServer()
+        server.dispatcher = DipiMockDispatcher()
+        if (!useMock) return server
+        // start() defaults to InetAddress.getByName("localhost"), which is DNS
+        // and crashes on the main thread (NetworkOnMainThreadException).
+        val ready = CountDownLatch(1)
+        val fail = arrayOfNulls<Throwable>(1)
+        Executors.newSingleThreadExecutor().execute {
+            try {
+                server.start(InetAddress.getByAddress(byteArrayOf(127, 0, 0, 1)), 0)
+            } catch (t: Throwable) {
+                fail[0] = t
+            } finally {
+                ready.countDown()
+            }
+        }
+        check(ready.await(5, TimeUnit.SECONDS)) { "MockWebServer start timed out" }
+        fail[0]?.let { throw it }
+        return server
     }
 
     @Provides
@@ -69,7 +90,8 @@ object NetworkModule {
         @Named("baseUrl") baseUrl: String,
         server: MockWebServer,
     ): Retrofit {
-        val url = if (useMock) server.url("/").toString() else baseUrl.ensureSlash()
+        // MockWebServer.url() reverse-DNSes the bind address (NetworkOnMainThread).
+        val url = if (useMock) "http://127.0.0.1:${server.port}/" else baseUrl.ensureSlash()
         return Retrofit.Builder()
             .baseUrl(url)
             .client(client)
