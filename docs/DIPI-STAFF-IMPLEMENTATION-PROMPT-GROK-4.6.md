@@ -1,11 +1,14 @@
 # DIPI Staff — implementation prompt for Grok Heavy Build 4.6
 
+**Date:** 2026-08-13  
+**Status (2026-08-15):** Vertical 1 is **shipped at 1.4.1**. Product rules below still hold. **Transport does not:** there is no `/staff` JSON layer and no Services login on `https://dipi.vridhamma.org`. The live client uses the browser desk (`docs/LIVE-DESK-HAR.md`, `AGENTS.md`). PHP is immutable. Do not hardcode Dhamma Giri.
+
 **Date:** 2026-08-13
-**Repo:** `/Users/wizops/DIPI/dipi-app` (docs) — scaffold the Android project here.
+**Repo:** `/Users/wizops/DIPI/dipi-app`
 **Server source (read-only reference):** `/Users/wizops/DIPI/dipi-web` (Drupal 7, module `dh_manageapp`)
 **Design (the visual + behavioral spec):** `docs/DIPI Staff.dc.html` — open it in a browser; frame 1a is a live click-through. **The design wins every visual argument.**
-**API contract:** `docs/openapi-staff.yaml` (extend it where this prompt adds endpoints)
-**Background:** `docs/00-architecture.md`, `docs/DIPI-STAFF-ANDROID-GROK-PROMPT.md` (domain spec; where it conflicts with this file, **this file wins** — it is newer and reflects two human decisions made after validation).
+**API contract:** `docs/openapi-staff.yaml` is **mock-only / historical**. Live paths are in `docs/LIVE-DESK-HAR.md`.
+**Background:** `docs/00-architecture.md`, `docs/DIPI-STAFF-ANDROID-GROK-PROMPT.md` (domain spec; where it conflicts with this file **on product rules**, this file wins).
 
 ---
 

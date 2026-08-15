@@ -11,6 +11,7 @@
 - No attendance write in Vertical 1 (no `/staff/.../attended`).
 - Server URL is `BuildConfig.BASE_URL` (fixed; debug Gradle override). Login has no URL field.
 - Build screens in the design: photos, day summary, settings, audit panel.
+- **2026-08-15:** Live host has no `/staff` and no Services login. The shipped client scrapes desk HTML (`LIVE-DESK-HAR.md`). The “Never parse HTML / mock `/staff` first” plan below is historical.
 
 Keep this file only as historical context.
 

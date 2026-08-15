@@ -1,24 +1,28 @@
-# TODO(server) — mocked `/staff` routes
+# Mock `/staff` routes — not live PHP
 
-Every row is served by the debug mock until PHP lands. Status writes already exist.
+The live host `https://dipi.vridhamma.org` is **immutable**. Do **not** implement these routes in `dipi-web`. They exist only on MockWebServer when `-Pdipi.useMock=true`.
 
-| Method | Path | PHP to implement |
+The shipping client talks to the existing desk instead (see `LIVE-DESK-HAR.md`).
+
+| Method | Path | Used when |
 |---|---|---|
-| GET | `/staff/session` | `users` + `dh_user_center` + `variable_get('mode_test')` |
-| GET | `/staff/centres/{cid}/courses?upcoming=1` | `dh_course` where `c_finalized=0` and `c_deleted=0` |
-| GET | `/staff/courses/{id}/applicants` | `search.inc` WHERE + **whitelist SELECT** (no `ae_*`, no national IDs) |
-| GET | `/staff/applicants/{id}` | public `dh_applicant` + `dh_applicant_course` history + server flags |
-| GET | `/staff/meta/statuses` | `dh_type_detail` COURSE-SYSTEM-STATUS / COURSE-STATUS |
-| GET | `/staff/applicants/{id}/photo` | `a_photo` S3 stream |
-| GET | `/staff/courses/{id}/photo-review` | new suggestion classes |
-| POST | `/staff/applicants/{id}/photo` | resubmit application with swapped photo; return drift |
+| GET | `/staff/session` | mock session |
+| GET | `/staff/centres/{cid}/courses?upcoming=1` | mock course list |
+| GET | `/staff/courses/{id}/applicants` | mock worklist |
+| GET | `/staff/applicants/{id}` | mock card |
+| GET | `/staff/meta/statuses` | mock status chips |
+| GET | `/staff/courses/{id}/photo-review` | mock photo review |
+| POST | `/staff/applicants/{id}/photo` | mock photo upload |
 
-**Existing (do not wrap):**
+**Existing on live (do not wrap, do not invent replacements):**
 
 | Method | Path | PHP |
 |---|---|---|
-| POST | `/api/user/login` | Services |
-| GET | `/services/session/token` | Services |
-| GET/POST | `/change-status/{id}?s=&l=&c=` | `_change_status` |
+| GET | `/user/login`, `/`, `/centre`, `/centre/{cid}` | desk HTML |
+| POST | `/user/login` or `/home?destination=home` | `user_login` / `user_login_block` |
+| GET | `/search-course/{cid}/{courseId}` | `var dataset` |
+| GET | `/change-status/{id}?s=&l=&c=` | `_change_status` |
+| GET | `/services/session/token` | CSRF keep-alive (optional) |
+| GET | `/user/logout` | logout |
 
-**Do not implement in v1:** `POST /staff/applicants/{id}/attended`, `/app-update-attended` from this app.
+**Do not implement in v1:** `POST /staff/applicants/{id}/attended`, `/app-update-attended` from this app. Photo upload is not exposed on the live desk.

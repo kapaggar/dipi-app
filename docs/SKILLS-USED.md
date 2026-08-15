@@ -1,6 +1,6 @@
 # Skills used for Phase 1
 
-Read before writing `docs/00-architecture.md`. No Android modules were created.
+Historical. The Android tree now exists (`feat/vertical-1`, 1.4.1). See `AGENTS.md`.
 
 | Skill | Applied |
 |---|---|

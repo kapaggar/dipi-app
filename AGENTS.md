@@ -4,12 +4,28 @@ Guidance for Claude Code, Cursor, Codex, Fable, Grok.
 
 ## What this is
 
-Centre-staff Android client for DIPI registrar desk. Package: `org.dhamma.dipi.staff`.
+Centre-staff Android client for the DIPI registrar desk. Package: `org.dhamma.dipi.staff`.
 
-**Governing spec:** `docs/DIPI-STAFF-IMPLEMENTATION-PROMPT-GROK-4.6.md`  
-It **supersedes** `docs/00-architecture.md` and `docs/DIPI-STAFF-ANDROID-GROK-PROMPT.md` on conflicts.
+**Shipped:** Vertical 1 on `feat/vertical-1`, **1.4.1** (`versionCode` 10). Live default is `https://dipi.vridhamma.org`. Backend PHP is **immutable** — do not add `/staff/*` or change `dipi-web`.
+
+**Read first:** this file, then `docs/LIVE-DESK-HAR.md`.  
+`docs/DIPI-STAFF-IMPLEMENTATION-PROMPT-GROK-4.6.md` still wins on product rules (no client ACL, no `Approved`, no attendance write) but is **wrong** on transport: there is no `/staff` JSON layer on the live host.
 
 Server reference (read-only): `/Users/wizops/DIPI/dipi-web` module `dh_manageapp`.
+
+## Current assumptions (2026-08-15)
+
+1. **Live protocol is the browser desk**, not Services `POST /api/user/login` and not `/staff/*`. Mock `/staff/*` exists only behind `-Pdipi.useMock=true`.
+2. **Login:** wipe cookies first. Prefer `GET /user/login` (200). Fallback `GET /` or `GET /centre` (often **403** with the form in Retrofit `errorBody()` — use `Response.html()`). POST to the parsed form action (`user_login` or `user_login_block`).
+3. **Centre:** Drupal `dh_user_center`. `GET /centre` → `/centre/{cid}`. Do not hardcode Dhamma Giri. Mock-only: `UserCentreMap` (`sudha.user` → Dhamma Sudha).
+4. **Courses:** parse upcoming links from `GET /centre/{cid}` HTML.
+5. **Worklist:** `GET /search-course/{cid}/{courseId}?s=&t=&g=&d=a` and parse `var dataset`. Do **not** POST `/search-app`.
+6. **Status write:** existing `GET /change-status/{id}?s=&l=0&c=`. Never send `Approved`.
+7. **HTML parse is required** for login, dashboard, and `dataset`. Do not parse or persist NPI (`aadhar`, `passport`, `voterid`, `pancard`, `ae_*`).
+8. **Session keep-alive:** every 20 minutes, `GET /services/session/token` (CSRF) + `GET /centre` (SESS cookie). 403 → Sign in.
+9. **Remember me** stores username/password in EncryptedSharedPreferences. Logout keeps them. **Erase all local data** (Settings) wipes cookies, remember-me, Room, outbox, photo edits.
+10. **Photo upload is not on the live desk.** Mock only.
+11. **Launcher:** lotus adaptive icon (sage badge + safe-zone flower). Pixel C caches icons — re-add the shortcut after an icon change.
 
 ## Hard rules
 
@@ -18,9 +34,9 @@ Server reference (read-only): `/Users/wizops/DIPI/dipi-web` module `dh_manageapp
 3. Never send status `Approved`.
 4. Status write = existing `/change-status/{id}?s=&l=&c=` with `l=0`.
 5. No attendance writes in v1.
-6. Never parse HTML. Never use APP API / `get-app-detail`.
+6. Never use APP API / `get-app-detail`. Parse desk HTML only as above; never store NPI.
 7. No NPI columns in Room or logs (`ae_*`, Aadhaar, PAN, passport, voter id).
-8. Server URL is `BuildConfig.BASE_URL` (`https://dipi.vridhamma.org`). Live protocol is the **browser desk** (see `docs/LIVE-DESK-HAR.md`), not Services `/api/user/login` and not `/staff/*`. Login = drop cookies, then `GET /user/login` (200) or `GET /` (403) for `form_build_id`, then `POST` to the form action (`user_login` or `user_login_block`). Centre comes from Drupal `dh_user_center` (e.g. `sudha.user` → Dhamma Sudha), never a hardcoded centre name. Dashboard = `GET /centre` → `/centre/{cid}`. Worklist = `GET /search-course/{cid}/{courseId}?s=&t=&g=&d=a` (`var dataset`). Status write = `GET /change-status/{id}?s=&l=0&c=`. While signed in, refresh CSRF (`GET /services/session/token`) and touch `GET /centre` every 20 minutes to keep the SESS cookie alive. Mock only with `-Pdipi.useMock=true`.
+8. Server URL is `BuildConfig.BASE_URL` (`https://dipi.vridhamma.org`). See Current assumptions for the live paths.
 9. Design file `docs/DIPI Staff.dc.html` wins every visual argument.
 10. Do not commit `local.properties`, keystores, or real student data.
 11. **SemVer on every shippable change.** Bump `versionName` + `versionCode` in `app/build.gradle.kts` before assembling:
@@ -51,7 +67,10 @@ Prefer the Wi-Fi serial (`10.0.0.144:5555`) for install/launch so the cable can 
 
 ```bash
 ./gradlew :app:testDebugUnitTest
+./gradlew :core:model:test :core:network:testDebugUnitTest
 ./gradlew :app:assembleDebug
+# fixtures only:
+./gradlew :app:assembleDebug -Pdipi.useMock=true
 ```
 
-JDK 17+, `sdk.dir` in `local.properties`.
+Kotlin JVM target 17. The Mac that last built this tree used JDK 20 (no JDK 17 toolchain installed). `sdk.dir` in `local.properties`.

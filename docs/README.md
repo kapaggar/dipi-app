@@ -4,11 +4,14 @@ Read in this order.
 
 | # | Path | Role |
 |---|---|---|
-| 1 | [plans/2026-08-13-p0-fable-validation.md](plans/2026-08-13-p0-fable-validation.md) | **P0 plan for Fable to validate** before any scaffold |
-| 2 | [00-architecture.md](00-architecture.md) | Vertical 1 hybrid API + screens |
-| 3 | [openapi-staff.yaml](openapi-staff.yaml) | v1 HTTP contract |
-| 4 | [DIPI-STAFF-ANDROID-GROK-PROMPT.md](DIPI-STAFF-ANDROID-GROK-PROMPT.md) | Full product prompt (scope, bridges, skills) |
-| 5 | [DIPI_MEMORY_MAP.md](DIPI_MEMORY_MAP.md) | Desk facts from `dipi-web` (do not treat as student-apply) |
-| 6 | [SKILLS-USED.md](SKILLS-USED.md) | Skills read for Phase 1 |
+| 0 | [../AGENTS.md](../AGENTS.md) | **Current** assumptions, live protocol, SemVer, tablet |
+| 1 | [LIVE-DESK-HAR.md](LIVE-DESK-HAR.md) | Captured live login / centre / search-course |
+| 2 | [DIPI-STAFF-IMPLEMENTATION-PROMPT-GROK-4.6.md](DIPI-STAFF-IMPLEMENTATION-PROMPT-GROK-4.6.md) | Product rules (ACL / Approved / attendance). Transport section is stale. |
+| 3 | [DIPI Staff.dc.html](DIPI%20Staff.dc.html) | Visual spec |
+| 4 | [TODO-SERVER.md](TODO-SERVER.md) | `/staff/*` is mock-only; live PHP is immutable |
+| 5 | [openapi-staff.yaml](openapi-staff.yaml) | Historical mock contract (v0.2) |
+| 6 | [00-architecture.md](00-architecture.md) | Superseded hybrid-API notes |
+| 7 | [DIPI-STAFF-ANDROID-GROK-PROMPT.md](DIPI-STAFF-ANDROID-GROK-PROMPT.md) | Older product prompt |
+| 8 | [DIPI_MEMORY_MAP.md](DIPI_MEMORY_MAP.md) | Desk facts from `dipi-web` |
 
 Server clone (not in this repo): `/Users/wizops/DIPI/dipi-web`
