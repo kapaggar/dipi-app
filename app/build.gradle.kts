@@ -24,8 +24,8 @@ android {
         applicationId = "org.dhamma.dipi.staff"
         minSdk = 26
         targetSdk = 35
-        versionCode = 10
-        versionName = "1.4.1"
+        versionCode = 18
+        versionName = "1.9.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "BASE_URL", "\"${overrideUrl.trimEnd('/')}\"")
         val useMock = ((findProperty("dipi.useMock") as String?)
@@ -35,7 +35,15 @@ android {
     }
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            // Desk installs go over Wi-Fi ADB; debug signing lets the release
+            // replace a debug install in place. Swap in a real keystore before
+            // any store distribution.
+            signingConfig = signingConfigs.getByName("debug")
+            // The desk tablet (Pixel C) and every device since 2015 is arm64.
+            ndk { abiFilters += "arm64-v8a" }
             buildConfigField("boolean", "USE_MOCK", "false")
             buildConfigField("String", "BASE_URL", "\"https://dipi.vridhamma.org\"")
         }
@@ -69,6 +77,7 @@ dependencies {
     implementation(project(":core:audit"))
     implementation(project(":feature:auth"))
     implementation(project(":feature:course"))
+    implementation(project(":feature:desk"))
     implementation(project(":feature:applicants"))
     implementation(project(":feature:photos"))
     implementation(project(":feature:summary"))

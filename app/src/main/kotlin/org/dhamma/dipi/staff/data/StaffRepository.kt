@@ -19,10 +19,12 @@ import org.dhamma.dipi.staff.model.FlushSnack
 import org.dhamma.dipi.staff.model.OutboxReconciler
 import org.dhamma.dipi.staff.model.PhotoEdit
 import org.dhamma.dipi.staff.model.PhotoReviewItem
+import org.dhamma.dipi.staff.model.SensitiveInfo
 import org.dhamma.dipi.staff.model.Session
 import org.dhamma.dipi.staff.model.StatusWrite
 import org.dhamma.dipi.staff.model.UserCentreMap
 import org.dhamma.dipi.staff.network.ApplicantDto
+import org.dhamma.dipi.staff.network.CentrePageParser
 import org.dhamma.dipi.staff.network.CropDto
 import org.dhamma.dipi.staff.network.DrupalAuthApi
 import org.dhamma.dipi.staff.network.LoginBody
@@ -52,6 +54,18 @@ class StaffRepository @Inject constructor(
 ) {
     @Volatile private var lastCentreId: Int? = null
     @Volatile private var lastStatuses: List<String> = emptyList()
+
+    /**
+     * Session-scoped ID + health disclosures by applicant id — in memory
+     * ONLY (owner-approved display amendment, 2026-08-16). Never written to
+     * Room/DataStore/logs. Replaced when an unfiltered worklist fetch
+     * replaces the course cache; wiped on logout and erase-all.
+     */
+    private val sensitive = java.util.concurrent.ConcurrentHashMap<Int, SensitiveInfo>()
+
+    fun sensitiveSnapshot(): Map<ApplicantId, SensitiveInfo> =
+        sensitive.entries.associate { (id, info) -> ApplicantId(id) to info }
+
     fun observeApplicants(courseId: CourseId): Flow<List<ApplicantCard>> =
         applicants.observe(courseId.value).map { rows ->
             val cards = rows.map { json.decodeFromString(ApplicantDto.serializer(), it.payload).toModel() }
@@ -156,8 +170,9 @@ class StaffRepository @Inject constructor(
         val dash = api.centreDashboard(centreId.value)
         val html = dash.html()
         if (stillOnLogin(html) || dash.code() == 403) throw ApiException("Access denied", unauthorized = true)
+        val summaries = CentrePageParser.courseSummaries(html)
         SearchPageParser.coursesFromDashboard(html).map {
-            Course(CourseId(it.id), centreId, it.label, "", "")
+            Course(CourseId(it.id), centreId, it.label, "", "", summary = summaries[it.id])
         }
     }.getOrElse { throw it.toApi() }
 
@@ -205,6 +220,10 @@ class StaffRepository @Inject constructor(
             }
             val result = SearchPageParser.parse(html, cid, baseUrl)
             val rows = result.dataset
+            // Unfiltered fetch = the worklist is being replaced → drop stale
+            // sensitive entries; filtered fetches only refresh their subset.
+            if (status.isNullOrBlank() && q.isNullOrBlank()) sensitive.clear()
+            sensitive.putAll(result.sensitive)
             persist(rows)
             sessionStore.setLastSync(Instant.now().toString())
             val counts = linkedMapOf("All" to rows.size)
@@ -323,6 +342,7 @@ class StaffRepository @Inject constructor(
         applicants.clear()
         outbox.clear()
         sessionStore.clear()
+        sensitive.clear()
         lastCentreId = null
     }
 
@@ -332,6 +352,7 @@ class StaffRepository @Inject constructor(
         applicants.clear()
         outbox.clear()
         sessionStore.wipeAll()
+        sensitive.clear()
         lastCentreId = null
     }
 
@@ -383,6 +404,32 @@ class StaffRepository @Inject constructor(
             rows.map {
                 ApplicantEntity(it.id, it.courseId, json.encodeToString(ApplicantDto.serializer(), it))
             },
+        )
+    }
+
+    suspend fun markAttendedLocal(id: ApplicantId, attended: Boolean = true) {
+        val row = applicants.get(id.value) ?: return
+        val dto = json.decodeFromString(ApplicantDto.serializer(), row.payload)
+        val next = dto.copy(attended = attended)
+        applicants.upsert(
+            listOf(row.copy(payload = json.encodeToString(ApplicantDto.serializer(), next))),
+        )
+    }
+
+    /**
+     * Local echo of an audit batch fix (e.g. stripping an honorific). The live
+     * desk has no field-edit endpoint, so the correction stays on-device;
+     * only the name changes, all other fields preserved.
+     */
+    suspend fun setGivenNameLocal(id: ApplicantId, givenName: String) {
+        val row = applicants.get(id.value) ?: return
+        val dto = json.decodeFromString(ApplicantDto.serializer(), row.payload)
+        applicants.upsert(
+            listOf(
+                row.copy(
+                    payload = json.encodeToString(ApplicantDto.serializer(), dto.copy(givenName = givenName)),
+                ),
+            ),
         )
     }
 

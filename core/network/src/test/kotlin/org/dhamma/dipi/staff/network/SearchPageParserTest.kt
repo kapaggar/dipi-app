@@ -24,7 +24,7 @@ class SearchPageParserTest {
         </form>
         <script>
         (function () {
-            var dataset = [{"aid":99,"name":"<a href=\"/app/99/edit\">Meera Deshpande</a> (PDF)","gender":"Female","o_n":"Old<br>Female","courseid":42,"centreid":1,"app_status":"Confirmed","confno":"NF128","city":"Pune","state":"Maharashtra","country":"India","age":34,"contact_mobile":"+91 98220 41783","contact_email":"m@x.com","type":"student","aadhar":"1234","passport":"X"}];
+            var dataset = [{"aid":99,"name":"<a href=\"/app/99/edit\">Meera Deshpande</a> (PDF)","gender":"Female","o_n":"Old<br>Female","courseid":42,"centreid":1,"app_status":"Confirmed","confno":"NF128","city":"Pune","state":"Maharashtra","country":"India","age":34,"contact_mobile":"+91 98220 41783","contact_email":"m@x.com","type":"student","aadhar":"1234","passport":"X","emergency_name":"Ravi Deshpande","emergency_num":"098220 41783"}];
             var letters = [];
         })();
         </script>
@@ -49,6 +49,47 @@ class SearchPageParserTest {
         assertTrue(a.oldStudent)
         assertFalse(a.toString().contains("1234"))
         assertNotNull(a.email)
+        // Presence/equality booleans computed at parse time, raw values dropped.
+        assertEquals(true, a.idPresent)
+        assertEquals(true, a.emergencyPresent)
+        assertEquals(true, a.emergencyNamePresent)
+        // Emergency number is the own mobile (last 10 digits match).
+        assertEquals(true, a.emergencyEqSelf)
+        assertFalse(a.toString().contains("Ravi"))
+    }
+
+    @Test
+    fun presenceBooleansWhenIdAndEmergencyDiffer() {
+        val html2 = """
+            <script>
+            var dataset = [{"aid":7,"name":"Priya Nair","gender":"Female","courseid":42,"centreid":1,
+            "app_status":"Expected","contact_mobile":"+91 98220 41783",
+            "emergency_name":"Anil Nair","emergency_num":"9000011122"}];
+            </script>
+        """.trimIndent()
+        val a = SearchPageParser.parse(html2).dataset.single()
+        assertEquals(false, a.idPresent)
+        assertEquals(true, a.emergencyPresent)
+        assertEquals(true, a.emergencyNamePresent)
+        assertEquals(false, a.emergencyEqSelf)
+        // The emergency number itself must never survive parsing.
+        assertFalse(a.toString().contains("9000011122"))
+    }
+
+    @Test
+    fun presenceBooleansWhenEmergencyAbsent() {
+        val html3 = """
+            <script>
+            var dataset = [{"aid":8,"name":"Rohan Kulkarni","gender":"Male","courseid":42,"centreid":1,
+            "app_status":"Expected","contact_mobile":"+91 98220 41783","voterid":"ZZZ"}];
+            </script>
+        """.trimIndent()
+        val a = SearchPageParser.parse(html3).dataset.single()
+        assertEquals(true, a.idPresent)
+        assertEquals(false, a.emergencyPresent)
+        assertEquals(false, a.emergencyNamePresent)
+        assertEquals(false, a.emergencyEqSelf)
+        assertFalse(a.toString().contains("ZZZ"))
     }
 
     @Test

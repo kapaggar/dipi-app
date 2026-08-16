@@ -24,6 +24,7 @@ include(
     ":core:audit",
     ":feature:auth",
     ":feature:course",
+    ":feature:desk",
     ":feature:applicants",
     ":feature:photos",
     ":feature:summary",

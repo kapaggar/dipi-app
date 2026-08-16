@@ -1,5 +1,7 @@
 package org.dhamma.dipi.staff.ui
 
+import android.content.Intent
+import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -23,33 +25,64 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.dhamma.dipi.staff.BuildConfig
 import org.dhamma.dipi.staff.R
+import org.dhamma.dipi.staff.applicants.AuditScreen
+import org.dhamma.dipi.staff.applicants.CallingScreen
 import org.dhamma.dipi.staff.applicants.CardScreen
 import org.dhamma.dipi.staff.applicants.StatusSheet
 import org.dhamma.dipi.staff.applicants.TodayScreen
+import org.dhamma.dipi.staff.applicants.ZeroDayScreen
 import org.dhamma.dipi.staff.auth.LoginScreen
-import org.dhamma.dipi.staff.course.CoursesScreen
+import org.dhamma.dipi.staff.course.CentreOpsScreen
+import org.dhamma.dipi.staff.course.CentreScreen
+import org.dhamma.dipi.staff.course.CourseHubScreen
+import org.dhamma.dipi.staff.course.DeskActionScreen
+import org.dhamma.dipi.staff.course.RoomsScreen
+import org.dhamma.dipi.staff.desk.ApplicationsPane
+import org.dhamma.dipi.staff.desk.AuditPane
+import org.dhamma.dipi.staff.desk.BoardPane
+import org.dhamma.dipi.staff.desk.CallingPane
+import org.dhamma.dipi.staff.desk.CheckInDialog
+import org.dhamma.dipi.staff.desk.CheckInPane
+import org.dhamma.dipi.staff.desk.DeskRail
+import org.dhamma.dipi.staff.desk.DeskSection
+import org.dhamma.dipi.staff.desk.DeskShell
+import org.dhamma.dipi.staff.desk.DeskSnackbar
+import org.dhamma.dipi.staff.desk.RoomsPane
+import org.dhamma.dipi.staff.desk.deskRoll
+import org.dhamma.dipi.staff.desk.deskWaNumber
 import org.dhamma.dipi.staff.photos.PhotoReviewScreen
 import org.dhamma.dipi.staff.settings.SettingsScreen
 import org.dhamma.dipi.staff.summary.DaySummaryScreen
 import org.dhamma.dipi.staff.ui.theme.DipiCondensed
 import org.dhamma.dipi.staff.ui.theme.DipiTheme
 import org.dhamma.dipi.staff.ui.theme.LocalDipi
+import org.dhamma.dipi.staff.ui.theme.phoneWash
 
 @Composable
 fun DipiAppUi(vm: DeskViewModel) {
     val state by vm.state.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
     val wide = LocalConfiguration.current.screenWidthDp >= 600
+    // The v2 desk is designed at 1240×844; below ~1100dp the phone flow keeps serving.
+    val deskWide = LocalConfiguration.current.screenWidthDp >= 1100
+    val deskActive = deskWide && state.screen == DeskScreen.CourseHub &&
+        state.session != null && state.course != null
 
-    LaunchedEffect(state.snack) {
+    LaunchedEffect(state.snack, deskActive) {
         val snack = state.snack ?: return@LaunchedEffect
-        snackbar.showSnackbar(snack.text)
+        if (deskActive) {
+            // The desk renders its own bottom-left snackbar; just time it out.
+            kotlinx.coroutines.delay(4200)
+        } else {
+            snackbar.showSnackbar(snack.text)
+        }
         vm.consumeSnack()
     }
 
@@ -59,6 +92,9 @@ fun DipiAppUi(vm: DeskViewModel) {
             Modifier
                 .fillMaxSize()
                 .background(c.background)
+                // Version-3 ambient wash behind every phone screen; the desk
+                // paints its own frame (with its own washes) over it.
+                .phoneWash(c.accent)
                 .windowInsetsPadding(WindowInsets.safeDrawing),
         ) {
             Column(Modifier.fillMaxSize()) {
@@ -86,6 +122,8 @@ fun DipiAppUi(vm: DeskViewModel) {
                     )
                 }
                 Box(Modifier.weight(1f)) {
+                    val canBack = state.screen != DeskScreen.Login && state.screen != DeskScreen.Centre
+                    BackHandler(enabled = canBack) { vm.back() }
                     when (state.screen) {
                         DeskScreen.Login -> LoginScreen(
                             username = state.username,
@@ -97,19 +135,109 @@ fun DipiAppUi(vm: DeskViewModel) {
                             onSubmit = vm::signIn,
                             remember = state.remember,
                             onRemember = vm::onRemember,
+                            skin = state.skin,
+                            lotus = state.lotus,
                         )
-                        DeskScreen.Courses -> {
+                        DeskScreen.Centre -> {
                             val session = state.session
                             if (session != null) {
-                                CoursesScreen(
+                                CentreScreen(
                                     session,
                                     state.courses,
                                     vm::pickCourse,
                                     vm::pickCentre,
                                     vm::openSettings,
+                                    vm::openLater,
+                                    onCentreOps = vm::openCentreOps,
                                 )
                             }
                         }
+                        DeskScreen.CourseHub -> {
+                            val session = state.session
+                            val course = state.course
+                            if (session != null && course != null && deskWide) {
+                                LaunchedEffect(course.id) { vm.ensureDesk() }
+                                DeskHost(vm, state, session, course)
+                            } else if (session != null && course != null) {
+                                CourseHubScreen(
+                                    course = course,
+                                    centreName = session.centres.firstOrNull()?.name.orEmpty(),
+                                    onBack = vm::back,
+                                    onSettings = vm::openSettings,
+                                    onApplications = vm::openApplications,
+                                    onSummary = vm::openSummary,
+                                    onPhotos = vm::openPhotos,
+                                    onAudit = vm::openAudit,
+                                    onCalling = vm::openCalling,
+                                    onZeroDay = vm::openZeroDay,
+                                    onCentreOps = vm::openCentreOps,
+                                    onLater = vm::openLater,
+                                )
+                            }
+                        }
+                        DeskScreen.DeskAction -> {
+                            val action = state.deskAction
+                            if (action != null) {
+                                DeskActionScreen(action.title, action.route, vm::back)
+                            }
+                        }
+                        DeskScreen.ZeroDay -> {
+                            val course = state.course
+                            if (course != null) {
+                                ZeroDayScreen(
+                                    course = course,
+                                    rows = state.rows,
+                                    prefs = state.centreOps,
+                                    drafts = state.zeroDayDrafts,
+                                    onSeating = vm::setZeroDaySeating,
+                                    onLaundry = vm::setZeroDayLaundry,
+                                    onValuables = vm::setZeroDayValuables,
+                                    onRoom = vm::openRoomsFromZeroDay,
+                                    onMarkAttended = vm::markAttended,
+                                    onOpen = vm::openCard,
+                                    onBack = vm::back,
+                                )
+                            }
+                        }
+                        DeskScreen.Audit -> AuditScreen(
+                            rows = state.auditRows,
+                            onOpen = vm::openCard,
+                            onBack = vm::back,
+                        )
+                        DeskScreen.Calling -> {
+                            val context = LocalContext.current
+                            CallingScreen(
+                                rows = state.rows,
+                                callState = state.callState.mapValues { it.value.outcome },
+                                filter = state.callFilter,
+                                onFilter = vm::setCallFilter,
+                                onCallState = vm::setCallState,
+                                onDial = { number ->
+                                    val tel = number.filter { it.isDigit() || it == '+' }
+                                    context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:$tel")))
+                                },
+                                onOpen = vm::openCard,
+                                onBack = vm::back,
+                            )
+                        }
+                        DeskScreen.Rooms -> RoomsScreen(
+                            rooms = state.centreOps.rooms,
+                            genderFilter = state.roomsGender,
+                            editMode = state.roomsEdit,
+                            onPick = vm::pickRoom,
+                            onToggleFeature = vm::toggleRoomFeature,
+                            onBack = vm::back,
+                        )
+                        DeskScreen.CentreOps -> CentreOpsScreen(
+                            prefs = state.centreOps,
+                            onToggleLaundry = vm::toggleLaundry,
+                            onToggleValuables = vm::toggleValuables,
+                            onToggleGroups = vm::toggleGroups,
+                            onAddRooms = vm::addAccoRooms,
+                            onDeleteSection = vm::deleteAccoSection,
+                            onOpenRooms = vm::openRoomsFromCentreOps,
+                            onBack = vm::back,
+                        )
                         DeskScreen.Settings -> SettingsPane(vm, state)
                         else -> DeskBody(vm, state, wide)
                     }
@@ -136,13 +264,200 @@ fun DipiAppUi(vm: DeskViewModel) {
     }
 }
 
+/**
+ * The v2 desk: shell + section panes, with the mark-attended dialog, the
+ * status sheet and the desk snackbar layered above the whole frame.
+ */
+@Composable
+private fun DeskHost(
+    vm: DeskViewModel,
+    state: DeskUiState,
+    session: org.dhamma.dipi.staff.model.Session,
+    course: org.dhamma.dipi.staff.model.Course,
+) {
+    val context = LocalContext.current
+    val dial: (String) -> Unit = { number ->
+        val tel = number.filter { it.isDigit() || it == '+' }
+        context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:$tel")))
+    }
+    val roll = deskRoll(state.rows)
+    val flagsById = remember(state.auditRows) { state.auditRows.associate { it.id to it.flags } }
+    val openApp: (org.dhamma.dipi.staff.model.ApplicantCard) -> Unit = { card ->
+        vm.selectDeskApp(card)
+        vm.setDeskSection(DeskSection.Applications)
+    }
+
+    Box(Modifier.fillMaxSize()) {
+        DeskShell(
+            section = state.deskSection,
+            rail = deskRail(state, session, course),
+            clock = deskClock(),
+            onSection = vm::setDeskSection,
+            loading = state.loading,
+            lotus = state.lotus,
+        ) { section ->
+            when (section) {
+                DeskSection.Board -> BoardPane(
+                    centreName = session.centres.firstOrNull()?.name ?: course.name,
+                    dayLabel = deskBoardDay(course.start, java.time.LocalDate.now()),
+                    roll = roll,
+                    checkIns = state.checkIns,
+                    flagged = state.auditRows,
+                    callOutcomes = state.callState
+                        .filterValues { it.logged }
+                        .mapValues { it.value.outcome },
+                    onGoto = vm::setDeskSection,
+                    onExport = { vm.deskNote("$it · PDF export opens on the desk site") },
+                )
+                DeskSection.CheckIn -> CheckInPane(
+                    roll = roll,
+                    checkIns = state.checkIns,
+                    rooms = state.centreOps.rooms,
+                    scan = state.deskScan,
+                    filter = state.deskZeroFilter,
+                    flaggedIds = flagsById.keys,
+                    onScan = vm::setDeskScan,
+                    onFilter = vm::setDeskZeroFilter,
+                    onOpen = vm::openDeskMark,
+                )
+                DeskSection.Audit -> AuditPane(
+                    flagged = state.auditRows,
+                    selectedCode = state.deskFinding,
+                    onSelect = vm::selectDeskFinding,
+                    onBatch = vm::runDeskBatch,
+                    onOpen = openApp,
+                )
+                DeskSection.Calling -> CallingPane(
+                    roll = roll,
+                    outcomes = state.callState,
+                    filter = state.callFilter,
+                    onFilter = vm::setCallFilter,
+                    onOutcome = vm::setCallState,
+                    onDial = { card ->
+                        vm.logCallAttempt(card)
+                        card.mobile?.let(dial)
+                    },
+                    onWhatsApp = { card ->
+                        val wa = deskWaNumber(card.mobile) ?: return@CallingPane
+                        vm.logCallAttempt(card)
+                        context.startActivity(
+                            Intent(Intent.ACTION_VIEW, Uri.parse("https://wa.me/$wa")),
+                        )
+                    },
+                    onNote = vm::setCallNote,
+                )
+                DeskSection.Rooms -> RoomsPane(
+                    roll = roll,
+                    checkIns = state.checkIns,
+                    rooms = state.centreOps.rooms,
+                )
+                DeskSection.Applications -> ApplicationsPane(
+                    rows = state.visible,
+                    flagsById = flagsById,
+                    selectedId = state.deskAppId,
+                    onSelect = vm::selectDeskApp,
+                    onChangeStatus = { card ->
+                        vm.selectDeskApp(card)
+                        vm.openSheet()
+                    },
+                    onDial = dial,
+                    onEdit = { vm.deskNote("Edit opens on the desk site — view only here") },
+                    loadPhoto = vm::loadPhoto,
+                    counts = state.counts,
+                    selectedStatuses = state.selected,
+                    onToggleStatus = vm::toggleStatus,
+                    sensitiveById = state.sensitiveById,
+                )
+            }
+        }
+
+        val markCard = state.deskMarkId?.let { id -> state.rows.firstOrNull { it.id == id } }
+        if (markCard != null) {
+            CheckInDialog(
+                card = markCard,
+                record = vm.deskMarkRecord(),
+                roll = roll,
+                checkIns = state.checkIns,
+                rooms = state.centreOps.rooms,
+                roomOpen = state.deskRoomOpen,
+                laundryOn = state.centreOps.laundry,
+                valuablesOn = state.centreOps.valuables,
+                groupsOn = state.centreOps.groups,
+                onToggleRooms = vm::toggleDeskRoomPicker,
+                onRoom = vm::setDeskRoom,
+                onSeat = vm::setDeskSeat,
+                onValuables = vm::toggleDeskValuables,
+                onLaundry = vm::toggleDeskLaundry,
+                onGroup = vm::setDeskGroup,
+                onSave = vm::saveDeskMark,
+                onUndo = vm::undoDeskMark,
+                onClose = vm::closeDeskMark,
+            )
+        }
+
+        val sheetCard = state.card
+        if (state.sheetOpen && sheetCard != null) {
+            StatusSheet(
+                current = sheetCard.status.value,
+                choices = state.statusChoices,
+                pick = state.sheetPick,
+                comment = state.sheetComment,
+                custom = state.sheetCustom,
+                onPick = vm::onSheetPick,
+                onComment = vm::onSheetComment,
+                onCustom = vm::onSheetCustom,
+                onConfirm = vm::confirmStatus,
+                onDismiss = vm::dismissSheet,
+            )
+        }
+
+        val snack = state.snack
+        if (snack != null) {
+            DeskSnackbar(
+                snack.text,
+                error = snack.error,
+                modifier = Modifier.align(androidx.compose.ui.Alignment.BottomStart),
+            )
+        }
+    }
+}
+
+private fun deskRail(
+    state: DeskUiState,
+    session: org.dhamma.dipi.staff.model.Session,
+    course: org.dhamma.dipi.staff.model.Course,
+): DeskRail {
+    val dates = listOf(course.start, course.end).filter { it.isNotBlank() }.joinToString(" – ")
+    return DeskRail(
+        courseName = session.centres.firstOrNull()?.name ?: course.name,
+        courseDates = dates.ifBlank { course.name },
+        dayChip = deskDayChip(course.start, java.time.LocalDate.now()),
+        userName = session.name,
+        syncLine = deskSyncLine(state.lastSync, java.time.Instant.now(), state.offline, state.queuedCount),
+        counts = deskRailCounts(state),
+    )
+}
+
+/** "Wed 2 Sep · 09:41", ticking once a minute. */
+@Composable
+private fun deskClock(): String {
+    val fmt = remember {
+        java.time.format.DateTimeFormatter.ofPattern("EEE d MMM · HH:mm", java.util.Locale.ENGLISH)
+    }
+    val clock = androidx.compose.runtime.produceState(java.time.LocalDateTime.now().format(fmt)) {
+        while (true) {
+            value = java.time.LocalDateTime.now().format(fmt)
+            kotlinx.coroutines.delay(60_000L - (System.currentTimeMillis() % 60_000L))
+        }
+    }
+    return clock.value
+}
+
 @Composable
 private fun DeskBody(vm: DeskViewModel, state: DeskUiState, wide: Boolean) {
     val course = state.course ?: return
     val centre = state.session?.centres?.firstOrNull()?.name.orEmpty()
     val showSplit = wide && state.screen == DeskScreen.Card
-
-    BackHandler(enabled = state.screen != DeskScreen.Today) { vm.back() }
 
     val today: @Composable (Modifier) -> Unit = { mod ->
         Box(mod) {
@@ -195,6 +510,7 @@ private fun DeskBody(vm: DeskViewModel, state: DeskUiState, wide: Boolean) {
                 onDone = vm::markPhotoDone,
                 onUpload = vm::uploadPhotos,
                 pendingUploads = vm.pendingUploads(),
+                loadPhoto = vm::loadPhoto,
             )
             DeskScreen.Summary -> DaySummaryScreen(course, state.rows)
             DeskScreen.Settings -> SettingsPane(vm, state)
@@ -205,7 +521,6 @@ private fun DeskBody(vm: DeskViewModel, state: DeskUiState, wide: Boolean) {
 
 @Composable
 private fun SettingsPane(vm: DeskViewModel, state: DeskUiState) {
-    BackHandler { vm.back() }
     SettingsScreen(
         session = state.session,
         dark = state.dark,
@@ -217,6 +532,10 @@ private fun SettingsPane(vm: DeskViewModel, state: DeskUiState) {
         onLogout = vm::logout,
         onFactoryReset = vm::factoryReset,
         appVersion = BuildConfig.VERSION_NAME,
+        skin = state.skin,
+        lotus = state.lotus,
+        onSkin = vm::setSkin,
+        onToggleLotus = vm::toggleLotus,
     )
 }
 

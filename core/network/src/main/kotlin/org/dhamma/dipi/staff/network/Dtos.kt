@@ -135,6 +135,9 @@ data class ApplicantDto(
     val createdAt: String? = null,
     val photoUrl: String? = null,
     val emergencyPresent: Boolean? = null,
+    val idPresent: Boolean? = null,
+    val emergencyNamePresent: Boolean? = null,
+    val emergencyEqSelf: Boolean? = null,
     val history: HistoryDto? = null,
     val flags: List<FlagDto> = emptyList(),
 ) {
@@ -163,6 +166,9 @@ data class ApplicantDto(
         createdAt = createdAt,
         photoUrl = photoUrl,
         emergencyPresent = emergencyPresent,
+        idPresent = idPresent,
+        emergencyNamePresent = emergencyNamePresent,
+        emergencyEqSelf = emergencyEqSelf,
         history = history?.let {
             ApplicantHistory(it.first, it.recent, it.counts.map { c -> CourseCount(c.label, c.n) })
         },

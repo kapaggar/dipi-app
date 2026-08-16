@@ -6,7 +6,7 @@ Guidance for Claude Code, Cursor, Codex, Fable, Grok.
 
 Centre-staff Android client for the DIPI registrar desk. Package: `org.dhamma.dipi.staff`.
 
-**Shipped:** Vertical 1 on `feat/vertical-1`, **1.4.1** (`versionCode` 10). Live default is `https://dipi.vridhamma.org`. Backend PHP is **immutable** — do not add `/staff/*` or change `dipi-web`.
+**Shipped:** Vertical 2 desk on `feat/vertical-1`, **1.9.0** (`versionCode` 18). Live default is `https://dipi.vridhamma.org`. Backend PHP is **immutable** — do not add `/staff/*` or change `dipi-web`.
 
 **Read first:** this file, then `docs/LIVE-DESK-HAR.md`.  
 `docs/DIPI-STAFF-IMPLEMENTATION-PROMPT-GROK-4.6.md` still wins on product rules (no client ACL, no `Approved`, no attendance write) but is **wrong** on transport: there is no `/staff` JSON layer on the live host.
@@ -21,7 +21,7 @@ Server reference (read-only): `/Users/wizops/DIPI/dipi-web` module `dh_manageapp
 4. **Courses:** parse upcoming links from `GET /centre/{cid}` HTML.
 5. **Worklist:** `GET /search-course/{cid}/{courseId}?s=&t=&g=&d=a` and parse `var dataset`. Do **not** POST `/search-app`.
 6. **Status write:** existing `GET /change-status/{id}?s=&l=0&c=`. Never send `Approved`.
-7. **HTML parse is required** for login, dashboard, and `dataset`. Do not parse or persist NPI (`aadhar`, `passport`, `voterid`, `pancard`, `ae_*`).
+7. **HTML parse is required** for login, dashboard, and `dataset`. Never persist or log NPI (`aadhar`, `passport`, `voterid`, `pancard`, `ae_*`). Display-only amendment (owner decision 2026-08-16): ID docs and health disclosures MAY be shown on-screen for desk verification — in-memory `SensitiveInfo` only, no Room/DataStore/DTO fields.
 8. **Session keep-alive:** every 20 minutes, `GET /services/session/token` (CSRF) + `GET /centre` (SESS cookie). 403 → Sign in.
 9. **Remember me** stores username/password in EncryptedSharedPreferences. Logout keeps them. **Erase all local data** (Settings) wipes cookies, remember-me, Room, outbox, photo edits.
 10. **Photo upload is not on the live desk.** Mock only.
