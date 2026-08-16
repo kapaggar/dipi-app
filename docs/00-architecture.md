@@ -2,7 +2,18 @@
 
 **Date:** 2026-08-13  
 **Product:** Centre-staff client of `dh_manageapp` (Today’s applications only)  
-**Status:** Phase 1 — awaiting approval. No Android project scaffold yet.
+**Status:** SUPERSEDED for implementation by `docs/DIPI-STAFF-IMPLEMENTATION-PROMPT-GROK-4.6.md` (2026-08-13).
+
+**Overrides (do not follow the sections below where they conflict):**
+
+- No access control / gender / tenancy logic in the app — server filters; render errors verbatim.
+- No `/staff` status façade — call `/change-status/{id}?s=&l=&c=` directly (`l=0`).
+- No attendance write in Vertical 1 (no `/staff/.../attended`).
+- Server URL is `BuildConfig.BASE_URL` (fixed; debug Gradle override). Login has no URL field.
+- Build screens in the design: photos, day summary, settings, audit panel.
+- **2026-08-15:** Live host has no `/staff` and no Services login. The shipped client scrapes desk HTML (`LIVE-DESK-HAR.md`). The “Never parse HTML / mock `/staff` first” plan below is historical.
+
+Keep this file only as historical context.
 
 ---
 

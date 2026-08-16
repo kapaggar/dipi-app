@@ -1,64 +1,76 @@
 # AGENTS.md
 
-Guidance for autonomous coding agents (Claude Code, Cursor, Codex, **Fable**, Grok). Humans may use it too.
+Guidance for Claude Code, Cursor, Codex, Fable, Grok.
 
-## What this repository is
+## What this is
 
-A **centre-staff Android client** for DIPI’s registrar desk. Application id (planned): `org.dhamma.dipi.staff`.
+Centre-staff Android client for the DIPI registrar desk. Package: `org.dhamma.dipi.staff`.
 
-The server is Drupal 7 `dh_manageapp` in the sibling repo `/Users/wizops/DIPI/dipi-web`. This repo does **not** contain that PHP. Do not invent field names — read the desk source listed below.
+**Shipped:** Vertical 2 desk on `feat/vertical-1`, **1.9.0** (`versionCode` 18). Live default is `https://dipi.vridhamma.org`. Backend PHP is **immutable** — do not add `/staff/*` or change `dipi-web`.
 
-## Read before you change product or API
+**Read first:** this file, then `docs/LIVE-DESK-HAR.md`.  
+`docs/DIPI-STAFF-IMPLEMENTATION-PROMPT-GROK-4.6.md` still wins on product rules (no client ACL, no `Approved`, no attendance write) but is **wrong** on transport: there is no `/staff` JSON layer on the live host.
 
-| Priority | Path | Why |
-|----------|------|-----|
-| 1 | `docs/plans/2026-08-13-p0-fable-validation.md` | P0 lock + Fable checklist |
-| 2 | `docs/00-architecture.md` | Hybrid API and Vertical 1 screens |
-| 3 | `docs/openapi-staff.yaml` | HTTP contract |
-| 4 | `docs/DIPI-STAFF-ANDROID-GROK-PROMPT.md` | Full scope and bridge rules |
-| 5 | `docs/DIPI_MEMORY_MAP.md` | Desk facts from dipi-web |
+Server reference (read-only): `/Users/wizops/DIPI/dipi-web` module `dh_manageapp`.
 
-Desk PHP to open (only these until a Vertical 1 action requires more):
+## Current assumptions (2026-08-15)
 
-- `dipi-web/sites/all/modules/dh_manageapp/dh_manageapp.module` — `_change_status`, `_update_status`, `generate_conf_no`, `_manageapp_check_access`
-- `dipi-web/sites/all/modules/dh_manageapp/inc/search.inc` — worklist (HTML today)
-- `dipi-web/sites/all/modules/dh_manageapp/inc/application.inc` — `a_*` prefixes only
-- `dipi-web/sites/all/modules/dh_manageapp/inc/course.inc` — `c_finalized`
-
-Do **not** start in `dipi_api.module`, `dh_atportal/`, `letters.inc` internals, or `zero-day.inc`.
+1. **Live protocol is the browser desk**, not Services `POST /api/user/login` and not `/staff/*`. Mock `/staff/*` exists only behind `-Pdipi.useMock=true`.
+2. **Login:** wipe cookies first. Prefer `GET /user/login` (200). Fallback `GET /` or `GET /centre` (often **403** with the form in Retrofit `errorBody()` — use `Response.html()`). POST to the parsed form action (`user_login` or `user_login_block`).
+3. **Centre:** Drupal `dh_user_center`. `GET /centre` → `/centre/{cid}`. Do not hardcode Dhamma Giri. Mock-only: `UserCentreMap` (`sudha.user` → Dhamma Sudha).
+4. **Courses:** parse upcoming links from `GET /centre/{cid}` HTML.
+5. **Worklist:** `GET /search-course/{cid}/{courseId}?s=&t=&g=&d=a` and parse `var dataset`. Do **not** POST `/search-app`.
+6. **Status write:** existing `GET /change-status/{id}?s=&l=0&c=`. Never send `Approved`.
+7. **HTML parse is required** for login, dashboard, and `dataset`. Never persist or log NPI (`aadhar`, `passport`, `voterid`, `pancard`, `ae_*`). Display-only amendment (owner decision 2026-08-16): ID docs and health disclosures MAY be shown on-screen for desk verification — in-memory `SensitiveInfo` only, no Room/DataStore/DTO fields.
+8. **Session keep-alive:** every 20 minutes, `GET /services/session/token` (CSRF) + `GET /centre` (SESS cookie). 403 → Sign in.
+9. **Remember me** stores username/password in EncryptedSharedPreferences. Logout keeps them. **Erase all local data** (Settings) wipes cookies, remember-me, Room, outbox, photo edits.
+10. **Photo upload is not on the live desk.** Mock only.
+11. **Launcher:** lotus adaptive icon (sage badge + safe-zone flower). Pixel C caches icons — re-add the shortcut after an icon change.
 
 ## Hard rules
 
-1. This is not student-apply, not a WebView, not a DataTables clone.
-2. Do not use Drupal role **APP API** or `/api/dipi/get-app-detail`.
-3. Auth = real centre-staff Drupal user + `dh_user_center`. Gender perms (`access male` / `access female`) are first-class.
-4. All status writes go through existing PHP (`_change_status`). Never `UPDATE a_status` from the app.
-5. `/search-app` is HTML — new JSON only. Do not scrape.
-6. `/app-update-attended` is a Day-0 **room** write. Vertical 1 attended is a thin `a_attended` façade only.
-7. Do not fetch or store `ae_*`, Aadhaar, PAN, passport, voter id.
-8. Do not implement Day-0, seating, CameraX, AT portal, LC review UI, letters admin, finalize, until Vertical 1 is demoable.
-9. Bridges (`dh_send_letter`, `update_status_external`, WhatsApp, SMS) stay black boxes. Trigger via `_change_status` only.
-10. Do not commit `local.properties`, keystores, session cookies, or real student fixtures.
-11. Evidence before “done”: unit tests + what you ran. Do not claim a live DIPI host works unless you hit one.
+1. No access control in the app. Send the request; render the server response verbatim.
+2. No status engine in Kotlin. Display and send strings only.
+3. Never send status `Approved`.
+4. Status write = existing `/change-status/{id}?s=&l=&c=` with `l=0`.
+5. No attendance writes in v1.
+6. Never use APP API / `get-app-detail`. Parse desk HTML only as above; never store NPI.
+7. No NPI columns in Room or logs (`ae_*`, Aadhaar, PAN, passport, voter id).
+8. Server URL is `BuildConfig.BASE_URL` (`https://dipi.vridhamma.org`). See Current assumptions for the live paths.
+9. Design file `docs/DIPI Staff.dc.html` wins every visual argument.
+10. Do not commit `local.properties`, keystores, or real student data.
+11. **SemVer on every shippable change.** Bump `versionName` + `versionCode` in `app/build.gradle.kts` before assembling:
+    - **MAJOR** (`x.0.0`) — new vertical, breaking API/UX, or a drop-in incompatible rewrite.
+    - **MINOR** (`1.x.0`) — user-visible feature within the current vertical.
+    - **PATCH** (`1.0.x`) — bugfix, visual polish, test-only behaviour that still goes to the tablet.
+    Always increment `versionCode` by 1. Do not leave two installs with the same `versionName`.
+12. **Install on the desk tablet after every MAJOR (and after MINOR if the registrar will tap it).** See below.
 
-## Planned layout (not scaffolded yet)
+## Desk tablet (Wi-Fi ADB)
 
+- Device: **Pixel C** (`ryu` / `dragon`), serial `5C01001294`, Android 8.1.
+- LAN: `10.0.0.144:5555` (SSID `searching`). Re-discover with `adb shell ip -f inet addr show wlan0` if DHCP moves it.
+- Reconnect (USB once, then Wi-Fi):
+
+```bash
+export ANDROID_HOME=/Users/wizops/Android/Sdk
+export PATH="$ANDROID_HOME/platform-tools:$PATH"
+adb -s 5C01001294 tcpip 5555
+adb connect 10.0.0.144:5555
+adb -s 10.0.0.144:5555 install -r -d app/build/outputs/apk/debug/app-debug.apk
+adb -s 10.0.0.144:5555 shell am start -n org.dhamma.dipi.staff/.MainActivity
 ```
-:app
-:core:model
-:core:network
-:core:database
-:core:datastore
-:core:ui
-:feature:auth
-:feature:course
-:feature:applicants
+
+Prefer the Wi-Fi serial (`10.0.0.144:5555`) for install/launch so the cable can come off.
+
+## Commands
+
+```bash
+./gradlew :app:testDebugUnitTest
+./gradlew :core:model:test :core:network:testDebugUnitTest
+./gradlew :app:assembleDebug
+# fixtures only:
+./gradlew :app:assembleDebug -Pdipi.useMock=true
 ```
 
-No `:feature:day0` until Vertical 2.
-
-## Skills (implementation session)
-
-Install before Kotlin: Google `jetpack-compose`, `navigation-3`, `edge-to-edge`, `android-intent-security`, `testing-setup`. Chris Banes `kotlin-api-design`, `kotlin-concurrency-and-flow`, `compose-state-and-effects`. CameraX only in Vertical 2.
-
-This machine already has `android-data-layer`, `android-jetpack-compose`, `adaptive` (Nav3 list-detail).
+Kotlin JVM target 17. The Mac that last built this tree used JDK 20 (no JDK 17 toolchain installed). `sdk.dir` in `local.properties`.

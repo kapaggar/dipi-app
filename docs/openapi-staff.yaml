@@ -1,26 +1,26 @@
 openapi: 3.0.3
 info:
   title: DIPI Staff API (Vertical 1)
-  version: 0.1.0
+  version: 0.2.0
   description: |
-    Hybrid registrar contract. Status writes may be implemented as a façade
-    over GET/POST /change-status/{id}?s=&l=&c=.
-    Search is new JSON. Do not scrape /search-app.
-    Attended is a thin a_attended write — not /app-update-attended
-    (that endpoint requires room allotment).
+    Contract for DIPI Staff Android. This file matches
+    docs/DIPI-STAFF-IMPLEMENTATION-PROMPT-GROK-4.6.md (2026-08-13).
+
+    Status writes go to existing Drupal `/change-status/{id}` — no /staff façade.
+    No attendance write in v1. Server URL is a build-time constant, not a path param.
+    Reads that do not exist as JSON are new `/staff` routes (mock-first).
+
+    Do not scrape /search-app. Do not use APP API / get-app-detail.
 servers:
-  - url: https://{host}/staff
-    variables:
-      host:
-        default: dipi.example.invalid
-        description: Centre DIPI host, no production default in the APK
+  - url: https://dipi.vridhamma.org
+    description: Fixed production host (BuildConfig.BASE_URL). Debug may override via Gradle property.
 
 paths:
-  /user/login:
+  /api/user/login:
     post:
       operationId: login
-      summary: Drupal staff login (Services shape)
-      x-todo-server: POST /api/user/login
+      summary: Drupal Services staff login
+      x-todo-server: POST /api/user/login (existing)
       requestBody:
         required: true
         content:
@@ -33,7 +33,7 @@ paths:
                 password: { type: string }
       responses:
         '200':
-          description: Session established
+          description: Session cookie set; token is CSRF
           content:
             application/json:
               schema:
@@ -42,36 +42,91 @@ paths:
                 properties:
                   sessid: { type: string }
                   session_name: { type: string }
-                  token: { type: string, description: CSRF token }
+                  token: { type: string }
                   user:
                     type: object
                     properties:
                       uid: { type: integer }
                       name: { type: string }
 
-  /user/logout:
+  /api/user/logout:
     post:
       operationId: logout
-      x-todo-server: POST /api/user/logout
+      x-todo-server: POST /api/user/logout (existing)
       responses:
         '200': { description: Logged out }
 
-  /session:
+  /services/session/token:
     get:
-      operationId: getSession
-      x-todo-server: users + dh_user_center + user_access + variable_get mode_test
+      operationId: csrfToken
+      x-todo-server: existing Services token
       responses:
         '200':
-          description: Current staff session
+          description: CSRF token string
+          content:
+            text/plain:
+              schema: { type: string }
+
+  /change-status/{applicantId}:
+    get:
+      operationId: changeStatusGet
+      description: Existing desk JSON. Prefer POST.
+      x-todo-server: _change_status
+      parameters:
+        - $ref: '#/components/parameters/applicantId'
+        - name: s
+          in: query
+          required: true
+          schema: { type: string }
+        - name: l
+          in: query
+          schema: { type: integer, default: 0 }
+        - name: c
+          in: query
+          schema: { type: string, default: '' }
+      responses:
+        '200':
           content:
             application/json:
-              schema:
-                $ref: '#/components/schemas/Session'
+              schema: { $ref: '#/components/schemas/StatusChangeResult' }
+    post:
+      operationId: changeStatus
+      description: |
+        Canonical status write. Query params s, l, c (l=0 in v1).
+        Never send s=Approved from the app.
+      x-todo-server: _change_status
+      parameters:
+        - $ref: '#/components/parameters/applicantId'
+        - name: s
+          in: query
+          required: true
+          schema: { type: string }
+        - name: l
+          in: query
+          schema: { type: integer, default: 0 }
+        - name: c
+          in: query
+          schema: { type: string, default: '' }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StatusChangeResult' }
 
-  /centres/{centreId}/courses:
+  /staff/session:
+    get:
+      operationId: getSession
+      x-todo-server: users + dh_user_center + variable_get mode_test
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Session' }
+
+  /staff/centres/{centreId}/courses:
     get:
       operationId: listCourses
-      x-todo-server: dh_course where c_center and c_deleted=0
+      x-todo-server: dh_course where c_finalized=0 and c_deleted=0
       parameters:
         - $ref: '#/components/parameters/centreId'
         - name: upcoming
@@ -89,41 +144,20 @@ paths:
                     type: array
                     items: { $ref: '#/components/schemas/Course' }
 
-  /courses/{courseId}:
-    get:
-      operationId: getCourse
-      x-todo-server: dh_course + dh_type_detail
-      parameters:
-        - $ref: '#/components/parameters/courseId'
-      responses:
-        '200':
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/Course' }
-        '404': { description: Not found or not in user centres }
-
-  /courses/{courseId}/applicants:
+  /staff/courses/{courseId}/applicants:
     get:
       operationId: listApplicants
-      description: |
-        New JSON worklist. Use search.inc WHERE builder + whitelist SELECT.
-        Never return ae_*, a_aadhar, a_pancard, a_passport, a_voter_id.
-      x-todo-server: search.inc applicant query (projection whitelist)
+      description: Whitelisted public fields + status counts. Never ae_* or national IDs.
+      x-todo-server: search.inc WHERE + whitelist SELECT
       parameters:
         - $ref: '#/components/parameters/courseId'
         - name: status
           in: query
+          description: Repeatable; omit or empty = all
           schema: { type: string }
         - name: q
           in: query
-          description: Name, conf no, phone, or email
           schema: { type: string }
-        - name: gender
-          in: query
-          schema: { type: string, enum: [M, F] }
-        - name: limit
-          in: query
-          schema: { type: integer, default: 50, maximum: 200 }
         - name: cursor
           in: query
           schema: { type: string }
@@ -131,23 +165,12 @@ paths:
         '200':
           content:
             application/json:
-              schema:
-                type: object
-                required: [items, counts]
-                properties:
-                  items:
-                    type: array
-                    items: { $ref: '#/components/schemas/ApplicantCard' }
-                  nextCursor: { type: string, nullable: true }
-                  counts:
-                    type: object
-                    additionalProperties: { type: integer }
-                    description: status → count for this course after gender filter
+              schema: { $ref: '#/components/schemas/ApplicantList' }
 
-  /applicants/{applicantId}:
+  /staff/applicants/{applicantId}:
     get:
       operationId: getApplicant
-      x-todo-server: dh_applicant public columns only
+      x-todo-server: dh_applicant public columns + dh_applicant_course history + server flags
       parameters:
         - $ref: '#/components/parameters/applicantId'
       responses:
@@ -155,71 +178,11 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ApplicantCard' }
-        '403': { description: Other centre or other gender }
 
-  /applicants/{applicantId}/status:
-    post:
-      operationId: changeStatus
-      description: |
-        Façade over _change_status. Query equivalent s, l, c.
-        Letter send is a black box. Do not send s=Approved in v1 UI.
-      x-todo-server: _change_status / _update_status / update_status_external / dh_send_letter
-      parameters:
-        - $ref: '#/components/parameters/applicantId'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [status]
-              properties:
-                status: { type: string }
-                letterId: { type: integer, default: 0 }
-                comment: { type: string }
-                sendLetter: { type: boolean, default: true }
-      responses:
-        '200':
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/StatusChangeResult' }
-        '409': { description: Course finalized or LC preconditions failed }
-
-  /applicants/{applicantId}/attended:
-    post:
-      operationId: setAttended
-      description: |
-        Thin write of a_attended only. Not /app-update-attended
-        (that requires aa_section / aa_acco before course start).
-      x-todo-server: db_update dh_applicant.a_attended only
-      parameters:
-        - $ref: '#/components/parameters/applicantId'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [attended]
-              properties:
-                attended: { type: boolean }
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                type: object
-                required: [ok, attended]
-                properties:
-                  ok: { type: boolean }
-                  attended: { type: boolean }
-                  message: { type: string }
-        '409': { description: Course finalized }
-
-  /meta/statuses:
+  /staff/meta/statuses:
     get:
       operationId: listStatuses
-      x-todo-server: dh_type_detail COURSE-SYSTEM-STATUS and COURSE-STATUS
+      x-todo-server: dh_type_detail COURSE-SYSTEM-STATUS / COURSE-STATUS
       responses:
         '200':
           content:
@@ -236,6 +199,69 @@ paths:
                       properties:
                         key: { type: string }
                         value: { type: string }
+
+  /staff/applicants/{applicantId}/photo:
+    get:
+      operationId: getPhoto
+      x-todo-server: a_photo S3 stream
+      parameters:
+        - $ref: '#/components/parameters/applicantId'
+      responses:
+        '200':
+          description: Image bytes
+          content:
+            image/jpeg:
+              schema: { type: string, format: binary }
+        '404': { description: No photo }
+
+  /staff/courses/{courseId}/photo-review:
+    get:
+      operationId: photoReview
+      x-todo-server: new suggestion classes per applicant
+      parameters:
+        - $ref: '#/components/parameters/courseId'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PhotoReviewList' }
+
+  /staff/applicants/{applicantId}/photo:
+    post:
+      operationId: uploadPhotoCorrection
+      description: Geometry only. Server resubmits application with swapped photo and reports drift.
+      x-todo-server: new; reuses application save path
+      parameters:
+        - $ref: '#/components/parameters/applicantId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [rotate]
+              properties:
+                rotate: { type: integer, description: Degrees clockwise }
+                crop:
+                  type: object
+                  properties:
+                    l: { type: number }
+                    t: { type: number }
+                    r: { type: number }
+                    b: { type: number }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok]
+                properties:
+                  ok: { type: boolean }
+                  driftedFields:
+                    type: array
+                    items: { type: string }
+                  message: { type: string }
 
 components:
   parameters:
@@ -255,29 +281,14 @@ components:
       required: true
       schema: { type: integer }
 
-  securitySchemes:
-    drupalSession:
-      type: apiKey
-      in: cookie
-      name: SESS*
-    csrfToken:
-      type: apiKey
-      in: header
-      name: X-CSRF-Token
-
   schemas:
     Session:
       type: object
-      required: [uid, name, permissions, genderAccess, centres, modeTest]
+      required: [uid, name, displayName, centres, modeTest]
       properties:
         uid: { type: integer }
         name: { type: string }
-        permissions:
-          type: array
-          items: { type: string }
-        genderAccess:
-          type: string
-          enum: [male, female, both, none]
+        displayName: { type: string }
         centres:
           type: array
           items: { $ref: '#/components/schemas/Centre' }
@@ -292,16 +303,49 @@ components:
 
     Course:
       type: object
-      required: [id, centreId, name, finalized]
+      required: [id, centreId, name]
       properties:
         id: { type: integer }
         centreId: { type: integer }
         name: { type: string }
         start: { type: string, format: date }
         end: { type: string, format: date }
-        finalized: { type: boolean }
         typeKey: { type: string }
-        typeGroup: { type: string, description: "td_val3 e.g. LC, teen, child" }
+
+    ApplicantList:
+      type: object
+      required: [items, counts]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/ApplicantCard' }
+        nextCursor: { type: string, nullable: true }
+        counts:
+          type: object
+          additionalProperties: { type: integer }
+
+    ApplicantHistory:
+      type: object
+      properties:
+        first: { type: string }
+        recent: { type: string }
+        counts:
+          type: array
+          items:
+            type: object
+            required: [label, n]
+            properties:
+              label: { type: string }
+              n: { type: integer }
+
+    AuditFlag:
+      type: object
+      required: [severity, label, detail, ruleId]
+      properties:
+        severity: { type: string, enum: [HARD, SAFETY, SOFT] }
+        label: { type: string }
+        detail: { type: string }
+        ruleId: { type: string }
 
     ApplicantCard:
       type: object
@@ -325,22 +369,40 @@ components:
         city: { type: string, nullable: true }
         state: { type: string, nullable: true }
         country: { type: string, nullable: true }
-        dob: { type: string, format: date, nullable: true }
+        dob: { type: string, nullable: true }
         age: { type: integer, nullable: true }
-        alist: { type: boolean }
         monk: { type: boolean }
-        createdAt: { type: string, format: date-time }
+        createdAt: { type: string }
+        photoUrl: { type: string, nullable: true }
+        emergencyPresent: { type: boolean }
+        history: { $ref: '#/components/schemas/ApplicantHistory' }
+        flags:
+          type: array
+          items: { $ref: '#/components/schemas/AuditFlag' }
+
+    PhotoReviewItem:
+      type: object
+      required: [applicantId, kind]
+      properties:
+        applicantId: { type: integer }
+        kind: { type: string, enum: [good, suggest, auto, nofel, fixed] }
+        badge: { type: string }
+        suggestedRotate: { type: integer }
+        suggestedCrop: { type: boolean }
+
+    PhotoReviewList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/PhotoReviewItem' }
 
     StatusChangeResult:
       type: object
-      required: [ok, status]
+      required: [status]
       properties:
-        ok: { type: boolean }
-        status: { type: string, description: Desk field out.status OK or Failed }
-        message: { type: string }
-        confNo: { type: string, nullable: true }
-        newStatus: { type: string, nullable: true }
-
-security:
-  - drupalSession: []
-    csrfToken: []
+        status: { type: string, description: OK or Failed }
+        msg: { type: string }
+        confno: { type: string }
+        newstatus: { type: string }

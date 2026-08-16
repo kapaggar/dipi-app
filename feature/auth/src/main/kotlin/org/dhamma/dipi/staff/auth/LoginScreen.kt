@@ -1,0 +1,242 @@
+package org.dhamma.dipi.staff.auth
+
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.BiasAlignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.em
+import androidx.compose.ui.unit.sp
+import org.dhamma.dipi.staff.ui.R
+import org.dhamma.dipi.staff.ui.theme.DeskSkin
+import org.dhamma.dipi.staff.ui.theme.DipiCondensed
+import org.dhamma.dipi.staff.ui.theme.DipiSans
+import org.dhamma.dipi.staff.ui.theme.LocalDipi
+import org.dhamma.dipi.staff.ui.theme.blueprint
+import org.dhamma.dipi.staff.ui.theme.blueprintMarks
+
+/**
+ * The version-3 sign-in: content bottom-justified, and — when [lotus] is on —
+ * the skin's lotus photograph filling the top 430dp, fading into the
+ * background. The logo is the circular lotus icon in an accent blueprint box.
+ * Remember-me, the verbatim server error and the loading state are app
+ * features the design omits; they stay.
+ */
+@Composable
+fun LoginScreen(
+    username: String,
+    password: String,
+    error: String?,
+    loading: Boolean,
+    onUser: (String) -> Unit,
+    onPass: (String) -> Unit,
+    onSubmit: () -> Unit,
+    remember: Boolean = false,
+    onRemember: (Boolean) -> Unit = {},
+    skin: DeskSkin = DeskSkin.Steel,
+    lotus: Boolean = true,
+) {
+    val c = LocalDipi.current
+    Box(Modifier.fillMaxSize().background(c.background)) {
+        if (lotus) {
+            // Photo hero: skin photograph at `center 36%`, dissolving into the
+            // background (8% → 46% at 44% → 86% at 74% → solid at 97%).
+            Box(Modifier.fillMaxWidth().height(430.dp)) {
+                Image(
+                    painter = painterResource(skin.photoRes),
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    alignment = BiasAlignment(0f, -0.28f),
+                    modifier = Modifier.fillMaxSize(),
+                )
+                Box(
+                    Modifier
+                        .fillMaxSize()
+                        .background(
+                            Brush.verticalGradient(
+                                0f to c.background.copy(alpha = 0.08f),
+                                0.44f to c.background.copy(alpha = 0.46f),
+                                0.74f to c.background.copy(alpha = 0.86f),
+                                0.97f to c.background,
+                            ),
+                        ),
+                )
+            }
+        }
+        Column(
+            Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(start = 28.dp, end = 28.dp, bottom = 30.dp),
+            verticalArrangement = Arrangement.spacedBy(22.dp, Alignment.Bottom),
+        ) {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalAlignment = Alignment.Start,
+            ) {
+                Box(
+                    Modifier
+                        .background(c.background.copy(alpha = 0.78f))
+                        .blueprint(c.accent)
+                        .padding(7.dp),
+                ) {
+                    Image(
+                        painter = painterResource(R.drawable.lotus_mark),
+                        contentDescription = "DIPI",
+                        modifier = Modifier.size(46.dp),
+                    )
+                }
+                Text(
+                    "DIPI Staff",
+                    fontFamily = DipiCondensed,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 32.sp,
+                    lineHeight = 32.sp,
+                    letterSpacing = (-0.01).em,
+                    color = c.foreground,
+                )
+                Text("Centre admin desk", fontSize = 13.sp, color = c.muted)
+            }
+
+            Column(verticalArrangement = Arrangement.spacedBy(15.dp)) {
+                LoginField(
+                    label = "Username",
+                    value = username,
+                    onValue = onUser,
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                )
+                LoginField(
+                    label = "Password",
+                    value = password,
+                    onValue = onPass,
+                    password = true,
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Password,
+                        imeAction = ImeAction.Done,
+                    ),
+                    keyboardActions = KeyboardActions(onDone = { onSubmit() }),
+                )
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .toggleable(value = remember, role = Role.Checkbox, onValueChange = onRemember)
+                        .padding(vertical = 2.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Checkbox(checked = remember, onCheckedChange = null)
+                    Text("Remember me", modifier = Modifier.padding(start = 8.dp), color = c.foreground, fontSize = 14.sp)
+                }
+                if (!error.isNullOrBlank()) {
+                    Text(error, color = c.hard, fontSize = 14.sp, lineHeight = 19.sp)
+                }
+            }
+
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .height(56.dp)
+                    .blueprintMarks(c.accent)
+                    .background(if (loading) c.accentPressed else c.accent, RoundedCornerShape(4.dp))
+                    .clickable(enabled = !loading, onClick = onSubmit),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    (if (loading) "Signing in…" else "Sign in").uppercase(),
+                    fontFamily = DipiCondensed,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 16.sp,
+                    letterSpacing = 0.08.em,
+                    color = Color.White,
+                )
+            }
+
+            Text(
+                "Your centre is read from your account after sign-in.",
+                fontSize = 12.sp,
+                lineHeight = 18.sp,
+                color = c.muted,
+            )
+        }
+    }
+}
+
+/** 52dp field with an 11.5sp uppercase label, on the theme's field fill. */
+@Composable
+private fun LoginField(
+    label: String,
+    value: String,
+    onValue: (String) -> Unit,
+    password: Boolean = false,
+    keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
+    keyboardActions: KeyboardActions = KeyboardActions.Default,
+) {
+    val c = LocalDipi.current
+    Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+        Text(
+            label.uppercase(),
+            fontSize = 11.5.sp,
+            letterSpacing = 0.09.em,
+            color = c.muted,
+        )
+        BasicTextField(
+            value = value,
+            onValueChange = onValue,
+            singleLine = true,
+            textStyle = TextStyle(
+                fontFamily = DipiSans,
+                fontWeight = FontWeight.Medium,
+                fontSize = 15.sp,
+                color = c.foreground,
+            ),
+            cursorBrush = SolidColor(c.accent),
+            visualTransformation = if (password) PasswordVisualTransformation() else VisualTransformation.None,
+            keyboardOptions = keyboardOptions,
+            keyboardActions = keyboardActions,
+            decorationBox = { inner ->
+                Box(
+                    Modifier
+                        .fillMaxWidth()
+                        .height(52.dp)
+                        .background(c.field, RoundedCornerShape(4.dp))
+                        .border(1.dp, c.hairlineStrong, RoundedCornerShape(4.dp))
+                        .padding(horizontal = 14.dp),
+                    contentAlignment = Alignment.CenterStart,
+                ) { inner() }
+            },
+        )
+    }
+}
