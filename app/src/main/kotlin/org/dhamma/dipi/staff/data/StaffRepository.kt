@@ -13,16 +13,21 @@ import org.dhamma.dipi.staff.datastore.SessionStore
 import org.dhamma.dipi.staff.model.ApplicantCard
 import org.dhamma.dipi.staff.model.ApplicantId
 import org.dhamma.dipi.staff.model.CentreId
+import org.dhamma.dipi.staff.model.CheckInRecord
 import org.dhamma.dipi.staff.model.Course
 import org.dhamma.dipi.staff.model.CourseId
 import org.dhamma.dipi.staff.model.FlushSnack
 import org.dhamma.dipi.staff.model.OutboxReconciler
 import org.dhamma.dipi.staff.model.PhotoEdit
 import org.dhamma.dipi.staff.model.PhotoReviewItem
+import org.dhamma.dipi.staff.model.RoomAllocSync
+import org.dhamma.dipi.staff.model.RoomPostOutcome
+import org.dhamma.dipi.staff.model.RoomSyncResult
 import org.dhamma.dipi.staff.model.SensitiveInfo
 import org.dhamma.dipi.staff.model.Session
 import org.dhamma.dipi.staff.model.StatusWrite
 import org.dhamma.dipi.staff.model.UserCentreMap
+import org.dhamma.dipi.staff.network.AccoHandlerParser
 import org.dhamma.dipi.staff.network.ApplicantDto
 import org.dhamma.dipi.staff.network.CentrePageParser
 import org.dhamma.dipi.staff.network.CropDto
@@ -153,7 +158,7 @@ class StaffRepository @Inject constructor(
         }.getOrElse {
             val ex = it.toApi()
             if (ex.unauthorized) {
-                logout()
+                sessionExpired()
                 throw ex
             }
             sessionStore.accountJson()?.let { raw ->
@@ -165,16 +170,36 @@ class StaffRepository @Inject constructor(
     suspend fun loadCourses(centreId: CentreId): List<Course> = runCatching {
         lastCentreId = centreId.value
         if (useMock) {
-            return@runCatching api.courses(centreId.value, upcoming = 1).items.map { it.toModel() }
+            val list = api.courses(centreId.value, upcoming = 1).items.map { it.toModel() }
+            refreshRooms(centreId.value)
+            return@runCatching list
         }
         val dash = api.centreDashboard(centreId.value)
         val html = dash.html()
         if (stillOnLogin(html) || dash.code() == 403) throw ApiException("Access denied", unauthorized = true)
         val summaries = CentrePageParser.courseSummaries(html)
+        refreshRooms(centreId.value)
         SearchPageParser.coursesFromDashboard(html).map {
             Course(CourseId(it.id), centreId, it.label, "", "", summary = summaries[it.id])
         }
     }.getOrElse { throw it.toApi() }
+
+    /**
+     * Server room config, read-only: `GET /centre/{cid}/acco-handler` — the
+     * DataTables source behind the desk's Centre-settings Accommodation table.
+     * Refreshed on every centre-page load (login and centre pick) and cached
+     * in [CentreOpsPrefs.rooms]; any failure or non-Editor body (offline,
+     * expired session) keeps the last fetch, so Rooms stays offline-first.
+     */
+    private suspend fun refreshRooms(centreId: Int) {
+        runCatching {
+            val resp = api.accoHandler(centreId)
+            if (!resp.isSuccessful) return
+            val rooms = AccoHandlerParser.roomsOrNull(resp.html()) ?: return
+            val cur = sessionStore.centreOpsOnce()
+            if (cur.rooms != rooms) sessionStore.setCentreOps(cur.copy(rooms = rooms))
+        }
+    }
 
     suspend fun loadStatuses(): List<String> = runCatching {
         if (useMock) return@runCatching api.statuses().items.map { it.value }
@@ -249,6 +274,16 @@ class StaffRepository @Inject constructor(
             json.decodeFromString(ApplicantDto.serializer(), it.payload).toModel()
         }
 
+    /**
+     * Every applicant row in the Room cache, across all courses opened on
+     * this device — the in-app Advanced Search's corpus. Read-only; no
+     * fetch, no NPI (the cache never holds any).
+     */
+    suspend fun cachedApplicants(): List<ApplicantCard> =
+        applicants.listAll().map {
+            json.decodeFromString(ApplicantDto.serializer(), it.payload).toModel()
+        }
+
     suspend fun photoReview(courseId: CourseId): List<org.dhamma.dipi.staff.model.PhotoReviewItem> = runCatching {
         if (useMock) return@runCatching api.photoReview(courseId.value).items.map { it.toModel() }
         emptyList()
@@ -314,6 +349,58 @@ class StaffRepository @Inject constructor(
         return snacks
     }
 
+    /**
+     * One applicant's room allocation to the desk's own update endpoint —
+     * `POST /app-update-attended/{id}` (owner amendment 2026-08-16). Sends
+     * exactly the dialog's fields via [RoomAllocSync.params]: room section/
+     * no/group/seating; the desk-side laundry/valuable token numbers, cell
+     * and comment are not tracked here and post empty. Never a status,
+     * never NPI. Outcomes map 401/403 → [RoomPostOutcome.AuthExpired] and
+     * IO errors → [RoomPostOutcome.Offline] so the bulk walk can stop.
+     */
+    suspend fun syncRoomAllocation(id: ApplicantId, record: CheckInRecord): RoomPostOutcome {
+        return runCatching { api.updateAttended(id.value, RoomAllocSync.params(record)) }.fold(
+            onSuccess = { dto ->
+                if (dto.status) RoomPostOutcome.Ok else RoomPostOutcome.Rejected(dto.msg.ifBlank { "Update failed" })
+            },
+            onFailure = { e ->
+                val apiEx = e.toApi()
+                when {
+                    apiEx.unauthorized -> RoomPostOutcome.AuthExpired
+                    e is java.io.IOException -> RoomPostOutcome.Offline
+                    else -> RoomPostOutcome.Rejected(apiEx.message ?: "Update failed")
+                }
+            },
+        )
+    }
+
+    /**
+     * User-initiated bulk sync: walks every unsynced checked-in record with
+     * a room, posts each, marks successes in [SessionStore] as they land
+     * (partial runs keep their progress), collects per-row refusals, and
+     * stops early on auth loss (throws unauthorized → sign-in) or on a
+     * connectivity drop (partial result; the rest stays queued).
+     */
+    suspend fun syncRoomAllocations(records: Map<ApplicantId, CheckInRecord>): RoomSyncResult {
+        val result = RoomAllocSync.walk(
+            pending = RoomAllocSync.pending(records),
+            post = { id, record -> syncRoomAllocation(id, record) },
+            markSynced = { id, record -> markRoomSynced(id, record) },
+        )
+        if (result.authExpired) throw ApiException("Session expired", unauthorized = true)
+        return result
+    }
+
+    private suspend fun markRoomSynced(id: ApplicantId, sent: CheckInRecord) {
+        val all = sessionStore.checkInsOnce()
+        val cur = all[id.value] ?: return
+        // Edited while the post was in flight → the edit already re-queued it.
+        if (cur.copy(synced = sent.synced, syncedAt = sent.syncedAt) != sent) return
+        sessionStore.setCheckIns(
+            all + (id.value to cur.copy(synced = true, syncedAt = Instant.now().toString())),
+        )
+    }
+
     suspend fun uploadPhotos(
         edits: Map<ApplicantId, PhotoEdit>,
     ): Pair<Int, String> {
@@ -342,6 +429,21 @@ class StaffRepository @Inject constructor(
         applicants.clear()
         outbox.clear()
         sessionStore.clear()
+        sensitive.clear()
+        lastCentreId = null
+    }
+
+    /**
+     * Auth expiry mid-session (403): drop the dead cookies/CSRF and the
+     * session-scoped sensitive map so the next screen is Sign in — but keep
+     * the applicant cache, the queued outbox, and every check-in record
+     * (including the room-sync walk's partial progress). A routine session
+     * timeout must not destroy desk work; only an explicit Logout or
+     * "Erase all local data" wipes.
+     */
+    suspend fun sessionExpired() {
+        cookies.clear()
+        tokens.saveSession(null, null)
         sensitive.clear()
         lastCentreId = null
     }

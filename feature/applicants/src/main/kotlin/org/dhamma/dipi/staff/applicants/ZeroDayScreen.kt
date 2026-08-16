@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -28,6 +27,7 @@ import org.dhamma.dipi.staff.model.ApplicantId
 import org.dhamma.dipi.staff.model.CentreOpsPrefs
 import org.dhamma.dipi.staff.model.Course
 import org.dhamma.dipi.staff.model.MAIN_DHAMMA_HALL
+import org.dhamma.dipi.staff.ui.theme.DeskStyle
 import org.dhamma.dipi.staff.ui.theme.DipiCondensed
 import org.dhamma.dipi.staff.ui.theme.LocalDipi
 
@@ -51,6 +51,9 @@ fun ZeroDayScreen(
     onMarkAttended: (ApplicantCard) -> Unit = {},
     onOpen: (ApplicantCard) -> Unit = {},
     onBack: () -> Unit = {},
+    pendingRoomSync: Int = 0,
+    roomSyncBusy: Boolean = false,
+    onSyncRooms: () -> Unit = {},
 ) {
     val c = LocalDipi.current
     val unattended = rows.filter { !it.attended }
@@ -76,7 +79,7 @@ fun ZeroDayScreen(
                         fontSize = 12.sp,
                         color = c.foreground,
                         modifier = Modifier
-                            .border(1.dp, c.hairlineStrong, RoundedCornerShape(4.dp))
+                            .border(1.dp, c.hairlineStrong, DeskStyle.controlShape)
                             .padding(horizontal = 8.dp, vertical = 3.dp),
                     )
                 }
@@ -84,7 +87,15 @@ fun ZeroDayScreen(
         } else {
             Text(MAIN_DHAMMA_HALL, color = c.muted, fontSize = 13.sp, modifier = Modifier.padding(top = 4.dp))
         }
-        TextButton(onClick = onBack) { Text("Back") }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            TextButton(onClick = onBack) { Text("Back") }
+            // Mirror of the desk's bulk allocation sync — hidden at 0 pending.
+            if (pendingRoomSync > 0 || roomSyncBusy) {
+                TextButton(onClick = onSyncRooms, enabled = !roomSyncBusy) {
+                    Text(if (roomSyncBusy) "Syncing rooms…" else "Sync rooms ($pendingRoomSync)")
+                }
+            }
+        }
         Text("Unattended", fontFamily = DipiCondensed, fontSize = 16.sp, modifier = Modifier.padding(top = 8.dp, bottom = 8.dp))
         if (unattended.isEmpty()) {
             Text("Everyone on this list is marked attended.", color = c.muted, fontSize = 13.sp)
@@ -110,8 +121,8 @@ fun ZeroDayScreen(
                             modifier = Modifier
                                 .weight(1f)
                                 .heightIn(min = 48.dp)
-                                .border(1.dp, c.accent, RoundedCornerShape(4.dp))
-                                .background(if (sel) c.accent else Color.Transparent, RoundedCornerShape(4.dp))
+                                .border(1.dp, c.accent, DeskStyle.controlShape)
+                                .background(if (sel) c.accent else Color.Transparent, DeskStyle.controlShape)
                                 .clickable { onSeating(card, seat) }
                                 .padding(horizontal = 4.dp, vertical = 8.dp),
                             contentAlignment = Alignment.Center,

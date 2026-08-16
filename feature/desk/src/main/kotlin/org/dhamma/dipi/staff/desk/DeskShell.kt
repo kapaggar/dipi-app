@@ -20,6 +20,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
@@ -29,12 +30,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import org.dhamma.dipi.staff.ui.R
+import org.dhamma.dipi.staff.ui.theme.DeskStyle
 import org.dhamma.dipi.staff.ui.theme.DipiCondensed
 import org.dhamma.dipi.staff.ui.theme.DipiMono
 import org.dhamma.dipi.staff.ui.theme.DipiSans
 import org.dhamma.dipi.staff.ui.theme.Industry
 import org.dhamma.dipi.staff.ui.theme.LotusWatermark
-import org.dhamma.dipi.staff.ui.theme.blueprint
+import org.dhamma.dipi.staff.ui.theme.deskCard
 import org.dhamma.dipi.staff.ui.theme.deskWash
 
 /** The six desk sections the left rail routes between. Centre settings live on the Centre screen. */
@@ -49,13 +51,21 @@ enum class DeskSection(val label: String, val crumb: String) {
 
 /** Everything the persistent rail displays. Counts are derived by the caller, never stored. */
 data class DeskRail(
-    val courseName: String,
-    val courseDates: String,
-    val dayChip: String?,
     val userName: String,
     val syncLine: String,
     val counts: Map<DeskSection, Int> = emptyMap(),
 )
+
+/** Course identity, shown in the 52dp top bar: "Dhamma Sudha · 10 Day · 26 Aug – 4 Sep · DAY 0". */
+data class DeskCourse(
+    val label: String,
+    val dates: String,
+    val dayChip: String?,
+) {
+    val line: String
+        get() = listOfNotNull(label.ifBlank { null }, dates.ifBlank { null }, dayChip)
+            .joinToString(" · ")
+}
 
 /**
  * The tablet desk shell: fixed 212dp rail, 52dp top bar, and the active
@@ -68,6 +78,7 @@ data class DeskRail(
 fun DeskShell(
     section: DeskSection,
     rail: DeskRail,
+    course: DeskCourse,
     clock: String,
     onSection: (DeskSection) -> Unit,
     loading: Boolean = false,
@@ -94,7 +105,7 @@ fun DeskShell(
         Row(Modifier.fillMaxSize()) {
             DeskRailPane(section, rail, onSection)
             Column(Modifier.weight(1f).fillMaxHeight()) {
-                DeskTopBar(section.crumb, clock)
+                DeskTopBar(course.line, clock)
                 if (loading) DeskProgressHairline(Modifier.testTag("desk-loading"))
                 Box(Modifier.weight(1f)) { content(section) }
             }
@@ -117,64 +128,22 @@ private fun DeskRailPane(
     ) {
         Row(
             Modifier.padding(start = 18.dp, end = 18.dp, bottom = 18.dp),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Box(
-                Modifier.blueprint(Industry.accent).padding(3.dp),
+                Modifier
+                    .deskCard(
+                        shape = DeskStyle.controlShape,
+                        border = Industry.accent,
+                        elevation = 0.dp,
+                    )
+                    .padding(4.dp),
                 contentAlignment = Alignment.Center,
             ) {
                 Image(
                     painterResource(R.drawable.lotus_mark),
                     contentDescription = "DIPI",
-                    modifier = Modifier.size(30.dp),
-                )
-            }
-            Text(
-                "DIPI Staff",
-                fontFamily = DipiCondensed,
-                fontWeight = FontWeight.Bold,
-                fontSize = 18.sp,
-                lineHeight = 18.sp,
-                color = Industry.text,
-            )
-        }
-
-        Column(
-            Modifier
-                .padding(start = 14.dp, end = 14.dp, bottom = 22.dp)
-                .fillMaxWidth()
-                .blueprint(Industry.neutral400)
-                .padding(start = 12.dp, end = 12.dp, top = 11.dp, bottom = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(3.dp),
-        ) {
-            DeskKicker("COURSE", Industry.accent700)
-            Text(
-                rail.courseName,
-                fontFamily = DipiCondensed,
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 19.sp,
-                lineHeight = 21.sp,
-                color = Industry.text,
-            )
-            Text(
-                rail.courseDates,
-                fontFamily = DipiSans,
-                fontSize = 11.5.sp,
-                lineHeight = 15.sp,
-                color = Industry.neutral600,
-            )
-            if (rail.dayChip != null) {
-                Text(
-                    rail.dayChip,
-                    fontFamily = DipiMono,
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 10.sp,
-                    letterSpacing = 0.1.em,
-                    color = Industry.accent800,
-                    modifier = Modifier
-                        .background(Industry.accent100)
-                        .padding(horizontal = 6.dp, vertical = 3.dp),
+                    modifier = Modifier.size(40.dp),
                 )
             }
         }
@@ -207,21 +176,19 @@ private fun DeskRailPane(
 
 @Composable
 private fun DeskNavRow(label: String, count: Int?, active: Boolean, onClick: () -> Unit) {
+    // Sleek pass: the active section reads as a rounded accent-tinted
+    // highlight instead of the wireframe's 2dp bar + hairline rows.
     Row(
         Modifier
             .fillMaxWidth()
+            .padding(horizontal = 10.dp, vertical = 2.dp)
+            .clip(DeskStyle.controlShape)
+            .background(if (active) Industry.accent100 else Color.Transparent)
             .clickable(onClick = onClick)
-            .bottomHairline(Industry.neutral200)
-            .padding(top = 9.dp, bottom = 9.dp, end = 16.dp),
+            .padding(horizontal = 10.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(
-            Modifier
-                .width(2.dp)
-                .height(16.dp)
-                .background(if (active) Industry.accent else Color.Transparent),
-        )
         Text(
             label,
             fontFamily = DipiSans,
@@ -236,14 +203,14 @@ private fun DeskNavRow(label: String, count: Int?, active: Boolean, onClick: () 
                 fontFamily = DipiMono,
                 fontWeight = FontWeight.Medium,
                 fontSize = 11.sp,
-                color = Industry.neutral500,
+                color = if (active) Industry.accent700 else Industry.neutral500,
             )
         }
     }
 }
 
 @Composable
-private fun DeskTopBar(crumb: String, clock: String) {
+private fun DeskTopBar(courseLine: String, clock: String) {
     Row(
         Modifier
             .fillMaxWidth()
@@ -254,12 +221,13 @@ private fun DeskTopBar(crumb: String, clock: String) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
-            crumb,
+            courseLine,
             fontFamily = DipiCondensed,
             fontWeight = FontWeight.SemiBold,
-            fontSize = 12.sp,
-            letterSpacing = 0.14.em,
-            color = Industry.neutral600,
+            fontSize = 13.sp,
+            letterSpacing = 0.1.em,
+            color = Industry.neutral700,
+            maxLines = 1,
         )
         Text(
             clock,

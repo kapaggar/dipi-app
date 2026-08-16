@@ -1,37 +1,44 @@
 package org.dhamma.dipi.staff.course
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.dhamma.dipi.staff.model.AccoRoom
 import org.dhamma.dipi.staff.model.Gender
+import org.dhamma.dipi.staff.ui.theme.DeskStyle
 import org.dhamma.dipi.staff.ui.theme.DipiCondensed
+import org.dhamma.dipi.staff.ui.theme.DipiMono
 import org.dhamma.dipi.staff.ui.theme.LocalDipi
+import org.dhamma.dipi.staff.ui.theme.deskCard
 
+/**
+ * Read-only room chart, mirroring the paper chart at the desk: numbered
+ * cells in a grid, the amenity mark (G geyser · IC Indian commode ·
+ * W Western toilet) under the number. The list itself comes from the desk
+ * site's centre config; the app never adds or deletes rooms. When opened
+ * from Zero Day the tap still assigns the room to the applicant.
+ */
 @Composable
 fun RoomsScreen(
     rooms: List<AccoRoom>,
     genderFilter: Gender? = null,
-    editMode: Boolean = false,
     onPick: (AccoRoom) -> Unit = {},
-    onToggleFeature: (String, String) -> Unit = { _, _ -> },
     onBack: () -> Unit = {},
 ) {
     val c = LocalDipi.current
@@ -40,62 +47,68 @@ fun RoomsScreen(
         Modifier
             .fillMaxSize()
             .background(c.background)
+            .verticalScroll(rememberScrollState())
             .padding(20.dp),
     ) {
-        Text("Rooms", fontFamily = DipiCondensed, fontSize = 22.sp, color = c.foreground)
+        Text("Room chart", fontFamily = DipiCondensed, fontSize = 22.sp, color = c.foreground)
         TextButton(onClick = onBack) { Text("Back") }
         if (shown.isEmpty()) {
-            Text("No rooms for this filter.", color = c.muted, modifier = Modifier.padding(top = 12.dp))
-        } else {
-            LazyColumn {
-                items(shown, key = { it.code }) { room ->
+            Text(
+                "No rooms for this filter. The room list comes from the desk site.",
+                color = c.muted,
+                modifier = Modifier.padding(top = 12.dp),
+            )
+            return@Column
+        }
+        listOf(Gender.F to "Female", Gender.M to "Male").forEach { (g, label) ->
+            val block = shown.filter { it.gender == g }
+            if (block.isEmpty()) return@forEach
+            block.groupBy { it.section }.forEach { (section, sectionRooms) ->
+                Text(
+                    listOf(label, section).filter { it.isNotBlank() }.joinToString(" · ") +
+                        " · ${sectionRooms.size} rooms",
+                    fontFamily = DipiCondensed,
+                    fontSize = 16.sp,
+                    color = c.foreground,
+                    modifier = Modifier.padding(top = 14.dp, bottom = 6.dp),
+                )
+                sectionRooms.chunked(4).forEachIndexed { i, rowRooms ->
                     Row(
                         Modifier
                             .fillMaxWidth()
-                            .clickable(enabled = !editMode) { onPick(room) }
-                            .padding(vertical = 10.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
+                            .padding(bottom = 6.dp)
+                            .clip(DeskStyle.tileShape)
+                            .background(if (i % 2 == 1) c.tint else androidx.compose.ui.graphics.Color.Transparent),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
                     ) {
-                        Column(Modifier.weight(1f)) {
-                            Text(room.code, fontFamily = DipiCondensed, fontSize = 18.sp, color = c.foreground)
-                            Text(
-                                listOf(room.gender.name, room.section).filter { it.isNotBlank() }.joinToString(" · ") +
-                                    if (room.localExample) "  example" else "",
-                                color = c.muted,
-                                fontSize = 12.sp,
-                            )
+                        rowRooms.forEach { room ->
+                            Column(
+                                Modifier
+                                    .weight(1f)
+                                    .deskCard(shape = DeskStyle.tileShape, fill = c.field, border = c.hairline)
+                                    .clickable { onPick(room) }
+                                    .padding(horizontal = 8.dp, vertical = 8.dp),
+                                verticalArrangement = Arrangement.spacedBy(2.dp),
+                            ) {
+                                Text(
+                                    room.displayNo,
+                                    fontFamily = DipiCondensed,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 17.sp,
+                                    color = c.foreground,
+                                )
+                                Text(
+                                    room.amenityMark.ifBlank { " " },
+                                    fontFamily = DipiMono,
+                                    fontSize = 10.sp,
+                                    color = c.muted,
+                                )
+                            }
                         }
-                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            FeatureChip("Geyser", room.features.geyser, editMode) {
-                                onToggleFeature(room.code, "geyser")
-                            }
-                            FeatureChip("Indian", room.features.indianToilet, editMode) {
-                                onToggleFeature(room.code, "indianToilet")
-                            }
-                            FeatureChip("Western", room.features.westernToilet, editMode) {
-                                onToggleFeature(room.code, "westernToilet")
-                            }
-                        }
+                        repeat(4 - rowRooms.size) { Spacer(Modifier.weight(1f)) }
                     }
                 }
             }
         }
     }
-}
-
-@Composable
-private fun FeatureChip(label: String, on: Boolean, editMode: Boolean, onClick: () -> Unit) {
-    val c = LocalDipi.current
-    Text(
-        label,
-        color = if (on) Color.White else c.foreground,
-        fontFamily = DipiCondensed,
-        fontSize = 11.sp,
-        modifier = Modifier
-            .border(1.dp, if (on) c.accent else c.hairlineStrong, RoundedCornerShape(4.dp))
-            .background(if (on) c.accent else Color.Transparent, RoundedCornerShape(4.dp))
-            .then(if (editMode) Modifier.clickable(onClick = onClick) else Modifier)
-            .padding(horizontal = 8.dp, vertical = 4.dp),
-    )
 }

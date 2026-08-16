@@ -35,6 +35,14 @@ class DeskNavTest {
     }
 
     @Test
+    fun advancedSearchBacksToCentreAndItsCardsBackToTheResults() {
+        assertEquals(DeskScreen.Centre, deskBack(DeskScreen.Search, null))
+        assertEquals(DeskScreen.Centre, deskBack(DeskScreen.Search, DeskScreen.Centre))
+        assertEquals(DeskScreen.Search, deskBack(DeskScreen.Card, DeskScreen.Search))
+        assertEquals(DeskScreen.Today, deskBack(DeskScreen.Card, DeskScreen.CourseHub))
+    }
+
+    @Test
     fun newScreensBackToHubRoomsToOpener() {
         assertEquals(DeskScreen.CourseHub, deskBack(DeskScreen.ZeroDay, null))
         assertEquals(DeskScreen.CourseHub, deskBack(DeskScreen.Audit, null))

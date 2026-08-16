@@ -9,7 +9,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -19,6 +19,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.dhamma.dipi.staff.model.ApplicantCard
 import org.dhamma.dipi.staff.model.AuditSeverity
+import org.dhamma.dipi.staff.ui.theme.DeskStyle
 import org.dhamma.dipi.staff.ui.theme.DipiCondensed
 import org.dhamma.dipi.staff.ui.theme.DipiMono
 import org.dhamma.dipi.staff.ui.theme.LocalDipi
@@ -34,7 +35,7 @@ fun StatusBadge(label: String, modifier: Modifier = Modifier, dark: Boolean) {
         fontSize = 11.sp,
         fontFamily = DipiCondensed,
         modifier = modifier
-            .clip(RoundedCornerShape(4.dp))
+            .clip(DeskStyle.pillShape)
             .background(bg)
             .padding(horizontal = 8.dp, vertical = 3.dp),
     )
@@ -103,8 +104,8 @@ fun FilterChip(label: String, selected: Boolean, onClick: () -> Unit) {
         fontFamily = DipiCondensed,
         fontSize = 13.sp,
         modifier = Modifier
-            .clip(RoundedCornerShape(4.dp))
-            .border(1.dp, if (selected) c.accent else c.hairlineStrong, RoundedCornerShape(4.dp))
+            .clip(DeskStyle.controlShape)
+            .border(1.dp, if (selected) c.accent else c.hairlineStrong, DeskStyle.controlShape)
             .background(bg)
             .clickable(onClick = onClick)
             .padding(horizontal = 11.dp, vertical = 6.dp),
@@ -121,7 +122,7 @@ fun SeverityDot(sev: AuditSeverity) {
     }
     Box(
         Modifier
-            .clip(RoundedCornerShape(2.dp))
+            .clip(CircleShape)
             .background(color)
             .padding(6.dp),
     )

@@ -190,6 +190,17 @@ data class StatusesDto(val items: List<StatusItemDto>)
 @Serializable
 data class StatusItemDto(val key: String? = null, val value: String)
 
+/**
+ * `POST /app-update-attended/{id}` reply — only the verdict. The live JSON
+ * also carries `applicant`/`attended` HTML lists plus `acco`/`alloted` maps;
+ * the converter's ignoreUnknownKeys drops them, they are never parsed.
+ */
+@Serializable
+data class AttendedUpdateDto(
+    val status: Boolean = false,
+    val msg: String = "",
+)
+
 @Serializable
 data class ChangeStatusDto(
     val status: String = "",

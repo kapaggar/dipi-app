@@ -36,6 +36,9 @@ interface ApplicantDao {
     @Query("SELECT * FROM applicants WHERE courseId = :courseId")
     suspend fun list(courseId: Int): List<ApplicantEntity>
 
+    @Query("SELECT * FROM applicants")
+    suspend fun listAll(): List<ApplicantEntity>
+
     @Query("SELECT * FROM applicants WHERE id = :id")
     suspend fun get(id: Int): ApplicantEntity?
 

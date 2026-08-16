@@ -10,6 +10,9 @@ class DipiMockDispatcher : Dispatcher() {
     private val json = Json { encodeDefaults = true; ignoreUnknownKeys = true }
     private val people = MockFixtures.people.toMutableList()
 
+    /** applicant id → (section, room no) — mirrors the live duplicate-room refusal. */
+    private val alloted = MockFixtures.allotedSeed.toMutableMap()
+
     override fun dispatch(request: RecordedRequest): MockResponse {
         val path = request.path.orEmpty()
         val method = request.method.orEmpty()
@@ -56,6 +59,8 @@ class DipiMockDispatcher : Dispatcher() {
                 )
             path.matches(Regex("/staff/courses/\\d+/photo-review")) ->
                 ok(json.encodeToString(PhotoReviewListDto(MockFixtures.photoReview)))
+            path.matches(Regex("/centre/\\d+/acco-handler.*")) -> ok(MockFixtures.accoHandlerJson)
+            method == "POST" && path.startsWith("/app-update-attended/") -> updateAttended(request, path)
             path.startsWith("/change-status/") -> changeStatus(path)
             else -> MockResponse().setResponseCode(404).setBody("""{"msg":"not mocked $path"}""")
         }
@@ -76,6 +81,54 @@ class DipiMockDispatcher : Dispatcher() {
             }
         }
         return ok(json.encodeToString(ApplicantListDto(rows, MockFixtures.counts)))
+    }
+
+    /**
+     * `dh_app_update_attended` verbatim: `a=false` deletes the allocation;
+     * missing section/room refuse with the live messages; a room another
+     * applicant already holds refuses "Room has already been alloted".
+     * Success mirrors the live shape — JSON-boolean `status` plus the HTML
+     * list payloads the app must ignore. Never touches status strings.
+     */
+    private fun updateAttended(request: RecordedRequest, path: String): MockResponse {
+        val id = path.removePrefix("/app-update-attended/").substringBefore("?").toIntOrNull()
+            ?: return MockResponse().setResponseCode(404)
+        val form = form(request)
+        if (form["a"] == "false") {
+            alloted.remove(id)
+            setAttended(id, false)
+            return ok(attendedReply(true, "Ok"))
+        }
+        val section = form["s"].orEmpty()
+        val room = form["r"].orEmpty()
+        if (section.isBlank()) return ok("""{"msg":"Please select room section","status":false}""")
+        if (room.isBlank()) return ok("""{"status":false,"msg":"Please select room no"}""")
+        if (alloted.any { (other, held) -> other != id && held == section to room }) {
+            return ok("""{"status":false,"msg":"Room has already been alloted"}""")
+        }
+        alloted[id] = section to room
+        setAttended(id, true)
+        return ok(attendedReply(true, "Ok"))
+    }
+
+    private fun attendedReply(status: Boolean, msg: String): String =
+        """{"msg":"$msg","status":$status,""" +
+            """"applicant":"<table id=\"table-applicants\"></table>",""" +
+            """"attended":"<table id=\"table-attending\"></table>","acco":{},"alloted":{}}"""
+
+    private fun setAttended(id: Int, attended: Boolean) {
+        val idx = people.indexOfFirst { it.id == id }
+        if (idx >= 0) people[idx] = people[idx].copy(attended = attended)
+    }
+
+    private fun form(request: RecordedRequest): Map<String, String> {
+        val body = request.body.clone().readUtf8()
+        if (body.isEmpty()) return emptyMap()
+        return body.split("&").mapNotNull {
+            val p = it.split("=", limit = 2)
+            if (p.size == 2) java.net.URLDecoder.decode(p[0], "UTF-8") to
+                java.net.URLDecoder.decode(p[1], "UTF-8") else null
+        }.toMap()
     }
 
     private fun changeStatus(path: String): MockResponse {

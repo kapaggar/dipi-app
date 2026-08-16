@@ -70,6 +70,19 @@ interface StaffApi {
         @Query("c") comment: String = "",
     ): ChangeStatusDto
 
+    /**
+     * The worklist dialog's own allocation write (owner amendment 2026-08-16):
+     * `dh_app_update_attended` — plain menu callback, session cookie only, no
+     * form token. Fields are exactly the dialog's `s,r,g,l,v,c,cf,chow,chai,
+     * back,comment,a` (build via RoomAllocSync.params). No status, no NPI.
+     */
+    @FormUrlEncoded
+    @POST("/app-update-attended/{id}")
+    suspend fun updateAttended(
+        @Path("id") id: Int,
+        @FieldMap fields: Map<String, String>,
+    ): AttendedUpdateDto
+
     /** Live desk: Drupal form that embeds `var dataset`. */
     @GET("/search-app")
     suspend fun searchAppLanding(): Response<ResponseBody>
@@ -126,6 +139,13 @@ interface StaffApi {
 
     @GET("/centre/{cid}")
     suspend fun centreDashboard(@Path("cid") centreId: Int): Response<ResponseBody>
+
+    /**
+     * Centre room config: the DataTables source the browser loads for
+     * `/centre/{cid}/edit`'s Accommodation table. GET only — read-only here.
+     */
+    @GET("/centre/{cid}/acco-handler")
+    suspend fun accoHandler(@Path("cid") centreId: Int): Response<ResponseBody>
 
     @GET("/search-course/{cid}/{courseId}")
     suspend fun searchCourse(

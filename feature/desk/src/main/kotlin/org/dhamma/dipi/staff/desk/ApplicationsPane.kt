@@ -28,9 +28,6 @@ import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.layout.ContentScale
@@ -46,11 +43,11 @@ import org.dhamma.dipi.staff.model.ApplicantId
 import org.dhamma.dipi.staff.model.AuditFlag
 import org.dhamma.dipi.staff.model.AuditSeverity
 import org.dhamma.dipi.staff.model.SensitiveInfo
+import org.dhamma.dipi.staff.ui.theme.DeskStyle
 import org.dhamma.dipi.staff.ui.theme.DipiCondensed
 import org.dhamma.dipi.staff.ui.theme.DipiMono
 import org.dhamma.dipi.staff.ui.theme.Industry
-import org.dhamma.dipi.staff.ui.theme.blueprint
-import org.dhamma.dipi.staff.ui.theme.blueprintMarks
+import org.dhamma.dipi.staff.ui.theme.deskCard
 import org.dhamma.dipi.staff.ui.theme.statusColors
 
 /**
@@ -121,7 +118,7 @@ fun ApplicationsPane(
 
 /**
  * Multi-select status filter, one chip per status present plus "All".
- * Square corners, accent border + accent100 fill when selected, counts in
+ * Rounded, accent border + accent100 fill when selected, counts in
  * mono — the same visual language as the check-in chips.
  */
 @OptIn(ExperimentalLayoutApi::class)
@@ -150,7 +147,8 @@ private fun StatusChipRow(
 private fun StatusChip(label: String, count: Int?, on: Boolean, onClick: () -> Unit) {
     Row(
         Modifier
-            .border(1.dp, if (on) Industry.accent else Industry.neutral400)
+            .clip(DeskStyle.controlShape)
+            .border(1.dp, if (on) Industry.accent else Industry.neutral400, DeskStyle.controlShape)
             .background(if (on) Industry.accent100 else Color.Transparent)
             .clickable(onClick = onClick)
             .semantics { contentDescription = "Filter $label" }
@@ -191,18 +189,17 @@ private fun AppListRow(
         flags.isNotEmpty() -> Industry.neutral400
         else -> Color.Transparent
     }
+    // Sleek pass: the selected row is a rounded accent-tinted highlight
+    // instead of the wireframe's edge bar.
     Row(
         Modifier
             .fillMaxWidth()
-            .background(if (selected) Industry.accent100 else Color.Transparent)
-            .drawBehind {
-                if (selected) {
-                    drawRect(Industry.accent, Offset.Zero, Size(2.dp.toPx(), size.height))
-                }
-            }
             .clickable(onClick = onClick)
             .bottomHairline(Industry.neutral200)
-            .padding(horizontal = 18.dp, vertical = 11.dp),
+            .padding(horizontal = 8.dp, vertical = 3.dp)
+            .clip(DeskStyle.controlShape)
+            .background(if (selected) Industry.accent100 else Color.Transparent)
+            .padding(horizontal = 10.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -247,13 +244,17 @@ private fun AppListRow(
                 fontSize = 11.5.sp,
                 color = Industry.neutral500,
             )
-            StatusPill(card, width = 66.dp, fontSize = 10.5f)
+            StatusPill(card, fontSize = 10.5f)
         }
     }
 }
 
+/**
+ * Wrap-content status pill — never a fixed width, so the full word always
+ * shows ("CANCELLED", never "CANCELL"; owner feedback 2026-08-16).
+ */
 @Composable
-private fun StatusPill(card: ApplicantCard, width: androidx.compose.ui.unit.Dp?, fontSize: Float) {
+private fun StatusPill(card: ApplicantCard, fontSize: Float) {
     val (bg, fg) = statusColors(card.status.tone, dark = false)
     Text(
         card.status.value,
@@ -262,7 +263,8 @@ private fun StatusPill(card: ApplicantCard, width: androidx.compose.ui.unit.Dp?,
         textAlign = TextAlign.Center,
         maxLines = 1,
         color = fg,
-        modifier = (if (width != null) Modifier.width(width) else Modifier)
+        modifier = Modifier
+            .clip(DeskStyle.pillShape)
             .background(bg)
             .padding(horizontal = 8.dp, vertical = 3.dp),
     )
@@ -309,7 +311,7 @@ private fun AppDetail(
                     color = Industry.neutral700,
                 )
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    StatusPill(card, width = null, fontSize = 11.5f)
+                    StatusPill(card, fontSize = 11.5f)
                     Text(
                         card.confNo?.display() ?: "no conf number",
                         fontFamily = DipiMono,
@@ -336,7 +338,7 @@ private fun AppDetail(
         Column(
             Modifier
                 .fillMaxWidth()
-                .blueprint(Industry.accent)
+                .deskCard(border = Industry.accent, elevation = 0.dp)
                 .padding(horizontal = 15.dp, vertical = 13.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
@@ -386,7 +388,7 @@ private sealed interface DetailPhotoState {
 }
 
 /**
- * The blueprint photo frame, enlarged to 170×183 (dipi's 260:280 ratio) so
+ * The rounded photo card, enlarged to 170×183 (dipi's 260:280 ratio) so
  * the face reads across a desk. The live photo replaces the initials once
  * fetched; while loading the initials sit dimmed (no shimmer — the design
  * system forbids entrance animations), and on 403/404 they stay as the
@@ -401,8 +403,7 @@ private fun DetailPhoto(card: ApplicantCard, loadPhoto: suspend (ApplicantId) ->
     Box(
         Modifier
             .size(170.dp, 183.dp)
-            .blueprint(Industry.neutral400)
-            .background(Industry.neutral100),
+            .deskCard(fill = Industry.neutral100, elevation = 0.dp),
         contentAlignment = Alignment.Center,
     ) {
         when (val p = photo) {
@@ -433,7 +434,7 @@ private fun IdVerificationBlock(sensitive: SensitiveInfo?) {
     Column(
         Modifier
             .fillMaxWidth()
-            .border(1.dp, Industry.neutral300)
+            .deskCard(elevation = 0.dp)
             .padding(horizontal = 15.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(7.dp),
     ) {
@@ -474,8 +475,7 @@ private fun HealthPanel(health: Map<String, String>) {
     Column(
         Modifier
             .fillMaxWidth()
-            .background(Industry.accent100)
-            .border(1.dp, Industry.accent)
+            .deskCard(fill = Industry.accent100, border = Industry.accent, elevation = 0.dp)
             .padding(horizontal = 15.dp, vertical = 13.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {

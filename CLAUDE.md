@@ -12,6 +12,7 @@ Vertical 1 loop: login → centre (from `dh_user_center`) → upcoming courses �
 **Do not assume:** `POST /api/user/login`, `GET /staff/session`, `POST /search-app`, or a hardcoded Dhamma Giri centre.
 
 **NPI display amendment (owner decision 2026-08-16):** ID documents (Aadhaar/PAN/Voter ID/Passport) and health disclosures MAY be displayed on-screen for desk-side verification, but must never be persisted (no Room/DataStore/DTO fields) or logged — in-memory session map only (`SensitiveInfo`).
+**Allocation sync amendment (owner decision 2026-08-16):** room-allocation sync via the desk's existing update form (`POST /app-update-attended/{id}` with the dialog's own fields), bulk and user-initiated, IS allowed — the client still never sends a status, never `Approved`, never NPI; backend PHP stays immutable.
 **Workflow:** implementation runs as a dynamic multi-agent workflow — parallel scoped workers (strict file ownership, scoped tests) plus an integrator that runs the full suite, bumps SemVer, builds the slim release, and installs on the Pixel C.
 Centre settings are global (Centre screen), no longer a desk section.
 

@@ -1,7 +1,6 @@
 package org.dhamma.dipi.staff.course
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -10,10 +9,9 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -28,9 +26,13 @@ import org.dhamma.dipi.staff.model.Centre
 import org.dhamma.dipi.staff.model.Course
 import org.dhamma.dipi.staff.model.CourseSummary
 import org.dhamma.dipi.staff.model.Session
+import org.dhamma.dipi.staff.ui.theme.DeskStyle
 import org.dhamma.dipi.staff.ui.theme.DipiCondensed
 import org.dhamma.dipi.staff.ui.theme.DipiMono
+import org.dhamma.dipi.staff.ui.theme.Industry
 import org.dhamma.dipi.staff.ui.theme.LocalDipi
+import org.dhamma.dipi.staff.ui.theme.LotusWatermark
+import org.dhamma.dipi.staff.ui.theme.deskCard
 import java.time.LocalDate
 import java.time.temporal.ChronoUnit
 
@@ -63,18 +65,29 @@ fun CentreScreen(
     onSettings: () -> Unit = {},
     onLater: (String, String) -> Unit = { _, _ -> },
     onCentreOps: () -> Unit = {},
+    onAdvancedSearch: () -> Unit = {},
+    lotus: Boolean = true,
 ) {
     val c = LocalDipi.current
     val centre = session.centres.firstOrNull()
     val cid = centre?.id?.value ?: 0
     val columns = if (LocalConfiguration.current.screenWidthDp >= 600) 2 else 1
-    Column(
-        Modifier
-            .fillMaxSize()
-            .background(c.background)
-            .verticalScroll(rememberScrollState())
-            .padding(20.dp),
-    ) {
+    Box(Modifier.fillMaxSize().background(c.background)) {
+        if (lotus) {
+            // The relief: large, very low-contrast, skin-tinted, behind
+            // everything and non-interactive (owner feedback 2026-08-16).
+            LotusWatermark(
+                size = 480.dp,
+                opacity = Industry.skin.markOpacity * 0.5f,
+                modifier = Modifier.align(Alignment.Center),
+            )
+        }
+        Column(
+            Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(20.dp),
+        ) {
         Text(
             "${centre?.name ?: "Centre"} · from your account · ${session.displayName}",
             fontFamily = DipiCondensed,
@@ -92,26 +105,6 @@ fun CentreScreen(
                         .padding(vertical = 6.dp),
                 )
             }
-        }
-
-        // Search stays at the top of the desk, before any course is picked.
-        Row(
-            Modifier
-                .fillMaxWidth()
-                .padding(top = 14.dp)
-                .border(1.dp, c.hairlineStrong, RoundedCornerShape(4.dp))
-                .clickable { onLater("Advanced Search", "search-app/$cid") }
-                .padding(horizontal = 14.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                "Advanced Search",
-                color = c.accent,
-                fontFamily = DipiCondensed,
-                fontSize = 16.sp,
-                modifier = Modifier.weight(1f),
-            )
-            Text("all applicants", color = c.muted, fontSize = 12.sp)
         }
 
         Text("Upcoming courses", color = c.muted, modifier = Modifier.padding(top = 18.dp, bottom = 10.dp))
@@ -141,7 +134,7 @@ fun CentreScreen(
             Modifier
                 .fillMaxWidth()
                 .padding(top = 10.dp)
-                .border(1.dp, c.hairlineStrong, RoundedCornerShape(4.dp))
+                .deskCard(fill = c.field, border = c.hairline)
                 .clickable(onClick = onCentreOps)
                 .padding(horizontal = 14.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(2.dp),
@@ -154,28 +147,47 @@ fun CentreScreen(
             )
         }
 
-        Text("Centre desk", color = c.muted, modifier = Modifier.padding(top = 20.dp, bottom = 4.dp))
-        Column(Modifier.fillMaxWidth()) {
-            Box(Modifier.fillMaxWidth().height(1.dp).background(c.hairline))
-            centreDeskTiles(cid)
-                .filter { it.title != "Advanced Search" } // lives at the top of the screen
-                .forEach { tile ->
-                    Text(
-                        tile.title,
-                        color = c.accent,
-                        fontFamily = DipiCondensed,
-                        fontSize = 16.sp,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { onLater(tile.title, tile.route) }
-                            .padding(vertical = 13.dp),
-                    )
-                    Box(Modifier.fillMaxWidth().height(1.dp).background(c.hairline))
+        // The desk links as compact tiles, three across (owner feedback
+        // 2026-08-16). Advanced Search rides along as a tile and opens the
+        // in-app search screen; every other tile still opens the desk site.
+        Text("Centre desk", color = c.muted, modifier = Modifier.padding(top = 20.dp, bottom = 10.dp))
+        centreDeskTiles(cid).chunked(3).forEach { row ->
+            Row(
+                Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                row.forEach { tile ->
+                    Box(
+                        Modifier
+                            .weight(1f)
+                            .heightIn(min = 62.dp)
+                            .deskCard(shape = DeskStyle.tileShape, fill = c.field, border = c.hairline)
+                            .clickable {
+                                if (tile.title == "Advanced Search") {
+                                    onAdvancedSearch()
+                                } else {
+                                    onLater(tile.title, tile.route)
+                                }
+                            }
+                            .padding(horizontal = 10.dp, vertical = 10.dp),
+                        contentAlignment = Alignment.CenterStart,
+                    ) {
+                        Text(
+                            tile.title,
+                            color = c.accent,
+                            fontFamily = DipiCondensed,
+                            fontSize = 15.sp,
+                            lineHeight = 18.sp,
+                        )
+                    }
                 }
+                repeat(3 - row.size) { Spacer(Modifier.weight(1f)) }
+            }
         }
 
         TextButton(onClick = onSettings, modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
             Text("Settings")
+        }
         }
     }
 }
@@ -193,7 +205,7 @@ private fun CourseCard(
     }.getOrDefault(0)
     Column(
         modifier
-            .border(1.dp, c.hairlineStrong, RoundedCornerShape(4.dp))
+            .deskCard(fill = c.field, border = c.hairline)
             .clickable(onClick = onClick)
             .padding(horizontal = 14.dp, vertical = 13.dp),
         verticalArrangement = Arrangement.spacedBy(3.dp),

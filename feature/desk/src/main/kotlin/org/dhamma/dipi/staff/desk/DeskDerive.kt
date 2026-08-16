@@ -19,6 +19,10 @@ fun deskRoll(rows: List<ApplicantCard>): List<ApplicantCard> = rows.filter { car
     card.confNo != null && card.status.normalize() !in setOf("cancelled", "rejected", "duplicate")
 }
 
+/** The roll scoped to one desk's gender — null means the tablet shows both. */
+fun deskRoll(rows: List<ApplicantCard>, gender: Gender?): List<ApplicantCard> =
+    deskRoll(rows).let { roll -> if (gender == null) roll else roll.filter { it.gender == gender } }
+
 /**
  * The effective check-in for a card: the local record wins; a server-side
  * `attended` flag seeds one for anyone already in.
@@ -29,7 +33,7 @@ fun deskRecord(card: ApplicantCard, checkIns: Map<ApplicantId, CheckInRecord>): 
 fun deskCheckedIn(card: ApplicantCard, checkIns: Map<ApplicantId, CheckInRecord>): Boolean =
     deskRecord(card, checkIns)?.checkedIn == true
 
-/** Roster search + segmented filter: conf number or name, case-insensitive substring. */
+/** Roster search + segmented filter: conf number or name, case-insensitive substring; rows sort by name. */
 fun deskRosterRows(
     roll: List<ApplicantCard>,
     checkIns: Map<ApplicantId, CheckInRecord>,
@@ -48,7 +52,7 @@ fun deskRosterRows(
             else -> !isIn
         }
         okQ && okF
-    }
+    }.sortedBy { it.displayName.lowercase() }
 }
 
 /**

@@ -1,6 +1,5 @@
 package org.dhamma.dipi.staff.desk
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -18,6 +17,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -27,11 +27,11 @@ import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import org.dhamma.dipi.staff.model.ApplicantCard
 import org.dhamma.dipi.staff.model.AuditSeverity
+import org.dhamma.dipi.staff.ui.theme.DeskStyle
 import org.dhamma.dipi.staff.ui.theme.DipiCondensed
 import org.dhamma.dipi.staff.ui.theme.DipiMono
 import org.dhamma.dipi.staff.ui.theme.Industry
-import org.dhamma.dipi.staff.ui.theme.blueprint
-import org.dhamma.dipi.staff.ui.theme.blueprintMarks
+import org.dhamma.dipi.staff.ui.theme.deskCard
 
 /**
  * Audit: findings grouped by the check that fired, not by person — the user
@@ -104,8 +104,10 @@ private fun FindingRow(finding: DeskFinding, on: Boolean, onSelect: (String) -> 
     Row(
         Modifier
             .fillMaxWidth()
-            .background(if (on) Industry.accent100 else Color.Transparent)
-            .blueprint(if (on) Industry.accent else Industry.neutral300)
+            .deskCard(
+                fill = if (on) Industry.accent100 else DeskStyle.cardFill,
+                border = if (on) Industry.accent else DeskStyle.cardBorder,
+            )
             .clickable { onSelect(finding.code) }
             .padding(horizontal = 13.dp, vertical = 11.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -188,8 +190,11 @@ private fun FindingDetail(
             Row(
                 Modifier
                     .padding(bottom = 20.dp)
-                    .blueprintMarks()
-                    .background(Industry.accent)
+                    .deskCard(
+                        shape = DeskStyle.controlShape,
+                        fill = Industry.accent,
+                        border = Industry.accent,
+                    )
                     .clickable { onBatch(selected.code, batch) }
                     .padding(horizontal = 16.dp, vertical = 11.dp),
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -251,7 +256,8 @@ private fun FindingDetail(
                         textAlign = TextAlign.Center,
                         color = Industry.text,
                         modifier = Modifier
-                            .border(1.dp, Industry.neutral400)
+                            .clip(DeskStyle.controlShape)
+                            .border(1.dp, Industry.neutral400, DeskStyle.controlShape)
                             .clickable { onOpen(person.card) }
                             .padding(horizontal = 12.dp, vertical = 6.dp),
                     )

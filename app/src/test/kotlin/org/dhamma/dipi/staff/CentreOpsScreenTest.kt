@@ -1,69 +1,65 @@
 package org.dhamma.dipi.staff
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.performTextInput
+import org.dhamma.dipi.staff.course.CentreOpsScreen
 import org.dhamma.dipi.staff.model.AccoRoom
-import org.dhamma.dipi.staff.model.ApplicantCard
-import org.dhamma.dipi.staff.model.ApplicantId
-import org.dhamma.dipi.staff.model.ApplicantStatus
-import org.dhamma.dipi.staff.model.ApplicantType
-import org.dhamma.dipi.staff.model.AuditFlag
-import org.dhamma.dipi.staff.model.AuditSeverity
-import org.dhamma.dipi.staff.model.CentreId
 import org.dhamma.dipi.staff.model.CentreOpsPrefs
-import org.dhamma.dipi.staff.model.Course
-import org.dhamma.dipi.staff.model.CourseId
 import org.dhamma.dipi.staff.model.Gender
-import org.dhamma.dipi.staff.model.MAIN_DHAMMA_HALL
 import org.dhamma.dipi.staff.ui.theme.DipiTheme
-import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import org.dhamma.dipi.staff.course.CentreOpsScreen
-
 @RunWith(RobolectricTestRunner::class)
 class CentreOpsScreenTest {
     @get:Rule
     val rule = createComposeRule()
 
+    private val rooms = listOf(
+        AccoRoom("Fbk 1", Gender.F, "Fbk", number = "1"),
+        AccoRoom("Fbk 2", Gender.F, "Fbk", number = "2"),
+        AccoRoom("Mbk 1", Gender.M, "Mbk", number = "1"),
+    )
+
     @Test
-    fun togglesAndAddF32() {
+    fun togglesWorkAndRoomsAreReadOnly() {
+        var openedRooms = false
         rule.setContent {
             DipiTheme {
-                var prefs by remember { mutableStateOf(CentreOpsPrefs(rooms = emptyList())) }
+                var prefs by remember { mutableStateOf(CentreOpsPrefs(rooms = rooms)) }
                 CentreOpsScreen(
                     prefs = prefs,
                     onToggleLaundry = { prefs = prefs.copy(laundry = !prefs.laundry) },
                     onToggleValuables = {},
                     onToggleGroups = {},
-                    onAddRooms = { g, s, codes ->
-                        val add = CentreOpsPrefs.parseRoomCodes(codes).map { AccoRoom(it, g, s) }
-                        prefs = prefs.copy(rooms = prefs.rooms + add)
-                    },
-                    onDeleteSection = { _, _ -> },
-                    onOpenRooms = {},
+                    onOpenRooms = { openedRooms = true },
                     onBack = {},
                 )
             }
         }
         rule.onNodeWithText("Centre settings").assertIsDisplayed()
-        rule.onNodeWithText("Laundry: on").assertIsDisplayed()
         rule.onNodeWithText("Laundry: on").performClick()
         rule.onNodeWithText("Laundry: off").assertIsDisplayed()
-        rule.onNodeWithText("Section name").performTextInput("East")
-        rule.onNodeWithText("Room codes").performTextInput("F32")
-        rule.onNodeWithText("Add rooms").performClick()
-        rule.onNodeWithText("F32").assertIsDisplayed()
+
+        // Server-derived accommodation summary, no add/delete controls.
+        rule.onNodeWithText("Room list comes from the desk site (Centre → Edit) and refreshes on sign-in.")
+            .assertIsDisplayed()
+        rule.onNodeWithText("2 rooms").assertIsDisplayed()
+        rule.onAllNodesWithText("Add rooms").assertCountEquals(0)
+        rule.onAllNodesWithText("Delete").assertCountEquals(0)
+
+        rule.onNodeWithText("Room chart").performClick()
+        assertTrue(openedRooms)
     }
 }

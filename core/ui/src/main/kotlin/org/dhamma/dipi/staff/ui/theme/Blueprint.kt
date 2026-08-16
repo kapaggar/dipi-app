@@ -8,19 +8,19 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 
 /**
- * The Industry system's blueprint frame: a 1dp hairline border plus four `+`
- * corner registration marks — 9dp arms, 50% opacity, 1dp accent cross,
- * offset 5dp outside each corner. A framed element without the marks is
- * off-system, so border and marks travel together.
+ * Historical name, new rendering (sleek pass, owner decision 2026-08-16):
+ * the blueprint frame no longer draws the `+` corner registration marks —
+ * it is a soft rounded hairline in the given colour. Surfaces that want the
+ * full card treatment (fill + elevation) use [deskCard] instead.
  */
-fun Modifier.blueprint(
-    border: Color,
-    marks: Color = Industry.accent,
-): Modifier = this
-    .border(1.dp, border)
-    .blueprintMarks(marks)
+fun Modifier.blueprint(border: Color): Modifier =
+    this.border(1.dp, border, DeskStyle.cardShape)
 
-/** Corner marks alone, for elements whose border is drawn differently (e.g. the solid primary button). */
+/**
+ * The old Industry registration marks — 9dp arms, 50% opacity, 1dp accent
+ * cross, offset 5dp outside each corner. Kept for reference; no live surface
+ * draws them since the sleek pass.
+ */
 fun Modifier.blueprintMarks(marks: Color = Industry.accent): Modifier = drawBehind {
     val stroke = 1.dp.toPx()
     val outside = 5.dp.toPx()

@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.toggleable
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -39,11 +38,12 @@ import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import org.dhamma.dipi.staff.model.Session
 import org.dhamma.dipi.staff.ui.theme.DeskSkin
+import org.dhamma.dipi.staff.ui.theme.DeskStyle
 import org.dhamma.dipi.staff.ui.theme.DipiCondensed
 import org.dhamma.dipi.staff.ui.theme.DipiMono
 import org.dhamma.dipi.staff.ui.theme.LocalDipi
-import org.dhamma.dipi.staff.ui.theme.blueprint
 import org.dhamma.dipi.staff.ui.theme.chipGradientColors
+import org.dhamma.dipi.staff.ui.theme.deskCard
 
 @Composable
 fun SettingsScreen(
@@ -134,7 +134,7 @@ fun SettingsScreen(
 }
 
 /**
- * The version-3 skin switcher: a blueprint box with the `SKIN` kicker and one
+ * The version-3 skin switcher: a rounded card with the `SKIN` kicker and one
  * button per skin — 18dp gradient chip, Barlow Condensed uppercase label,
  * selected = accent fill — plus the lotus toggle that gates the sign-in hero
  * and the desk watermark together.
@@ -152,8 +152,7 @@ private fun SkinSwitcher(
     Column(
         modifier
             .fillMaxWidth()
-            .background(c.field)
-            .blueprint(c.hairlineStrong)
+            .deskCard(fill = c.field, border = c.hairline, elevation = 0.dp)
             .padding(horizontal = 14.dp, vertical = 11.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
@@ -200,7 +199,7 @@ private fun SkinSwitcher(
 @Composable
 private fun SkinButton(skin: DeskSkin, selected: Boolean, onClick: () -> Unit) {
     val c = LocalDipi.current
-    val shape = RoundedCornerShape(4.dp)
+    val shape = DeskStyle.controlShape
     val chip = remember(skin) { skin.chipGradientColors() }
     Row(
         Modifier

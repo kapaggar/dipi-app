@@ -76,6 +76,31 @@ class DeskDeriveTest {
     }
 
     @Test
+    fun rollGenderOverloadScopesWithoutDroppingAnyoneElse() {
+        val rows = listOf(
+            card(1, conf = "NF1"),
+            card(2, conf = "OM2", gender = Gender.M),
+            card(3, conf = "NM3", gender = Gender.M, status = "Cancelled"),
+        )
+        assertEquals(listOf(1, 2), deskRoll(rows, null).map { it.id.value })
+        assertEquals(listOf(1), deskRoll(rows, Gender.F).map { it.id.value })
+        assertEquals(listOf(2), deskRoll(rows, Gender.M).map { it.id.value })
+    }
+
+    @Test
+    fun rosterSortsByDisplayNameCaseInsensitiveAndStable() {
+        val roll = listOf(
+            card(1, conf = "NF1", given = "Priya", family = "Nair"),
+            card(2, conf = "OM2", given = "arun", family = "Kale", gender = Gender.M),
+            card(3, conf = "NF3", given = "Meera", family = "Deshpande"),
+        )
+        assertEquals(
+            listOf("arun Kale", "Meera Deshpande", "Priya Nair"),
+            deskRosterRows(roll, emptyMap(), "", "All").map { it.displayName },
+        )
+    }
+
+    @Test
     fun rollTableDerivesFromConfPrefixNotTheOldStudentField() {
         val roll = listOf(
             card(1, conf = "OM1"), card(2, conf = "OM2"),

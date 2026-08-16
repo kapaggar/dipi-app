@@ -25,6 +25,25 @@ internal object MockFixtures {
         CourseDto(12, CENTRE_ID, "10-Day", "2026-09-16", "2026-09-27", "10d"),
     )
 
+    /**
+     * DataTables Editor GET payload for `/centre/{cid}/acco-handler`
+     * (`dh_center_setting_acco`) — the shape the live desk serves.
+     */
+    val accoHandlerJson = """
+        {"data":[
+         {"DT_RowId":"row_1","dh_center_setting_acco":{"csa_id":"1","csa_center":"1","csa_gender":"F","csa_section":"Fbk","csa_room":"1:6W","csa_deleted":"0"}},
+         {"DT_RowId":"row_2","dh_center_setting_acco":{"csa_id":"2","csa_center":"1","csa_gender":"M","csa_section":"Mbk","csa_room":"1:8, 9IC, 10W","csa_deleted":"0"}}
+        ],"options":{"dh_center_setting_acco.csa_gender":[{"label":"Male","value":"M"},{"label":"Female","value":"F"}]},"files":[]}
+    """.trimIndent()
+
+    /**
+     * Rooms the desk already allotted (applicant id → section, room no).
+     * Posting either room for anyone else refuses like the live handler.
+     */
+    val allotedSeed = mapOf(
+        4 to ("Mbk" to "8"), // Suresh Nair holds Mbk 8
+    )
+
     val counts = mapOf(
         "All" to 214,
         "Pending" to 61,

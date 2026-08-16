@@ -24,9 +24,10 @@ import androidx.compose.ui.unit.sp
 import org.dhamma.dipi.staff.model.ApplicantCard
 import org.dhamma.dipi.staff.model.ApplicantId
 import org.dhamma.dipi.staff.model.CheckInRecord
+import org.dhamma.dipi.staff.ui.theme.DeskStyle
 import org.dhamma.dipi.staff.ui.theme.DipiCondensed
 import org.dhamma.dipi.staff.ui.theme.Industry
-import org.dhamma.dipi.staff.ui.theme.blueprint
+import org.dhamma.dipi.staff.ui.theme.deskCard
 
 private val EXPORTS = listOf(
     "Day 0 list", "Day 0 summary", "Student chit", "Checking slip",
@@ -124,7 +125,7 @@ fun BoardPane(
         Column(
             Modifier
                 .fillMaxWidth()
-                .background(Industry.neutral300)
+                .deskCard(fill = Industry.neutral200, elevation = 0.dp)
                 .padding(1.dp),
             verticalArrangement = Arrangement.spacedBy(1.dp),
         ) {
@@ -134,7 +135,7 @@ fun BoardPane(
                         Row(
                             Modifier
                                 .weight(1f)
-                                .background(Industry.bg)
+                                .background(DeskStyle.cardFill)
                                 .clickable { onExport(label) }
                                 .padding(horizontal = 12.dp, vertical = 10.dp),
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -160,7 +161,7 @@ private fun BoardTile(
 ) {
     Column(
         modifier
-            .blueprint(Industry.neutral400)
+            .deskCard()
             .clickable(onClick = onClick)
             .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 14.dp),
     ) {
@@ -191,7 +192,7 @@ private fun BoardAction(label: String, sub: String, onClick: () -> Unit) {
     Row(
         Modifier
             .fillMaxWidth()
-            .blueprint(Industry.neutral400)
+            .deskCard()
             .clickable(onClick = onClick)
             .padding(horizontal = 18.dp, vertical = 14.dp),
         horizontalArrangement = Arrangement.spacedBy(16.dp),
