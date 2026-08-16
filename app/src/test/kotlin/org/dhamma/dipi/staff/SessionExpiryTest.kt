@@ -91,6 +91,7 @@ class SessionExpiryTest {
             cookies = SessionCookieJar(tokens),
             useMock = true,
             baseUrl = "http://localhost/",
+            context = RuntimeEnvironment.getApplication(),
         )
         val records = mapOf(
             7 to CheckInRecord(checkedIn = true, room = "Mbk 8", synced = true, syncedAt = "2026-08-16T09:00:00Z"),

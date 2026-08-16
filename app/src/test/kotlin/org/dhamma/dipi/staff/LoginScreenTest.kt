@@ -12,8 +12,8 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
-// Phone-sized display: the sign-in form is bottom-justified under a 430dp
-// photo hero, so Robolectric's default 320x470 viewport cuts it off.
+// Phone-sized display: the centred 380dp sign-in card needs more room than
+// Robolectric's default 320x470 viewport, which cuts it off.
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = "w411dp-h891dp")
 class LoginScreenTest {

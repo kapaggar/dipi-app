@@ -58,8 +58,10 @@ import org.dhamma.dipi.staff.desk.DeskSection
 import org.dhamma.dipi.staff.desk.DeskShell
 import org.dhamma.dipi.staff.desk.DeskSnackbar
 import org.dhamma.dipi.staff.desk.RoomsPane
+import org.dhamma.dipi.staff.desk.SheetViewerPane
 import org.dhamma.dipi.staff.desk.deskRoll
 import org.dhamma.dipi.staff.desk.deskWaNumber
+import org.dhamma.dipi.staff.model.SheetPayload
 import org.dhamma.dipi.staff.photos.PhotoReviewScreen
 import org.dhamma.dipi.staff.settings.SettingsScreen
 import org.dhamma.dipi.staff.summary.DaySummaryScreen
@@ -77,6 +79,14 @@ fun DipiAppUi(vm: DeskViewModel) {
     val deskWide = LocalConfiguration.current.screenWidthDp >= 1100
     val deskActive = deskWide && state.screen == DeskScreen.CourseHub &&
         state.session != null && state.course != null
+
+    // One-shot: a fetched PDF/Excel goes to the system viewer via FileProvider.
+    val docContext = LocalContext.current
+    LaunchedEffect(state.openDoc) {
+        val doc = state.openDoc ?: return@LaunchedEffect
+        openSheetDocument(docContext, doc) { message -> vm.deskNote(message) }
+        vm.consumeOpenDoc()
+    }
 
     LaunchedEffect(state.snack, deskActive) {
         val snack = state.snack ?: return@LaunchedEffect
@@ -324,7 +334,7 @@ private fun DeskHost(
                         .filterValues { it.logged }
                         .mapValues { it.value.outcome },
                     onGoto = vm::setDeskSection,
-                    onExport = { vm.deskNote("$it · PDF export opens on the desk site") },
+                    onExport = vm::openSheet,
                 )
                 DeskSection.CheckIn -> CheckInPane(
                     roll = roll,
@@ -384,7 +394,7 @@ private fun DeskHost(
                         vm.openSheet()
                     },
                     onDial = dial,
-                    onEdit = { vm.deskNote("Edit opens on the desk site — view only here") },
+                    onEdit = vm::openAppEdit,
                     loadPhoto = vm::loadPhoto,
                     counts = state.counts,
                     selectedStatuses = state.selected,
@@ -431,6 +441,19 @@ private fun DeskHost(
                 onCustom = vm::onSheetCustom,
                 onConfirm = vm::confirmStatus,
                 onDismiss = vm::dismissSheet,
+            )
+        }
+
+        // The sheet viewer overlays the whole desk frame (rail included) the
+        // way the dialogs overlay the shell; vm.back() closes it first, so
+        // the DeskScreen back stack underneath is untouched.
+        val sheetView = state.sheetView
+        if (sheetView != null) {
+            SheetViewerPane(
+                title = sheetView.title,
+                html = sheetView.html,
+                loading = sheetView.loading,
+                onClose = vm::closeSheet,
             )
         }
 
@@ -583,6 +606,30 @@ private fun SettingsPane(vm: DeskViewModel, state: DeskUiState) {
         onSkin = vm::setSkin,
         onToggleLotus = vm::toggleLotus,
     )
+}
+
+/**
+ * Hands a streamed sheet (cacheDir/sheets only) to the system viewer:
+ * ACTION_VIEW with a FileProvider uri first, a chooser as the fallback, and
+ * the desk snackbar when nothing on the device can open the type.
+ */
+private fun openSheetDocument(
+    context: android.content.Context,
+    doc: SheetPayload.Document,
+    onNoViewer: (String) -> Unit,
+) {
+    val uri = androidx.core.content.FileProvider.getUriForFile(
+        context,
+        "${context.packageName}.fileprovider",
+        doc.file,
+    )
+    val view = Intent(Intent.ACTION_VIEW)
+        .setDataAndType(uri, doc.mimeType)
+        .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    runCatching { context.startActivity(view) }.onFailure {
+        runCatching { context.startActivity(Intent.createChooser(view, doc.title)) }
+            .onFailure { onNoViewer("No app on this device can open ${doc.title}") }
+    }
 }
 
 @Composable

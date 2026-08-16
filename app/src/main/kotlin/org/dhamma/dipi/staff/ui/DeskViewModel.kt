@@ -47,6 +47,8 @@ import org.dhamma.dipi.staff.model.RoomSyncResult
 import org.dhamma.dipi.staff.model.SensitiveInfo
 import org.dhamma.dipi.staff.model.clearSyncedIfChanged
 import org.dhamma.dipi.staff.model.Session
+import org.dhamma.dipi.staff.model.SheetExport
+import org.dhamma.dipi.staff.model.SheetPayload
 import org.dhamma.dipi.staff.model.WorklistFilter
 import org.dhamma.dipi.staff.network.PhotoLoader
 import org.dhamma.dipi.staff.ui.theme.DeskSkin
@@ -56,6 +58,18 @@ import javax.inject.Inject
 enum class DeskScreen { Login, Centre, CourseHub, Today, Card, Photos, Summary, Settings, DeskAction, ZeroDay, Audit, Calling, Rooms, CentreOps, Search }
 
 data class DeskActionDest(val title: String, val route: String)
+
+/**
+ * The in-app sheet viewer overlay (Board exports / Applications edit).
+ * The title shows immediately while the fetch is in flight; [html] arrives
+ * when the payload resolves. HTML bodies stay in memory only — never
+ * persisted, never logged (they can carry NPI).
+ */
+data class SheetViewUi(
+    val title: String,
+    val loading: Boolean = true,
+    val html: SheetPayload.Html? = null,
+)
 
 fun deskBack(screen: DeskScreen, returnTo: DeskScreen?): DeskScreen = when (screen) {
     DeskScreen.Settings, DeskScreen.DeskAction -> returnTo ?: DeskScreen.Centre
@@ -144,6 +158,10 @@ data class DeskUiState(
     val roomSync: RoomSyncResult? = null,
     /** The in-app Advanced Search corpus: every applicant cached in Room. */
     val searchRows: List<ApplicantCard> = emptyList(),
+    /** The in-app sheet viewer overlay — null when no sheet is open. */
+    val sheetView: SheetViewUi? = null,
+    /** One-shot: a streamed PDF/Excel to hand to the system viewer (consumed like [snack]). */
+    val openDoc: SheetPayload.Document? = null,
 )
 
 /**
@@ -304,8 +322,10 @@ class DeskViewModel @Inject constructor(
             }
         }
         viewModelScope.launch {
-            val saved = sessionStore.remembered()
-            if (saved.on) {
+            // Reading remember-me touches EncryptedSharedPreferences; guard it
+            // so a keystore that cannot be read never crashes desk startup.
+            val saved = runCatching { sessionStore.remembered() }.getOrNull()
+            if (saved?.on == true) {
                 _state.update {
                     it.copy(username = saved.username, password = saved.password, remember = true)
                 }
@@ -365,13 +385,14 @@ class DeskViewModel @Inject constructor(
                 card = null,
                 loading = false,
                 sensitiveById = emptyMap(),
+                sheetView = null,
             )
         }
     }
 
     /** V2 desk: rail navigation between sections. No page transition, no loading state. */
     fun setDeskSection(section: DeskSection) {
-        _state.update { it.copy(deskSection = section) }
+        _state.update { it.copy(deskSection = section, sheetView = null) }
     }
 
     /** V2 desk: one fetch of the course's application set on open, then local. */
@@ -569,6 +590,68 @@ class DeskViewModel @Inject constructor(
     /** Informational snackbar on the desk (exports, edit — things the desk site still owns). */
     fun deskNote(text: String) {
         _state.update { it.copy(snack = FlushSnack(text, error = false)) }
+    }
+
+    /* ── V2 desk · sheets & exports ─────────────────────────────────── */
+
+    /**
+     * Test seams over the frozen repository contract: unit tests swap these
+     * for fakes; production always routes through [StaffRepository].
+     */
+    internal var sheetFetch: suspend (SheetExport, Int, Int) -> SheetPayload =
+        { export, centreId, courseId -> repo.fetchSheet(export, centreId, courseId) }
+    internal var editFetch: suspend (ApplicantId) -> SheetPayload =
+        { id -> repo.fetchAppEditPage(id) }
+
+    /**
+     * A Board export cell: open the viewer shell immediately (its progress
+     * hairline is the fetch feedback), then resolve the payload — HTML stays
+     * in the viewer, a document fires the one-shot [DeskUiState.openDoc],
+     * a refusal closes the viewer and shows the server's message verbatim.
+     */
+    fun openSheet(label: String) {
+        val export = SheetExport.fromLabel(label) ?: return
+        val course = _state.value.course ?: return
+        _state.update { it.copy(sheetView = SheetViewUi(title = export.label)) }
+        viewModelScope.launch {
+            resolveSheet(export.label) { sheetFetch(export, course.centreId.value, course.id.value) }
+        }
+    }
+
+    /** Applications "Edit": the desk's own edit page, display-only, in the same viewer. */
+    fun openAppEdit(card: ApplicantCard) {
+        val title = "Edit · ${card.displayName}"
+        _state.update { it.copy(sheetView = SheetViewUi(title = title)) }
+        viewModelScope.launch {
+            resolveSheet(title) { editFetch(card.id) }
+        }
+    }
+
+    fun closeSheet() = _state.update { it.copy(sheetView = null) }
+
+    fun consumeOpenDoc() = _state.update { it.copy(openDoc = null) }
+
+    private suspend fun resolveSheet(title: String, fetch: suspend () -> SheetPayload) {
+        val payload = runCatching { fetch() }.getOrElse { e ->
+            if (e is ApiException && e.unauthorized) {
+                _state.update { it.copy(sheetView = null) }
+                handleAuth(e)
+                return
+            }
+            SheetPayload.NotAvailable(e.message ?: "$title unavailable")
+        }
+        _state.update { cur ->
+            // The viewer was closed or replaced while fetching — drop the result.
+            if (cur.sheetView?.title != title) return@update cur
+            when (payload) {
+                is SheetPayload.Html ->
+                    cur.copy(sheetView = cur.sheetView.copy(loading = false, html = payload))
+                is SheetPayload.Document ->
+                    cur.copy(sheetView = null, openDoc = payload)
+                is SheetPayload.NotAvailable ->
+                    cur.copy(sheetView = null, snack = FlushSnack(payload.message, error = true))
+            }
+        }
     }
 
     fun openApplications() {
@@ -819,6 +902,12 @@ class DeskViewModel @Inject constructor(
     }
 
     fun back() {
+        // An open sheet viewer swallows back: close the overlay, leave the
+        // DeskScreen (and the desk section underneath) untouched.
+        if (_state.value.sheetView != null) {
+            closeSheet()
+            return
+        }
         val next = deskBack(_state.value.screen, returnTo)
         // Rooms round-trips clobber returnTo; restore the settings origin so a
         // second back from CentreOps still lands where the user came from.
@@ -1098,5 +1187,11 @@ class DeskViewModel @Inject constructor(
         } else if (e is ApiException && !e.unauthorized) {
             _state.update { it.copy(snack = FlushSnack(e.message ?: "", error = true)) }
         }
+    }
+
+    /** Test-only: preload a signed-in desk state without touching the network. */
+    @androidx.annotation.VisibleForTesting
+    internal fun seedForTest(state: DeskUiState) {
+        _state.value = state
     }
 }

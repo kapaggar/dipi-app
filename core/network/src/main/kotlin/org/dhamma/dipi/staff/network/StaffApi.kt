@@ -1,6 +1,8 @@
 package org.dhamma.dipi.staff.network
 
 import okhttp3.ResponseBody
+import org.dhamma.dipi.staff.model.SheetExport
+import org.dhamma.dipi.staff.model.SheetPayload
 import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.Field
@@ -10,7 +12,10 @@ import retrofit2.http.GET
 import retrofit2.http.POST
 import retrofit2.http.Path
 import retrofit2.http.Query
+import retrofit2.http.Streaming
 import retrofit2.http.Url
+import java.io.File
+import java.time.LocalDate
 
 interface DrupalAuthApi {
     @POST("/api/user/login")
@@ -156,4 +161,267 @@ interface StaffApi {
         @Query("g") gender: String = "",
         @Query("d") db: String = "a",
     ): Response<ResponseBody>
+
+    /**
+     * Print-styled desk sheet HTML (day0-list, teacher-list, manager-list,
+     * student-chit, checking-slip, seating, zero-day).
+     *
+     * SAFETY: plain GET, no query params, ever — the seating/teacher-list/
+     * cell-list handlers run server-side BULK SEAT AUTO-ALLOCATION whenever
+     * an `r` param is merely present (inc/zero-day.inc:17-46).
+     */
+    @GET("/{sheet}/{cid}/{courseId}")
+    suspend fun sheetPage(
+        @Path("sheet") sheet: String,
+        @Path("cid") centreId: Int,
+        @Path("courseId") courseId: Int,
+    ): Response<ResponseBody>
+
+    /** Streamed course-pdf-m/-f (application/pdf), laundry/valuable list (vnd.ms-excel). */
+    @Streaming
+    @GET("/{sheet}/{cid}/{courseId}")
+    suspend fun sheetDocument(
+        @Path("sheet") sheet: String,
+        @Path("cid") centreId: Int,
+        @Path("courseId") courseId: Int,
+    ): Response<ResponseBody>
+
+    /**
+     * The desk's own application edit form (perm `edit application`,
+     * dh_manageapp.module:325). Display-only in the app: the page includes
+     * NPI, so the body must stay in memory — never persisted, never logged.
+     */
+    @GET("/app/{id}/edit")
+    suspend fun appEditPage(@Path("id") id: Int): Response<ResponseBody>
+
+    /**
+     * Course report is `drupal_get_form(dh_center_course_report_form)`
+     * (inc/reports.inc:111), not a plain GET: scrape this form, then POST it.
+     */
+    @GET("/centre/{cid}/course-report")
+    suspend fun courseReportForm(@Path("cid") centreId: Int): Response<ResponseBody>
+
+    /** Submit of the scraped course-report form; the reply streams text/csv. */
+    @FormUrlEncoded
+    @Streaming
+    @POST
+    suspend fun submitCourseReportForm(
+        @Url action: String,
+        @FieldMap fields: Map<String, String>,
+    ): Response<ResponseBody>
+}
+
+/** Live-desk delivery shape of one Board "Sheets & exports" cell. */
+sealed interface SheetRoute {
+    /** Print-styled HTML at `GET /{slug}/{cid}/{courseId}` — displayed in memory. */
+    data class Page(val slug: String) : SheetRoute
+
+    /** The `#day-summary` block extracted from `GET /zero-day/{cid}/{courseId}`. */
+    data object DaySummary : SheetRoute
+
+    /** Streamed binary at `GET /{slug}/{cid}/{courseId}` → cacheDir/sheets. */
+    data class Document(val slug: String, val mimeType: String, val extension: String) : SheetRoute
+
+    /** Drupal form scrape + POST at `/centre/{cid}/course-report` → CSV. */
+    data object ReportForm : SheetRoute
+}
+
+/**
+ * Path→export mapping, keyed off the [SheetExport] seam enum. Every route is
+ * a plain GET the desk browser already triggers (routers dh_manageapp.module
+ * :303–:441) except the course report, which is the desk's own form POST.
+ */
+object SheetRoutes {
+    const val MIME_PDF = "application/pdf"
+    const val MIME_XLS = "application/vnd.ms-excel"
+    const val MIME_CSV = "text/csv"
+
+    fun of(export: SheetExport): SheetRoute = when (export) {
+        SheetExport.Day0List -> SheetRoute.Page("day0-list")
+        SheetExport.Day0Summary -> SheetRoute.DaySummary
+        SheetExport.StudentChit -> SheetRoute.Page("student-chit")
+        SheetExport.CheckingSlip -> SheetRoute.Page("checking-slip")
+        SheetExport.MalePdf -> SheetRoute.Document("course-pdf-m", MIME_PDF, "pdf")
+        SheetExport.FemalePdf -> SheetRoute.Document("course-pdf-f", MIME_PDF, "pdf")
+        SheetExport.TeacherList -> SheetRoute.Page("teacher-list")
+        SheetExport.ManagerList -> SheetRoute.Page("manager-list")
+        SheetExport.LaundryList -> SheetRoute.Document("laundry-list", MIME_XLS, "xls")
+        SheetExport.ValuableList -> SheetRoute.Document("valuable-list", MIME_XLS, "xls")
+        SheetExport.SeatingPlan -> SheetRoute.Page("seating")
+        SheetExport.CourseReport -> SheetRoute.ReportForm
+    }
+}
+
+/**
+ * Fetches Board sheets from the live desk with ZERO persistence of sheet
+ * bodies (they carry health disclosures and contact data): HTML payloads
+ * stay in memory, PDF/Excel/CSV stream to [sheetsDir] (cacheDir) only, and
+ * every server refusal surfaces verbatim as [SheetPayload.NotAvailable] —
+ * no client-side permission checks, no logging of bodies, ever.
+ */
+class SheetTransport(
+    private val api: StaffApi,
+    private val baseUrl: String,
+    private val sheetsDir: () -> File,
+) {
+    suspend fun fetch(export: SheetExport, centreId: Int, courseId: Int): SheetPayload = guarded(export.label) {
+        when (val route = SheetRoutes.of(export)) {
+            is SheetRoute.Page ->
+                htmlPayload(export.label, api.sheetPage(route.slug, centreId, courseId))
+            SheetRoute.DaySummary ->
+                daySummary(api.sheetPage("zero-day", centreId, courseId))
+            is SheetRoute.Document ->
+                document(export.label, route, centreId, courseId)
+            SheetRoute.ReportForm ->
+                courseReport(centreId)
+        }
+    }
+
+    suspend fun appEditPage(id: Int): SheetPayload = guarded("Application $id") {
+        htmlPayload("Application $id", api.appEditPage(id))
+    }
+
+    /** Sheet bodies never outlive the session: wipe every cached document. */
+    fun wipe() {
+        runCatching { sheetsDir().deleteRecursively() }
+    }
+
+    private inline fun guarded(label: String, block: () -> SheetPayload): SheetPayload =
+        runCatching(block).getOrElse { e ->
+            when (e) {
+                is java.io.IOException ->
+                    SheetPayload.NotAvailable("Offline — could not reach the desk for $label")
+                else -> SheetPayload.NotAvailable(e.message ?: "Could not fetch $label")
+            }
+        }
+
+    private fun htmlPayload(title: String, resp: Response<ResponseBody>): SheetPayload {
+        val html = resp.html()
+        if (!resp.isSuccessful) return refusal(resp.code(), html)
+        return SheetPayload.Html(title, html, baseUrl)
+    }
+
+    private fun daySummary(resp: Response<ResponseBody>): SheetPayload {
+        val html = resp.html()
+        if (!resp.isSuccessful) return refusal(resp.code(), html)
+        val block = extractElementById(html, "day-summary")
+            ?: return SheetPayload.NotAvailable("The zero-day page has no #day-summary block")
+        return SheetPayload.Html(SheetExport.Day0Summary.label, block, baseUrl)
+    }
+
+    private suspend fun document(
+        title: String,
+        route: SheetRoute.Document,
+        centreId: Int,
+        courseId: Int,
+    ): SheetPayload = save(
+        title = title,
+        fileName = "${route.slug}-$centreId-$courseId.${route.extension}",
+        fallbackMime = route.mimeType,
+        resp = api.sheetDocument(route.slug, centreId, courseId),
+    )
+
+    private suspend fun courseReport(centreId: Int): SheetPayload {
+        val formResp = api.courseReportForm(centreId)
+        val formHtml = formResp.html()
+        if (!formResp.isSuccessful) return refusal(formResp.code(), formHtml)
+        val form = CourseReportFormParser.parse(formHtml)
+            ?: return SheetPayload.NotAvailable(
+                "Could not read the Course report form — open /centre/$centreId/course-report in a desk browser",
+            )
+        return save(
+            title = SheetExport.CourseReport.label,
+            fileName = "course-report-$centreId.csv",
+            fallbackMime = SheetRoutes.MIME_CSV,
+            resp = api.submitCourseReportForm(form.action, form.fields),
+        )
+    }
+
+    private fun save(
+        title: String,
+        fileName: String,
+        fallbackMime: String,
+        resp: Response<ResponseBody>,
+    ): SheetPayload {
+        if (!resp.isSuccessful) return refusal(resp.code(), resp.html())
+        val body = resp.body() ?: return SheetPayload.NotAvailable("$title came back empty")
+        val type = body.contentType()
+        val mime = type?.let { "${it.type}/${it.subtype}" }
+        // A refusal or re-rendered form served as 200 HTML must never be
+        // saved masquerading as a document.
+        if (type?.type == "text" && type.subtype == "html") {
+            return SheetPayload.NotAvailable(body.string())
+        }
+        val dir = sheetsDir().apply { mkdirs() }
+        val file = File(dir, fileName)
+        body.byteStream().use { input -> file.outputStream().use { out -> input.copyTo(out) } }
+        if (file.length() == 0L) {
+            file.delete()
+            return SheetPayload.NotAvailable("$title came back empty")
+        }
+        return SheetPayload.Document(title, file, mime ?: fallbackMime)
+    }
+
+    /** Server refusals render verbatim (hard rule 1) — never a client-side gate. */
+    private fun refusal(code: Int, body: String): SheetPayload =
+        SheetPayload.NotAvailable(body.ifBlank { "HTTP $code" })
+}
+
+/**
+ * Extracts one element (opening tag through matching close) by id, keeping
+ * the server's markup verbatim inside the block.
+ */
+internal fun extractElementById(html: String, id: String): String? {
+    val open = Regex("""<([a-zA-Z][a-zA-Z0-9]*)\b[^>]*\bid\s*=\s*["']${Regex.escape(id)}["'][^>]*>""")
+        .find(html) ?: return null
+    val tag = open.groupValues[1]
+    val start = open.range.first
+    var depth = 0
+    for (m in Regex("""</?${Regex.escape(tag)}\b[^>]*>""", RegexOption.IGNORE_CASE).findAll(html, start)) {
+        if (m.value.startsWith("</")) {
+            depth -= 1
+            if (depth == 0) return html.substring(start, m.range.last + 1)
+        } else {
+            depth += 1
+        }
+    }
+    return null
+}
+
+/**
+ * Hidden-field scrape of `dh_center_course_report_form` — the same pattern
+ * as the login-form scrape. The POSTed date range mirrors the form's own
+ * defaults (last year → today), exactly what the desk sends when staff click
+ * "Download Course Report" without touching the pickers.
+ */
+internal object CourseReportFormParser {
+    const val FORM_ID = "dh_center_course_report_form"
+    const val SUBMIT_LABEL = "Download Course Report"
+
+    data class ParsedForm(val action: String, val fields: Map<String, String>)
+
+    fun parse(html: String): ParsedForm? {
+        if (!html.contains(FORM_ID)) return null
+        val buildId = inputValue(html, "form_build_id") ?: return null
+        val action = Regex("""<form\b[^>]*\baction\s*=\s*["']([^"']+)["']""").find(html)
+            ?.groupValues?.get(1) ?: return null
+        val today = LocalDate.now()
+        val fields = buildMap {
+            put("report_from_date[date]", inputValue(html, "report_from_date[date]") ?: today.minusYears(1).toString())
+            put("report_to_date[date]", inputValue(html, "report_to_date[date]") ?: today.toString())
+            put("form_build_id", buildId)
+            inputValue(html, "form_token")?.let { put("form_token", it) }
+            put("form_id", FORM_ID)
+            put("op", SUBMIT_LABEL)
+        }
+        return ParsedForm(action, fields)
+    }
+
+    private fun inputValue(html: String, name: String): String? {
+        val n = Regex.escape(name)
+        return Regex("""<input\b[^>]*\bname\s*=\s*["']$n["'][^>]*\bvalue\s*=\s*["']([^"']*)["']""").find(html)
+            ?.groupValues?.get(1)
+            ?: Regex("""<input\b[^>]*\bvalue\s*=\s*["']([^"']*)["'][^>]*\bname\s*=\s*["']$n["']""").find(html)
+                ?.groupValues?.get(1)
+    }
 }

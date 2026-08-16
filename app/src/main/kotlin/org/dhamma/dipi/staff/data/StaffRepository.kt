@@ -1,5 +1,7 @@
 package org.dhamma.dipi.staff.data
 
+import android.content.Context
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.serialization.encodeToString
@@ -25,6 +27,8 @@ import org.dhamma.dipi.staff.model.RoomPostOutcome
 import org.dhamma.dipi.staff.model.RoomSyncResult
 import org.dhamma.dipi.staff.model.SensitiveInfo
 import org.dhamma.dipi.staff.model.Session
+import org.dhamma.dipi.staff.model.SheetExport
+import org.dhamma.dipi.staff.model.SheetPayload
 import org.dhamma.dipi.staff.model.StatusWrite
 import org.dhamma.dipi.staff.model.UserCentreMap
 import org.dhamma.dipi.staff.network.AccoHandlerParser
@@ -36,9 +40,11 @@ import org.dhamma.dipi.staff.network.LoginBody
 import org.dhamma.dipi.staff.network.PhotoUploadBody
 import org.dhamma.dipi.staff.network.SearchPageParser
 import org.dhamma.dipi.staff.network.SessionCookieJar
+import org.dhamma.dipi.staff.network.SheetTransport
 import org.dhamma.dipi.staff.network.StaffApi
 import org.dhamma.dipi.staff.network.TokenStore
 import org.dhamma.dipi.staff.network.html
+import java.io.File
 import java.time.Instant
 import javax.inject.Inject
 import javax.inject.Named
@@ -56,9 +62,22 @@ class StaffRepository @Inject constructor(
     private val cookies: SessionCookieJar,
     @Named("useMock") private val useMock: Boolean,
     @Named("baseUrl") private val baseUrl: String,
+    @ApplicationContext private val context: Context,
 ) {
     @Volatile private var lastCentreId: Int? = null
     @Volatile private var lastStatuses: List<String> = emptyList()
+
+    /**
+     * Board sheet transport. Sheet bodies (health disclosures, contact
+     * data) are never persisted: HTML stays in memory, documents live under
+     * cacheDir/sheets only and are wiped on logout, erase-all, session
+     * expiry, and (below) any stale files on repository (re)start.
+     */
+    private val sheets = SheetTransport(api, baseUrl) { File(context.cacheDir, "sheets") }
+
+    init {
+        sheets.wipe()
+    }
 
     /**
      * Session-scoped ID + health disclosures by applicant id — in memory
@@ -391,6 +410,22 @@ class StaffRepository @Inject constructor(
         return result
     }
 
+    /**
+     * Fetches one Board sheet from the live desk. Seam contract for the
+     * export slice: HTML sheets return in-memory, PDF/Excel/CSV stream to
+     * cacheDir/sheets only, refusals come back verbatim as [SheetPayload.NotAvailable].
+     */
+    suspend fun fetchSheet(export: SheetExport, centreId: Int, courseId: Int): SheetPayload =
+        sheets.fetch(export, centreId, courseId)
+
+    /**
+     * Fetches the desk's own application edit page for display-only viewing
+     * (rule 1: send the request, render the response verbatim). Same
+     * non-persistence contract as [fetchSheet].
+     */
+    suspend fun fetchAppEditPage(id: ApplicantId): SheetPayload =
+        sheets.appEditPage(id.value)
+
     private suspend fun markRoomSynced(id: ApplicantId, sent: CheckInRecord) {
         val all = sessionStore.checkInsOnce()
         val cur = all[id.value] ?: return
@@ -430,6 +465,7 @@ class StaffRepository @Inject constructor(
         outbox.clear()
         sessionStore.clear()
         sensitive.clear()
+        sheets.wipe()
         lastCentreId = null
     }
 
@@ -445,6 +481,7 @@ class StaffRepository @Inject constructor(
         cookies.clear()
         tokens.saveSession(null, null)
         sensitive.clear()
+        sheets.wipe()
         lastCentreId = null
     }
 
@@ -455,6 +492,7 @@ class StaffRepository @Inject constructor(
         outbox.clear()
         sessionStore.wipeAll()
         sensitive.clear()
+        sheets.wipe()
         lastCentreId = null
     }
 

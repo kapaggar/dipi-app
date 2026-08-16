@@ -62,9 +62,80 @@ class DipiMockDispatcher : Dispatcher() {
             path.matches(Regex("/centre/\\d+/acco-handler.*")) -> ok(MockFixtures.accoHandlerJson)
             method == "POST" && path.startsWith("/app-update-attended/") -> updateAttended(request, path)
             path.startsWith("/change-status/") -> changeStatus(path)
+            path.matches(Regex("/(day0-list|teacher-list|manager-list|student-chit|checking-slip|seating|zero-day|course-pdf-[mf]|laundry-list|valuable-list)/\\d+/\\d+(\\?.*)?")) ->
+                sheet(path)
+            path.matches(Regex("/centre/\\d+/course-report(\\?.*)?")) -> courseReport(request, path)
+            method == "GET" && path.matches(Regex("/app/\\d+/edit(\\?.*)?")) -> {
+                val id = path.split("/")[2].toInt()
+                html(MockFixtures.appEditHtml(id))
+            }
             else -> MockResponse().setResponseCode(404).setBody("""{"msg":"not mocked $path"}""")
         }
     }
+
+    /**
+     * Board sheets: streamed PDF/Excel plus print-styled HTML pages, all
+     * behind the mock flag. Mirrors the live routers (dh_manageapp.module
+     * :303–:441), including the per-export permission refusal (403 Drupal
+     * page for [MockFixtures.FORBIDDEN_CENTRE]) and the seating hazard:
+     * on the live desk a mere `r` query param bulk auto-allocates seats
+     * (inc/zero-day.inc:17-46), so any `r` here fails the request loudly.
+     */
+    private fun sheet(path: String): MockResponse {
+        if (query(path).containsKey("r")) {
+            return MockResponse().setResponseCode(500)
+                .setBody("""{"msg":"r param triggers server-side bulk seat auto-allocation — the app must never send it"}""")
+        }
+        val parts = path.substringBefore("?").trim('/').split("/")
+        val slug = parts[0]
+        val cid = parts[1].toInt()
+        val courseId = parts[2].toInt()
+        if (cid == MockFixtures.FORBIDDEN_CENTRE) return forbidden()
+        return when (slug) {
+            "course-pdf-m", "course-pdf-f" -> binary(MockFixtures.pdfBytes, "application/pdf")
+            "laundry-list", "valuable-list" ->
+                binary(MockFixtures.xlsBytes, "application/vnd.ms-excel; charset=utf-8")
+            "zero-day" -> html(MockFixtures.zeroDayHtml(cid, courseId))
+            else -> html(MockFixtures.sheetHtml(slug, cid, courseId))
+        }
+    }
+
+    /**
+     * `dh_center_course_report_form`: GET renders the form; a POST carrying
+     * the scraped build id + token + date range streams the CSV, anything
+     * else re-renders the form like Drupal validation would.
+     */
+    private fun courseReport(request: RecordedRequest, path: String): MockResponse {
+        val cid = path.split("/")[2].toInt()
+        if (cid == MockFixtures.FORBIDDEN_CENTRE) return forbidden()
+        if (request.method != "POST") return html(MockFixtures.courseReportFormHtml(cid))
+        val fields = form(request)
+        val valid = fields["form_id"] == "dh_center_course_report_form" &&
+            !fields["form_build_id"].isNullOrBlank() &&
+            fields["form_token"] == "mock-form-token" &&
+            !fields["report_from_date[date]"].isNullOrBlank() &&
+            !fields["report_to_date[date]"].isNullOrBlank()
+        if (!valid) return html(MockFixtures.courseReportFormHtml(cid))
+        return MockResponse().setResponseCode(200)
+            .addHeader("Content-Type", "text/csv")
+            .addHeader("Content-Disposition", "attachment; filename=\"course report.csv\"")
+            .setBody(MockFixtures.courseReportCsv)
+    }
+
+    private fun html(body: String) = MockResponse()
+        .setResponseCode(200)
+        .addHeader("Content-Type", "text/html; charset=utf-8")
+        .setBody(body)
+
+    private fun forbidden() = MockResponse()
+        .setResponseCode(403)
+        .addHeader("Content-Type", "text/html; charset=utf-8")
+        .setBody(MockFixtures.accessDeniedHtml)
+
+    private fun binary(bytes: ByteArray, contentType: String) = MockResponse()
+        .setResponseCode(200)
+        .addHeader("Content-Type", contentType)
+        .setBody(okio.Buffer().write(bytes))
 
     private fun applicants(path: String): MockResponse {
         val q = query(path)
