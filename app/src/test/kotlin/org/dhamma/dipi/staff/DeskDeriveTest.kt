@@ -14,6 +14,7 @@ import org.dhamma.dipi.staff.desk.deskRecord
 import org.dhamma.dipi.staff.desk.deskRoll
 import org.dhamma.dipi.staff.desk.deskRollCell
 import org.dhamma.dipi.staff.desk.deskRosterRows
+import org.dhamma.dipi.staff.desk.deskScoped
 import org.dhamma.dipi.staff.desk.deskSaveSnack
 import org.dhamma.dipi.staff.desk.deskSeatCount
 import org.dhamma.dipi.staff.desk.stripHonorific
@@ -28,6 +29,7 @@ import org.dhamma.dipi.staff.model.CallRecord
 import org.dhamma.dipi.staff.model.CentreId
 import org.dhamma.dipi.staff.model.CheckInRecord
 import org.dhamma.dipi.staff.model.ConfNo
+import org.dhamma.dipi.staff.model.ConfSeniority
 import org.dhamma.dipi.staff.model.CourseId
 import org.dhamma.dipi.staff.model.Gender
 import org.junit.Assert.assertEquals
@@ -73,6 +75,65 @@ class DeskDeriveTest {
             card(4, conf = "OM4", status = "Expected"),
         )
         assertEquals(listOf(1, 4), deskRoll(rows).map { it.id.value })
+    }
+
+    @Test
+    fun rollGenderOverloadScopesWithoutDroppingAnyoneElse() {
+        val rows = listOf(
+            card(1, conf = "NF1"),
+            card(2, conf = "OM2", gender = Gender.M),
+            card(3, conf = "NM3", gender = Gender.M, status = "Cancelled"),
+        )
+        assertEquals(listOf(1, 2), deskRoll(rows, null).map { it.id.value })
+        assertEquals(listOf(1), deskRoll(rows, Gender.F).map { it.id.value })
+        assertEquals(listOf(2), deskRoll(rows, Gender.M).map { it.id.value })
+    }
+
+    @Test
+    fun rollScopeReadsConfPrefixNotCardFields() {
+        val rows = listOf(
+            card(1, conf = "NF1"),
+            card(2, conf = "OF2"),
+            card(3, conf = "NM3", gender = Gender.M),
+            card(4, conf = "OM4", gender = Gender.M),
+            card(5, conf = "SM5", gender = Gender.M),
+            card(6, conf = "xx6"),
+        )
+        assertEquals(listOf(1, 3), deskRoll(rows, null, ConfSeniority.NEW).map { it.id.value })
+        assertEquals(listOf(2, 4), deskRoll(rows, null, ConfSeniority.OLD).map { it.id.value })
+        assertEquals(listOf(1), deskRoll(rows, Gender.F, ConfSeniority.NEW).map { it.id.value })
+        assertEquals(listOf(2), deskRoll(rows, Gender.F, ConfSeniority.OLD).map { it.id.value })
+        assertEquals(listOf(3), deskRoll(rows, Gender.M, ConfSeniority.NEW).map { it.id.value })
+        assertEquals(listOf(4), deskRoll(rows, Gender.M, ConfSeniority.OLD).map { it.id.value })
+        // Sevak SM is male + unknown seniority: visible on Male/Both, hidden on New or Old.
+        assertEquals(listOf(3, 4, 5), deskRoll(rows, Gender.M, null).map { it.id.value })
+        assertFalse(deskRoll(rows, Gender.M, ConfSeniority.NEW).any { it.id.value == 5 })
+        // Garbage prefix is unknown × unknown — only visible when both axes are Both.
+        assertEquals(listOf(1, 2, 3, 4, 5, 6), deskRoll(rows, null, null).map { it.id.value })
+        assertFalse(deskRoll(rows, Gender.F, null).any { it.id.value == 6 })
+        assertFalse(deskRoll(rows, null, ConfSeniority.NEW).any { it.id.value == 6 })
+    }
+
+    @Test
+    fun deskScopedHidesMissingConfWhenAnAxisIsSet() {
+        val rows = listOf(card(1, conf = "NF1"), card(2, conf = null))
+        assertEquals(listOf(1, 2), deskScoped(rows, null, null).map { it.id.value })
+        assertEquals(listOf(1), deskScoped(rows, Gender.F, null).map { it.id.value })
+        assertEquals(listOf(1), deskScoped(rows, null, ConfSeniority.NEW).map { it.id.value })
+        assertTrue(deskScoped(rows, Gender.M, null).isEmpty())
+    }
+
+    @Test
+    fun rosterSortsByDisplayNameCaseInsensitiveAndStable() {
+        val roll = listOf(
+            card(1, conf = "NF1", given = "Priya", family = "Nair"),
+            card(2, conf = "OM2", given = "arun", family = "Kale", gender = Gender.M),
+            card(3, conf = "NF3", given = "Meera", family = "Deshpande"),
+        )
+        assertEquals(
+            listOf("arun Kale", "Meera Deshpande", "Priya Nair"),
+            deskRosterRows(roll, emptyMap(), "", "All").map { it.displayName },
+        )
     }
 
     @Test

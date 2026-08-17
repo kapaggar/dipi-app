@@ -1,5 +1,6 @@
 package org.dhamma.dipi.staff.ui
 
+import android.app.Activity
 import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.BackHandler
@@ -15,14 +16,18 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
@@ -39,8 +44,10 @@ import org.dhamma.dipi.staff.applicants.StatusSheet
 import org.dhamma.dipi.staff.applicants.TodayScreen
 import org.dhamma.dipi.staff.applicants.ZeroDayScreen
 import org.dhamma.dipi.staff.auth.LoginScreen
+import org.dhamma.dipi.staff.course.AdvancedSearchScreen
 import org.dhamma.dipi.staff.course.CentreOpsScreen
 import org.dhamma.dipi.staff.course.CentreScreen
+import org.dhamma.dipi.staff.course.CourseHubLive
 import org.dhamma.dipi.staff.course.CourseHubScreen
 import org.dhamma.dipi.staff.course.DeskActionScreen
 import org.dhamma.dipi.staff.course.RoomsScreen
@@ -51,12 +58,15 @@ import org.dhamma.dipi.staff.desk.CallingPane
 import org.dhamma.dipi.staff.desk.CheckInDialog
 import org.dhamma.dipi.staff.desk.CheckInPane
 import org.dhamma.dipi.staff.desk.DeskRail
+import org.dhamma.dipi.staff.desk.DeskCourse
 import org.dhamma.dipi.staff.desk.DeskSection
 import org.dhamma.dipi.staff.desk.DeskShell
 import org.dhamma.dipi.staff.desk.DeskSnackbar
 import org.dhamma.dipi.staff.desk.RoomsPane
+import org.dhamma.dipi.staff.desk.SheetViewerPane
 import org.dhamma.dipi.staff.desk.deskRoll
 import org.dhamma.dipi.staff.desk.deskWaNumber
+import org.dhamma.dipi.staff.model.SheetPayload
 import org.dhamma.dipi.staff.photos.PhotoReviewScreen
 import org.dhamma.dipi.staff.settings.SettingsScreen
 import org.dhamma.dipi.staff.summary.DaySummaryScreen
@@ -74,6 +84,14 @@ fun DipiAppUi(vm: DeskViewModel) {
     val deskWide = LocalConfiguration.current.screenWidthDp >= 1100
     val deskActive = deskWide && state.screen == DeskScreen.CourseHub &&
         state.session != null && state.course != null
+
+    // One-shot: a fetched PDF/Excel goes to the system viewer via FileProvider.
+    val docContext = LocalContext.current
+    LaunchedEffect(state.openDoc) {
+        val doc = state.openDoc ?: return@LaunchedEffect
+        openSheetDocument(docContext, doc) { message -> vm.deskNote(message) }
+        vm.consumeOpenDoc()
+    }
 
     LaunchedEffect(state.snack, deskActive) {
         val snack = state.snack ?: return@LaunchedEffect
@@ -123,7 +141,17 @@ fun DipiAppUi(vm: DeskViewModel) {
                 }
                 Box(Modifier.weight(1f)) {
                     val canBack = state.screen != DeskScreen.Login && state.screen != DeskScreen.Centre
-                    BackHandler(enabled = canBack) { vm.back() }
+                    val activity = LocalContext.current as? Activity
+                    var confirmExit by remember { mutableStateOf(false) }
+                    BackHandler {
+                        if (canBack) vm.back() else confirmExit = true
+                    }
+                    if (confirmExit) {
+                        ExitAppDialog(
+                            onStay = { confirmExit = false },
+                            onExit = { activity?.finish() },
+                        )
+                    }
                     when (state.screen) {
                         DeskScreen.Login -> LoginScreen(
                             username = state.username,
@@ -149,8 +177,20 @@ fun DipiAppUi(vm: DeskViewModel) {
                                     vm::openSettings,
                                     vm::openLater,
                                     onCentreOps = vm::openCentreOps,
+                                    onAdvancedSearch = vm::openAdvancedSearch,
+                                    lotus = state.lotus,
+                                    olderCourses = state.olderCourses,
                                 )
                             }
+                        }
+                        DeskScreen.Search -> {
+                            val cid = state.session?.centres?.firstOrNull()?.id?.value ?: 0
+                            AdvancedSearchScreen(
+                                rows = state.searchRows,
+                                onOpen = vm::openSearchResult,
+                                onOpenDesk = { vm.openLater("Advanced Search", "search-app/$cid") },
+                                onBack = vm::back,
+                            )
                         }
                         DeskScreen.CourseHub -> {
                             val session = state.session
@@ -159,9 +199,12 @@ fun DipiAppUi(vm: DeskViewModel) {
                                 LaunchedEffect(course.id) { vm.ensureDesk() }
                                 DeskHost(vm, state, session, course)
                             } else if (session != null && course != null) {
+                                // Silent worklist prefetch so the hub's count chips light up.
+                                LaunchedEffect(course.id) { vm.ensureDesk() }
                                 CourseHubScreen(
                                     course = course,
                                     centreName = session.centres.firstOrNull()?.name.orEmpty(),
+                                    counts = courseHubCounts(state),
                                     onBack = vm::back,
                                     onSettings = vm::openSettings,
                                     onApplications = vm::openApplications,
@@ -196,6 +239,11 @@ fun DipiAppUi(vm: DeskViewModel) {
                                     onMarkAttended = vm::markAttended,
                                     onOpen = vm::openCard,
                                     onBack = vm::back,
+                                    pendingRoomSync = deskRoomSyncPending(state.checkIns),
+                                    roomSyncBusy = state.roomSyncBusy,
+                                    roomPullBusy = state.roomPullBusy,
+                                    onSyncRooms = vm::syncRooms,
+                                    onPullRooms = vm::pullRooms,
                                 )
                             }
                         }
@@ -223,9 +271,7 @@ fun DipiAppUi(vm: DeskViewModel) {
                         DeskScreen.Rooms -> RoomsScreen(
                             rooms = state.centreOps.rooms,
                             genderFilter = state.roomsGender,
-                            editMode = state.roomsEdit,
                             onPick = vm::pickRoom,
-                            onToggleFeature = vm::toggleRoomFeature,
                             onBack = vm::back,
                         )
                         DeskScreen.CentreOps -> CentreOpsScreen(
@@ -233,8 +279,6 @@ fun DipiAppUi(vm: DeskViewModel) {
                             onToggleLaundry = vm::toggleLaundry,
                             onToggleValuables = vm::toggleValuables,
                             onToggleGroups = vm::toggleGroups,
-                            onAddRooms = vm::addAccoRooms,
-                            onDeleteSection = vm::deleteAccoSection,
                             onOpenRooms = vm::openRoomsFromCentreOps,
                             onBack = vm::back,
                         )
@@ -290,7 +334,8 @@ private fun DeskHost(
     Box(Modifier.fillMaxSize()) {
         DeskShell(
             section = state.deskSection,
-            rail = deskRail(state, session, course),
+            rail = deskRail(state, session),
+            course = deskCourse(session, course),
             clock = deskClock(),
             onSection = vm::setDeskSection,
             loading = state.loading,
@@ -307,7 +352,7 @@ private fun DeskHost(
                         .filterValues { it.logged }
                         .mapValues { it.value.outcome },
                     onGoto = vm::setDeskSection,
-                    onExport = { vm.deskNote("$it · PDF export opens on the desk site") },
+                    onExport = vm::openSheet,
                 )
                 DeskSection.CheckIn -> CheckInPane(
                     roll = roll,
@@ -316,8 +361,12 @@ private fun DeskHost(
                     scan = state.deskScan,
                     filter = state.deskZeroFilter,
                     flaggedIds = flagsById.keys,
+                    gender = state.deskGender,
+                    seniority = state.deskSeniority,
                     onScan = vm::setDeskScan,
                     onFilter = vm::setDeskZeroFilter,
+                    onGender = vm::setDeskGender,
+                    onSeniority = vm::setDeskSeniority,
                     onOpen = vm::openDeskMark,
                 )
                 DeskSection.Audit -> AuditPane(
@@ -345,11 +394,21 @@ private fun DeskHost(
                         )
                     },
                     onNote = vm::setCallNote,
+                    gender = state.deskGender,
+                    seniority = state.deskSeniority,
+                    onGender = vm::setDeskGender,
+                    onSeniority = vm::setDeskSeniority,
                 )
                 DeskSection.Rooms -> RoomsPane(
                     roll = roll,
                     checkIns = state.checkIns,
                     rooms = state.centreOps.rooms,
+                    pendingSync = deskRoomSyncPending(state.checkIns),
+                    syncBusy = state.roomSyncBusy,
+                    pullBusy = state.roomPullBusy,
+                    syncFailures = state.roomSync?.failures.orEmpty(),
+                    onSyncRooms = vm::syncRooms,
+                    onPullRooms = vm::pullRooms,
                 )
                 DeskSection.Applications -> ApplicationsPane(
                     rows = state.visible,
@@ -361,12 +420,16 @@ private fun DeskHost(
                         vm.openSheet()
                     },
                     onDial = dial,
-                    onEdit = { vm.deskNote("Edit opens on the desk site — view only here") },
+                    onEdit = vm::openAppEdit,
                     loadPhoto = vm::loadPhoto,
                     counts = state.counts,
                     selectedStatuses = state.selected,
                     onToggleStatus = vm::toggleStatus,
                     sensitiveById = state.sensitiveById,
+                    gender = state.deskGender,
+                    seniority = state.deskSeniority,
+                    onGender = vm::setDeskGender,
+                    onSeniority = vm::setDeskSeniority,
                 )
             }
         }
@@ -411,6 +474,19 @@ private fun DeskHost(
             )
         }
 
+        // The sheet viewer overlays the whole desk frame (rail included) the
+        // way the dialogs overlay the shell; vm.back() closes it first, so
+        // the DeskScreen back stack underneath is untouched.
+        val sheetView = state.sheetView
+        if (sheetView != null) {
+            SheetViewerPane(
+                title = sheetView.title,
+                html = sheetView.html,
+                loading = sheetView.loading,
+                onClose = vm::closeSheet,
+            )
+        }
+
         val snack = state.snack
         if (snack != null) {
             DeskSnackbar(
@@ -422,19 +498,36 @@ private fun DeskHost(
     }
 }
 
+/** Count chips on the phone course hub — the same derived numbers as the desk rail. */
+private fun courseHubCounts(state: DeskUiState): Map<CourseHubLive, Int> {
+    val rail = deskRailCounts(state)
+    return mapOf(
+        CourseHubLive.Applications to (rail[DeskSection.Applications] ?: 0),
+        CourseHubLive.ZeroDay to (rail[DeskSection.CheckIn] ?: 0),
+        CourseHubLive.Audit to (rail[DeskSection.Audit] ?: 0),
+        CourseHubLive.Calling to (rail[DeskSection.Calling] ?: 0),
+    )
+}
+
 private fun deskRail(
     state: DeskUiState,
     session: org.dhamma.dipi.staff.model.Session,
+): DeskRail = DeskRail(
+    userName = session.name,
+    syncLine = deskSyncLine(state.lastSync, java.time.Instant.now(), state.offline, state.queuedCount),
+    counts = deskRailCounts(state),
+)
+
+/** Course identity for the 52dp top bar (moved out of the rail). */
+private fun deskCourse(
+    session: org.dhamma.dipi.staff.model.Session,
     course: org.dhamma.dipi.staff.model.Course,
-): DeskRail {
+): DeskCourse {
     val dates = listOf(course.start, course.end).filter { it.isNotBlank() }.joinToString(" – ")
-    return DeskRail(
-        courseName = session.centres.firstOrNull()?.name ?: course.name,
-        courseDates = dates.ifBlank { course.name },
+    return DeskCourse(
+        label = session.centres.firstOrNull()?.name ?: course.name,
+        dates = dates.ifBlank { course.name },
         dayChip = deskDayChip(course.start, java.time.LocalDate.now()),
-        userName = session.name,
-        syncLine = deskSyncLine(state.lastSync, java.time.Instant.now(), state.offline, state.queuedCount),
-        counts = deskRailCounts(state),
     )
 }
 
@@ -455,7 +548,13 @@ private fun deskClock(): String {
 
 @Composable
 private fun DeskBody(vm: DeskViewModel, state: DeskUiState, wide: Boolean) {
-    val course = state.course ?: return
+    val course = state.course
+    if (course == null) {
+        // A card can open with no course picked (Advanced Search across the
+        // cache); the detail pane needs no course context.
+        if (state.screen == DeskScreen.Card) CardPane(vm, state)
+        return
+    }
     val centre = state.session?.centres?.firstOrNull()?.name.orEmpty()
     val showSplit = wide && state.screen == DeskScreen.Card
 
@@ -539,6 +638,30 @@ private fun SettingsPane(vm: DeskViewModel, state: DeskUiState) {
     )
 }
 
+/**
+ * Hands a streamed sheet (cacheDir/sheets only) to the system viewer:
+ * ACTION_VIEW with a FileProvider uri first, a chooser as the fallback, and
+ * the desk snackbar when nothing on the device can open the type.
+ */
+private fun openSheetDocument(
+    context: android.content.Context,
+    doc: SheetPayload.Document,
+    onNoViewer: (String) -> Unit,
+) {
+    val uri = androidx.core.content.FileProvider.getUriForFile(
+        context,
+        "${context.packageName}.fileprovider",
+        doc.file,
+    )
+    val view = Intent(Intent.ACTION_VIEW)
+        .setDataAndType(uri, doc.mimeType)
+        .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    runCatching { context.startActivity(view) }.onFailure {
+        runCatching { context.startActivity(Intent.createChooser(view, doc.title)) }
+            .onFailure { onNoViewer("No app on this device can open ${doc.title}") }
+    }
+}
+
 @Composable
 private fun CardPane(vm: DeskViewModel, state: DeskUiState) {
     val card = state.card ?: return
@@ -563,4 +686,22 @@ private fun CardPane(vm: DeskViewModel, state: DeskUiState) {
             onDismiss = vm::dismissSheet,
         )
     }
+}
+
+@Composable
+fun ExitAppDialog(
+    onStay: () -> Unit,
+    onExit: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onStay,
+        title = { Text("Exit DIPI Staff?") },
+        text = { Text("Do you want to exit the app totally?") },
+        confirmButton = {
+            TextButton(onClick = onExit) { Text("Exit") }
+        },
+        dismissButton = {
+            TextButton(onClick = onStay) { Text("Stay") }
+        },
+    )
 }

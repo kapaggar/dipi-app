@@ -93,6 +93,24 @@ class SearchPageParserTest {
     }
 
     @Test
+    fun displayNameDropsThePdfLinkRemnantInAnySpacingOrCase() {
+        val html = """
+            <script>
+            var dataset = [
+              {"aid":1,"name":"<a href=\"/app/1/edit\">Meera Deshpande</a> ( PDF )","gender":"Female","courseid":42,"centreid":1,"app_status":"Confirmed"},
+              {"aid":2,"name":"Arun Kale (PDF)","gender":"Male","courseid":42,"centreid":1,"app_status":"Pending"},
+              {"aid":3,"name":"Priya Nair (  pdf  )","gender":"Female","courseid":42,"centreid":1,"app_status":"Expected"},
+              {"aid":4,"name":"Rohan Kulkarni","gender":"Male","courseid":42,"centreid":1,"app_status":"Expected"}
+            ];
+            </script>
+        """.trimIndent()
+        val rows = SearchPageParser.parse(html).dataset
+        assertEquals(listOf("Meera", "Arun", "Priya", "Rohan"), rows.map { it.givenName })
+        assertEquals(listOf("Deshpande", "Kale", "Nair", "Kulkarni"), rows.map { it.familyName })
+        rows.forEach { assertFalse(it.familyName.contains("PDF", ignoreCase = true)) }
+    }
+
+    @Test
     fun centreIdFromPath() {
         assertEquals(7, SearchPageParser.centreIdFromPath("/search-app/7"))
         assertEquals(91, SearchPageParser.centreIdFromPath("/centre/91"))

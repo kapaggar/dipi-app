@@ -7,10 +7,11 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -18,11 +19,13 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
@@ -37,9 +40,10 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
+import org.dhamma.dipi.staff.ui.theme.DeskStyle
 import org.dhamma.dipi.staff.ui.theme.DipiCondensed
 import org.dhamma.dipi.staff.ui.theme.Industry
-import org.dhamma.dipi.staff.ui.theme.blueprintMarks
+import org.dhamma.dipi.staff.ui.theme.deskCard
 
 internal fun Modifier.bottomHairline(color: Color): Modifier = drawBehind {
     val y = size.height - 0.5.dp.toPx()
@@ -56,7 +60,7 @@ internal fun Modifier.topHairline(color: Color): Modifier = drawBehind {
     drawLine(color, Offset(0f, y), Offset(size.width, y), 1.dp.toPx())
 }
 
-/** Segmented control: 1dp hairline, 2dp radius is approximated square, accent fill on the selection. */
+/** Segmented control: rounded soft-bordered track on the card fill, accent fill on the selection. */
 @Composable
 fun DeskSegmented(
     options: List<String>,
@@ -66,7 +70,12 @@ fun DeskSegmented(
     verticalPadding: Dp = 11.dp,
     counts: Map<String, Int> = emptyMap(),
 ) {
-    Row(Modifier.border(1.dp, Industry.neutral400)) {
+    Row(
+        Modifier.deskCard(
+            shape = DeskStyle.controlShape,
+            elevation = 0.dp,
+        ),
+    ) {
         options.forEachIndexed { i, label ->
             val on = label == selected
             Text(
@@ -84,11 +93,46 @@ fun DeskSegmented(
     }
 }
 
+/**
+ * Tablet-scope pair: gender and old/new, independently. FlowRow so the two
+ * controls wrap on a narrow Applications column instead of clipping.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun DeskScopeFilters(
+    gender: String,
+    seniority: String,
+    onGender: (String) -> Unit,
+    onSeniority: (String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    FlowRow(
+        modifier,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        DeskSegmented(
+            listOf("Both", "Male", "Female"),
+            gender,
+            onGender,
+            optionPadding = 12.dp,
+            verticalPadding = 8.dp,
+        )
+        DeskSegmented(
+            listOf("Both", "New", "Old"),
+            seniority,
+            onSeniority,
+            optionPadding = 12.dp,
+            verticalPadding = 8.dp,
+        )
+    }
+}
+
 private fun Modifier.rightHairlineStart(): Modifier = drawBehind {
     drawLine(Industry.neutral300, Offset(0.5.dp.toPx(), 0f), Offset(0.5.dp.toPx(), size.height), 1.dp.toPx())
 }
 
-/** Toggle: accent when on, neutral-300 when off; background and knob animate .18s — the only motion besides the progress bar. */
+/** Toggle: rounded pill track, circular knob; accent when on, neutral-300 when off; .18s knob motion. */
 @Composable
 fun DeskToggle(
     on: Boolean,
@@ -105,6 +149,7 @@ fun DeskToggle(
     Box(
         Modifier
             .size(trackWidth, trackHeight)
+            .clip(DeskStyle.pillShape)
             .background(if (on) Industry.accent else Industry.neutral300)
             .clickable(onClick = onToggle),
     ) {
@@ -112,12 +157,13 @@ fun DeskToggle(
             Modifier
                 .offset(x = x, y = (trackHeight - knob) / 2)
                 .size(knob)
+                .clip(CircleShape)
                 .background(Color.White),
         )
     }
 }
 
-/** Solid accent primary with the blueprint corner marks — the one deliberate surface fill. */
+/** Solid accent primary: rounded, gently elevated — the one deliberate accent fill. */
 @Composable
 fun DeskPrimaryButton(label: String, onClick: () -> Unit, fontSize: Float = 14f) {
     Text(
@@ -129,8 +175,11 @@ fun DeskPrimaryButton(label: String, onClick: () -> Unit, fontSize: Float = 14f)
         maxLines = 1,
         color = Color.White,
         modifier = Modifier
-            .blueprintMarks()
-            .background(Industry.accent)
+            .deskCard(
+                shape = DeskStyle.controlShape,
+                fill = Industry.accent,
+                border = Industry.accent,
+            )
             .clickable(onClick = onClick)
             .padding(horizontal = 22.dp, vertical = 10.dp),
     )
@@ -147,7 +196,11 @@ fun DeskOutlineButton(label: String, onClick: () -> Unit) {
         maxLines = 1,
         color = Industry.text,
         modifier = Modifier
-            .border(1.dp, Industry.neutral400)
+            .deskCard(
+                shape = DeskStyle.controlShape,
+                border = Industry.neutral400,
+                elevation = 0.dp,
+            )
             .clickable(onClick = onClick)
             .padding(horizontal = 18.dp, vertical = 10.dp),
     )
@@ -155,10 +208,11 @@ fun DeskOutlineButton(label: String, onClick: () -> Unit) {
 
 /**
  * Snackbar anchored to the desk: left 24, bottom 20, max width 520.
- * Success on accent-800, error on the muted error tone.
+ * Success on accent-800, error on the muted error tone — rounded, floating.
  */
 @Composable
 fun DeskSnackbar(text: String, error: Boolean, modifier: Modifier = Modifier) {
+    val tone = if (error) Color(0xFF5A2F2F) else Industry.accent800
     Box(
         modifier
             .padding(start = 24.dp, bottom = 20.dp)
@@ -171,7 +225,12 @@ fun DeskSnackbar(text: String, error: Boolean, modifier: Modifier = Modifier) {
             lineHeight = 18.sp,
             color = Color.White,
             modifier = Modifier
-                .background(if (error) Color(0xFF5A2F2F) else Industry.accent800)
+                .deskCard(
+                    shape = DeskStyle.controlShape,
+                    fill = tone,
+                    border = tone,
+                    elevation = DeskStyle.dialogElevation,
+                )
                 .padding(horizontal = 16.dp, vertical = 12.dp),
         )
     }

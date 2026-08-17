@@ -81,4 +81,21 @@ class ZeroDayScreenTest {
         rule.onNodeWithText("Chowky").performClick()
         assertEquals("Chowky", seat)
     }
+
+    @Test
+    fun pullRoomsButtonIsVisibleAndFires() {
+        var pulled = false
+        rule.setContent {
+            DipiTheme {
+                ZeroDayScreen(
+                    course = course,
+                    rows = listOf(card()),
+                    prefs = CentreOpsPrefs(),
+                    onPullRooms = { pulled = true },
+                )
+            }
+        }
+        rule.onNodeWithText("Pull rooms").assertIsDisplayed().performClick()
+        assertTrue(pulled)
+    }
 }

@@ -11,6 +11,14 @@ internal object MockFixtures {
     const val RAKESH_ID = 2
     const val MEERA_ID = 1
 
+    /**
+     * Sheet permissions differ per export on the live desk (access male/
+     * female, view teachers list, access zero day, view course report):
+     * any sheet fetch against this centre id refuses with the Drupal 403
+     * page so tests can assert the verbatim NotAvailable path.
+     */
+    const val FORBIDDEN_CENTRE = 99
+
     val session = SessionDto(
         uid = 42,
         name = "sudha.user",
@@ -23,6 +31,31 @@ internal object MockFixtures {
         CourseDto(COURSE_10D, CENTRE_ID, "10-Day", "2026-08-20", "2026-08-31", "10d"),
         CourseDto(11, CENTRE_ID, "Satipatthana", "2026-09-03", "2026-09-12", "stp"),
         CourseDto(12, CENTRE_ID, "10-Day", "2026-09-16", "2026-09-27", "10d"),
+    )
+
+    /** Courses that have already started — the Select Course older list. */
+    val olderCourses = listOf(
+        CourseDto(8, CENTRE_ID, "Dhamma Sudha / 10 Day / 2026 / 6th-Aug to 17th-Aug", "2026-08-06", "2026-08-17", "10d"),
+        CourseDto(7, CENTRE_ID, "Dhamma Sudha / STP / 2026 / 23rd-Jul to 31st-Jul", "2026-07-23", "2026-07-31", "stp"),
+    )
+
+    /**
+     * DataTables Editor GET payload for `/centre/{cid}/acco-handler`
+     * (`dh_center_setting_acco`) — the shape the live desk serves.
+     */
+    val accoHandlerJson = """
+        {"data":[
+         {"DT_RowId":"row_1","dh_center_setting_acco":{"csa_id":"1","csa_center":"1","csa_gender":"F","csa_section":"Fbk","csa_room":"1:6W","csa_deleted":"0"}},
+         {"DT_RowId":"row_2","dh_center_setting_acco":{"csa_id":"2","csa_center":"1","csa_gender":"M","csa_section":"Mbk","csa_room":"1:8, 9IC, 10W","csa_deleted":"0"}}
+        ],"options":{"dh_center_setting_acco.csa_gender":[{"label":"Male","value":"M"},{"label":"Female","value":"F"}]},"files":[]}
+    """.trimIndent()
+
+    /**
+     * Rooms the desk already allotted (applicant id → section, room no).
+     * Posting either room for anyone else refuses like the live handler.
+     */
+    val allotedSeed = mapOf(
+        4 to ("Mbk" to "8"), // Suresh Nair holds Mbk 8
     )
 
     val counts = mapOf(
@@ -161,6 +194,126 @@ internal object MockFixtures {
         PhotoReviewDto(3, "suggest", "suggest ✂ zoom", 0, true),
         PhotoReviewDto(7, "nofel", "no face found", 0, false),
     )
+
+    // --- Board "Sheets & exports" fixtures (mock flag only) ---
+
+    /** Minimal but structurally valid PDF blob for `/course-pdf-{m,f}`. */
+    val pdfBytes: ByteArray = (
+        "%PDF-1.4\n" +
+            "1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n" +
+            "2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj\n" +
+            "3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 612 792]>>endobj\n" +
+            "trailer<</Root 1 0 R>>\n" +
+            "%%EOF\n"
+        ).toByteArray(Charsets.US_ASCII)
+
+    /** OLE2 magic + filler for the laundry/valuable `.xls` streams. */
+    val xlsBytes: ByteArray =
+        byteArrayOf(
+            0xD0.toByte(), 0xCF.toByte(), 0x11, 0xE0.toByte(),
+            0xA1.toByte(), 0xB1.toByte(), 0x1A, 0xE1.toByte(),
+        ) + "DIPI mock spreadsheet".toByteArray(Charsets.US_ASCII)
+
+    /** Print-styled desk sheet page (day0-list, teacher-list, …). */
+    fun sheetHtml(slug: String, cid: Int, courseId: Int) = """
+        <html><head>
+        <style>@import url("/sites/all/modules/dh_manageapp/css/teacher-list.css");</style>
+        </head><body>
+        <h2>$slug · centre $cid · course $courseId</h2>
+        <table id="table-$slug"><tr><th>#</th><th>Name</th><th>Room</th></tr>
+        <tr><td>1</td><td>Meera Deshpande</td><td>Fbk-1</td></tr>
+        <tr><td>2</td><td>Suresh Nair</td><td>Mbk-8</td></tr></table>
+        </body></html>
+    """.trimIndent()
+
+    private fun daySummaryBlock() = """
+        <div id="day-summary"><table id="table-conf"><tr><th>Conf</th></tr><tr><td>72</td></tr></table>
+        <table id="table-totals"><tr><th>M</th><th>F</th></tr><tr><td><b>6</b></td><td><b>6</b></td></tr></table>
+        <table id="table-special"><tr><th>Teen</th></tr><tr><td>0</td></tr></table></div><br />
+    """.trimIndent()
+
+    private fun attendingRow(
+        id: Int,
+        conf: String,
+        name: String,
+        gender: String,
+        type: String,
+        age: Int,
+        room: String,
+        laundry: String = "",
+        valuable: String = "",
+        chowky: String = "No",
+        chair: String = "No",
+        backrest: String = "No",
+        group: String = "1",
+    ) = "<tr><td>$id</td><td>$conf</td><td><a href=\"/app/$id/edit\" appid=\"$id\">$name</a></td>" +
+        "<td>$gender</td><td>$type</td><td>$age</td><td>0</td><td>0</td>" +
+        "<td>$room</td><td>$laundry</td><td>$valuable</td>" +
+        "<td>$chowky</td><td>$chair</td><td>$backrest</td><td>$group</td><td>||||</td></tr>"
+
+    /** The zero-day page: `#day-summary` first, then a real attended table. */
+    fun zeroDayHtml(cid: Int, courseId: Int) = """
+        <html><head><title>Day Zero | centre $cid</title></head><body>
+        <h1>Day Zero · course $courseId</h1>
+        ${daySummaryBlock()}
+        <br><h2>Attended Applicants</h2>
+        <table id="table-attending">
+        <thead><tr><th>Update</th><th>ConfNo</th><th>Name</th><th>Gender</th><th>Type</th><th>Age</th><th>Teen/10D/STP</th><th>LC</th><th>RoomNo</th><th>Laundry</th><th>Valuable</th><th>Chowky</th><th>Chair</th><th>BackRest</th><th>Group</th><th>H</th></tr></thead>
+        <tbody>
+        ${attendingRow(MEERA_ID, "OF128", "Meera Deshpande", "Female", "Student", 34, "Fbk-1")}
+        ${attendingRow(4, "OM42", "Suresh Nair", "Male", "Sevak", 51, "Mbk-8", chowky = "Yes", group = "2")}
+        </tbody></table>
+        </body></html>
+    """.trimIndent()
+
+    /** Same page with `#table-attending-empty` — parser tests and empty-desk cases. */
+    fun zeroDayEmptyAttendingHtml(cid: Int, courseId: Int) = """
+        <html><head><title>Day Zero | centre $cid</title></head><body>
+        <h1>Day Zero · course $courseId</h1>
+        ${daySummaryBlock()}
+        <br><h2>Attended Applicants</h2>
+        <table id="table-attending-empty"><tr><td>none yet</td></tr></table>
+        </body></html>
+    """.trimIndent()
+
+    /** Drupal 403 page, served verbatim on permission refusals. */
+    val accessDeniedHtml = """
+        <html><head><title>Access denied | Dhamma.org</title></head><body>
+        <h1>Access denied</h1><p>You are not authorized to access this page.</p>
+        </body></html>
+    """.trimIndent()
+
+    /** `dh_center_course_report_form` as drupal_get_form renders it. */
+    fun courseReportFormHtml(cid: Int) = """
+        <html><body>
+        <form action="/centre/$cid/course-report" method="post" id="dh-center-course-report-form" accept-charset="UTF-8">
+        <h2>Get Report for Courses Having Start Date:</h2>
+        <input type="text" id="edit-report-from-date-datepicker-popup-0" name="report_from_date[date]" value="2025-08-16" size="12" />
+        <input type="text" id="edit-report-to-date-datepicker-popup-0" name="report_to_date[date]" value="2026-08-16" size="12" />
+        <input type="hidden" name="form_build_id" value="form-MoCkBuIlDiD" />
+        <input type="hidden" name="form_token" value="mock-form-token" />
+        <input type="hidden" name="form_id" value="dh_center_course_report_form" />
+        <input type="submit" id="edit-sub" name="op" value="Download Course Report" />
+        </form></body></html>
+    """.trimIndent()
+
+    /** CSV the course-report form submit streams back. */
+    val courseReportCsv =
+        "Course,NewMale,NewFemale,NewTotal,OldMale,OldFemale,OldTotal,StudentTotal,SevakMale,SevakFemale,SevakTotal\n" +
+            "10-Day,4,5,9,2,1,3,12,1,1,2\n" +
+            "Total,4,5,9,2,1,3,12,1,1,2\n"
+
+    /** The desk's application edit form — display-only, never persisted. */
+    fun appEditHtml(id: Int) = """
+        <html><body>
+        <form action="/app/$id/edit" method="post" id="dh-zero-app-form" accept-charset="UTF-8">
+        <input type="text" name="a_f_name" value="Rakesh" />
+        <input type="text" name="a_l_name" value="Iyer" />
+        <input type="hidden" name="form_build_id" value="form-AppEdItBuIlD" />
+        <input type="hidden" name="form_id" value="dh_zero_app_form" />
+        <input type="submit" name="op" value="Save" />
+        </form></body></html>
+    """.trimIndent()
 
     fun person(
         id: Int,

@@ -1,6 +1,7 @@
 package org.dhamma.dipi.staff.desk
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -14,6 +15,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -25,17 +27,31 @@ import org.dhamma.dipi.staff.model.ApplicantCard
 import org.dhamma.dipi.staff.model.ApplicantId
 import org.dhamma.dipi.staff.model.CheckInRecord
 import org.dhamma.dipi.staff.model.Gender
+import org.dhamma.dipi.staff.model.RoomSyncFailure
+import org.dhamma.dipi.staff.ui.theme.DeskStyle
 import org.dhamma.dipi.staff.ui.theme.DipiCondensed
 import org.dhamma.dipi.staff.ui.theme.DipiMono
 import org.dhamma.dipi.staff.ui.theme.Industry
-import org.dhamma.dipi.staff.ui.theme.blueprint
+import org.dhamma.dipi.staff.ui.theme.deskCard
 
-/** The occupancy picture: who is where tonight, and what is free. */
+/**
+ * The occupancy picture: who is where tonight, and what is free. The header
+ * carries pull-from-server (always) and the bulk allocation sync (owner
+ * amendment 2026-08-16): "Sync N to server" walks every unsynced checked-in
+ * record through the desk's own update form — hidden at N=0. Both buttons
+ * disable while either walk is in flight; per-row refusals list under the header.
+ */
 @Composable
 fun RoomsPane(
     roll: List<ApplicantCard>,
     checkIns: Map<ApplicantId, CheckInRecord>,
     rooms: List<AccoRoom>,
+    pendingSync: Int = 0,
+    syncBusy: Boolean = false,
+    pullBusy: Boolean = false,
+    syncFailures: List<RoomSyncFailure> = emptyList(),
+    onSyncRooms: () -> Unit = {},
+    onPullRooms: () -> Unit = {},
 ) {
     Column(
         Modifier
@@ -43,9 +59,27 @@ fun RoomsPane(
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 26.dp, vertical = 24.dp),
     ) {
-        Column(Modifier.padding(bottom = 20.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            DeskH2("Rooms & seats")
-            DeskSub("Filled cells are occupied tonight. Amenity marks: G geyser · I Indian · W Western.")
+        Row(
+            Modifier.fillMaxWidth().padding(bottom = 20.dp),
+            verticalAlignment = Alignment.Top,
+        ) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                DeskH2("Rooms & seats")
+                DeskSub("Filled cells are occupied tonight. Amenity marks: G geyser · IC Indian · W Western.")
+                if (syncFailures.isNotEmpty()) {
+                    SyncRefusals(roll, syncFailures)
+                }
+            }
+            val actionsEnabled = !pullBusy && !syncBusy
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                RoomPullButton(pullBusy, actionsEnabled, onPullRooms)
+                if (pendingSync > 0 || syncBusy) {
+                    RoomSyncButton(pendingSync, syncBusy, actionsEnabled, onSyncRooms)
+                }
+            }
         }
 
         val occupantByRoom = buildMap {
@@ -85,22 +119,120 @@ fun RoomsPane(
                             color = Industry.neutral600,
                         )
                     }
-                    block.chunked(3).forEach { rowRooms ->
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    // Chart bands like the paper ROOM CHART: four cells a row,
+                    // alternate rows on a soft rounded band of the neutral ground.
+                    block.chunked(4).forEachIndexed { i, rowRooms ->
+                        Row(
+                            Modifier
+                                .fillMaxWidth()
+                                .clip(DeskStyle.tileShape)
+                                .background(if (i % 2 == 1) Industry.neutral100 else Color.Transparent),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
                             rowRooms.forEach { room ->
                                 val who = occupantByRoom[room.code]
                                 RoomCell(room, who, Modifier.weight(1f))
                             }
-                            repeat(3 - rowRooms.size) { Spacer(Modifier.weight(1f)) }
+                            repeat(4 - rowRooms.size) { Spacer(Modifier.weight(1f)) }
                         }
                     }
                     if (block.isEmpty()) {
                         DeskEmpty(
-                            "No rooms yet — add them in Centre settings.",
+                            "No rooms configured on the desk site yet.",
                             Modifier.fillMaxWidth().padding(vertical = 20.dp),
                         )
                     }
                 }
+            }
+        }
+    }
+}
+
+/**
+ * Outline "PULL FROM SERVER" — card fill, accent label. Busy → "PULLING…".
+ * Always shown; disabled while either pull or sync is in flight.
+ */
+@Composable
+private fun RoomPullButton(busy: Boolean, enabled: Boolean, onClick: () -> Unit) {
+    Text(
+        (if (busy) "Pulling…" else "Pull from server").uppercase(),
+        fontFamily = DipiCondensed,
+        fontWeight = FontWeight.SemiBold,
+        fontSize = 14.sp,
+        letterSpacing = 0.06.em,
+        maxLines = 1,
+        color = if (enabled) Industry.accent else Industry.neutral600,
+        modifier = Modifier
+            .deskCard(
+                shape = DeskStyle.controlShape,
+                fill = DeskStyle.cardFill,
+                border = if (enabled) Industry.accent else Industry.neutral400,
+            )
+            .clickable(enabled = enabled, onClick = onClick)
+            .padding(horizontal = 22.dp, vertical = 10.dp),
+    )
+}
+
+/**
+ * The one deliberate accent fill on this pane: "SYNC N TO SERVER", busy →
+ * "SYNCING…" and inert. Callers hide it entirely at N=0.
+ */
+@Composable
+private fun RoomSyncButton(pending: Int, busy: Boolean, enabled: Boolean, onClick: () -> Unit) {
+    Text(
+        (if (busy) "Syncing…" else "Sync $pending to server").uppercase(),
+        fontFamily = DipiCondensed,
+        fontWeight = FontWeight.SemiBold,
+        fontSize = 14.sp,
+        letterSpacing = 0.06.em,
+        maxLines = 1,
+        color = Color.White,
+        modifier = Modifier
+            .deskCard(
+                shape = DeskStyle.controlShape,
+                fill = if (busy) Industry.accent700 else Industry.accent,
+                border = if (busy) Industry.accent700 else Industry.accent,
+            )
+            .clickable(enabled = enabled, onClick = onClick)
+            .padding(horizontal = 22.dp, vertical = 10.dp),
+    )
+}
+
+/** Per-row refusals from the last sync run: name + the server's reason, verbatim. */
+@Composable
+private fun SyncRefusals(roll: List<ApplicantCard>, failures: List<RoomSyncFailure>) {
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .padding(top = 8.dp)
+            .deskCard(border = Industry.accent, elevation = 0.dp)
+            .padding(horizontal = 14.dp, vertical = 10.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Text(
+            "SERVER REFUSED ${failures.size}",
+            fontFamily = DipiMono,
+            fontWeight = FontWeight.SemiBold,
+            fontSize = 10.sp,
+            letterSpacing = 0.1.em,
+            color = Industry.accent700,
+        )
+        failures.forEach { failure ->
+            val name = roll.firstOrNull { it.id == failure.id }?.displayName
+                ?: "Applicant ${failure.id.value}"
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    name,
+                    fontSize = 12.5.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = Industry.text,
+                    modifier = Modifier.weight(1f),
+                )
+                Text(
+                    failure.reason,
+                    fontSize = 12.sp,
+                    color = Industry.neutral600,
+                )
             }
         }
     }
@@ -111,14 +243,18 @@ private fun RoomCell(room: AccoRoom, occupant: String?, modifier: Modifier = Mod
     val taken = occupant != null
     Column(
         modifier
-            .background(if (taken) Industry.accent100 else Color.Transparent)
-            .blueprint(if (taken) Industry.accent else Industry.neutral300)
+            .deskCard(
+                shape = DeskStyle.tileShape,
+                fill = if (taken) Industry.accent100 else DeskStyle.cardFill,
+                border = if (taken) Industry.accent else DeskStyle.cardBorder,
+                elevation = 0.dp,
+            )
             .padding(horizontal = 11.dp, vertical = 10.dp),
         verticalArrangement = Arrangement.spacedBy(3.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             Text(
-                room.code,
+                room.displayNo,
                 fontFamily = DipiCondensed,
                 fontWeight = FontWeight.Bold,
                 fontSize = 19.sp,
@@ -126,7 +262,7 @@ private fun RoomCell(room: AccoRoom, occupant: String?, modifier: Modifier = Mod
                 color = if (taken) Industry.accent800 else Industry.neutral500,
             )
             Text(
-                amenityMarks(room),
+                room.amenityMark,
                 fontFamily = DipiMono,
                 fontWeight = FontWeight.Medium,
                 fontSize = 9.5.sp,

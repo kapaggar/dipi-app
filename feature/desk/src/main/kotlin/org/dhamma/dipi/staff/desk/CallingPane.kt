@@ -22,6 +22,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.semantics.contentDescription
@@ -34,6 +35,7 @@ import androidx.compose.ui.unit.sp
 import org.dhamma.dipi.staff.model.ApplicantCard
 import org.dhamma.dipi.staff.model.ApplicantId
 import org.dhamma.dipi.staff.model.CallRecord
+import org.dhamma.dipi.staff.ui.theme.DeskStyle
 import org.dhamma.dipi.staff.ui.theme.DipiMono
 import org.dhamma.dipi.staff.ui.theme.Industry
 
@@ -52,10 +54,15 @@ fun CallingPane(
     onDial: (ApplicantCard) -> Unit,
     onWhatsApp: (ApplicantCard) -> Unit,
     onNote: (ApplicantCard, String) -> Unit,
+    gender: String = "Both",
+    seniority: String = "Both",
+    onGender: (String) -> Unit = {},
+    onSeniority: (String) -> Unit = {},
 ) {
-    val callList = deskCallList(roll)
+    val scoped = deskScoped(roll, deskGenderScope(gender), deskSeniorityScope(seniority))
+    val callList = deskCallList(scoped)
     val logged = callList.count { outcomes[it.id]?.logged == true }
-    val shown = deskCallRows(roll, outcomes, filter)
+    val shown = deskCallRows(scoped, outcomes, filter)
     val nowMs = System.currentTimeMillis()
 
     Column(Modifier.fillMaxSize()) {
@@ -73,8 +80,9 @@ fun CallingPane(
                 onFilter,
                 optionPadding = 14.dp,
                 verticalPadding = 9.dp,
-                counts = deskCallCounts(roll, outcomes),
+                counts = deskCallCounts(scoped, outcomes),
             )
+            DeskScopeFilters(gender, seniority, onGender, onSeniority)
         }
 
         if (shown.isEmpty()) {
@@ -200,8 +208,13 @@ private fun CallRow(
                         maxLines = 1,
                         color = if (on) Industry.accent800 else Industry.neutral600,
                         modifier = Modifier
+                            .clip(DeskStyle.controlShape)
                             .background(if (on) Industry.accent100 else Color.Transparent)
-                            .border(1.dp, if (on) Industry.accent else Industry.neutral300)
+                            .border(
+                                1.dp,
+                                if (on) Industry.accent else Industry.neutral300,
+                                DeskStyle.controlShape,
+                            )
                             .clickable { onOutcome(label) }
                             .padding(horizontal = 11.dp, vertical = 7.dp),
                     )
@@ -212,8 +225,13 @@ private fun CallRow(
                     maxLines = 1,
                     color = if (hasNote) Industry.accent800 else Industry.neutral600,
                     modifier = Modifier
+                        .clip(DeskStyle.controlShape)
                         .background(if (hasNote) Industry.accent100 else Color.Transparent)
-                        .border(1.dp, if (hasNote) Industry.accent else Industry.neutral300)
+                        .border(
+                            1.dp,
+                            if (hasNote) Industry.accent else Industry.neutral300,
+                            DeskStyle.controlShape,
+                        )
                         .clickable { noteOpen = !noteOpen }
                         .padding(horizontal = 11.dp, vertical = 7.dp),
                 )
@@ -229,7 +247,7 @@ private fun CallRow(
                 decorationBox = { inner ->
                     Box(
                         Modifier
-                            .border(1.dp, Industry.neutral300)
+                            .border(1.dp, Industry.neutral300, DeskStyle.controlShape)
                             .padding(horizontal = 10.dp, vertical = 7.dp),
                     ) {
                         if (record?.note.isNullOrEmpty()) {

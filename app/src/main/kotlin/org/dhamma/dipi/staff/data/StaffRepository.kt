@@ -1,5 +1,7 @@
 package org.dhamma.dipi.staff.data
 
+import android.content.Context
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.serialization.encodeToString
@@ -12,18 +14,27 @@ import org.dhamma.dipi.staff.database.OutboxEntity
 import org.dhamma.dipi.staff.datastore.SessionStore
 import org.dhamma.dipi.staff.model.ApplicantCard
 import org.dhamma.dipi.staff.model.ApplicantId
+import org.dhamma.dipi.staff.model.CentreCourses
 import org.dhamma.dipi.staff.model.CentreId
+import org.dhamma.dipi.staff.model.CheckInRecord
 import org.dhamma.dipi.staff.model.Course
 import org.dhamma.dipi.staff.model.CourseId
 import org.dhamma.dipi.staff.model.FlushSnack
 import org.dhamma.dipi.staff.model.OutboxReconciler
 import org.dhamma.dipi.staff.model.PhotoEdit
 import org.dhamma.dipi.staff.model.PhotoReviewItem
+import org.dhamma.dipi.staff.model.RoomAllocSync
+import org.dhamma.dipi.staff.model.RoomPostOutcome
+import org.dhamma.dipi.staff.model.RoomSyncResult
 import org.dhamma.dipi.staff.model.SensitiveInfo
 import org.dhamma.dipi.staff.model.Session
+import org.dhamma.dipi.staff.model.SheetExport
+import org.dhamma.dipi.staff.model.SheetPayload
 import org.dhamma.dipi.staff.model.StatusWrite
 import org.dhamma.dipi.staff.model.UserCentreMap
+import org.dhamma.dipi.staff.network.AccoHandlerParser
 import org.dhamma.dipi.staff.network.ApplicantDto
+import org.dhamma.dipi.staff.network.AttendedTableParser
 import org.dhamma.dipi.staff.network.CentrePageParser
 import org.dhamma.dipi.staff.network.CropDto
 import org.dhamma.dipi.staff.network.DrupalAuthApi
@@ -31,9 +42,11 @@ import org.dhamma.dipi.staff.network.LoginBody
 import org.dhamma.dipi.staff.network.PhotoUploadBody
 import org.dhamma.dipi.staff.network.SearchPageParser
 import org.dhamma.dipi.staff.network.SessionCookieJar
+import org.dhamma.dipi.staff.network.SheetTransport
 import org.dhamma.dipi.staff.network.StaffApi
 import org.dhamma.dipi.staff.network.TokenStore
 import org.dhamma.dipi.staff.network.html
+import java.io.File
 import java.time.Instant
 import javax.inject.Inject
 import javax.inject.Named
@@ -51,9 +64,22 @@ class StaffRepository @Inject constructor(
     private val cookies: SessionCookieJar,
     @Named("useMock") private val useMock: Boolean,
     @Named("baseUrl") private val baseUrl: String,
+    @ApplicationContext private val context: Context,
 ) {
     @Volatile private var lastCentreId: Int? = null
     @Volatile private var lastStatuses: List<String> = emptyList()
+
+    /**
+     * Board sheet transport. Sheet bodies (health disclosures, contact
+     * data) are never persisted: HTML stays in memory, documents live under
+     * cacheDir/sheets only and are wiped on logout, erase-all, session
+     * expiry, and (below) any stale files on repository (re)start.
+     */
+    private val sheets = SheetTransport(api, baseUrl) { File(context.cacheDir, "sheets") }
+
+    init {
+        sheets.wipe()
+    }
 
     /**
      * Session-scoped ID + health disclosures by applicant id — in memory
@@ -153,7 +179,7 @@ class StaffRepository @Inject constructor(
         }.getOrElse {
             val ex = it.toApi()
             if (ex.unauthorized) {
-                logout()
+                sessionExpired()
                 throw ex
             }
             sessionStore.accountJson()?.let { raw ->
@@ -162,19 +188,47 @@ class StaffRepository @Inject constructor(
         }
     }
 
-    suspend fun loadCourses(centreId: CentreId): List<Course> = runCatching {
+    suspend fun loadCourses(centreId: CentreId): CentreCourses = runCatching {
         lastCentreId = centreId.value
         if (useMock) {
-            return@runCatching api.courses(centreId.value, upcoming = 1).items.map { it.toModel() }
+            refreshRooms(centreId.value)
+            return@runCatching CentreCourses(
+                upcoming = api.courses(centreId.value, upcoming = 1).items.map { it.toModel() },
+                older = api.courses(centreId.value, upcoming = 0).items.map { it.toModel() },
+            )
         }
         val dash = api.centreDashboard(centreId.value)
         val html = dash.html()
         if (stillOnLogin(html) || dash.code() == 403) throw ApiException("Access denied", unauthorized = true)
         val summaries = CentrePageParser.courseSummaries(html)
-        SearchPageParser.coursesFromDashboard(html).map {
+        refreshRooms(centreId.value)
+        val upcomingOpts = SearchPageParser.coursesFromDashboard(html)
+        val upcomingIds = upcomingOpts.map { it.id }.toSet()
+        val upcoming = upcomingOpts.map {
             Course(CourseId(it.id), centreId, it.label, "", "", summary = summaries[it.id])
         }
+        val older = CentrePageParser.olderCourseOptions(html, upcomingIds).map {
+            Course(CourseId(it.id), centreId, it.label, "", "")
+        }
+        CentreCourses(upcoming, older)
     }.getOrElse { throw it.toApi() }
+
+    /**
+     * Server room config, read-only: `GET /centre/{cid}/acco-handler` — the
+     * DataTables source behind the desk's Centre-settings Accommodation table.
+     * Refreshed on every centre-page load (login and centre pick) and cached
+     * in [CentreOpsPrefs.rooms]; any failure or non-Editor body (offline,
+     * expired session) keeps the last fetch, so Rooms stays offline-first.
+     */
+    private suspend fun refreshRooms(centreId: Int) {
+        runCatching {
+            val resp = api.accoHandler(centreId)
+            if (!resp.isSuccessful) return
+            val rooms = AccoHandlerParser.roomsOrNull(resp.html()) ?: return
+            val cur = sessionStore.centreOpsOnce()
+            if (cur.rooms != rooms) sessionStore.setCentreOps(cur.copy(rooms = rooms))
+        }
+    }
 
     suspend fun loadStatuses(): List<String> = runCatching {
         if (useMock) return@runCatching api.statuses().items.map { it.value }
@@ -249,6 +303,16 @@ class StaffRepository @Inject constructor(
             json.decodeFromString(ApplicantDto.serializer(), it.payload).toModel()
         }
 
+    /**
+     * Every applicant row in the Room cache, across all courses opened on
+     * this device — the in-app Advanced Search's corpus. Read-only; no
+     * fetch, no NPI (the cache never holds any).
+     */
+    suspend fun cachedApplicants(): List<ApplicantCard> =
+        applicants.listAll().map {
+            json.decodeFromString(ApplicantDto.serializer(), it.payload).toModel()
+        }
+
     suspend fun photoReview(courseId: CourseId): List<org.dhamma.dipi.staff.model.PhotoReviewItem> = runCatching {
         if (useMock) return@runCatching api.photoReview(courseId.value).items.map { it.toModel() }
         emptyList()
@@ -314,6 +378,91 @@ class StaffRepository @Inject constructor(
         return snacks
     }
 
+    /**
+     * One applicant's room allocation to the desk's own update endpoint —
+     * `POST /app-update-attended/{id}` (owner amendment 2026-08-16). Sends
+     * exactly the dialog's fields via [RoomAllocSync.params]: room section/
+     * no/group/seating; the desk-side laundry/valuable token numbers, cell
+     * and comment are not tracked here and post empty. Never a status,
+     * never NPI. Outcomes map 401/403 → [RoomPostOutcome.AuthExpired] and
+     * IO errors → [RoomPostOutcome.Offline] so the bulk walk can stop.
+     */
+    suspend fun syncRoomAllocation(id: ApplicantId, record: CheckInRecord): RoomPostOutcome {
+        return runCatching { api.updateAttended(id.value, RoomAllocSync.params(record)) }.fold(
+            onSuccess = { dto ->
+                if (dto.status) RoomPostOutcome.Ok else RoomPostOutcome.Rejected(dto.msg.ifBlank { "Update failed" })
+            },
+            onFailure = { e ->
+                val apiEx = e.toApi()
+                when {
+                    apiEx.unauthorized -> RoomPostOutcome.AuthExpired
+                    e is java.io.IOException -> RoomPostOutcome.Offline
+                    else -> RoomPostOutcome.Rejected(apiEx.message ?: "Update failed")
+                }
+            },
+        )
+    }
+
+    /**
+     * User-initiated bulk sync: walks every unsynced checked-in record with
+     * a room, posts each, marks successes in [SessionStore] as they land
+     * (partial runs keep their progress), collects per-row refusals, and
+     * stops early on auth loss (throws unauthorized → sign-in) or on a
+     * connectivity drop (partial result; the rest stays queued).
+     */
+    suspend fun syncRoomAllocations(records: Map<ApplicantId, CheckInRecord>): RoomSyncResult {
+        val result = RoomAllocSync.walk(
+            pending = RoomAllocSync.pending(records),
+            post = { id, record -> syncRoomAllocation(id, record) },
+            markSynced = { id, record -> markRoomSynced(id, record) },
+        )
+        if (result.authExpired) throw ApiException("Session expired", unauthorized = true)
+        return result
+    }
+
+    /**
+     * Pull room assignments from the live zero-day attended table
+     * (`GET /zero-day/{cid}/{courseId}`, never `?r=`). Parses id + allocation
+     * fields only — no HTML persistence, no NPI. 403 / login HTML without
+     * the attending table → unauthorized, same pattern as [refreshApplicants].
+     */
+    suspend fun pullRoomAllocations(centreId: Int, courseId: Int): Map<ApplicantId, CheckInRecord> {
+        return runCatching {
+            val resp = api.sheetPage("zero-day", centreId, courseId)
+            val html = resp.html()
+            if (stillOnLogin(html) || (resp.code() == 403 && !html.contains("table-attending"))) {
+                throw ApiException("Access denied", unauthorized = true)
+            }
+            AttendedTableParser.parse(html)
+        }.getOrElse { throw it.toApi() }
+    }
+
+    /**
+     * Fetches one Board sheet from the live desk. Seam contract for the
+     * export slice: HTML sheets return in-memory, PDF/Excel/CSV stream to
+     * cacheDir/sheets only, refusals come back verbatim as [SheetPayload.NotAvailable].
+     */
+    suspend fun fetchSheet(export: SheetExport, centreId: Int, courseId: Int): SheetPayload =
+        sheets.fetch(export, centreId, courseId)
+
+    /**
+     * Fetches the desk's own application edit page for display-only viewing
+     * (rule 1: send the request, render the response verbatim). Same
+     * non-persistence contract as [fetchSheet].
+     */
+    suspend fun fetchAppEditPage(id: ApplicantId): SheetPayload =
+        sheets.appEditPage(id.value)
+
+    private suspend fun markRoomSynced(id: ApplicantId, sent: CheckInRecord) {
+        val all = sessionStore.checkInsOnce()
+        val cur = all[id.value] ?: return
+        // Edited while the post was in flight → the edit already re-queued it.
+        if (cur.copy(synced = sent.synced, syncedAt = sent.syncedAt) != sent) return
+        sessionStore.setCheckIns(
+            all + (id.value to cur.copy(synced = true, syncedAt = Instant.now().toString())),
+        )
+    }
+
     suspend fun uploadPhotos(
         edits: Map<ApplicantId, PhotoEdit>,
     ): Pair<Int, String> {
@@ -343,6 +492,23 @@ class StaffRepository @Inject constructor(
         outbox.clear()
         sessionStore.clear()
         sensitive.clear()
+        sheets.wipe()
+        lastCentreId = null
+    }
+
+    /**
+     * Auth expiry mid-session (403): drop the dead cookies/CSRF and the
+     * session-scoped sensitive map so the next screen is Sign in — but keep
+     * the applicant cache, the queued outbox, and every check-in record
+     * (including the room-sync walk's partial progress). A routine session
+     * timeout must not destroy desk work; only an explicit Logout or
+     * "Erase all local data" wipes.
+     */
+    suspend fun sessionExpired() {
+        cookies.clear()
+        tokens.saveSession(null, null)
+        sensitive.clear()
+        sheets.wipe()
         lastCentreId = null
     }
 
@@ -353,6 +519,7 @@ class StaffRepository @Inject constructor(
         outbox.clear()
         sessionStore.wipeAll()
         sensitive.clear()
+        sheets.wipe()
         lastCentreId = null
     }
 

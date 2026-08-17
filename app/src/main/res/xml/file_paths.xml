@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Sheet exports stream to cacheDir/sheets only (wiped on logout / erase-all /
+     next launch) — nothing else is ever shared. -->
+<paths>
+    <cache-path name="sheets" path="sheets/" />
+</paths>
