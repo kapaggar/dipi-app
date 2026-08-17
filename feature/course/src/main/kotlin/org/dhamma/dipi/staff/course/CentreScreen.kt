@@ -67,6 +67,7 @@ fun CentreScreen(
     onCentreOps: () -> Unit = {},
     onAdvancedSearch: () -> Unit = {},
     lotus: Boolean = true,
+    olderCourses: List<Course> = emptyList(),
 ) {
     val c = LocalDipi.current
     val centre = session.centres.firstOrNull()
@@ -125,6 +126,43 @@ fun CentreScreen(
                         )
                     }
                     repeat(columns - row.size) { Spacer(Modifier.weight(1f)) }
+                }
+            }
+        }
+
+        if (olderCourses.isNotEmpty()) {
+            Text(
+                "Older courses",
+                color = c.muted,
+                modifier = Modifier.padding(top = 18.dp, bottom = 4.dp),
+            )
+            Text(
+                "Teacher list · valuables · seating — check-in is closed",
+                color = c.muted,
+                fontSize = 12.sp,
+                modifier = Modifier.padding(bottom = 8.dp),
+            )
+            olderCourses.forEach { course ->
+                Column(
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 8.dp)
+                        .deskCard(fill = c.field, border = c.hairline)
+                        .clickable { onPick(course) }
+                        .padding(horizontal = 14.dp, vertical = 11.dp),
+                    verticalArrangement = Arrangement.spacedBy(2.dp),
+                ) {
+                    Text(
+                        course.name,
+                        fontFamily = DipiCondensed,
+                        fontSize = 16.sp,
+                        lineHeight = 19.sp,
+                        color = c.foreground,
+                    )
+                    val dates = listOf(course.start, course.end).filter { it.isNotBlank() }
+                    if (dates.isNotEmpty()) {
+                        Text(dates.joinToString(" – "), color = c.muted, fontSize = 12.sp)
+                    }
                 }
             }
         }

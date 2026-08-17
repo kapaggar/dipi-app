@@ -72,8 +72,13 @@ fun ApplicationsPane(
     selectedStatuses: Set<String> = emptySet(),
     onToggleStatus: (String) -> Unit = {},
     sensitiveById: Map<ApplicantId, SensitiveInfo> = emptyMap(),
+    gender: String = "Both",
+    seniority: String = "Both",
+    onGender: (String) -> Unit = {},
+    onSeniority: (String) -> Unit = {},
 ) {
-    val selected = rows.firstOrNull { it.id == selectedId } ?: rows.firstOrNull()
+    val scoped = deskScoped(rows, deskGenderScope(gender), deskSeniorityScope(seniority))
+    val selected = scoped.firstOrNull { it.id == selectedId } ?: scoped.firstOrNull()
     val chipCounts = counts.filterKeys { it != "All" }.toList()
         .ifEmpty { rows.groupingBy { it.status.value }.eachCount().toList() }
 
@@ -87,8 +92,18 @@ fun ApplicationsPane(
             if (chipCounts.isNotEmpty()) {
                 StatusChipRow(chipCounts, selectedStatuses, onToggleStatus)
             }
+            DeskScopeFilters(
+                gender,
+                seniority,
+                onGender,
+                onSeniority,
+                Modifier
+                    .fillMaxWidth()
+                    .bottomHairline(Industry.neutral200)
+                    .padding(horizontal = 18.dp, vertical = 8.dp),
+            )
             LazyColumn(Modifier.weight(1f)) {
-                items(rows, key = { it.id.value }) { card ->
+                items(scoped, key = { it.id.value }) { card ->
                     AppListRow(
                         card = card,
                         flags = flagsById[card.id].orEmpty(),

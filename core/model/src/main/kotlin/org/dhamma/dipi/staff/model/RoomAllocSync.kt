@@ -63,6 +63,58 @@ object RoomAllocSync {
         return if (cut < 0) "" to trimmed else trimmed.substring(0, cut).trim() to trimmed.substring(cut + 1)
     }
 
+    /** App room code: section + space + number (`Fbk 36`). Empty either side → `""`. */
+    fun joinRoom(section: String, number: String): String {
+        val s = section.trim()
+        val n = number.trim()
+        if (s.isEmpty() || n.isEmpty()) return ""
+        return "$s $n"
+    }
+
+    /**
+     * Desk RoomNo cell (`Fbk-36`) → app code (`Fbk 36`). Splits on the last
+     * dash so `A-Block-7` becomes `A-Block 7`. Already-spaced values stay;
+     * `-` / blank / empty section+acco → `""`.
+     */
+    fun parseDeskRoom(raw: String): String {
+        val trimmed = raw.trim()
+        if (trimmed.isEmpty() || trimmed == "-") return ""
+        if (' ' in trimmed) return trimmed
+        val cut = trimmed.lastIndexOf('-')
+        if (cut < 0) return ""
+        return joinRoom(trimmed.substring(0, cut), trimmed.substring(cut + 1))
+    }
+
+    /**
+     * Pull merge: tablet unsynced rooms win; everyone else on the attended
+     * table adopts the server room/seat/group/flags as already-synced.
+     * Local-only records stay; missing-from-server is never unchecked.
+     */
+    fun mergePulled(
+        local: Map<ApplicantId, CheckInRecord>,
+        pulled: Map<ApplicantId, CheckInRecord>,
+    ): Map<ApplicantId, CheckInRecord> {
+        val out = local.toMutableMap()
+        for ((id, remote) in pulled) {
+            val cur = out[id]
+            if (cur != null && !cur.synced && cur.room.isNotBlank()) continue
+            out[id] = if (cur == null) {
+                remote.copy(checkedIn = true, synced = true)
+            } else {
+                cur.copy(
+                    checkedIn = true,
+                    room = remote.room,
+                    seat = remote.seat,
+                    group = remote.group,
+                    laundry = remote.laundry,
+                    valuables = remote.valuables,
+                    synced = true,
+                )
+            }
+        }
+        return out
+    }
+
     fun params(record: CheckInRecord): Map<String, String> {
         val (section, number) = splitRoom(record.room)
         return linkedMapOf(

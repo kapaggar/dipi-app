@@ -23,6 +23,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -36,7 +37,6 @@ import org.dhamma.dipi.staff.ui.theme.DipiMono
 import org.dhamma.dipi.staff.ui.theme.DipiSans
 import org.dhamma.dipi.staff.ui.theme.Industry
 import org.dhamma.dipi.staff.ui.theme.LotusWatermark
-import org.dhamma.dipi.staff.ui.theme.deskCard
 import org.dhamma.dipi.staff.ui.theme.deskWash
 
 /** The six desk sections the left rail routes between. Centre settings live on the Centre screen. */
@@ -126,27 +126,14 @@ private fun DeskRailPane(
             .rightHairline(Industry.neutral300)
             .padding(top = 20.dp, bottom = 16.dp),
     ) {
-        Row(
-            Modifier.padding(start = 18.dp, end = 18.dp, bottom = 18.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Box(
-                Modifier
-                    .deskCard(
-                        shape = DeskStyle.controlShape,
-                        border = Industry.accent,
-                        elevation = 0.dp,
-                    )
-                    .padding(4.dp),
-                contentAlignment = Alignment.Center,
-            ) {
-                Image(
-                    painterResource(R.drawable.lotus_mark),
-                    contentDescription = "DIPI",
-                    modifier = Modifier.size(40.dp),
-                )
-            }
-        }
+        Image(
+            painterResource(R.drawable.lotus_mark),
+            contentDescription = "DIPI",
+            modifier = Modifier
+                .padding(start = 14.dp, end = 14.dp, bottom = 12.dp)
+                .size(72.dp)
+                .graphicsLayer { alpha = 0.78f },
+        )
 
         DeskKicker("DESK", Industry.neutral500, Modifier.padding(start = 18.dp, bottom = 6.dp))
 

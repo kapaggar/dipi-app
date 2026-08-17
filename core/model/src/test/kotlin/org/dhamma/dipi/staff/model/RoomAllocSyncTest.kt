@@ -58,6 +58,17 @@ class RoomAllocSyncTest {
         assertEquals("" to "12", RoomAllocSync.splitRoom("12"))
     }
 
+    @Test
+    fun parseDeskRoomConvertsDashToSpace() {
+        assertEquals("Fbk 36", RoomAllocSync.parseDeskRoom("Fbk-36"))
+        assertEquals("A-Block 7", RoomAllocSync.parseDeskRoom("A-Block-7"))
+        assertEquals("Fbk 36", RoomAllocSync.parseDeskRoom("Fbk 36"))
+        assertEquals("", RoomAllocSync.parseDeskRoom("-"))
+        assertEquals("", RoomAllocSync.parseDeskRoom(""))
+        assertEquals("Fbk 36", RoomAllocSync.joinRoom("Fbk", "36"))
+        assertEquals("", RoomAllocSync.joinRoom("Fbk", ""))
+    }
+
     /* ── pending: the queue ─────────────────────────────────────────── */
 
     @Test
@@ -145,5 +156,64 @@ class RoomAllocSyncTest {
     fun walkOfNothingIsEmpty() = runTest {
         val result = RoomAllocSync.walk(emptyMap(), { _, _ -> RoomPostOutcome.Ok }, { _, _ -> })
         assertEquals(RoomSyncResult(), result)
+    }
+
+    /* ── mergePulled: server rooms fill gaps; pending local edits win ── */
+
+    private val pulledMeera = CheckInRecord(
+        checkedIn = true, room = "Fbk 36", seat = "Chowky", group = "1",
+        laundry = true, valuables = false, synced = true,
+    )
+    private val pulledSuresh = CheckInRecord(
+        checkedIn = true, room = "Mbk 8", seat = "None", group = "2", synced = true,
+    )
+
+    @Test
+    fun mergeAdoptsWhenThereIsNoLocalRecord() {
+        val merged = RoomAllocSync.mergePulled(emptyMap(), mapOf(ApplicantId(1) to pulledMeera))
+        val rec = merged.getValue(ApplicantId(1))
+        assertEquals("Fbk 36", rec.room)
+        assertEquals("Chowky", rec.seat)
+        assertTrue(rec.checkedIn)
+        assertTrue(rec.synced)
+    }
+
+    @Test
+    fun mergeKeepsUnsyncedLocalRoom() {
+        val local = mapOf(
+            ApplicantId(1) to CheckInRecord(checkedIn = true, room = "Fbk 1", synced = false),
+        )
+        val merged = RoomAllocSync.mergePulled(local, mapOf(ApplicantId(1) to pulledMeera))
+        assertEquals("Fbk 1", merged.getValue(ApplicantId(1)).room)
+        assertFalse(merged.getValue(ApplicantId(1)).synced)
+    }
+
+    @Test
+    fun mergeAdoptsWhenLocalIsSyncedOrRoomBlank() {
+        val local = mapOf(
+            ApplicantId(1) to CheckInRecord(checkedIn = true, room = "Fbk 9", synced = true),
+            ApplicantId(4) to CheckInRecord(checkedIn = false, room = "", synced = false),
+        )
+        val pulled = mapOf(ApplicantId(1) to pulledMeera, ApplicantId(4) to pulledSuresh)
+        val merged = RoomAllocSync.mergePulled(local, pulled)
+        assertEquals("Fbk 36", merged.getValue(ApplicantId(1)).room)
+        assertTrue(merged.getValue(ApplicantId(1)).synced)
+        assertEquals("Mbk 8", merged.getValue(ApplicantId(4)).room)
+        assertTrue(merged.getValue(ApplicantId(4)).checkedIn)
+        assertTrue(merged.getValue(ApplicantId(4)).synced)
+    }
+
+    @Test
+    fun mergeKeepsLocalOnlyAndDoesNotUncheckMissing() {
+        val localOnly = CheckInRecord(checkedIn = true, room = "Fbk 2", synced = true)
+        val local = mapOf(
+            ApplicantId(9) to localOnly,
+            ApplicantId(1) to CheckInRecord(checkedIn = true, room = "Fbk 1", synced = true),
+        )
+        val merged = RoomAllocSync.mergePulled(local, mapOf(ApplicantId(1) to pulledMeera))
+        assertEquals(localOnly, merged.getValue(ApplicantId(9)))
+        assertTrue(merged.getValue(ApplicantId(9)).checkedIn)
+        assertEquals("Fbk 36", merged.getValue(ApplicantId(1)).room)
+        assertEquals(setOf(ApplicantId(9), ApplicantId(1)), merged.keys)
     }
 }

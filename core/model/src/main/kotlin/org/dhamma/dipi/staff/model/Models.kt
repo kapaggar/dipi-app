@@ -98,6 +98,12 @@ data class Course(
     val summary: CourseSummary? = null,
 )
 
+/** Split of the centre dashboard: next-4 upcoming vs the Select Course older rows. */
+data class CentreCourses(
+    val upcoming: List<Course>,
+    val older: List<Course> = emptyList(),
+)
+
 data class Session(
     val uid: Int,
     val name: String,

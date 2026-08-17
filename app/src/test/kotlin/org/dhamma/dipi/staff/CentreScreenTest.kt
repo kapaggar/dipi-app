@@ -138,4 +138,32 @@ class CentreScreenTest {
         rule.onNodeWithText("Centre settings").performScrollTo().performClick()
         assertTrue(ops)
     }
+
+    @Test
+    fun olderCoursesListOpensTheBoard() {
+        val older = Course(
+            CourseId(8),
+            CentreId(1),
+            "Dhamma Sudha / 10 Day / 2026 / 6th-Aug to 17th-Aug",
+            "2026-08-06",
+            "2026-08-17",
+        )
+        var picked: Course? = null
+        rule.setContent {
+            DipiTheme {
+                CentreScreen(
+                    session = session,
+                    courses = listOf(course),
+                    onPick = { picked = it },
+                    olderCourses = listOf(older),
+                )
+            }
+        }
+        rule.onNodeWithText("Older courses").performScrollTo().assertIsDisplayed()
+        rule.onNodeWithText("Teacher list · valuables · seating — check-in is closed")
+            .performScrollTo()
+            .assertIsDisplayed()
+        rule.onNodeWithText(older.name).performScrollTo().performClick()
+        assertEquals(older, picked)
+    }
 }

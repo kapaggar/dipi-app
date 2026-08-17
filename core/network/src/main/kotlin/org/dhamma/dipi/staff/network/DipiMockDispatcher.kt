@@ -39,8 +39,10 @@ class DipiMockDispatcher : Dispatcher() {
             method == "POST" && path.startsWith("/api/user/logout") -> ok("{}")
             path.startsWith("/services/session/token") -> text("csrf-demo")
             path.startsWith("/staff/session") -> ok(json.encodeToString(MockFixtures.session))
-            path.contains("/courses") && path.startsWith("/staff/centres/") ->
-                ok(json.encodeToString(CourseListDto(MockFixtures.courses)))
+            path.contains("/courses") && path.startsWith("/staff/centres/") -> {
+                val older = path.contains("upcoming=0")
+                ok(json.encodeToString(CourseListDto(if (older) MockFixtures.olderCourses else MockFixtures.courses)))
+            }
             path.matches(Regex("/staff/courses/\\d+/applicants.*")) -> applicants(path)
             path.matches(Regex("/staff/applicants/\\d+/photo")) && method == "POST" ->
                 ok(json.encodeToString(PhotoUploadResultDto(true, emptyList(), "✓ Uploaded 1 photo(s), all other fields preserved")))

@@ -36,10 +36,10 @@ import org.dhamma.dipi.staff.ui.theme.deskCard
 
 /**
  * The occupancy picture: who is where tonight, and what is free. The header
- * carries the bulk room-allocation sync (owner amendment 2026-08-16):
- * "Sync N to server" walks every unsynced checked-in record through the
- * desk's own update form — hidden at N=0, busy while the walk runs, and any
- * per-row refusal is listed verbatim under the header.
+ * carries pull-from-server (always) and the bulk allocation sync (owner
+ * amendment 2026-08-16): "Sync N to server" walks every unsynced checked-in
+ * record through the desk's own update form — hidden at N=0. Both buttons
+ * disable while either walk is in flight; per-row refusals list under the header.
  */
 @Composable
 fun RoomsPane(
@@ -48,8 +48,10 @@ fun RoomsPane(
     rooms: List<AccoRoom>,
     pendingSync: Int = 0,
     syncBusy: Boolean = false,
+    pullBusy: Boolean = false,
     syncFailures: List<RoomSyncFailure> = emptyList(),
     onSyncRooms: () -> Unit = {},
+    onPullRooms: () -> Unit = {},
 ) {
     Column(
         Modifier
@@ -68,8 +70,15 @@ fun RoomsPane(
                     SyncRefusals(roll, syncFailures)
                 }
             }
-            if (pendingSync > 0 || syncBusy) {
-                RoomSyncButton(pendingSync, syncBusy, onSyncRooms)
+            val actionsEnabled = !pullBusy && !syncBusy
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                RoomPullButton(pullBusy, actionsEnabled, onPullRooms)
+                if (pendingSync > 0 || syncBusy) {
+                    RoomSyncButton(pendingSync, syncBusy, actionsEnabled, onSyncRooms)
+                }
             }
         }
 
@@ -140,11 +149,36 @@ fun RoomsPane(
 }
 
 /**
+ * Outline "PULL FROM SERVER" — card fill, accent label. Busy → "PULLING…".
+ * Always shown; disabled while either pull or sync is in flight.
+ */
+@Composable
+private fun RoomPullButton(busy: Boolean, enabled: Boolean, onClick: () -> Unit) {
+    Text(
+        (if (busy) "Pulling…" else "Pull from server").uppercase(),
+        fontFamily = DipiCondensed,
+        fontWeight = FontWeight.SemiBold,
+        fontSize = 14.sp,
+        letterSpacing = 0.06.em,
+        maxLines = 1,
+        color = if (enabled) Industry.accent else Industry.neutral600,
+        modifier = Modifier
+            .deskCard(
+                shape = DeskStyle.controlShape,
+                fill = DeskStyle.cardFill,
+                border = if (enabled) Industry.accent else Industry.neutral400,
+            )
+            .clickable(enabled = enabled, onClick = onClick)
+            .padding(horizontal = 22.dp, vertical = 10.dp),
+    )
+}
+
+/**
  * The one deliberate accent fill on this pane: "SYNC N TO SERVER", busy →
  * "SYNCING…" and inert. Callers hide it entirely at N=0.
  */
 @Composable
-private fun RoomSyncButton(pending: Int, busy: Boolean, onClick: () -> Unit) {
+private fun RoomSyncButton(pending: Int, busy: Boolean, enabled: Boolean, onClick: () -> Unit) {
     Text(
         (if (busy) "Syncing…" else "Sync $pending to server").uppercase(),
         fontFamily = DipiCondensed,
@@ -159,7 +193,7 @@ private fun RoomSyncButton(pending: Int, busy: Boolean, onClick: () -> Unit) {
                 fill = if (busy) Industry.accent700 else Industry.accent,
                 border = if (busy) Industry.accent700 else Industry.accent,
             )
-            .clickable(enabled = !busy, onClick = onClick)
+            .clickable(enabled = enabled, onClick = onClick)
             .padding(horizontal = 22.dp, vertical = 10.dp),
     )
 }

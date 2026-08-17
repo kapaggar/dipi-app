@@ -54,10 +54,15 @@ fun CallingPane(
     onDial: (ApplicantCard) -> Unit,
     onWhatsApp: (ApplicantCard) -> Unit,
     onNote: (ApplicantCard, String) -> Unit,
+    gender: String = "Both",
+    seniority: String = "Both",
+    onGender: (String) -> Unit = {},
+    onSeniority: (String) -> Unit = {},
 ) {
-    val callList = deskCallList(roll)
+    val scoped = deskScoped(roll, deskGenderScope(gender), deskSeniorityScope(seniority))
+    val callList = deskCallList(scoped)
     val logged = callList.count { outcomes[it.id]?.logged == true }
-    val shown = deskCallRows(roll, outcomes, filter)
+    val shown = deskCallRows(scoped, outcomes, filter)
     val nowMs = System.currentTimeMillis()
 
     Column(Modifier.fillMaxSize()) {
@@ -75,8 +80,9 @@ fun CallingPane(
                 onFilter,
                 optionPadding = 14.dp,
                 verticalPadding = 9.dp,
-                counts = deskCallCounts(roll, outcomes),
+                counts = deskCallCounts(scoped, outcomes),
             )
+            DeskScopeFilters(gender, seniority, onGender, onSeniority)
         }
 
         if (shown.isEmpty()) {

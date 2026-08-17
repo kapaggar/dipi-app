@@ -53,7 +53,9 @@ fun ZeroDayScreen(
     onBack: () -> Unit = {},
     pendingRoomSync: Int = 0,
     roomSyncBusy: Boolean = false,
+    roomPullBusy: Boolean = false,
     onSyncRooms: () -> Unit = {},
+    onPullRooms: () -> Unit = {},
 ) {
     val c = LocalDipi.current
     val unattended = rows.filter { !it.attended }
@@ -89,9 +91,13 @@ fun ZeroDayScreen(
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
             TextButton(onClick = onBack) { Text("Back") }
+            val actionsEnabled = !roomPullBusy && !roomSyncBusy
+            TextButton(onClick = onPullRooms, enabled = actionsEnabled) {
+                Text(if (roomPullBusy) "Pulling rooms…" else "Pull rooms")
+            }
             // Mirror of the desk's bulk allocation sync — hidden at 0 pending.
             if (pendingRoomSync > 0 || roomSyncBusy) {
-                TextButton(onClick = onSyncRooms, enabled = !roomSyncBusy) {
+                TextButton(onClick = onSyncRooms, enabled = actionsEnabled) {
                     Text(if (roomSyncBusy) "Syncing rooms…" else "Sync rooms ($pendingRoomSync)")
                 }
             }

@@ -6,6 +6,8 @@ import org.dhamma.dipi.staff.model.ApplicantId
 import org.dhamma.dipi.staff.model.AuditSeverity
 import org.dhamma.dipi.staff.model.CallRecord
 import org.dhamma.dipi.staff.model.CheckInRecord
+import org.dhamma.dipi.staff.model.ConfPrefix
+import org.dhamma.dipi.staff.model.ConfSeniority
 import org.dhamma.dipi.staff.model.Gender
 
 /**
@@ -19,9 +21,39 @@ fun deskRoll(rows: List<ApplicantCard>): List<ApplicantCard> = rows.filter { car
     card.confNo != null && card.status.normalize() !in setOf("cancelled", "rejected", "duplicate")
 }
 
-/** The roll scoped to one desk's gender — null means the tablet shows both. */
-fun deskRoll(rows: List<ApplicantCard>, gender: Gender?): List<ApplicantCard> =
-    deskRoll(rows).let { roll -> if (gender == null) roll else roll.filter { it.gender == gender } }
+/** UI label → gender scope; "Both" (and anything else) means no filter. */
+fun deskGenderScope(label: String): Gender? = when (label) {
+    "Male" -> Gender.M
+    "Female" -> Gender.F
+    else -> null
+}
+
+/** UI label → old/new scope; "Both" (and anything else) means no filter. */
+fun deskSeniorityScope(label: String): ConfSeniority? = when (label) {
+    "New" -> ConfSeniority.NEW
+    "Old" -> ConfSeniority.OLD
+    else -> null
+}
+
+/**
+ * Restrict a list by the confirmation-number prefix. Null on an axis means
+ * Both — unknown prefixes stay visible then, and drop when that axis is set.
+ */
+fun deskScoped(
+    rows: List<ApplicantCard>,
+    gender: Gender?,
+    seniority: ConfSeniority?,
+): List<ApplicantCard> {
+    if (gender == null && seniority == null) return rows
+    return rows.filter { ConfPrefix.parse(it.confNo?.value).matches(gender, seniority) }
+}
+
+/** The roll scoped to this tablet's gender and old/new — null on an axis means Both. */
+fun deskRoll(
+    rows: List<ApplicantCard>,
+    gender: Gender?,
+    seniority: ConfSeniority? = null,
+): List<ApplicantCard> = deskScoped(deskRoll(rows), gender, seniority)
 
 /**
  * The effective check-in for a card: the local record wins; a server-side

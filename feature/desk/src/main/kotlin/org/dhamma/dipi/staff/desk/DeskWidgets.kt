@@ -10,6 +10,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -88,6 +90,41 @@ fun DeskSegmented(
                     .padding(horizontal = optionPadding, vertical = verticalPadding),
             )
         }
+    }
+}
+
+/**
+ * Tablet-scope pair: gender and old/new, independently. FlowRow so the two
+ * controls wrap on a narrow Applications column instead of clipping.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun DeskScopeFilters(
+    gender: String,
+    seniority: String,
+    onGender: (String) -> Unit,
+    onSeniority: (String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    FlowRow(
+        modifier,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        DeskSegmented(
+            listOf("Both", "Male", "Female"),
+            gender,
+            onGender,
+            optionPadding = 12.dp,
+            verticalPadding = 8.dp,
+        )
+        DeskSegmented(
+            listOf("Both", "New", "Old"),
+            seniority,
+            onSeniority,
+            optionPadding = 12.dp,
+            verticalPadding = 8.dp,
+        )
     }
 }
 

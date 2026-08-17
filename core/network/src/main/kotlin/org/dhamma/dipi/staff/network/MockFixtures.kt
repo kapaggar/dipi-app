@@ -33,6 +33,12 @@ internal object MockFixtures {
         CourseDto(12, CENTRE_ID, "10-Day", "2026-09-16", "2026-09-27", "10d"),
     )
 
+    /** Courses that have already started — the Select Course older list. */
+    val olderCourses = listOf(
+        CourseDto(8, CENTRE_ID, "Dhamma Sudha / 10 Day / 2026 / 6th-Aug to 17th-Aug", "2026-08-06", "2026-08-17", "10d"),
+        CourseDto(7, CENTRE_ID, "Dhamma Sudha / STP / 2026 / 23rd-Jul to 31st-Jul", "2026-07-23", "2026-07-31", "stp"),
+    )
+
     /**
      * DataTables Editor GET payload for `/centre/{cid}/acco-handler`
      * (`dh_center_setting_acco`) — the shape the live desk serves.
@@ -220,13 +226,51 @@ internal object MockFixtures {
         </body></html>
     """.trimIndent()
 
-    /** The zero-day page: `#day-summary` tables, then the attended table. */
-    fun zeroDayHtml(cid: Int, courseId: Int) = """
-        <html><head><title>Day Zero | centre $cid</title></head><body>
-        <h1>Day Zero · course $courseId</h1>
+    private fun daySummaryBlock() = """
         <div id="day-summary"><table id="table-conf"><tr><th>Conf</th></tr><tr><td>72</td></tr></table>
         <table id="table-totals"><tr><th>M</th><th>F</th></tr><tr><td><b>6</b></td><td><b>6</b></td></tr></table>
         <table id="table-special"><tr><th>Teen</th></tr><tr><td>0</td></tr></table></div><br />
+    """.trimIndent()
+
+    private fun attendingRow(
+        id: Int,
+        conf: String,
+        name: String,
+        gender: String,
+        type: String,
+        age: Int,
+        room: String,
+        laundry: String = "",
+        valuable: String = "",
+        chowky: String = "No",
+        chair: String = "No",
+        backrest: String = "No",
+        group: String = "1",
+    ) = "<tr><td>$id</td><td>$conf</td><td><a href=\"/app/$id/edit\" appid=\"$id\">$name</a></td>" +
+        "<td>$gender</td><td>$type</td><td>$age</td><td>0</td><td>0</td>" +
+        "<td>$room</td><td>$laundry</td><td>$valuable</td>" +
+        "<td>$chowky</td><td>$chair</td><td>$backrest</td><td>$group</td><td>||||</td></tr>"
+
+    /** The zero-day page: `#day-summary` first, then a real attended table. */
+    fun zeroDayHtml(cid: Int, courseId: Int) = """
+        <html><head><title>Day Zero | centre $cid</title></head><body>
+        <h1>Day Zero · course $courseId</h1>
+        ${daySummaryBlock()}
+        <br><h2>Attended Applicants</h2>
+        <table id="table-attending">
+        <thead><tr><th>Update</th><th>ConfNo</th><th>Name</th><th>Gender</th><th>Type</th><th>Age</th><th>Teen/10D/STP</th><th>LC</th><th>RoomNo</th><th>Laundry</th><th>Valuable</th><th>Chowky</th><th>Chair</th><th>BackRest</th><th>Group</th><th>H</th></tr></thead>
+        <tbody>
+        ${attendingRow(MEERA_ID, "OF128", "Meera Deshpande", "Female", "Student", 34, "Fbk-1")}
+        ${attendingRow(4, "OM42", "Suresh Nair", "Male", "Sevak", 51, "Mbk-8", chowky = "Yes", group = "2")}
+        </tbody></table>
+        </body></html>
+    """.trimIndent()
+
+    /** Same page with `#table-attending-empty` — parser tests and empty-desk cases. */
+    fun zeroDayEmptyAttendingHtml(cid: Int, courseId: Int) = """
+        <html><head><title>Day Zero | centre $cid</title></head><body>
+        <h1>Day Zero · course $courseId</h1>
+        ${daySummaryBlock()}
         <br><h2>Attended Applicants</h2>
         <table id="table-attending-empty"><tr><td>none yet</td></tr></table>
         </body></html>

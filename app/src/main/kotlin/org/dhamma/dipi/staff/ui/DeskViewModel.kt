@@ -105,6 +105,7 @@ data class DeskUiState(
     val remember: Boolean = false,
     val session: Session? = null,
     val courses: List<Course> = emptyList(),
+    val olderCourses: List<Course> = emptyList(),
     val course: Course? = null,
     val rows: List<ApplicantCard> = emptyList(),
     val visible: List<ApplicantCard> = emptyList(),
@@ -143,6 +144,8 @@ data class DeskUiState(
     val deskZeroFilter: String = "To arrive",
     /** Zero-day desk gender filter ("Both"/"Male"/"Female"), persisted in SessionStore. */
     val deskGender: String = "Both",
+    /** Zero-day desk old/new filter ("Both"/"New"/"Old"), persisted in SessionStore. */
+    val deskSeniority: String = "Both",
     val deskMarkId: ApplicantId? = null,
     val deskRoomOpen: Boolean = false,
     val deskFinding: String? = null,
@@ -154,6 +157,8 @@ data class DeskUiState(
     val sensitiveById: Map<ApplicantId, SensitiveInfo> = emptyMap(),
     /** Bulk room-allocation sync in flight (owner amendment 2026-08-16). */
     val roomSyncBusy: Boolean = false,
+    /** Zero-day attended-table pull in flight. */
+    val roomPullBusy: Boolean = false,
     /** Last bulk sync outcome — counts + per-row failures for the UI to bind. */
     val roomSync: RoomSyncResult? = null,
     /** The in-app Advanced Search corpus: every applicant cached in Room. */
@@ -211,6 +216,11 @@ fun deskBoardDay(start: String?, today: java.time.LocalDate): String? {
 /** Check-in records still owing the server their room allocation. */
 fun deskRoomSyncPending(checkIns: Map<ApplicantId, CheckInRecord>): Int =
     RoomAllocSync.pending(checkIns).size
+
+/** Snack for a user-initiated pull: count of non-blank rooms on the attended table. */
+fun roomPullSnack(n: Int): FlushSnack =
+    if (n == 0) FlushSnack("No rooms assigned on the desk yet", error = false)
+    else FlushSnack("✓ Pulled $n room assignment(s) from the desk", error = false)
 
 /** Snack for a bulk allocation sync: successes first, then the first refusal verbatim. */
 fun roomSyncSnack(result: RoomSyncResult): FlushSnack = when {
@@ -302,6 +312,9 @@ class DeskViewModel @Inject constructor(
             sessionStore.deskGender.collect { g -> _state.update { it.copy(deskGender = g) } }
         }
         viewModelScope.launch {
+            sessionStore.deskSeniority.collect { s -> _state.update { it.copy(deskSeniority = s) } }
+        }
+        viewModelScope.launch {
             sessionStore.callLog.collect { records ->
                 _state.update { cur ->
                     cur.copy(callState = records.entries.associate { (id, rec) -> ApplicantId(id) to rec })
@@ -361,7 +374,11 @@ class DeskViewModel @Inject constructor(
             val reordered = listOf(centre) + session.centres.filter { it.id != centre.id }
             _state.update { it.copy(session = session.copy(centres = reordered), loading = true) }
             runCatching { repo.loadCourses(centre.id) }
-                .onSuccess { list -> _state.update { it.copy(courses = list, loading = false) } }
+                .onSuccess { lists ->
+                    _state.update {
+                        it.copy(courses = lists.upcoming, olderCourses = lists.older, loading = false)
+                    }
+                }
                 .onFailure { e ->
                     _state.update { it.copy(loading = false) }
                     handleAuth(e)
@@ -411,6 +428,12 @@ class DeskViewModel @Inject constructor(
     fun setDeskGender(g: String) {
         _state.update { it.copy(deskGender = g) }
         viewModelScope.launch { sessionStore.setDeskGender(g) }
+    }
+
+    /** New / old student scope for this tablet — persists with [setDeskGender]. */
+    fun setDeskSeniority(s: String) {
+        _state.update { it.copy(deskSeniority = s) }
+        viewModelScope.launch { sessionStore.setDeskSeniority(s) }
     }
 
     fun openDeskMark(card: ApplicantCard) =
@@ -499,6 +522,45 @@ class DeskViewModel @Inject constructor(
         }
     }
 
+    fun pullRooms() {
+        pullRooms(userInitiated = true)
+    }
+
+    /**
+     * Pull room assignments from `GET /zero-day/{cid}/{courseId}`. Default
+     * auto-pull after the worklist is silent; the Rooms / Zero Day action
+     * snacks. Unsynced local rooms are never overwritten.
+     */
+    fun pullRooms(userInitiated: Boolean) {
+        val s = _state.value
+        if (s.roomPullBusy || s.roomSyncBusy) return
+        val course = s.course ?: return
+        if (s.offline) {
+            if (userInitiated) {
+                _state.update { it.copy(snack = FlushSnack("offline — will pull when online", error = false)) }
+            }
+            return
+        }
+        viewModelScope.launch {
+            _state.update { it.copy(roomPullBusy = true) }
+            runCatching { repo.pullRoomAllocations(course.centreId.value, course.id.value) }
+                .onSuccess { pulled ->
+                    persistCheckIns(RoomAllocSync.mergePulled(_state.value.checkIns, pulled))
+                    val n = pulled.values.count { it.room.isNotBlank() }
+                    _state.update {
+                        it.copy(
+                            roomPullBusy = false,
+                            snack = if (userInitiated) roomPullSnack(n) else it.snack,
+                        )
+                    }
+                }
+                .onFailure { e ->
+                    _state.update { it.copy(roomPullBusy = false) }
+                    if (userInitiated || (e is ApiException && e.unauthorized)) handleAuth(e)
+                }
+        }
+    }
+
     /**
      * Bulk room-allocation sync (owner amendment 2026-08-16) — user-initiated,
      * walks every unsynced checked-in record. Progress lands back in
@@ -507,7 +569,7 @@ class DeskViewModel @Inject constructor(
      */
     fun syncRooms() {
         val s = _state.value
-        if (s.roomSyncBusy) return
+        if (s.roomSyncBusy || s.roomPullBusy) return
         if (deskRoomSyncPending(s.checkIns) == 0) {
             _state.update { it.copy(snack = FlushSnack("All room allocations are synced", error = false)) }
             return
@@ -682,8 +744,9 @@ class DeskViewModel @Inject constructor(
     /** A search result opens the regular applicant card; back returns to the results. */
     fun openSearchResult(card: ApplicantCard) {
         // Adopt the row's course when it is one of the listed upcoming
-        // courses, so the card pane has its context; otherwise leave as-is.
-        _state.value.courses.firstOrNull { it.id == card.courseId }?.let { course ->
+        // or older courses, so the card pane has its context; otherwise leave as-is.
+        val listed = _state.value.courses + _state.value.olderCourses
+        listed.firstOrNull { it.id == card.courseId }?.let { course ->
             if (_state.value.course?.id != course.id) {
                 _state.update { it.copy(course = course) }
             }
@@ -1069,7 +1132,15 @@ class DeskViewModel @Inject constructor(
         val centre = session.centres.firstOrNull()
         if (centre != null) {
             runCatching { repo.loadCourses(centre.id) }
-                .onSuccess { list -> _state.update { it.copy(courses = list, screen = deskAfterLogin()) } }
+                .onSuccess { lists ->
+                    _state.update {
+                        it.copy(
+                            courses = lists.upcoming,
+                            olderCourses = lists.older,
+                            screen = deskAfterLogin(),
+                        )
+                    }
+                }
                 .onFailure { e ->
                     _state.update { it.copy(loginError = e.message, screen = DeskScreen.Login) }
                     handleAuth(e)
@@ -1121,6 +1192,7 @@ class DeskViewModel @Inject constructor(
             runCatching { repo.loadStatuses() }.onSuccess { list ->
                 _state.update { it.copy(statusChoices = ApplicantStatus.mergeChoices(list)) }
             }
+            pullRooms(userInitiated = false)
         }
     }
 

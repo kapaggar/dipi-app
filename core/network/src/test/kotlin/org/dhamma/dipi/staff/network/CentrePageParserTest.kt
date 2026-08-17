@@ -3,6 +3,7 @@ package org.dhamma.dipi.staff.network
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
@@ -106,6 +107,33 @@ class CentrePageParserTest {
     @Test
     fun pageWithNoSummaryBlocksYieldsEmptyMap() {
         assertEquals(emptyMap<Int, Any>(), CentrePageParser.courseSummaries("<html><body>login form</body></html>"))
+    }
+
+    @Test
+    fun olderSelectOptionsAreThoseBeforeTheUpcomingBlockNewestFirst() {
+        val dash = """
+            <select id="edit-course" name="course">
+              <option value="">Choose</option>
+              <option value="10">Dhamma Sudha / 10 Day / 2026 / 20th-May to 31st-May</option>
+              <option value="20">Dhamma Sudha / 10 Day / 2026 / 6th-Aug to 17th-Aug</option>
+              <option value="30">Dhamma Sudha / 10 Day / 2026 / 19th-Aug to 30th-Aug</option>
+              <option value="40">Dhamma Sudha / 10 Day / 2026 / 2nd-Sep to 13th-Sep</option>
+              <option value="50">Dhamma Sudha / STP / 2026 / 21st-Oct to 29th-Oct</option>
+            </select>
+        """.trimIndent()
+        val older = CentrePageParser.olderCourseOptions(dash, upcomingIds = setOf(30, 40))
+        assertEquals(listOf(20, 10), older.map { it.id })
+        assertTrue(older[0].label.contains("6th-Aug"))
+    }
+
+    @Test
+    fun olderSelectIsEmptyWhenTheDropdownOnlyHasUpcoming() {
+        val dash = """
+            <select id="edit-course" name="course">
+              <option value="30">Upcoming</option>
+            </select>
+        """.trimIndent()
+        assertEquals(emptyList<Any>(), CentrePageParser.olderCourseOptions(dash, setOf(30)))
     }
 
     @Test

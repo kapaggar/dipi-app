@@ -145,6 +145,13 @@ class SessionStore @Inject constructor(
 
     val deskGender: Flow<String> = ds.data.map { it[DESK_GENDER] ?: "Both" }
 
+    /** Zero-day desk old/new filter ("Both"/"New"/"Old") — which seniority this tablet sits on. */
+    suspend fun setDeskSeniority(value: String) {
+        ds.edit { it[DESK_SENIORITY] = value }
+    }
+
+    val deskSeniority: Flow<String> = ds.data.map { it[DESK_SENIORITY] ?: "Both" }
+
     /** Day 0 check-in records, keyed by applicant id. Local truth until a server endpoint exists. */
     val checkIns: Flow<Map<Int, CheckInRecord>> = ds.data.map { decodeCheckIns(it[CHECK_INS]) }
 
@@ -197,6 +204,7 @@ class SessionStore @Inject constructor(
         private val CENTRE_OPS = stringPreferencesKey("centre_ops")
         private val CHECK_INS = stringPreferencesKey("check_ins")
         private val DESK_GENDER = stringPreferencesKey("desk_gender")
+        private val DESK_SENIORITY = stringPreferencesKey("desk_seniority")
         private val CALL_LOG = stringPreferencesKey("call_log")
         private val opsJson = Json { ignoreUnknownKeys = true; encodeDefaults = true }
     }

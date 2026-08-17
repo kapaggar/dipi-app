@@ -24,4 +24,16 @@ class SessionStoreTest {
         store.setDeskGender("Both")
         assertEquals("Both", store.deskGender.first())
     }
+
+    @Test
+    fun deskSeniorityDefaultsToBothAndPersistsAcrossWrites() = runBlocking {
+        val store = store()
+        assertEquals("Both", store.deskSeniority.first())
+        store.setDeskSeniority("New")
+        assertEquals("New", store.deskSeniority.first())
+        store.setDeskSeniority("Old")
+        assertEquals("Old", store.deskSeniority.first())
+        store.setDeskSeniority("Both")
+        assertEquals("Both", store.deskSeniority.first())
+    }
 }

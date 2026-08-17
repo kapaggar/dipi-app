@@ -63,18 +63,16 @@ fun CheckInPane(
     filter: String,
     flaggedIds: Set<ApplicantId>,
     gender: String = "Both",
+    seniority: String = "Both",
     onScan: (String) -> Unit,
     onFilter: (String) -> Unit,
     onGender: (String) -> Unit = {},
+    onSeniority: (String) -> Unit = {},
     onOpen: (ApplicantCard) -> Unit,
 ) {
-    // Desk-level gender scope: a tablet on the female desk sees/counts females only.
-    val scope = when (gender) {
-        "Male" -> Gender.M
-        "Female" -> Gender.F
-        else -> null
-    }
-    val scoped = deskRoll(roll, scope)
+    // Desk-level scope: a tablet on the new-female desk sees/counts that subset only.
+    val genderScope = deskGenderScope(gender)
+    val scoped = deskRoll(roll, genderScope, deskSeniorityScope(seniority))
     Row(Modifier.fillMaxSize()) {
         Column(
             Modifier
@@ -82,7 +80,10 @@ fun CheckInPane(
                 .fillMaxHeight()
                 .rightHairline(Industry.neutral300),
         ) {
-            CheckInHeader(scoped, checkIns, scan, filter, gender, onScan, onFilter, onGender)
+            CheckInHeader(
+                scoped, checkIns, scan, filter, gender, seniority,
+                onScan, onFilter, onGender, onSeniority,
+            )
             val shown = deskRosterRows(scoped, checkIns, scan, filter)
             if (shown.isEmpty()) {
                 DeskEmpty(
@@ -102,7 +103,7 @@ fun CheckInPane(
                 }
             }
         }
-        CheckInSidebar(scoped, checkIns, rooms, scope)
+        CheckInSidebar(scoped, checkIns, rooms, genderScope)
     }
 }
 
@@ -113,9 +114,11 @@ private fun CheckInHeader(
     scan: String,
     filter: String,
     gender: String,
+    seniority: String,
     onScan: (String) -> Unit,
     onFilter: (String) -> Unit,
     onGender: (String) -> Unit,
+    onSeniority: (String) -> Unit,
 ) {
     val inCount = roll.count { deskCheckedIn(it, checkIns) }
     val total = roll.size
@@ -175,7 +178,7 @@ private fun CheckInHeader(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 DeskKicker("THIS TABLET", Industry.neutral500)
-                DeskSegmented(listOf("Both", "Male", "Female"), gender, onGender)
+                DeskScopeFilters(gender, seniority, onGender, onSeniority)
             }
         }
 

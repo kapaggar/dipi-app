@@ -228,6 +228,67 @@ class DeskPanesTest {
     }
 
     @Test
+    fun seniorityFilterScopesRosterProgressAndExcludesTheOtherThree() {
+        val roll = listOf(
+            card(1, conf = "NF1", given = "Priya", family = "Nair"),
+            card(2, conf = "OF2", given = "Meera", family = "Shah"),
+            card(3, conf = "NM3", given = "Arun", family = "Kale", gender = Gender.M),
+            card(4, conf = "OM4", given = "Vikram", family = "Rao", gender = Gender.M),
+        )
+        rule.setContent {
+            DipiTheme {
+                CheckInPane(
+                    roll = roll,
+                    checkIns = emptyMap(),
+                    rooms = rooms,
+                    scan = "",
+                    filter = "All",
+                    flaggedIds = emptySet(),
+                    gender = "Female",
+                    seniority = "New",
+                    onScan = {},
+                    onFilter = {},
+                    onGender = {},
+                    onSeniority = {},
+                    onOpen = {},
+                )
+            }
+        }
+        rule.onNodeWithText("Priya Nair").assertIsDisplayed()
+        rule.onNodeWithText("Meera Shah").assertDoesNotExist()
+        rule.onNodeWithText("Arun Kale").assertDoesNotExist()
+        rule.onNodeWithText("Vikram Rao").assertDoesNotExist()
+        rule.onNodeWithText(" of 1 checked in").assertIsDisplayed()
+        rule.onNodeWithText("1 to arrive").assertIsDisplayed()
+    }
+
+    @Test
+    fun senioritySegmentsFireTheCallback() {
+        var picked: String? = null
+        rule.setContent {
+            DipiTheme {
+                CheckInPane(
+                    roll = listOf(card(1, given = "Priya", family = "Nair")),
+                    checkIns = emptyMap(),
+                    rooms = rooms,
+                    scan = "",
+                    filter = "All",
+                    flaggedIds = emptySet(),
+                    gender = "Both",
+                    seniority = "Both",
+                    onScan = {},
+                    onFilter = {},
+                    onGender = {},
+                    onSeniority = { picked = it },
+                    onOpen = {},
+                )
+            }
+        }
+        rule.onNodeWithText("New").performClick()
+        assertEquals("New", picked)
+    }
+
+    @Test
     fun rosterRowsSortAlphabeticallyByName() {
         val roll = listOf(
             card(1, conf = "NF1", given = "Priya", family = "Nair"),
@@ -444,6 +505,38 @@ class DeskPanesTest {
         rule.onNodeWithText("Nothing in this pile.").assertIsDisplayed()
     }
 
+    @Test
+    fun callingScopeFiltersExcludeTheOtherThreeCombinations() {
+        val roll = listOf(
+            card(1, conf = "NF1", given = "Priya", family = "Nair"),
+            card(2, conf = "OF2", given = "Meera", family = "Shah"),
+            card(3, conf = "NM3", given = "Arun", family = "Kale", gender = Gender.M),
+            card(4, conf = "OM4", given = "Vikram", family = "Rao", gender = Gender.M),
+        )
+        rule.setContent {
+            DipiTheme {
+                CallingPane(
+                    roll = roll,
+                    outcomes = emptyMap(),
+                    filter = "To call",
+                    onFilter = {},
+                    onOutcome = { _, _ -> },
+                    onDial = {},
+                    onWhatsApp = {},
+                    onNote = { _, _ -> },
+                    gender = "Male",
+                    seniority = "Old",
+                )
+            }
+        }
+        rule.onNodeWithText("Vikram Rao").assertIsDisplayed()
+        rule.onNodeWithText("Priya Nair").assertDoesNotExist()
+        rule.onNodeWithText("Meera Shah").assertDoesNotExist()
+        rule.onNodeWithText("Arun Kale").assertDoesNotExist()
+        rule.onNodeWithText("0 of 1 logged · log the outcome as you go, the list empties itself").assertIsDisplayed()
+        rule.onNodeWithText("To call 1").assertIsDisplayed()
+    }
+
     /* ── Slice 6: rooms ────────────────────────────────────────────── */
 
     @Test
@@ -459,8 +552,44 @@ class DeskPanesTest {
         rule.onNodeWithText("2 rooms · 1 free").assertIsDisplayed()
         rule.onNodeWithText("Priya Nair").assertIsDisplayed()
         rule.onNodeWithText("G IC").assertIsDisplayed()
-        // No pending allocations → no sync button at all.
+        // No pending allocations → no sync button at all; pull is always shown.
         rule.onAllNodesWithText("SYNC", substring = true).assertCountEquals(0)
+        rule.onNodeWithText("PULL FROM SERVER").assertIsDisplayed()
+    }
+
+    @Test
+    fun roomsPullButtonFires() {
+        var pulled = false
+        rule.setContent {
+            DipiTheme {
+                RoomsPane(
+                    roll = emptyList(),
+                    checkIns = emptyMap(),
+                    rooms = rooms,
+                    onPullRooms = { pulled = true },
+                )
+            }
+        }
+        rule.onNodeWithText("PULL FROM SERVER").assertIsDisplayed().performClick()
+        assertTrue(pulled)
+    }
+
+    @Test
+    fun roomsPullBusyStateDisablesTheButton() {
+        var pulled = false
+        rule.setContent {
+            DipiTheme {
+                RoomsPane(
+                    roll = emptyList(),
+                    checkIns = emptyMap(),
+                    rooms = rooms,
+                    pullBusy = true,
+                    onPullRooms = { pulled = true },
+                )
+            }
+        }
+        rule.onNodeWithText("PULLING…").assertIsDisplayed().performClick()
+        assertFalse(pulled)
     }
 
     @Test
@@ -725,5 +854,34 @@ class DeskPanesTest {
             }
         }
         rule.onNodeWithText("Courses · 4 total · 3× 10-day · 1× 20-day").assertIsDisplayed()
+    }
+
+    @Test
+    fun applicationsScopeFiltersExcludeTheOtherThreeCombinations() {
+        val rows = listOf(
+            card(1, conf = "NF1", given = "Priya", family = "Nair"),
+            card(2, conf = "OF2", given = "Meera", family = "Shah"),
+            card(3, conf = "NM3", given = "Arun", family = "Kale", gender = Gender.M),
+            card(4, conf = "OM4", given = "Vikram", family = "Rao", gender = Gender.M),
+        )
+        rule.setContent {
+            DipiTheme {
+                ApplicationsPane(
+                    rows = rows,
+                    flagsById = emptyMap(),
+                    selectedId = ApplicantId(1),
+                    onSelect = {},
+                    onChangeStatus = {},
+                    onDial = {},
+                    onEdit = {},
+                    gender = "Female",
+                    seniority = "Old",
+                )
+            }
+        }
+        rule.onAllNodesWithText("Meera Shah").onFirst().assertIsDisplayed()
+        rule.onAllNodesWithText("Priya Nair").assertCountEquals(0)
+        rule.onAllNodesWithText("Arun Kale").assertCountEquals(0)
+        rule.onAllNodesWithText("Vikram Rao").assertCountEquals(0)
     }
 }

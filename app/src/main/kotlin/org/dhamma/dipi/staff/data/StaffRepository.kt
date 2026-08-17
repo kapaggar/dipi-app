@@ -14,6 +14,7 @@ import org.dhamma.dipi.staff.database.OutboxEntity
 import org.dhamma.dipi.staff.datastore.SessionStore
 import org.dhamma.dipi.staff.model.ApplicantCard
 import org.dhamma.dipi.staff.model.ApplicantId
+import org.dhamma.dipi.staff.model.CentreCourses
 import org.dhamma.dipi.staff.model.CentreId
 import org.dhamma.dipi.staff.model.CheckInRecord
 import org.dhamma.dipi.staff.model.Course
@@ -33,6 +34,7 @@ import org.dhamma.dipi.staff.model.StatusWrite
 import org.dhamma.dipi.staff.model.UserCentreMap
 import org.dhamma.dipi.staff.network.AccoHandlerParser
 import org.dhamma.dipi.staff.network.ApplicantDto
+import org.dhamma.dipi.staff.network.AttendedTableParser
 import org.dhamma.dipi.staff.network.CentrePageParser
 import org.dhamma.dipi.staff.network.CropDto
 import org.dhamma.dipi.staff.network.DrupalAuthApi
@@ -186,21 +188,29 @@ class StaffRepository @Inject constructor(
         }
     }
 
-    suspend fun loadCourses(centreId: CentreId): List<Course> = runCatching {
+    suspend fun loadCourses(centreId: CentreId): CentreCourses = runCatching {
         lastCentreId = centreId.value
         if (useMock) {
-            val list = api.courses(centreId.value, upcoming = 1).items.map { it.toModel() }
             refreshRooms(centreId.value)
-            return@runCatching list
+            return@runCatching CentreCourses(
+                upcoming = api.courses(centreId.value, upcoming = 1).items.map { it.toModel() },
+                older = api.courses(centreId.value, upcoming = 0).items.map { it.toModel() },
+            )
         }
         val dash = api.centreDashboard(centreId.value)
         val html = dash.html()
         if (stillOnLogin(html) || dash.code() == 403) throw ApiException("Access denied", unauthorized = true)
         val summaries = CentrePageParser.courseSummaries(html)
         refreshRooms(centreId.value)
-        SearchPageParser.coursesFromDashboard(html).map {
+        val upcomingOpts = SearchPageParser.coursesFromDashboard(html)
+        val upcomingIds = upcomingOpts.map { it.id }.toSet()
+        val upcoming = upcomingOpts.map {
             Course(CourseId(it.id), centreId, it.label, "", "", summary = summaries[it.id])
         }
+        val older = CentrePageParser.olderCourseOptions(html, upcomingIds).map {
+            Course(CourseId(it.id), centreId, it.label, "", "")
+        }
+        CentreCourses(upcoming, older)
     }.getOrElse { throw it.toApi() }
 
     /**
@@ -408,6 +418,23 @@ class StaffRepository @Inject constructor(
         )
         if (result.authExpired) throw ApiException("Session expired", unauthorized = true)
         return result
+    }
+
+    /**
+     * Pull room assignments from the live zero-day attended table
+     * (`GET /zero-day/{cid}/{courseId}`, never `?r=`). Parses id + allocation
+     * fields only — no HTML persistence, no NPI. 403 / login HTML without
+     * the attending table → unauthorized, same pattern as [refreshApplicants].
+     */
+    suspend fun pullRoomAllocations(centreId: Int, courseId: Int): Map<ApplicantId, CheckInRecord> {
+        return runCatching {
+            val resp = api.sheetPage("zero-day", centreId, courseId)
+            val html = resp.html()
+            if (stillOnLogin(html) || (resp.code() == 403 && !html.contains("table-attending"))) {
+                throw ApiException("Access denied", unauthorized = true)
+            }
+            AttendedTableParser.parse(html)
+        }.getOrElse { throw it.toApi() }
     }
 
     /**

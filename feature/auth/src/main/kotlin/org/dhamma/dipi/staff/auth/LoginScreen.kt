@@ -45,15 +45,15 @@ import org.dhamma.dipi.staff.ui.theme.DeskStyle
 import org.dhamma.dipi.staff.ui.theme.DipiCondensed
 import org.dhamma.dipi.staff.ui.theme.DipiSans
 import org.dhamma.dipi.staff.ui.theme.LocalDipi
-import org.dhamma.dipi.staff.ui.theme.LotusWatermark
+import org.dhamma.dipi.staff.ui.theme.LoginLotusRelief
 import org.dhamma.dipi.staff.ui.theme.deskCard
 
 /**
  * Sign-in, compact (owner feedback 2026-08-16): the form lives in a
  * centred DeskStyle card capped at 380dp — never full-screen-width fields —
- * floating over the lotus relief, drawn large and very low-contrast in the
- * skin's tint (see [LotusWatermark]). Remember-me, the verbatim server
- * error and the loading state stay.
+ * floating over the lotus relief — the circular mark at readable opacity
+ * with a vertical gradient fade (see [LoginLotusRelief]). Remember-me, the
+ * verbatim server error and the loading state stay.
  */
 @Composable
 fun LoginScreen(
@@ -72,13 +72,7 @@ fun LoginScreen(
     val c = LocalDipi.current
     Box(Modifier.fillMaxSize().background(c.background)) {
         if (lotus) {
-            // The relief: one huge watermark behind everything, non-interactive.
-            LotusWatermark(
-                size = 520.dp,
-                opacity = skin.markOpacity * 0.55f,
-                skin = skin,
-                modifier = Modifier.align(Alignment.Center),
-            )
+            LoginLotusRelief()
         }
         Column(
             Modifier

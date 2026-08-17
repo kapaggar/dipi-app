@@ -5,6 +5,7 @@ import org.dhamma.dipi.staff.model.CheckInRecord
 import org.dhamma.dipi.staff.model.RoomSyncFailure
 import org.dhamma.dipi.staff.model.RoomSyncResult
 import org.dhamma.dipi.staff.ui.deskRoomSyncPending
+import org.dhamma.dipi.staff.ui.roomPullSnack
 import org.dhamma.dipi.staff.ui.roomSyncSnack
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -50,5 +51,19 @@ class RoomSyncTest {
         val snack = roomSyncSnack(RoomSyncResult(attempted = 2, synced = 1, offline = true))
         assertTrue(snack.error)
         assertEquals("1 synced · connection lost — the rest will sync when online", snack.text)
+    }
+
+    @Test
+    fun pullSnackReportsTheCount() {
+        val snack = roomPullSnack(2)
+        assertFalse(snack.error)
+        assertEquals("✓ Pulled 2 room assignment(s) from the desk", snack.text)
+    }
+
+    @Test
+    fun pullSnackWhenNoneAssigned() {
+        val snack = roomPullSnack(0)
+        assertFalse(snack.error)
+        assertEquals("No rooms assigned on the desk yet", snack.text)
     }
 }

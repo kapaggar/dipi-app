@@ -1,9 +1,13 @@
 package org.dhamma.dipi.staff.ui.theme
 
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithContent
@@ -14,6 +18,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -94,6 +100,58 @@ fun LotusWatermark(
                 )
             },
     )
+}
+
+/**
+ * Pre-auth lotus relief: the circular mark at readable opacity (no skin
+ * tint — that washed it into the paper), radially masked so the asset's
+ * black square disappears, then a vertical gradient so it dissolves into
+ * the sign-in card.
+ */
+@Composable
+fun LoginLotusRelief(
+    modifier: Modifier = Modifier,
+    opacity: Float = 0.34f,
+) {
+    val paper = LocalDipi.current.background
+    Box(modifier.fillMaxSize().testTag("login-lotus")) {
+        Image(
+            painter = painterResource(R.drawable.lotus_mark),
+            contentDescription = null,
+            contentScale = ContentScale.Fit,
+            modifier = Modifier
+                .fillMaxSize()
+                .align(Alignment.Center)
+                .graphicsLayer {
+                    alpha = opacity
+                    compositingStrategy = CompositingStrategy.Offscreen
+                }
+                .drawWithContent {
+                    drawContent()
+                    drawRect(
+                        brush = Brush.radialGradient(
+                            0.38f to Color.Black,
+                            0.82f to Color.Transparent,
+                            center = this.size.center,
+                            radius = this.size.minDimension / 2f,
+                        ),
+                        blendMode = BlendMode.DstIn,
+                    )
+                },
+        )
+        Box(
+            Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        0f to paper.copy(alpha = 0.08f),
+                        0.44f to paper.copy(alpha = 0.46f),
+                        0.74f to paper.copy(alpha = 0.86f),
+                        0.97f to paper,
+                    ),
+                ),
+        )
+    }
 }
 
 private val androidx.compose.ui.geometry.Size.center: Offset

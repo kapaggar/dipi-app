@@ -1,5 +1,6 @@
 package org.dhamma.dipi.staff.ui
 
+import android.app.Activity
 import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.BackHandler
@@ -15,14 +16,18 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
@@ -136,7 +141,17 @@ fun DipiAppUi(vm: DeskViewModel) {
                 }
                 Box(Modifier.weight(1f)) {
                     val canBack = state.screen != DeskScreen.Login && state.screen != DeskScreen.Centre
-                    BackHandler(enabled = canBack) { vm.back() }
+                    val activity = LocalContext.current as? Activity
+                    var confirmExit by remember { mutableStateOf(false) }
+                    BackHandler {
+                        if (canBack) vm.back() else confirmExit = true
+                    }
+                    if (confirmExit) {
+                        ExitAppDialog(
+                            onStay = { confirmExit = false },
+                            onExit = { activity?.finish() },
+                        )
+                    }
                     when (state.screen) {
                         DeskScreen.Login -> LoginScreen(
                             username = state.username,
@@ -164,6 +179,7 @@ fun DipiAppUi(vm: DeskViewModel) {
                                     onCentreOps = vm::openCentreOps,
                                     onAdvancedSearch = vm::openAdvancedSearch,
                                     lotus = state.lotus,
+                                    olderCourses = state.olderCourses,
                                 )
                             }
                         }
@@ -225,7 +241,9 @@ fun DipiAppUi(vm: DeskViewModel) {
                                     onBack = vm::back,
                                     pendingRoomSync = deskRoomSyncPending(state.checkIns),
                                     roomSyncBusy = state.roomSyncBusy,
+                                    roomPullBusy = state.roomPullBusy,
                                     onSyncRooms = vm::syncRooms,
+                                    onPullRooms = vm::pullRooms,
                                 )
                             }
                         }
@@ -344,9 +362,11 @@ private fun DeskHost(
                     filter = state.deskZeroFilter,
                     flaggedIds = flagsById.keys,
                     gender = state.deskGender,
+                    seniority = state.deskSeniority,
                     onScan = vm::setDeskScan,
                     onFilter = vm::setDeskZeroFilter,
                     onGender = vm::setDeskGender,
+                    onSeniority = vm::setDeskSeniority,
                     onOpen = vm::openDeskMark,
                 )
                 DeskSection.Audit -> AuditPane(
@@ -374,6 +394,10 @@ private fun DeskHost(
                         )
                     },
                     onNote = vm::setCallNote,
+                    gender = state.deskGender,
+                    seniority = state.deskSeniority,
+                    onGender = vm::setDeskGender,
+                    onSeniority = vm::setDeskSeniority,
                 )
                 DeskSection.Rooms -> RoomsPane(
                     roll = roll,
@@ -381,8 +405,10 @@ private fun DeskHost(
                     rooms = state.centreOps.rooms,
                     pendingSync = deskRoomSyncPending(state.checkIns),
                     syncBusy = state.roomSyncBusy,
+                    pullBusy = state.roomPullBusy,
                     syncFailures = state.roomSync?.failures.orEmpty(),
                     onSyncRooms = vm::syncRooms,
+                    onPullRooms = vm::pullRooms,
                 )
                 DeskSection.Applications -> ApplicationsPane(
                     rows = state.visible,
@@ -400,6 +426,10 @@ private fun DeskHost(
                     selectedStatuses = state.selected,
                     onToggleStatus = vm::toggleStatus,
                     sensitiveById = state.sensitiveById,
+                    gender = state.deskGender,
+                    seniority = state.deskSeniority,
+                    onGender = vm::setDeskGender,
+                    onSeniority = vm::setDeskSeniority,
                 )
             }
         }
@@ -656,4 +686,22 @@ private fun CardPane(vm: DeskViewModel, state: DeskUiState) {
             onDismiss = vm::dismissSheet,
         )
     }
+}
+
+@Composable
+fun ExitAppDialog(
+    onStay: () -> Unit,
+    onExit: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onStay,
+        title = { Text("Exit DIPI Staff?") },
+        text = { Text("Do you want to exit the app totally?") },
+        confirmButton = {
+            TextButton(onClick = onExit) { Text("Exit") }
+        },
+        dismissButton = {
+            TextButton(onClick = onStay) { Text("Stay") }
+        },
+    )
 }
