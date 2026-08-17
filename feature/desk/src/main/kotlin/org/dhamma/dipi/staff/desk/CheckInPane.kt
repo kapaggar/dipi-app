@@ -40,12 +40,14 @@ import org.dhamma.dipi.staff.model.AccoRoom
 import org.dhamma.dipi.staff.model.ApplicantCard
 import org.dhamma.dipi.staff.model.ApplicantId
 import org.dhamma.dipi.staff.model.CheckInRecord
+import org.dhamma.dipi.staff.model.Gender
 import org.dhamma.dipi.staff.model.SEAT_TYPES
+import org.dhamma.dipi.staff.ui.theme.DeskStyle
 import org.dhamma.dipi.staff.ui.theme.DipiCondensed
 import org.dhamma.dipi.staff.ui.theme.DipiMono
 import org.dhamma.dipi.staff.ui.theme.DipiSans
 import org.dhamma.dipi.staff.ui.theme.Industry
-import org.dhamma.dipi.staff.ui.theme.blueprint
+import org.dhamma.dipi.staff.ui.theme.deskCard
 
 /**
  * Zero Day arrival desk: search, one merged roster (a checked-in row keeps
@@ -60,10 +62,17 @@ fun CheckInPane(
     scan: String,
     filter: String,
     flaggedIds: Set<ApplicantId>,
+    gender: String = "Both",
+    seniority: String = "Both",
     onScan: (String) -> Unit,
     onFilter: (String) -> Unit,
+    onGender: (String) -> Unit = {},
+    onSeniority: (String) -> Unit = {},
     onOpen: (ApplicantCard) -> Unit,
 ) {
+    // Desk-level scope: a tablet on the new-female desk sees/counts that subset only.
+    val genderScope = deskGenderScope(gender)
+    val scoped = deskRoll(roll, genderScope, deskSeniorityScope(seniority))
     Row(Modifier.fillMaxSize()) {
         Column(
             Modifier
@@ -71,8 +80,11 @@ fun CheckInPane(
                 .fillMaxHeight()
                 .rightHairline(Industry.neutral300),
         ) {
-            CheckInHeader(roll, checkIns, scan, filter, onScan, onFilter)
-            val shown = deskRosterRows(roll, checkIns, scan, filter)
+            CheckInHeader(
+                scoped, checkIns, scan, filter, gender, seniority,
+                onScan, onFilter, onGender, onSeniority,
+            )
+            val shown = deskRosterRows(scoped, checkIns, scan, filter)
             if (shown.isEmpty()) {
                 DeskEmpty(
                     "Nobody matches that. Clear the field to see the whole roll.",
@@ -91,7 +103,7 @@ fun CheckInPane(
                 }
             }
         }
-        CheckInSidebar(roll, checkIns, rooms)
+        CheckInSidebar(scoped, checkIns, rooms, genderScope)
     }
 }
 
@@ -101,8 +113,12 @@ private fun CheckInHeader(
     checkIns: Map<ApplicantId, CheckInRecord>,
     scan: String,
     filter: String,
+    gender: String,
+    seniority: String,
     onScan: (String) -> Unit,
     onFilter: (String) -> Unit,
+    onGender: (String) -> Unit,
+    onSeniority: (String) -> Unit,
 ) {
     val inCount = roll.count { deskCheckedIn(it, checkIns) }
     val total = roll.size
@@ -121,8 +137,12 @@ private fun CheckInHeader(
                 Box(
                     Modifier
                         .weight(1f)
-                        .background(Color.White)
-                        .border(1.dp, Industry.neutral400),
+                        .deskCard(
+                            shape = DeskStyle.controlShape,
+                            fill = Color.White,
+                            border = Industry.neutral400,
+                            elevation = 0.dp,
+                        ),
                 ) {
                     BasicTextField(
                         value = scan,
@@ -153,12 +173,19 @@ private fun CheckInHeader(
                 }
                 DeskSegmented(listOf("To arrive", "Arrived", "All"), filter, onFilter)
             }
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                DeskKicker("THIS TABLET", Industry.neutral500)
+                DeskScopeFilters(gender, seniority, onGender, onSeniority)
+            }
         }
 
         Column(
             Modifier
                 .fillMaxWidth()
-                .blueprint(Industry.neutral400)
+                .deskCard(elevation = 0.dp)
                 .padding(horizontal = 14.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(9.dp),
         ) {
@@ -188,11 +215,18 @@ private fun CheckInHeader(
                 )
             }
             val fill by animateFloatAsState(pct, animationSpec = tween(250), label = "progress")
-            Box(Modifier.fillMaxWidth().height(8.dp).background(Industry.neutral200)) {
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .height(8.dp)
+                    .clip(DeskStyle.pillShape)
+                    .background(Industry.neutral200),
+            ) {
                 Box(
                     Modifier
                         .fillMaxWidth(fill)
                         .height(8.dp)
+                        .clip(DeskStyle.pillShape)
                         .background(Industry.accent),
                 )
             }
@@ -220,8 +254,9 @@ private fun RosterRow(
         Box(
             Modifier
                 .size(20.dp)
+                .clip(CircleShape)
                 .background(if (isIn) Industry.accent else Color.Transparent)
-                .border(1.dp, if (isIn) Industry.accent else Industry.neutral400),
+                .border(1.dp, if (isIn) Industry.accent else Industry.neutral400, CircleShape),
             contentAlignment = Alignment.Center,
         ) {
             if (isIn) DeskIcon(DeskIconKind.Check, 12.dp, Color.White, strokeWidth = 2.2f)
@@ -272,7 +307,8 @@ private fun RosterRow(
             color = if (isIn) Industry.neutral700 else Industry.accent800,
             modifier = Modifier
                 .width(150.dp)
-                .border(1.dp, if (isIn) Industry.neutral300 else Industry.accent)
+                .clip(DeskStyle.controlShape)
+                .border(1.dp, if (isIn) Industry.neutral300 else Industry.accent, DeskStyle.controlShape)
                 .padding(horizontal = 8.dp, vertical = 6.dp),
         )
     }
@@ -283,6 +319,7 @@ private fun CheckInSidebar(
     roll: List<ApplicantCard>,
     checkIns: Map<ApplicantId, CheckInRecord>,
     rooms: List<AccoRoom>,
+    scope: Gender?,
 ) {
     Column(
         Modifier
@@ -300,9 +337,9 @@ private fun CheckInSidebar(
             DeskKicker("ROOMS FREE", Industry.neutral500, Modifier.padding(bottom = 7.dp))
             val occupied = deskOccupied(roll, checkIns)
             listOf(
-                org.dhamma.dipi.staff.model.Gender.F to "Female",
-                org.dhamma.dipi.staff.model.Gender.M to "Male",
-            ).forEach { (g, label) ->
+                Gender.F to "Female",
+                Gender.M to "Male",
+            ).filter { scope == null || it.first == scope }.forEach { (g, label) ->
                 val block = rooms.filter { it.gender == g }
                 if (block.isEmpty()) return@forEach
                 val free = block.count { it.code !in occupied }
@@ -357,7 +394,7 @@ private fun CheckInSidebar(
 
 @Composable
 private fun RollTable(roll: List<ApplicantCard>) {
-    Column(Modifier.border(1.dp, Industry.neutral300)) {
+    Column(Modifier.deskCard(shape = DeskStyle.tileShape, elevation = 0.dp)) {
         Row(
             Modifier
                 .fillMaxWidth()
@@ -457,8 +494,10 @@ fun CheckInDialog(
         Column(
             Modifier
                 .width(560.dp)
-                .blueprint(Industry.accent)
-                .background(Industry.bg)
+                .deskCard(
+                    border = Industry.accent,
+                    elevation = DeskStyle.dialogElevation,
+                )
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
@@ -493,7 +532,8 @@ fun CheckInDialog(
                 Box(
                     Modifier
                         .size(28.dp)
-                        .border(1.dp, Industry.neutral400)
+                        .clip(DeskStyle.controlShape)
+                        .border(1.dp, Industry.neutral400, DeskStyle.controlShape)
                         .clickable(onClick = onClose),
                     contentAlignment = Alignment.Center,
                 ) {
@@ -514,7 +554,8 @@ fun CheckInDialog(
                     Row(
                         Modifier
                             .fillMaxWidth()
-                            .border(1.dp, Industry.neutral400)
+                            .clip(DeskStyle.controlShape)
+                            .border(1.dp, Industry.neutral400, DeskStyle.controlShape)
                             .clickable(onClick = onToggleRooms)
                             .padding(horizontal = 13.dp, vertical = 11.dp),
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -545,8 +586,12 @@ fun CheckInDialog(
                                     Column(
                                         Modifier
                                             .weight(1f)
-                                            .background(if (on) Industry.accent100 else Color.Transparent)
-                                            .border(1.dp, if (on) Industry.accent else Industry.neutral300)
+                                            .deskCard(
+                                                shape = DeskStyle.tileShape,
+                                                fill = if (on) Industry.accent100 else DeskStyle.cardFill,
+                                                border = if (on) Industry.accent else DeskStyle.cardBorder,
+                                                elevation = 0.dp,
+                                            )
                                             .clickable { onRoom(room.code) }
                                             .padding(horizontal = 10.dp, vertical = 9.dp),
                                         verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -568,8 +613,8 @@ fun CheckInDialog(
                                                     maxLines = 1,
                                                     color = Industry.neutral600,
                                                     modifier = Modifier
-                                                        .border(1.dp, Industry.neutral300)
-                                                        .padding(horizontal = 3.dp, vertical = 1.dp),
+                                                        .border(1.dp, Industry.neutral300, DeskStyle.pillShape)
+                                                        .padding(horizontal = 5.dp, vertical = 1.dp),
                                                 )
                                             }
                                         }
@@ -598,8 +643,13 @@ fun CheckInDialog(
                                 color = if (on) Industry.accent800 else Industry.neutral700,
                                 modifier = Modifier
                                     .weight(1f)
+                                    .clip(DeskStyle.controlShape)
                                     .background(if (on) Industry.accent100 else Color.Transparent)
-                                    .border(1.dp, if (on) Industry.accent else Industry.neutral300)
+                                    .border(
+                                        1.dp,
+                                        if (on) Industry.accent else Industry.neutral300,
+                                        DeskStyle.controlShape,
+                                    )
                                     .clickable { onSeat(seat) }
                                     .padding(horizontal = 6.dp, vertical = 12.dp),
                             )
@@ -630,8 +680,13 @@ fun CheckInDialog(
                                 Box(
                                     Modifier
                                         .size(36.dp)
+                                        .clip(DeskStyle.controlShape)
                                         .background(if (on) Industry.accent else Color.Transparent)
-                                        .border(1.dp, if (on) Industry.accent else Industry.neutral300)
+                                        .border(
+                                            1.dp,
+                                            if (on) Industry.accent else Industry.neutral300,
+                                            DeskStyle.controlShape,
+                                        )
                                         .clickable { onGroup(g) },
                                     contentAlignment = Alignment.Center,
                                 ) {
@@ -694,10 +749,4 @@ internal fun amenityLabels(room: AccoRoom): List<String> = buildList {
     if (room.features.geyser) add("Geyser")
     if (room.features.indianToilet) add("Indian")
     if (room.features.westernToilet) add("Western")
-}
-
-internal fun amenityMarks(room: AccoRoom): String = buildString {
-    if (room.features.geyser) append("G")
-    if (room.features.indianToilet) append("I")
-    if (room.features.westernToilet) append("W")
 }

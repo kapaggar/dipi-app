@@ -24,8 +24,8 @@ android {
         applicationId = "org.dhamma.dipi.staff"
         minSdk = 26
         targetSdk = 35
-        versionCode = 18
-        versionName = "1.9.0"
+        versionCode = 29
+        versionName = "1.18.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "BASE_URL", "\"${overrideUrl.trimEnd('/')}\"")
         val useMock = ((findProperty("dipi.useMock") as String?)
@@ -102,6 +102,11 @@ dependencies {
     ksp(libs.hilt.compiler)
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
+    // A real DeskViewModel drives the repo in mock mode over MockWebServer +
+    // DipiMockDispatcher, so tests need the server type and the JSON converter
+    // that the production NetworkModule uses.
+    testImplementation(libs.okhttp.mockwebserver)
+    testImplementation(libs.retrofit.kotlinx)
     testImplementation(libs.robolectric)
     testImplementation(platform(libs.androidx.compose.bom))
     testImplementation(libs.androidx.ui.test.junit4)

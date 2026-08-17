@@ -1,10 +1,8 @@
 package org.dhamma.dipi.staff.ui.theme
 
-import androidx.annotation.DrawableRes
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ColorMatrix
-import org.dhamma.dipi.staff.ui.R
 import kotlin.math.cos
 import kotlin.math.pow
 import kotlin.math.sin
@@ -23,14 +21,13 @@ enum class DeskSkin(
     val label: String,
     val hue: Double,
     val chroma: Double,
-    @DrawableRes val photoRes: Int,
     val markOpacity: Float,
 ) {
-    Steel("steel", "Steel", 245.0, 0.07, R.drawable.skin_photo_steel, 0.11f),
-    Paper("paper", "Paper", 262.0, 0.03, R.drawable.skin_photo_paper, 0.18f),
-    Blossom("blossom", "Blossom", 352.0, 0.095, R.drawable.skin_photo_blossom, 0.17f),
-    Pond("pond", "Pond", 152.0, 0.07, R.drawable.skin_photo_pond, 0.15f),
-    Still("still", "Still", 272.0, 0.095, R.drawable.skin_photo_still, 0.16f),
+    Steel("steel", "Steel", 245.0, 0.07, 0.11f),
+    Paper("paper", "Paper", 262.0, 0.03, 0.18f),
+    Blossom("blossom", "Blossom", 352.0, 0.095, 0.17f),
+    Pond("pond", "Pond", 152.0, 0.07, 0.15f),
+    Still("still", "Still", 272.0, 0.095, 0.16f),
     ;
 
     companion object {

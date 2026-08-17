@@ -77,6 +77,7 @@ class CentreScreenTest {
         var picked: Course? = null
         var later: Pair<String, String>? = null
         var ops = false
+        var advanced = false
         rule.setContent {
             DipiTheme {
                 CentreScreen(
@@ -85,15 +86,17 @@ class CentreScreenTest {
                     onPick = { picked = it },
                     onLater = { title, route -> later = title to route },
                     onCentreOps = { ops = true },
+                    onAdvancedSearch = { advanced = true },
                 )
             }
         }
         rule.onNodeWithText("Upcoming courses").assertIsDisplayed()
         rule.onNodeWithText("10-Day").assertIsDisplayed()
         rule.onNodeWithText("Confirmed 77 | Cancelled 7 | Received 2 | Total 111").assertIsDisplayed()
-        // Search sits at the top; the desk links are a plain list below the courses.
-        rule.onNodeWithText("Advanced Search").assertIsDisplayed()
+        // The desk links render as a tile grid below the courses; Advanced
+        // Search rides along as one of the tiles (owner feedback 2026-08-16).
         rule.onNodeWithText("Centre desk").performScrollTo().assertIsDisplayed()
+        rule.onNodeWithText("Advanced Search").performScrollTo().assertIsDisplayed()
         rule.onNodeWithText("Centre Settings").performScrollTo().assertIsDisplayed()
         rule.onNodeWithText("Manage Courses").performScrollTo().assertIsDisplayed()
         rule.onNodeWithText("Daily Activity").performScrollTo().assertIsDisplayed()
@@ -107,8 +110,10 @@ class CentreScreenTest {
 
         rule.onNodeWithText("10-Day").performScrollTo().performClick()
         assertEquals(course, picked)
+        // The Advanced Search tile opens the in-app screen, not the desk site.
         rule.onNodeWithText("Advanced Search").performScrollTo().performClick()
-        assertEquals("Advanced Search" to "search-app/1", later)
+        assertTrue(advanced)
+        assertNull(later)
         rule.onNodeWithText("Centre Settings").performScrollTo().performClick()
         assertEquals("Centre Settings" to "centre/1/edit", later)
         // The global app settings row is separate from the Drupal Centre Settings page.
@@ -132,5 +137,33 @@ class CentreScreenTest {
         rule.onNodeWithText("No upcoming courses.").assertIsDisplayed()
         rule.onNodeWithText("Centre settings").performScrollTo().performClick()
         assertTrue(ops)
+    }
+
+    @Test
+    fun olderCoursesListOpensTheBoard() {
+        val older = Course(
+            CourseId(8),
+            CentreId(1),
+            "Dhamma Sudha / 10 Day / 2026 / 6th-Aug to 17th-Aug",
+            "2026-08-06",
+            "2026-08-17",
+        )
+        var picked: Course? = null
+        rule.setContent {
+            DipiTheme {
+                CentreScreen(
+                    session = session,
+                    courses = listOf(course),
+                    onPick = { picked = it },
+                    olderCourses = listOf(older),
+                )
+            }
+        }
+        rule.onNodeWithText("Older courses").performScrollTo().assertIsDisplayed()
+        rule.onNodeWithText("Teacher list · valuables · seating — check-in is closed")
+            .performScrollTo()
+            .assertIsDisplayed()
+        rule.onNodeWithText(older.name).performScrollTo().performClick()
+        assertEquals(older, picked)
     }
 }

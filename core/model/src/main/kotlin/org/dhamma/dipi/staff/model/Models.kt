@@ -98,6 +98,12 @@ data class Course(
     val summary: CourseSummary? = null,
 )
 
+/** Split of the centre dashboard: next-4 upcoming vs the Select Course older rows. */
+data class CentreCourses(
+    val upcoming: List<Course>,
+    val older: List<Course> = emptyList(),
+)
+
 data class Session(
     val uid: Int,
     val name: String,
@@ -151,10 +157,12 @@ sealed class OutboxOp {
 enum class OutboxState { Pending, Synced, Failed }
 
 /**
- * One arrival's Day 0 check-in, keyed by applicant id. Device-local and
- * outbox-style: the live desk has no attendance write, so these reconcile
- * to a future endpoint. Everything on screen derives from these plus the
- * roster — counts are never stored.
+ * One arrival's Day 0 check-in, keyed by applicant id. Device-local truth;
+ * everything on screen derives from these plus the roster — counts are
+ * never stored. Owner amendment (2026-08-16): records replicate to the
+ * desk's own allocation update (`POST /app-update-attended/{id}`) via a
+ * user-initiated bulk sync — [synced]/[syncedAt] are that bookkeeping, and
+ * any edit clears them (see [clearSyncedIfChanged]).
  */
 @kotlinx.serialization.Serializable
 data class CheckInRecord(
@@ -164,6 +172,9 @@ data class CheckInRecord(
     val valuables: Boolean = true,
     val laundry: Boolean = false,
     val group: String = "1",
+    /** True once the server accepted this exact record; false whenever it changes. */
+    val synced: Boolean = false,
+    val syncedAt: String? = null,
 )
 
 val SEAT_TYPES = listOf("Chowky", "Chair", "Backrest", "None")
@@ -175,32 +186,41 @@ data class RoomFeature(
     val westernToilet: Boolean = false,
 )
 
+/**
+ * One accommodation room from the centre's server config
+ * (`dh_center_setting_acco` via `GET /centre/{cid}/acco-handler`).
+ * [code] is "<section> <number>" — the same Section + Room No pair the desk's
+ * Update dialog sends — and is what a [CheckInRecord.room] stores. Rooms are
+ * read-only in the app; the desk site owns the list.
+ */
 @kotlinx.serialization.Serializable
 data class AccoRoom(
     val code: String,
     val gender: Gender,
     val section: String,
     val features: RoomFeature = RoomFeature(),
-    val localExample: Boolean = false,
-)
+    /** Room number within its section, for chart display; falls back to [code]. */
+    val number: String = "",
+) {
+    val displayNo: String get() = number.ifBlank { code }
+
+    /** Chart amenity mark under the room number: G geyser · IC Indian commode · W Western toilet. */
+    val amenityMark: String
+        get() = buildList {
+            if (features.geyser) add("G")
+            if (features.indianToilet) add("IC")
+            if (features.westernToilet) add("W")
+        }.joinToString(" ")
+}
 
 @kotlinx.serialization.Serializable
 data class CentreOpsPrefs(
     val laundry: Boolean = true,
     val valuables: Boolean = true,
     val groups: Boolean = false,
+    /** Offline cache of the server room config — replaced on every centre-page load. */
     val rooms: List<AccoRoom> = emptyList(),
-) {
-    companion object {
-        fun exampleRooms(): List<AccoRoom> = listOf(
-            AccoRoom("F32", Gender.F, "East", localExample = true),
-            AccoRoom("M12", Gender.M, "West", localExample = true),
-        )
-
-        fun parseRoomCodes(raw: String): List<String> =
-            raw.split(',').map { it.trim() }.filter { it.isNotEmpty() }
-    }
-}
+)
 
 const val MAIN_DHAMMA_HALL = "Main Dhamma Hall"
 

@@ -42,17 +42,34 @@ import org.dhamma.dipi.staff.model.FlushSnack
 import org.dhamma.dipi.staff.model.Gender
 import org.dhamma.dipi.staff.model.PhotoEdit
 import org.dhamma.dipi.staff.model.PhotoReviewItem
+import org.dhamma.dipi.staff.model.RoomAllocSync
+import org.dhamma.dipi.staff.model.RoomSyncResult
 import org.dhamma.dipi.staff.model.SensitiveInfo
+import org.dhamma.dipi.staff.model.clearSyncedIfChanged
 import org.dhamma.dipi.staff.model.Session
+import org.dhamma.dipi.staff.model.SheetExport
+import org.dhamma.dipi.staff.model.SheetPayload
 import org.dhamma.dipi.staff.model.WorklistFilter
 import org.dhamma.dipi.staff.network.PhotoLoader
 import org.dhamma.dipi.staff.ui.theme.DeskSkin
 import org.dhamma.dipi.staff.ui.theme.Industry
 import javax.inject.Inject
 
-enum class DeskScreen { Login, Centre, CourseHub, Today, Card, Photos, Summary, Settings, DeskAction, ZeroDay, Audit, Calling, Rooms, CentreOps }
+enum class DeskScreen { Login, Centre, CourseHub, Today, Card, Photos, Summary, Settings, DeskAction, ZeroDay, Audit, Calling, Rooms, CentreOps, Search }
 
 data class DeskActionDest(val title: String, val route: String)
+
+/**
+ * The in-app sheet viewer overlay (Board exports / Applications edit).
+ * The title shows immediately while the fetch is in flight; [html] arrives
+ * when the payload resolves. HTML bodies stay in memory only — never
+ * persisted, never logged (they can carry NPI).
+ */
+data class SheetViewUi(
+    val title: String,
+    val loading: Boolean = true,
+    val html: SheetPayload.Html? = null,
+)
 
 fun deskBack(screen: DeskScreen, returnTo: DeskScreen?): DeskScreen = when (screen) {
     DeskScreen.Settings, DeskScreen.DeskAction -> returnTo ?: DeskScreen.Centre
@@ -65,8 +82,12 @@ fun deskBack(screen: DeskScreen, returnTo: DeskScreen?): DeskScreen = when (scre
         returnTo.takeIf { it == DeskScreen.Centre || it == DeskScreen.CourseHub } ?: DeskScreen.CourseHub
     DeskScreen.ZeroDay, DeskScreen.Audit, DeskScreen.Calling ->
         returnTo.takeIf { it == DeskScreen.CourseHub } ?: DeskScreen.CourseHub
-    DeskScreen.Card, DeskScreen.Photos, DeskScreen.Summary -> DeskScreen.Today
+    // A card opened from the in-app Advanced Search backs to the search results.
+    DeskScreen.Card -> returnTo.takeIf { it == DeskScreen.Search } ?: DeskScreen.Today
+    DeskScreen.Photos, DeskScreen.Summary -> DeskScreen.Today
     DeskScreen.Today -> DeskScreen.CourseHub
+    // The in-app Advanced Search opens from the Centre screen only.
+    DeskScreen.Search -> DeskScreen.Centre
     DeskScreen.CourseHub -> DeskScreen.Centre
     DeskScreen.Centre, DeskScreen.Login -> screen
 }
@@ -84,6 +105,7 @@ data class DeskUiState(
     val remember: Boolean = false,
     val session: Session? = null,
     val courses: List<Course> = emptyList(),
+    val olderCourses: List<Course> = emptyList(),
     val course: Course? = null,
     val rows: List<ApplicantCard> = emptyList(),
     val visible: List<ApplicantCard> = emptyList(),
@@ -109,18 +131,21 @@ data class DeskUiState(
     val lastSync: String? = null,
     val snack: FlushSnack? = null,
     val deskAction: DeskActionDest? = null,
-    val centreOps: CentreOpsPrefs = CentreOpsPrefs(rooms = CentreOpsPrefs.exampleRooms()),
+    val centreOps: CentreOpsPrefs = CentreOpsPrefs(),
     val auditRows: List<ApplicantCard> = emptyList(),
     val zeroDayDrafts: Map<ApplicantId, ZeroDayDraft> = emptyMap(),
     val callState: Map<ApplicantId, CallRecord> = emptyMap(),
     val callFilter: String = "To call",
     val roomsGender: Gender? = null,
-    val roomsEdit: Boolean = false,
     val roomsApplicantId: ApplicantId? = null,
     val deskSection: DeskSection = DeskSection.Board,
     val checkIns: Map<ApplicantId, CheckInRecord> = emptyMap(),
     val deskScan: String = "",
     val deskZeroFilter: String = "To arrive",
+    /** Zero-day desk gender filter ("Both"/"Male"/"Female"), persisted in SessionStore. */
+    val deskGender: String = "Both",
+    /** Zero-day desk old/new filter ("Both"/"New"/"Old"), persisted in SessionStore. */
+    val deskSeniority: String = "Both",
     val deskMarkId: ApplicantId? = null,
     val deskRoomOpen: Boolean = false,
     val deskFinding: String? = null,
@@ -130,6 +155,18 @@ data class DeskUiState(
      * repository's session-scoped in-memory map. Never persisted or logged.
      */
     val sensitiveById: Map<ApplicantId, SensitiveInfo> = emptyMap(),
+    /** Bulk room-allocation sync in flight (owner amendment 2026-08-16). */
+    val roomSyncBusy: Boolean = false,
+    /** Zero-day attended-table pull in flight. */
+    val roomPullBusy: Boolean = false,
+    /** Last bulk sync outcome — counts + per-row failures for the UI to bind. */
+    val roomSync: RoomSyncResult? = null,
+    /** The in-app Advanced Search corpus: every applicant cached in Room. */
+    val searchRows: List<ApplicantCard> = emptyList(),
+    /** The in-app sheet viewer overlay — null when no sheet is open. */
+    val sheetView: SheetViewUi? = null,
+    /** One-shot: a streamed PDF/Excel to hand to the system viewer (consumed like [snack]). */
+    val openDoc: SheetPayload.Document? = null,
 )
 
 /**
@@ -174,6 +211,24 @@ fun deskBoardDay(start: String?, today: java.time.LocalDate): String? {
     val date = parseCourseStart(start) ?: return null
     val day = java.time.temporal.ChronoUnit.DAYS.between(date, today)
     return if (day >= 0) "Day $day" else null
+}
+
+/** Check-in records still owing the server their room allocation. */
+fun deskRoomSyncPending(checkIns: Map<ApplicantId, CheckInRecord>): Int =
+    RoomAllocSync.pending(checkIns).size
+
+/** Snack for a user-initiated pull: count of non-blank rooms on the attended table. */
+fun roomPullSnack(n: Int): FlushSnack =
+    if (n == 0) FlushSnack("No rooms assigned on the desk yet", error = false)
+    else FlushSnack("✓ Pulled $n room assignment(s) from the desk", error = false)
+
+/** Snack for a bulk allocation sync: successes first, then the first refusal verbatim. */
+fun roomSyncSnack(result: RoomSyncResult): FlushSnack = when {
+    result.offline ->
+        FlushSnack("${result.synced} synced · connection lost — the rest will sync when online", error = true)
+    result.failures.isNotEmpty() ->
+        FlushSnack("${result.synced} synced · ${result.failed} failed — ${result.failures.first().reason}", error = true)
+    else -> FlushSnack("✓ Synced ${result.synced} room allocation(s) to the desk", error = false)
 }
 
 /** The rail footer's truth claim about sync state. */
@@ -254,6 +309,12 @@ class DeskViewModel @Inject constructor(
             }
         }
         viewModelScope.launch {
+            sessionStore.deskGender.collect { g -> _state.update { it.copy(deskGender = g) } }
+        }
+        viewModelScope.launch {
+            sessionStore.deskSeniority.collect { s -> _state.update { it.copy(deskSeniority = s) } }
+        }
+        viewModelScope.launch {
             sessionStore.callLog.collect { records ->
                 _state.update { cur ->
                     cur.copy(callState = records.entries.associate { (id, rec) -> ApplicantId(id) to rec })
@@ -274,8 +335,10 @@ class DeskViewModel @Inject constructor(
             }
         }
         viewModelScope.launch {
-            val saved = sessionStore.remembered()
-            if (saved.on) {
+            // Reading remember-me touches EncryptedSharedPreferences; guard it
+            // so a keystore that cannot be read never crashes desk startup.
+            val saved = runCatching { sessionStore.remembered() }.getOrNull()
+            if (saved?.on == true) {
                 _state.update {
                     it.copy(username = saved.username, password = saved.password, remember = true)
                 }
@@ -311,7 +374,11 @@ class DeskViewModel @Inject constructor(
             val reordered = listOf(centre) + session.centres.filter { it.id != centre.id }
             _state.update { it.copy(session = session.copy(centres = reordered), loading = true) }
             runCatching { repo.loadCourses(centre.id) }
-                .onSuccess { list -> _state.update { it.copy(courses = list, loading = false) } }
+                .onSuccess { lists ->
+                    _state.update {
+                        it.copy(courses = lists.upcoming, olderCourses = lists.older, loading = false)
+                    }
+                }
                 .onFailure { e ->
                     _state.update { it.copy(loading = false) }
                     handleAuth(e)
@@ -335,13 +402,14 @@ class DeskViewModel @Inject constructor(
                 card = null,
                 loading = false,
                 sensitiveById = emptyMap(),
+                sheetView = null,
             )
         }
     }
 
     /** V2 desk: rail navigation between sections. No page transition, no loading state. */
     fun setDeskSection(section: DeskSection) {
-        _state.update { it.copy(deskSection = section) }
+        _state.update { it.copy(deskSection = section, sheetView = null) }
     }
 
     /** V2 desk: one fetch of the course's application set on open, then local. */
@@ -355,6 +423,18 @@ class DeskViewModel @Inject constructor(
 
     fun setDeskScan(q: String) = _state.update { it.copy(deskScan = q) }
     fun setDeskZeroFilter(f: String) = _state.update { it.copy(deskZeroFilter = f) }
+
+    /** Which desk this tablet sits on — persists across restarts via SessionStore. */
+    fun setDeskGender(g: String) {
+        _state.update { it.copy(deskGender = g) }
+        viewModelScope.launch { sessionStore.setDeskGender(g) }
+    }
+
+    /** New / old student scope for this tablet — persists with [setDeskGender]. */
+    fun setDeskSeniority(s: String) {
+        _state.update { it.copy(deskSeniority = s) }
+        viewModelScope.launch { sessionStore.setDeskSeniority(s) }
+    }
 
     fun openDeskMark(card: ApplicantCard) =
         _state.update { it.copy(deskMarkId = card.id, deskRoomOpen = false) }
@@ -376,7 +456,9 @@ class DeskViewModel @Inject constructor(
 
     private fun patchDeskRecord(patch: (CheckInRecord) -> CheckInRecord) {
         val card = markCard() ?: return
-        val next = patch(deskRecord(card, _state.value.checkIns) ?: CheckInRecord())
+        val cur = deskRecord(card, _state.value.checkIns) ?: CheckInRecord()
+        // Any material edit clears the record's synced flag so it re-queues.
+        val next = patch(cur).clearSyncedIfChanged(cur)
         persistCheckIns(_state.value.checkIns + (card.id to next))
     }
 
@@ -399,7 +481,9 @@ class DeskViewModel @Inject constructor(
             _state.update { it.copy(snack = FlushSnack(text, error = true)) }
             return
         }
-        persistCheckIns(_state.value.checkIns + (card.id to record.copy(checkedIn = true)))
+        persistCheckIns(
+            _state.value.checkIns + (card.id to record.copy(checkedIn = true).clearSyncedIfChanged(record)),
+        )
         _state.update { cur ->
             val rows = cur.rows.map { if (it.id == card.id) it.copy(attended = true) else it }
             cur.copy(
@@ -416,7 +500,9 @@ class DeskViewModel @Inject constructor(
     fun undoDeskMark() {
         val card = markCard() ?: return
         val record = deskRecord(card, _state.value.checkIns) ?: CheckInRecord()
-        persistCheckIns(_state.value.checkIns + (card.id to record.copy(checkedIn = false, room = "")))
+        persistCheckIns(
+            _state.value.checkIns + (card.id to record.copy(checkedIn = false, room = "").clearSyncedIfChanged(record)),
+        )
         _state.update { cur ->
             val rows = cur.rows.map { if (it.id == card.id) it.copy(attended = false) else it }
             cur.copy(
@@ -433,6 +519,77 @@ class DeskViewModel @Inject constructor(
         _state.update { it.copy(checkIns = records) }
         viewModelScope.launch {
             sessionStore.setCheckIns(records.entries.associate { (id, rec) -> id.value to rec })
+        }
+    }
+
+    fun pullRooms() {
+        pullRooms(userInitiated = true)
+    }
+
+    /**
+     * Pull room assignments from `GET /zero-day/{cid}/{courseId}`. Default
+     * auto-pull after the worklist is silent; the Rooms / Zero Day action
+     * snacks. Unsynced local rooms are never overwritten.
+     */
+    fun pullRooms(userInitiated: Boolean) {
+        val s = _state.value
+        if (s.roomPullBusy || s.roomSyncBusy) return
+        val course = s.course ?: return
+        if (s.offline) {
+            if (userInitiated) {
+                _state.update { it.copy(snack = FlushSnack("offline — will pull when online", error = false)) }
+            }
+            return
+        }
+        viewModelScope.launch {
+            _state.update { it.copy(roomPullBusy = true) }
+            runCatching { repo.pullRoomAllocations(course.centreId.value, course.id.value) }
+                .onSuccess { pulled ->
+                    persistCheckIns(RoomAllocSync.mergePulled(_state.value.checkIns, pulled))
+                    val n = pulled.values.count { it.room.isNotBlank() }
+                    _state.update {
+                        it.copy(
+                            roomPullBusy = false,
+                            snack = if (userInitiated) roomPullSnack(n) else it.snack,
+                        )
+                    }
+                }
+                .onFailure { e ->
+                    _state.update { it.copy(roomPullBusy = false) }
+                    if (userInitiated || (e is ApiException && e.unauthorized)) handleAuth(e)
+                }
+        }
+    }
+
+    /**
+     * Bulk room-allocation sync (owner amendment 2026-08-16) — user-initiated,
+     * walks every unsynced checked-in record. Progress lands back in
+     * [DeskUiState.roomSyncBusy]/[DeskUiState.roomSync] plus the snackbar;
+     * an expired session boots to sign-in via the usual auth path.
+     */
+    fun syncRooms() {
+        val s = _state.value
+        if (s.roomSyncBusy || s.roomPullBusy) return
+        if (deskRoomSyncPending(s.checkIns) == 0) {
+            _state.update { it.copy(snack = FlushSnack("All room allocations are synced", error = false)) }
+            return
+        }
+        if (s.offline) {
+            _state.update { it.copy(snack = FlushSnack("offline — will sync when online", error = false)) }
+            return
+        }
+        viewModelScope.launch {
+            _state.update { it.copy(roomSyncBusy = true) }
+            runCatching { repo.syncRoomAllocations(_state.value.checkIns) }
+                .onSuccess { result ->
+                    _state.update {
+                        it.copy(roomSyncBusy = false, roomSync = result, snack = roomSyncSnack(result))
+                    }
+                }
+                .onFailure { e ->
+                    _state.update { it.copy(roomSyncBusy = false) }
+                    handleAuth(e)
+                }
         }
     }
 
@@ -497,6 +654,68 @@ class DeskViewModel @Inject constructor(
         _state.update { it.copy(snack = FlushSnack(text, error = false)) }
     }
 
+    /* ── V2 desk · sheets & exports ─────────────────────────────────── */
+
+    /**
+     * Test seams over the frozen repository contract: unit tests swap these
+     * for fakes; production always routes through [StaffRepository].
+     */
+    internal var sheetFetch: suspend (SheetExport, Int, Int) -> SheetPayload =
+        { export, centreId, courseId -> repo.fetchSheet(export, centreId, courseId) }
+    internal var editFetch: suspend (ApplicantId) -> SheetPayload =
+        { id -> repo.fetchAppEditPage(id) }
+
+    /**
+     * A Board export cell: open the viewer shell immediately (its progress
+     * hairline is the fetch feedback), then resolve the payload — HTML stays
+     * in the viewer, a document fires the one-shot [DeskUiState.openDoc],
+     * a refusal closes the viewer and shows the server's message verbatim.
+     */
+    fun openSheet(label: String) {
+        val export = SheetExport.fromLabel(label) ?: return
+        val course = _state.value.course ?: return
+        _state.update { it.copy(sheetView = SheetViewUi(title = export.label)) }
+        viewModelScope.launch {
+            resolveSheet(export.label) { sheetFetch(export, course.centreId.value, course.id.value) }
+        }
+    }
+
+    /** Applications "Edit": the desk's own edit page, display-only, in the same viewer. */
+    fun openAppEdit(card: ApplicantCard) {
+        val title = "Edit · ${card.displayName}"
+        _state.update { it.copy(sheetView = SheetViewUi(title = title)) }
+        viewModelScope.launch {
+            resolveSheet(title) { editFetch(card.id) }
+        }
+    }
+
+    fun closeSheet() = _state.update { it.copy(sheetView = null) }
+
+    fun consumeOpenDoc() = _state.update { it.copy(openDoc = null) }
+
+    private suspend fun resolveSheet(title: String, fetch: suspend () -> SheetPayload) {
+        val payload = runCatching { fetch() }.getOrElse { e ->
+            if (e is ApiException && e.unauthorized) {
+                _state.update { it.copy(sheetView = null) }
+                handleAuth(e)
+                return
+            }
+            SheetPayload.NotAvailable(e.message ?: "$title unavailable")
+        }
+        _state.update { cur ->
+            // The viewer was closed or replaced while fetching — drop the result.
+            if (cur.sheetView?.title != title) return@update cur
+            when (payload) {
+                is SheetPayload.Html ->
+                    cur.copy(sheetView = cur.sheetView.copy(loading = false, html = payload))
+                is SheetPayload.Document ->
+                    cur.copy(sheetView = null, openDoc = payload)
+                is SheetPayload.NotAvailable ->
+                    cur.copy(sheetView = null, snack = FlushSnack(payload.message, error = true))
+            }
+        }
+    }
+
     fun openApplications() {
         val course = _state.value.course ?: return
         _state.update { it.copy(screen = DeskScreen.Today, loading = true) }
@@ -507,6 +726,32 @@ class DeskViewModel @Inject constructor(
         val cur = _state.value.screen
         if (cur != DeskScreen.DeskAction) returnTo = cur
         _state.update { it.copy(screen = DeskScreen.DeskAction, deskAction = DeskActionDest(title, route)) }
+    }
+
+    /**
+     * The in-app Advanced Search (owner feedback 2026-08-16): opens from the
+     * Centre screen over everything already cached in Room — no fetch.
+     */
+    fun openAdvancedSearch() {
+        returnTo = DeskScreen.Centre
+        _state.update { it.copy(screen = DeskScreen.Search) }
+        viewModelScope.launch {
+            val cached = repo.cachedApplicants()
+            _state.update { it.copy(searchRows = cached) }
+        }
+    }
+
+    /** A search result opens the regular applicant card; back returns to the results. */
+    fun openSearchResult(card: ApplicantCard) {
+        // Adopt the row's course when it is one of the listed upcoming
+        // or older courses, so the card pane has its context; otherwise leave as-is.
+        val listed = _state.value.courses + _state.value.olderCourses
+        listed.firstOrNull { it.id == card.courseId }?.let { course ->
+            if (_state.value.course?.id != course.id) {
+                _state.update { it.copy(course = course) }
+            }
+        }
+        openCard(card)
     }
 
     fun openAudit() {
@@ -544,7 +789,6 @@ class DeskViewModel @Inject constructor(
             it.copy(
                 screen = DeskScreen.Rooms,
                 roomsGender = card.gender,
-                roomsEdit = false,
                 roomsApplicantId = card.id,
             )
         }
@@ -556,7 +800,6 @@ class DeskViewModel @Inject constructor(
             it.copy(
                 screen = DeskScreen.Rooms,
                 roomsGender = null,
-                roomsEdit = true,
                 roomsApplicantId = null,
             )
         }
@@ -573,40 +816,12 @@ class DeskViewModel @Inject constructor(
         back()
     }
 
-    fun toggleRoomFeature(code: String, feature: String) {
-        val prefs = _state.value.centreOps
-        val rooms = prefs.rooms.map { room ->
-            if (room.code != code) room
-            else when (feature) {
-                "geyser" -> room.copy(features = room.features.copy(geyser = !room.features.geyser))
-                "indianToilet" -> room.copy(features = room.features.copy(indianToilet = !room.features.indianToilet))
-                "westernToilet" -> room.copy(features = room.features.copy(westernToilet = !room.features.westernToilet))
-                else -> room
-            }
-        }
-        persistOps(prefs.copy(rooms = rooms))
-    }
-
+    // Rooms are read-only in the app: the list comes from the desk site's
+    // centre config (acco-handler) and is cached for offline. Only the three
+    // check-in switches remain user-editable here.
     fun toggleLaundry() = persistOps(_state.value.centreOps.let { it.copy(laundry = !it.laundry) })
     fun toggleValuables() = persistOps(_state.value.centreOps.let { it.copy(valuables = !it.valuables) })
     fun toggleGroups() = persistOps(_state.value.centreOps.let { it.copy(groups = !it.groups) })
-
-    fun addAccoRooms(gender: Gender, section: String, rawCodes: String) {
-        val codes = CentreOpsPrefs.parseRoomCodes(rawCodes)
-        if (codes.isEmpty()) return
-        val prefs = _state.value.centreOps
-        val existing = prefs.rooms.map { it.code.lowercase() }.toSet()
-        val add = codes.filter { it.lowercase() !in existing }.map { code ->
-            AccoRoom(code, gender, section.trim())
-        }
-        if (add.isEmpty()) return
-        persistOps(prefs.copy(rooms = prefs.rooms + add))
-    }
-
-    fun deleteAccoSection(gender: Gender, section: String) {
-        val prefs = _state.value.centreOps
-        persistOps(prefs.copy(rooms = prefs.rooms.filterNot { it.gender == gender && it.section == section }))
-    }
 
     fun setZeroDaySeating(card: ApplicantCard, seating: String) {
         patchDraft(card.id) { it.copy(seating = seating) }
@@ -708,6 +923,9 @@ class DeskViewModel @Inject constructor(
     }
 
     fun openCard(card: ApplicantCard) {
+        // Back from the card returns to the Advanced Search results only when
+        // the card was opened from there; any other origin backs to Today.
+        returnTo = DeskScreen.Search.takeIf { _state.value.screen == DeskScreen.Search }
         _state.update { it.copy(card = card, screen = DeskScreen.Card) }
         viewModelScope.launch {
             val fresh = runCatching { repo.loadCard(card.id) }.getOrElse { e ->
@@ -747,6 +965,12 @@ class DeskViewModel @Inject constructor(
     }
 
     fun back() {
+        // An open sheet viewer swallows back: close the overlay, leave the
+        // DeskScreen (and the desk section underneath) untouched.
+        if (_state.value.sheetView != null) {
+            closeSheet()
+            return
+        }
         val next = deskBack(_state.value.screen, returnTo)
         // Rooms round-trips clobber returnTo; restore the settings origin so a
         // second back from CentreOps still lands where the user came from.
@@ -908,7 +1132,15 @@ class DeskViewModel @Inject constructor(
         val centre = session.centres.firstOrNull()
         if (centre != null) {
             runCatching { repo.loadCourses(centre.id) }
-                .onSuccess { list -> _state.update { it.copy(courses = list, screen = deskAfterLogin()) } }
+                .onSuccess { lists ->
+                    _state.update {
+                        it.copy(
+                            courses = lists.upcoming,
+                            olderCourses = lists.older,
+                            screen = deskAfterLogin(),
+                        )
+                    }
+                }
                 .onFailure { e ->
                     _state.update { it.copy(loginError = e.message, screen = DeskScreen.Login) }
                     handleAuth(e)
@@ -960,6 +1192,7 @@ class DeskViewModel @Inject constructor(
             runCatching { repo.loadStatuses() }.onSuccess { list ->
                 _state.update { it.copy(statusChoices = ApplicantStatus.mergeChoices(list)) }
             }
+            pullRooms(userInitiated = false)
         }
     }
 
@@ -1005,8 +1238,10 @@ class DeskViewModel @Inject constructor(
             viewModelScope.launch {
                 keepAliveJob?.cancel()
                 returnTo = null
-                runCatching { repo.logout() }
-                photoStore.clear()
+                // Session timeout, not a logout: drop only the dead cookies so
+                // queued outbox rows, check-ins, and room-sync progress survive
+                // the re-login (owner amendment: partial sync progress persists).
+                runCatching { repo.sessionExpired() }
                 val saved = sessionStore.remembered()
                 _state.value = DeskUiState(
                     dark = _state.value.dark,
@@ -1024,5 +1259,11 @@ class DeskViewModel @Inject constructor(
         } else if (e is ApiException && !e.unauthorized) {
             _state.update { it.copy(snack = FlushSnack(e.message ?: "", error = true)) }
         }
+    }
+
+    /** Test-only: preload a signed-in desk state without touching the network. */
+    @androidx.annotation.VisibleForTesting
+    internal fun seedForTest(state: DeskUiState) {
+        _state.value = state
     }
 }

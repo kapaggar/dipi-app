@@ -197,6 +197,13 @@ object SearchPageParser {
 
     /* ── Sensitive extraction (display only, never persisted) ─────────── */
 
+    /**
+     * The desk row's PDF-link remnant on the display name — "( PDF )",
+     * "(PDF)", any spacing, any case. Stripped at parse time so every
+     * screen is clean at once (owner feedback 2026-08-16).
+     */
+    private val PDF_SUFFIX = Regex("""\s*\(\s*PDF\s*\)""", RegexOption.IGNORE_CASE)
+
     /** dipi edit-form PAN shape: 5 letters + 4 digits + 1 letter (loader.js `looksLikePan`). */
     private val PAN_SHAPE = Regex("""^[A-Za-z]{5}\d{4}[A-Za-z]$""")
 
@@ -246,7 +253,7 @@ object SearchPageParser {
     fun mapRow(o: JsonObject, photoHost: String): ApplicantDto? {
         val id = o.int("aid") ?: return null
         val display = stripTags(o.str("name").orEmpty())
-            .replace("(PDF)", "", ignoreCase = true)
+            .replace(PDF_SUFFIX, "")
             .replace(Regex("""\s*\((Sevak|AT)[^)]*\)"""), "")
             .trim()
         val parts = display.split(Regex("\\s+")).filter { it.isNotBlank() }

@@ -6,7 +6,7 @@ Guidance for Claude Code, Cursor, Codex, Fable, Grok.
 
 Centre-staff Android client for the DIPI registrar desk. Package: `org.dhamma.dipi.staff`.
 
-**Shipped:** Vertical 2 desk on `feat/vertical-1`, **1.9.0** (`versionCode` 18). Live default is `https://dipi.vridhamma.org`. Backend PHP is **immutable** — do not add `/staff/*` or change `dipi-web`.
+**Shipped:** Vertical 2 desk on `feat/vertical-1`, **1.15.0** (`versionCode` 25). Live default is `https://dipi.vridhamma.org`. Backend PHP is **immutable** — do not add `/staff/*` or change `dipi-web`.
 
 **Read first:** this file, then `docs/LIVE-DESK-HAR.md`.  
 `docs/DIPI-STAFF-IMPLEMENTATION-PROMPT-GROK-4.6.md` still wins on product rules (no client ACL, no `Approved`, no attendance write) but is **wrong** on transport: there is no `/staff` JSON layer on the live host.
@@ -26,6 +26,8 @@ Server reference (read-only): `/Users/wizops/DIPI/dipi-web` module `dh_manageapp
 9. **Remember me** stores username/password in EncryptedSharedPreferences. Logout keeps them. **Erase all local data** (Settings) wipes cookies, remember-me, Room, outbox, photo edits.
 10. **Photo upload is not on the live desk.** Mock only.
 11. **Launcher:** lotus adaptive icon (sage badge + safe-zone flower). Pixel C caches icons — re-add the shortcut after an icon change.
+12. **Allocation sync amendment (owner decision 2026-08-16):** the app MAY replicate the desk's own per-applicant allocation update — `POST /app-update-attended/{id}` with the dialog's fields (`s,r,g,l,v,c,cf,chow,chai,back,comment,a`, no CSRF form token) — as a bulk, user-initiated room sync; this narrows hard rule 5, and the client still never sends a status, never `Approved`, never NPI.
+13. **Board sheet exports (12) are served by the live desk:** streamed PDF `GET /course-pdf-m|f/{cid}/{courseId}`; streamed Excel `GET /laundry-list|valuable-list/{cid}/{courseId}`; print HTML `GET /day0-list|teacher-list|manager-list|student-chit|checking-slip|seating/{cid}/{courseId}`; Day 0 summary = the `#day-summary` block of `GET /zero-day/{cid}/{courseId}`; course report = its own Drupal form POST (CSV). Sheets are display-only — in-memory / `cacheDir/sheets` only, wiped on logout/session-expiry/erase-all. **NEVER send an `r` query param on sheet GETs** — its mere presence triggers server-side bulk seat auto-allocation. App edit page `GET /app/{id}/edit` is rendered display-only.
 
 ## Hard rules
 

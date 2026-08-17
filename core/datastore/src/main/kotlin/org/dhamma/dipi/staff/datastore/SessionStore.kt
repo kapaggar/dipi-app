@@ -26,13 +26,17 @@ import javax.inject.Singleton
 class SessionStore @Inject constructor(
     @ApplicationContext context: Context,
 ) : TokenStore {
-    private val secure: SharedPreferences = EncryptedSharedPreferences.create(
-        "dipi_staff_secure",
-        MasterKeys.getOrCreate(MasterKeys.AES256_GCM_SPEC),
-        context,
-        EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-        EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM,
-    )
+    // Lazy: the keystore master key only exists on a device; unit tests exercise
+    // the DataStore prefs without touching EncryptedSharedPreferences.
+    private val secure: SharedPreferences by lazy {
+        EncryptedSharedPreferences.create(
+            "dipi_staff_secure",
+            MasterKeys.getOrCreate(MasterKeys.AES256_GCM_SPEC),
+            context,
+            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM,
+        )
+    }
 
     private val ds = PreferenceDataStoreFactory.create {
         context.preferencesDataStoreFile("dipi_staff_prefs")
@@ -128,13 +132,25 @@ class SessionStore @Inject constructor(
     suspend fun centreOpsOnce(): CentreOpsPrefs = decodeCentreOps(ds.data.first()[CENTRE_OPS])
 
     private fun decodeCentreOps(raw: String?): CentreOpsPrefs {
-        if (raw.isNullOrBlank()) {
-            return CentreOpsPrefs(rooms = CentreOpsPrefs.exampleRooms())
-        }
+        if (raw.isNullOrBlank()) return CentreOpsPrefs()
         return runCatching { opsJson.decodeFromString(CentreOpsPrefs.serializer(), raw) }
-            .getOrDefault(CentreOpsPrefs(rooms = CentreOpsPrefs.exampleRooms()))
+            .getOrDefault(CentreOpsPrefs())
     }
 
+
+    /** Zero-day desk gender filter ("Both"/"Male"/"Female") — which desk this tablet sits on. */
+    suspend fun setDeskGender(value: String) {
+        ds.edit { it[DESK_GENDER] = value }
+    }
+
+    val deskGender: Flow<String> = ds.data.map { it[DESK_GENDER] ?: "Both" }
+
+    /** Zero-day desk old/new filter ("Both"/"New"/"Old") — which seniority this tablet sits on. */
+    suspend fun setDeskSeniority(value: String) {
+        ds.edit { it[DESK_SENIORITY] = value }
+    }
+
+    val deskSeniority: Flow<String> = ds.data.map { it[DESK_SENIORITY] ?: "Both" }
 
     /** Day 0 check-in records, keyed by applicant id. Local truth until a server endpoint exists. */
     val checkIns: Flow<Map<Int, CheckInRecord>> = ds.data.map { decodeCheckIns(it[CHECK_INS]) }
@@ -142,6 +158,9 @@ class SessionStore @Inject constructor(
     suspend fun setCheckIns(records: Map<Int, CheckInRecord>) {
         ds.edit { it[CHECK_INS] = opsJson.encodeToString(records) }
     }
+
+    /** One-shot read for the room-allocation sync's read-modify-write marks. */
+    suspend fun checkInsOnce(): Map<Int, CheckInRecord> = decodeCheckIns(ds.data.first()[CHECK_INS])
 
     private fun decodeCheckIns(raw: String?): Map<Int, CheckInRecord> {
         if (raw.isNullOrBlank()) return emptyMap()
@@ -184,6 +203,8 @@ class SessionStore @Inject constructor(
         private val ACCOUNT = stringPreferencesKey("account")
         private val CENTRE_OPS = stringPreferencesKey("centre_ops")
         private val CHECK_INS = stringPreferencesKey("check_ins")
+        private val DESK_GENDER = stringPreferencesKey("desk_gender")
+        private val DESK_SENIORITY = stringPreferencesKey("desk_seniority")
         private val CALL_LOG = stringPreferencesKey("call_log")
         private val opsJson = Json { ignoreUnknownKeys = true; encodeDefaults = true }
     }

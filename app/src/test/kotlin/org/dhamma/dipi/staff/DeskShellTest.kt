@@ -6,6 +6,7 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import org.dhamma.dipi.staff.desk.DeskCourse
 import org.dhamma.dipi.staff.desk.DeskRail
 import org.dhamma.dipi.staff.desk.DeskSection
 import org.dhamma.dipi.staff.desk.DeskShell
@@ -24,9 +25,6 @@ class DeskShellTest {
     val rule = createComposeRule()
 
     private val rail = DeskRail(
-        courseName = "Dhamma Sudha",
-        courseDates = "10 Day · 2–13 Sep 2026",
-        dayChip = "DAY 0 · TODAY",
         userName = "registrar.sudha",
         syncLine = "synced 2 min ago",
         counts = mapOf(
@@ -38,21 +36,34 @@ class DeskShellTest {
         ),
     )
 
+    private val course = DeskCourse(
+        label = "Dhamma Sudha",
+        dates = "10 Day · 2–13 Sep 2026",
+        dayChip = "DAY 0 · TODAY",
+    )
+
     @Test
-    fun railShowsAllSixSectionsCourseCardAndFooter() {
+    fun railShowsAllSixSectionsAndFooterWithoutWordmarkOrCourseCard() {
         rule.setContent {
             DipiTheme {
-                DeskShell(section = DeskSection.Board, rail = rail, clock = "Wed 2 Sep · 09:41", onSection = {})
+                DeskShell(
+                    section = DeskSection.Board,
+                    rail = rail,
+                    course = course,
+                    clock = "Wed 2 Sep · 09:41",
+                    onSection = {},
+                )
             }
         }
         DeskSection.entries.forEach { s ->
             rule.onNodeWithText(s.label).assertIsDisplayed()
         }
-        // The lotus launcher icon sits inside the blueprint frame next to the wordmark.
+        // The lotus launcher icon sits in the rail header — with no wordmark.
         rule.onNodeWithContentDescription("DIPI").assertIsDisplayed()
-        rule.onNodeWithText("DIPI Staff").assertIsDisplayed()
-        rule.onNodeWithText("Dhamma Sudha").assertIsDisplayed()
-        rule.onNodeWithText("DAY 0 · TODAY").assertIsDisplayed()
+        rule.onNodeWithText("DIPI Staff").assertDoesNotExist()
+        // The COURSE card is gone from the rail; its identity moved to the top bar.
+        rule.onNodeWithText("COURSE").assertDoesNotExist()
+        rule.onNodeWithText("Dhamma Sudha · 10 Day · 2–13 Sep 2026 · DAY 0 · TODAY").assertIsDisplayed()
         rule.onNodeWithText("registrar.sudha").assertIsDisplayed()
         rule.onNodeWithText("synced 2 min ago").assertIsDisplayed()
         rule.onNodeWithText("214").assertIsDisplayed()
@@ -64,7 +75,7 @@ class DeskShellTest {
         var picked: DeskSection? = null
         rule.setContent {
             DipiTheme {
-                DeskShell(section = DeskSection.Board, rail = rail, clock = "", onSection = { picked = it })
+                DeskShell(section = DeskSection.Board, rail = rail, course = course, clock = "", onSection = { picked = it })
             }
         }
         rule.onNodeWithText("Check-in").performClick()
@@ -72,13 +83,14 @@ class DeskShellTest {
     }
 
     @Test
-    fun topBarCrumbFollowsTheActiveSection() {
+    fun topBarShowsTheCourseLineNotTheSectionCrumb() {
         rule.setContent {
             DipiTheme {
-                DeskShell(section = DeskSection.CheckIn, rail = rail, clock = "", onSection = {})
+                DeskShell(section = DeskSection.CheckIn, rail = rail, course = course, clock = "", onSection = {})
             }
         }
-        rule.onNodeWithText("ZERO DAY · CHECK-IN").assertIsDisplayed()
+        rule.onNodeWithText("Dhamma Sudha · 10 Day · 2–13 Sep 2026 · DAY 0 · TODAY").assertIsDisplayed()
+        rule.onNodeWithText("ZERO DAY · CHECK-IN").assertDoesNotExist()
         // Not loading — no progress hairline under the top bar.
         rule.onNodeWithTag("desk-loading").assertDoesNotExist()
     }
@@ -87,7 +99,7 @@ class DeskShellTest {
     fun loadingDrawsTheProgressHairlineUnderTheTopBar() {
         rule.setContent {
             DipiTheme {
-                DeskShell(section = DeskSection.Board, rail = rail, clock = "", onSection = {}, loading = true)
+                DeskShell(section = DeskSection.Board, rail = rail, course = course, clock = "", onSection = {}, loading = true)
             }
         }
         rule.onNodeWithTag("desk-loading").assertExists()
@@ -97,7 +109,7 @@ class DeskShellTest {
     fun lotusPrefGatesTheWatermark() {
         rule.setContent {
             DipiTheme {
-                DeskShell(section = DeskSection.Board, rail = rail, clock = "", onSection = {}, lotus = true)
+                DeskShell(section = DeskSection.Board, rail = rail, course = course, clock = "", onSection = {}, lotus = true)
             }
         }
         rule.onNodeWithTag("desk-watermark").assertExists()
@@ -107,7 +119,7 @@ class DeskShellTest {
     fun lotusOffRemovesTheWatermark() {
         rule.setContent {
             DipiTheme {
-                DeskShell(section = DeskSection.Board, rail = rail, clock = "", onSection = {}, lotus = false)
+                DeskShell(section = DeskSection.Board, rail = rail, course = course, clock = "", onSection = {}, lotus = false)
             }
         }
         rule.onNodeWithTag("desk-watermark").assertDoesNotExist()

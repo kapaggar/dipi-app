@@ -31,6 +31,25 @@ object CentrePageParser {
         setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL),
     )
 
+    /**
+     * Courses in the dashboard's Select Course dropdown that started before
+     * the upcoming block (`dh_zero_select_course`: `c_start >= now - 6 months`,
+     * ordered by start). Upcoming IDs (the next 4 with `c_start >= today`)
+     * are excluded. Newest-first so a course that rolled off at midnight
+     * sits at the top.
+     */
+    fun olderCourseOptions(html: String, upcomingIds: Set<Int>): List<SelectOption> {
+        val all = SearchPageParser.selectOptions(html, "edit-course")
+        if (all.isEmpty()) return emptyList()
+        val older = if (upcomingIds.isEmpty()) {
+            all
+        } else {
+            val firstUpcoming = all.indexOfFirst { it.id in upcomingIds }
+            if (firstUpcoming < 0) all.filter { it.id !in upcomingIds } else all.take(firstUpcoming)
+        }
+        return older.asReversed()
+    }
+
     /** Status-table counts keyed by course id; courses without a table are absent. */
     fun courseSummaries(html: String): Map<Int, CourseSummary> {
         val headings = headingRe.findAll(html).toList()
