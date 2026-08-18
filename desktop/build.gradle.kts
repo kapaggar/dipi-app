@@ -38,7 +38,7 @@ compose.desktop {
         nativeDistributions {
             targetFormats(TargetFormat.Deb, TargetFormat.AppImage)
             packageName = "dipi-staff"
-            packageVersion = "2.0.0"
+            packageVersion = "2.0.1"
             description = "DIPI registrar desk for Linux and Steam Deck OLED"
             vendor = "DIPI Staff"
             copyright = "Dhamma"
@@ -47,7 +47,7 @@ compose.desktop {
                 appCategory = "Office"
                 menuGroup = "Office"
                 debMaintainer = "dipi-staff"
-                debPackageVersion = "2.0.0"
+                debPackageVersion = "2.0.1"
                 iconFile.set(project.file("packaging/icons/dipi-staff.png"))
             }
         }

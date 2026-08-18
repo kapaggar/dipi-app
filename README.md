@@ -68,7 +68,7 @@ Not student-apply, not a WebView, not AT/SMS/WhatsApp/IVR, not `/api` APP API, n
 
 ```
 :app                 Hilt app, repository, ViewModel, chrome
-:desktop             Compose Desktop client for Linux / Steam Deck OLED (2.0.0)
+:desktop             Compose Desktop client for Linux / Steam Deck OLED (2.0.1)
 :core:model          ids, status, worklist filter, UserCentreMap (mock names)
 :core:protocol       JVM desk HTML parsers, Retrofit API, mock dispatcher
 :core:network        Android OkHttp/Hilt wiring + photo loader over :core:protocol

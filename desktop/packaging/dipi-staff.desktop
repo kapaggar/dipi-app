@@ -1,3 +1,6 @@
+# Steam Deck / Linux launcher template.
+# After install this is copied to ~/Desktop/dipi-staff.desktop on the Deck.
+# This is not a macOS file — it will not appear on a Mac desktop.
 [Desktop Entry]
 Version=1.0
 Type=Application

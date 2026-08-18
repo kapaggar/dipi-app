@@ -17,7 +17,7 @@ data class DesktopConfig(
     val sheetsDir: File get() = File(dataDir, "cache/sheets")
 
     companion object {
-        const val VERSION_NAME = "2.0.0"
+        const val VERSION_NAME = "2.0.1"
         const val DEFAULT_BASE_URL = "https://dipi.vridhamma.org"
         const val USER_AGENT = "DIPI-Staff/2.0 (Linux; Steam Deck OLED; registrar desk)"
 

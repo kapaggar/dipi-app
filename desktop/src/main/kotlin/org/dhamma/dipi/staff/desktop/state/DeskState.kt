@@ -77,7 +77,7 @@ data class DeskUiState(
     val roomSync: RoomSyncResult? = null,
     val sheetView: SheetViewUi? = null,
     val openDoc: SheetPayload.Document? = null,
-    val versionName: String = "2.0.0",
+    val versionName: String = "2.0.1",
     val hostLabel: String = "dipi.vridhamma.org",
     val confirmExit: Boolean = false,
 )

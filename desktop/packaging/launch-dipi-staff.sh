@@ -2,11 +2,18 @@
 # Double-click launcher for DIPI Staff (repo tree or ~/.local install).
 set -euo pipefail
 
-export JAVA_HOME="${JAVA_HOME:-/usr/lib/jvm/java-21-openjdk-amd64}"
-if [[ ! -x "$JAVA_HOME/bin/java" ]]; then
-  JAVA_HOME="$(dirname "$(dirname "$(readlink -f "$(command -v java)")")")"
+# Packaged Compose binaries ship their own JRE. JDK is only for the Gradle fallback.
+if [[ -z "${JAVA_HOME:-}" || ! -x "${JAVA_HOME}/bin/java" ]]; then
+  if [[ -x /usr/lib/jvm/java-21-openjdk-amd64/bin/java ]]; then
+    JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
+  elif command -v java >/dev/null 2>&1; then
+    JAVA_HOME="$(dirname "$(dirname "$(readlink -f "$(command -v java)")")")"
+  fi
 fi
-export PATH="$JAVA_HOME/bin:${PATH:-/usr/bin}"
+if [[ -n "${JAVA_HOME:-}" && -x "$JAVA_HOME/bin/java" ]]; then
+  export JAVA_HOME
+  export PATH="$JAVA_HOME/bin:${PATH:-/usr/bin}"
+fi
 
 HERE="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"
 ROOT="$(cd "$HERE/../.." && pwd)"
