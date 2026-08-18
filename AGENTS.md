@@ -77,6 +77,6 @@ Prefer the Wi-Fi serial (`10.0.0.144:5555`) for install/launch so the cable can 
 ./gradlew -Pdipi.desktopOnly=true :desktop:test :desktop:run
 ```
 
-Linux port: [`docs/STEAM-DECK.md`](docs/STEAM-DECK.md). Same live Drupal protocol. Never send `Approved`. Never persist NPI.
+Linux port: [`docs/STEAM-DECK.md`](docs/STEAM-DECK.md). Same live Drupal protocol. Never send `Approved`. Never persist NPI. The Deck launcher is `/home/deck/Desktop/dipi-staff.desktop` after `./desktop/packaging/install-on-steam-deck.sh` in Desktop Mode — it is not created on macOS.
 
 Kotlin JVM target 17. The Mac that last built this tree used JDK 20 (no JDK 17 toolchain installed). `sdk.dir` in `local.properties`.
