@@ -39,10 +39,12 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.dhamma.dipi.staff.model.ApplicantCard
+import org.dhamma.dipi.staff.model.ApplicantDeskHistory
 import org.dhamma.dipi.staff.model.ApplicantId
 import org.dhamma.dipi.staff.model.AuditFlag
 import org.dhamma.dipi.staff.model.AuditSeverity
 import org.dhamma.dipi.staff.model.SensitiveInfo
+import org.dhamma.dipi.staff.ui.ApplicantHistorySections
 import org.dhamma.dipi.staff.ui.theme.DeskStyle
 import org.dhamma.dipi.staff.ui.theme.DipiCondensed
 import org.dhamma.dipi.staff.ui.theme.DipiMono
@@ -76,6 +78,9 @@ fun ApplicationsPane(
     seniority: String = "Both",
     onGender: (String) -> Unit = {},
     onSeniority: (String) -> Unit = {},
+    history: ApplicantDeskHistory = ApplicantDeskHistory(),
+    onExpandHistory: (String) -> Unit = {},
+    onOpenClarification: (Int) -> Unit = {},
 ) {
     val scoped = deskScoped(rows, deskGenderScope(gender), deskSeniorityScope(seniority))
     val selected = scoped.firstOrNull { it.id == selectedId } ?: scoped.firstOrNull()
@@ -123,6 +128,9 @@ fun ApplicationsPane(
                 onDial = { selected.mobile?.let(onDial) },
                 onEdit = { onEdit(selected) },
                 loadPhoto = loadPhoto,
+                history = history,
+                onExpandHistory = onExpandHistory,
+                onOpenClarification = onOpenClarification,
                 modifier = Modifier.weight(1f),
             )
         } else {
@@ -294,6 +302,9 @@ private fun AppDetail(
     onDial: () -> Unit,
     onEdit: () -> Unit,
     loadPhoto: suspend (ApplicantId) -> ImageBitmap?,
+    history: ApplicantDeskHistory = ApplicantDeskHistory(),
+    onExpandHistory: (String) -> Unit = {},
+    onOpenClarification: (Int) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -393,6 +404,8 @@ private fun AppDetail(
             DeskOutlineButton("Call", onDial)
             DeskOutlineButton("Edit", onEdit)
         }
+
+        ApplicantHistorySections(history, onExpandHistory, onOpenClarification)
     }
 }
 

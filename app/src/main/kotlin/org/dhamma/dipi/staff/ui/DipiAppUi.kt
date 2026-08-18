@@ -45,12 +45,18 @@ import org.dhamma.dipi.staff.applicants.TodayScreen
 import org.dhamma.dipi.staff.applicants.ZeroDayScreen
 import org.dhamma.dipi.staff.auth.LoginScreen
 import org.dhamma.dipi.staff.course.AdvancedSearchScreen
+import org.dhamma.dipi.staff.course.CentreEditScreen
 import org.dhamma.dipi.staff.course.CentreOpsScreen
 import org.dhamma.dipi.staff.course.CentreScreen
 import org.dhamma.dipi.staff.course.CourseHubLive
 import org.dhamma.dipi.staff.course.CourseHubScreen
+import org.dhamma.dipi.staff.course.DailyActivityScreen
 import org.dhamma.dipi.staff.course.DeskActionScreen
+import org.dhamma.dipi.staff.course.LettersScreen
+import org.dhamma.dipi.staff.course.ManageCoursesScreen
 import org.dhamma.dipi.staff.course.RoomsScreen
+import org.dhamma.dipi.staff.course.SmsReportScreen
+import org.dhamma.dipi.staff.model.ApplicantDeskHistory
 import org.dhamma.dipi.staff.desk.ApplicationsPane
 import org.dhamma.dipi.staff.desk.AuditPane
 import org.dhamma.dipi.staff.desk.BoardPane
@@ -178,20 +184,66 @@ fun DipiAppUi(vm: DeskViewModel) {
                                     vm::openLater,
                                     onCentreOps = vm::openCentreOps,
                                     onAdvancedSearch = vm::openAdvancedSearch,
+                                    onDailyActivity = vm::openDailyActivity,
+                                    onSmsReport = vm::openSmsReport,
+                                    onManageCourses = vm::openManageCourses,
+                                    onCentreEdit = vm::openCentreEdit,
+                                    onLetters = vm::openLetters,
+                                    onCourseReport = vm::openCourseReport,
                                     lotus = state.lotus,
                                     olderCourses = state.olderCourses,
                                 )
                             }
                         }
                         DeskScreen.Search -> {
-                            val cid = state.session?.centres?.firstOrNull()?.id?.value ?: 0
                             AdvancedSearchScreen(
                                 rows = state.searchRows,
                                 onOpen = vm::openSearchResult,
-                                onOpenDesk = { vm.openLater("Advanced Search", "search-app/$cid") },
+                                onSearchDesk = vm::searchDesk,
+                                deskRows = state.deskRead.deskHits,
+                                deskBusy = state.deskRead.deskBusy,
+                                deskError = state.deskRead.deskError,
+                                deskStatuses = state.deskRead.searchStatuses,
                                 onBack = vm::back,
                             )
                         }
+                        DeskScreen.DailyActivity -> DailyActivityScreen(
+                            page = state.deskRead.daily,
+                            event = state.deskRead.dailyEvent,
+                            loading = state.deskRead.loading,
+                            error = state.deskRead.error,
+                            onEvent = vm::setDailyEvent,
+                            onApply = vm::applyDailyActivity,
+                            onBack = vm::back,
+                        )
+                        DeskScreen.SmsReport -> SmsReportScreen(
+                            rows = state.deskRead.sms,
+                            openId = state.deskRead.smsOpen,
+                            letters = state.deskRead.smsLetters,
+                            lettersLoading = state.deskRead.smsLettersLoading,
+                            loading = state.deskRead.loading,
+                            error = state.deskRead.error,
+                            onExpand = vm::expandSms,
+                            onBack = vm::back,
+                        )
+                        DeskScreen.ManageCourses -> ManageCoursesScreen(
+                            rows = state.deskRead.courses,
+                            loading = state.deskRead.loading,
+                            error = state.deskRead.error,
+                            onBack = vm::back,
+                        )
+                        DeskScreen.CentreEdit -> CentreEditScreen(
+                            settings = state.deskRead.centreForm,
+                            loading = state.deskRead.loading,
+                            error = state.deskRead.error,
+                            onBack = vm::back,
+                        )
+                        DeskScreen.Letters -> LettersScreen(
+                            rows = state.deskRead.letters,
+                            loading = state.deskRead.loading,
+                            error = state.deskRead.error,
+                            onBack = vm::back,
+                        )
                         DeskScreen.CourseHub -> {
                             val session = state.session
                             val course = state.course
@@ -214,6 +266,7 @@ fun DipiAppUi(vm: DeskViewModel) {
                                     onCalling = vm::openCalling,
                                     onZeroDay = vm::openZeroDay,
                                     onCentreOps = vm::openCentreOps,
+                                    onSheet = vm::openSheet,
                                     onLater = vm::openLater,
                                 )
                             }
@@ -430,6 +483,13 @@ private fun DeskHost(
                     seniority = state.deskSeniority,
                     onGender = vm::setDeskGender,
                     onSeniority = vm::setDeskSeniority,
+                    history = state.deskAppId?.let { state.deskRead.history[it] } ?: ApplicantDeskHistory(),
+                    onExpandHistory = { key ->
+                        state.deskAppId?.let { vm.expandHistory(it, key) }
+                    },
+                    onOpenClarification = { clarId ->
+                        state.deskAppId?.let { vm.openClarification(it, clarId) }
+                    },
                 )
             }
         }
@@ -671,6 +731,9 @@ private fun CardPane(vm: DeskViewModel, state: DeskUiState) {
         dark = state.dark,
         onChangeStatus = vm::openSheet,
         onPhoto = vm::openPhotos,
+        history = state.deskRead.history[card.id] ?: ApplicantDeskHistory(),
+        onExpandHistory = { key -> vm.expandHistory(card.id, key) },
+        onOpenClarification = { clarId -> vm.openClarification(card.id, clarId) },
     )
     if (state.sheetOpen) {
         StatusSheet(

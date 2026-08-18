@@ -64,12 +64,49 @@ class DipiMockDispatcher : Dispatcher() {
             path.matches(Regex("/centre/\\d+/acco-handler.*")) -> ok(MockFixtures.accoHandlerJson)
             method == "POST" && path.startsWith("/app-update-attended/") -> updateAttended(request, path)
             path.startsWith("/change-status/") -> changeStatus(path)
-            path.matches(Regex("/(day0-list|teacher-list|manager-list|student-chit|checking-slip|seating|zero-day|course-pdf-[mf]|laundry-list|valuable-list)/\\d+/\\d+(\\?.*)?")) ->
+            path.matches(Regex("/(day0-list|teacher-list|manager-list|student-chit|checking-slip|seating|zero-day|course-pdf-[mf]|laundry-list|valuable-list|report-day11)/\\d+/\\d+(\\?.*)?")) ->
                 sheet(path)
             path.matches(Regex("/centre/\\d+/course-report(\\?.*)?")) -> courseReport(request, path)
             method == "GET" && path.matches(Regex("/app/\\d+/edit(\\?.*)?")) -> {
                 val id = path.split("/")[2].toInt()
                 html(MockFixtures.appEditHtml(id))
+            }
+            path.matches(Regex("/daily-activity/\\d+(\\?.*)?")) -> dailyActivity(request, path)
+            method == "GET" && path.matches(Regex("/centre/\\d+/sms-report(\\?.*)?")) -> {
+                val cid = path.split("/")[2].toInt()
+                if (cid == MockFixtures.FORBIDDEN_CENTRE) forbidden() else html(MockFixtures.smsReportHtml(cid))
+            }
+            method == "GET" && path.matches(Regex("/sms-count/\\d+(\\?.*)?")) -> {
+                val courseId = path.split("/")[2].toInt()
+                html(MockFixtures.smsCountHtml(courseId))
+            }
+            method == "GET" && path.matches(Regex("/manage-course/\\d+(\\?.*)?")) -> {
+                val cid = path.split("/")[2].toInt()
+                if (cid == MockFixtures.FORBIDDEN_CENTRE) forbidden() else html(MockFixtures.manageCoursePageHtml(cid))
+            }
+            method == "GET" && path.matches(Regex("/course/handler/\\d+(\\?.*)?")) -> {
+                val cid = path.split("/")[3].toInt()
+                if (cid == MockFixtures.FORBIDDEN_CENTRE) forbidden() else ok(MockFixtures.courseHandlerJson)
+            }
+            method == "GET" && path.matches(Regex("/centre/\\d+/edit(\\?.*)?")) -> {
+                val cid = path.split("/")[2].toInt()
+                if (cid == MockFixtures.FORBIDDEN_CENTRE) forbidden() else html(MockFixtures.centreEditHtml(cid))
+            }
+            method == "GET" && path.matches(Regex("/app-courses/\\d+(\\?.*)?")) ->
+                html(MockFixtures.appCoursesHtml(path.split("/")[2].toInt()))
+            method == "GET" && path.matches(Regex("/app-activity/\\d+(\\?.*)?")) ->
+                html(MockFixtures.appActivityHtml(path.split("/")[2].toInt()))
+            method == "GET" && path.matches(Regex("/app-clarifications/\\d+(\\?.*)?")) ->
+                html(MockFixtures.appClarificationsHtml(path.split("/")[2].toInt()))
+            method == "GET" && path.matches(Regex("/show-clarification/\\d+/\\d+(\\?.*)?")) -> {
+                val parts = path.substringBefore("?").trim('/').split("/")
+                if (parts[1].toInt() == MockFixtures.FORBIDDEN_CENTRE) forbidden()
+                else binary(MockFixtures.pdfBytes, "application/pdf")
+            }
+            path.matches(Regex("/search-app/\\d+(\\?.*)?")) -> searchApp(request, path)
+            method == "GET" && path.matches(Regex("/letters/\\d+(\\?.*)?")) -> {
+                val cid = path.split("/")[2].toInt()
+                if (cid == MockFixtures.FORBIDDEN_CENTRE) forbidden() else html(MockFixtures.lettersHtml(cid))
             }
             else -> MockResponse().setResponseCode(404).setBody("""{"msg":"not mocked $path"}""")
         }
@@ -94,7 +131,8 @@ class DipiMockDispatcher : Dispatcher() {
         val courseId = parts[2].toInt()
         if (cid == MockFixtures.FORBIDDEN_CENTRE) return forbidden()
         return when (slug) {
-            "course-pdf-m", "course-pdf-f" -> binary(MockFixtures.pdfBytes, "application/pdf")
+            "course-pdf-m", "course-pdf-f", "report-day11" ->
+                binary(MockFixtures.pdfBytes, "application/pdf")
             "laundry-list", "valuable-list" ->
                 binary(MockFixtures.xlsBytes, "application/vnd.ms-excel; charset=utf-8")
             "zero-day" -> html(MockFixtures.zeroDayHtml(cid, courseId))
@@ -122,6 +160,54 @@ class DipiMockDispatcher : Dispatcher() {
             .addHeader("Content-Type", "text/csv")
             .addHeader("Content-Disposition", "attachment; filename=\"course report.csv\"")
             .setBody(MockFixtures.courseReportCsv)
+    }
+
+    private fun dailyActivity(request: RecordedRequest, path: String): MockResponse {
+        val cid = path.split("/")[2].substringBefore("?").toInt()
+        if (cid == MockFixtures.FORBIDDEN_CENTRE) return forbidden()
+        if (request.method != "POST") return html(MockFixtures.dailyActivityFormHtml(cid))
+        val fields = form(request)
+        val valid = fields["form_id"] == "dh_daily_activity_form" &&
+            !fields["form_build_id"].isNullOrBlank() &&
+            fields["form_token"] == "mock-form-token" &&
+            !fields["date_start[date]"].isNullOrBlank() &&
+            !fields["date_end[date]"].isNullOrBlank()
+        if (!valid) return html(MockFixtures.dailyActivityFormHtml(cid))
+        return html(MockFixtures.dailyActivityFormHtml(cid, withTable = true))
+    }
+
+    /**
+     * `dh_manageapp_search_form`: GET is the scrape; POST with tokens +
+     * name/conf (never bulk-mail fields) returns `var dataset`.
+     */
+    private fun searchApp(request: RecordedRequest, path: String): MockResponse {
+        val cid = path.split("/")[2].substringBefore("?").toInt()
+        if (cid == MockFixtures.FORBIDDEN_CENTRE) return forbidden()
+        if (request.method != "POST") return html(MockFixtures.searchAppFormHtml(cid))
+        val fields = form(request)
+        val valid = fields["form_id"] == "dh_manageapp_search_form" &&
+            fields["form_token"] == "mock-form-token" &&
+            !fields["form_build_id"].isNullOrBlank() &&
+            fields["op"] == "Search" &&
+            fields["bulk-mail"].isNullOrBlank() &&
+            fields["letters"].isNullOrBlank()
+        if (!valid) return html(MockFixtures.searchAppFormHtml(cid))
+        val needle = listOfNotNull(fields["f_name"], fields["l_name"], fields["conf_no"])
+            .joinToString(" ").trim().lowercase()
+        val status = fields["status[]"] ?: fields["status"]
+        var rows = people.toList()
+        if (needle.isNotBlank()) {
+            rows = rows.filter { row ->
+                listOfNotNull(row.givenName, row.familyName, row.confNo)
+                    .any { it.contains(needle, ignoreCase = true) } ||
+                    (fields["f_name"]?.let { row.givenName.contains(it, true) } == true) ||
+                    (fields["conf_no"]?.let { row.confNo?.equals(it, true) == true } == true)
+            }
+        }
+        if (!status.isNullOrBlank()) {
+            rows = rows.filter { it.status.equals(status, ignoreCase = true) }
+        }
+        return html(MockFixtures.searchAppResultsHtml(rows))
     }
 
     private fun html(body: String) = MockResponse()

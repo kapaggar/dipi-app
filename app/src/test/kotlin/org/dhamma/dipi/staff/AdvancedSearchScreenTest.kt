@@ -83,16 +83,24 @@ class AdvancedSearchScreenTest {
     }
 
     @Test
-    fun deskSiteLinkAndEmptyStatesShow() {
-        var desk = false
+    fun deskSearchButtonAndFromDeskLabel() {
+        var asked: String? = null
         rule.setContent {
             DipiTheme {
-                AdvancedSearchScreen(rows = emptyList(), onOpen = {}, onOpenDesk = { desk = true })
+                AdvancedSearchScreen(
+                    rows = emptyList(),
+                    onOpen = {},
+                    onSearchDesk = { q, _ -> asked = q },
+                    deskRows = listOf(card(9, "From", "Desk", "NF9")),
+                )
             }
         }
         rule.onNodeWithText("Nothing cached yet — open a course once to search its applicants here.")
             .assertIsDisplayed()
-        rule.onNodeWithText("Full Advanced Search on the desk site").performClick()
-        assertTrue(desk)
+        rule.onNodeWithContentDescription("Search name or conf number").performTextInput("Meera")
+        rule.onNodeWithText("Search the desk").performClick()
+        assertEquals("Meera", asked)
+        rule.onNodeWithText("from desk · 1").assertIsDisplayed()
+        rule.onNodeWithText("From Desk").assertIsDisplayed()
     }
 }

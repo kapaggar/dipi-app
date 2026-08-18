@@ -19,7 +19,9 @@ import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.dhamma.dipi.staff.model.ApplicantCard
+import org.dhamma.dipi.staff.model.ApplicantDeskHistory
 import org.dhamma.dipi.staff.model.AuditSeverity
+import org.dhamma.dipi.staff.ui.ApplicantHistorySections
 import org.dhamma.dipi.staff.ui.SeverityDot
 import org.dhamma.dipi.staff.ui.StatusBadge
 import org.dhamma.dipi.staff.ui.theme.DipiCondensed
@@ -33,6 +35,9 @@ fun CardScreen(
     dark: Boolean,
     onChangeStatus: () -> Unit,
     onPhoto: () -> Unit,
+    history: ApplicantDeskHistory = ApplicantDeskHistory(),
+    onExpandHistory: (String) -> Unit = {},
+    onOpenClarification: (Int) -> Unit = {},
 ) {
     val c = LocalDipi.current
     val uri = LocalUriHandler.current
@@ -93,6 +98,8 @@ fun CardScreen(
             TextButton({ card.email?.let { uri.openUri("mailto:$it") } }) { Text("Email") }
             Button(onChangeStatus, Modifier.weight(1f)) { Text("Change status") }
         }
+        Spacer(Modifier.height(16.dp))
+        ApplicantHistorySections(history, onExpandHistory, onOpenClarification)
     }
 }
 

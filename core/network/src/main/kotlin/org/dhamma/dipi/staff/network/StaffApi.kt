@@ -209,6 +209,51 @@ interface StaffApi {
         @Url action: String,
         @FieldMap fields: Map<String, String>,
     ): Response<ResponseBody>
+
+    @GET("/daily-activity/{cid}")
+    suspend fun dailyActivityForm(@Path("cid") centreId: Int): Response<ResponseBody>
+
+    @FormUrlEncoded
+    @POST
+    suspend fun submitDailyActivity(
+        @Url action: String,
+        @FieldMap fields: Map<String, String>,
+    ): Response<ResponseBody>
+
+    @GET("/centre/{cid}/sms-report")
+    suspend fun smsReport(@Path("cid") centreId: Int): Response<ResponseBody>
+
+    @GET("/sms-count/{courseId}")
+    suspend fun smsCount(@Path("courseId") courseId: Int): Response<ResponseBody>
+
+    @GET("/manage-course/{cid}")
+    suspend fun manageCoursePage(@Path("cid") centreId: Int): Response<ResponseBody>
+
+    /** DataTables Editor source for the manage-course table. GET only — no writes. */
+    @GET("/course/handler/{cid}")
+    suspend fun courseHandler(@Path("cid") centreId: Int): Response<ResponseBody>
+
+    @GET("/centre/{cid}/edit")
+    suspend fun centreEditForm(@Path("cid") centreId: Int): Response<ResponseBody>
+
+    @GET("/app-courses/{id}")
+    suspend fun appCourses(@Path("id") id: Int): Response<ResponseBody>
+
+    @GET("/app-activity/{id}")
+    suspend fun appActivity(@Path("id") id: Int): Response<ResponseBody>
+
+    @GET("/app-clarifications/{id}")
+    suspend fun appClarifications(@Path("id") id: Int): Response<ResponseBody>
+
+    @Streaming
+    @GET("/show-clarification/{appId}/{clarId}")
+    suspend fun showClarification(
+        @Path("appId") appId: Int,
+        @Path("clarId") clarId: Int,
+    ): Response<ResponseBody>
+
+    @GET("/letters/{cid}")
+    suspend fun letters(@Path("cid") centreId: Int): Response<ResponseBody>
 }
 
 /** Live-desk delivery shape of one Board "Sheets & exports" cell. */
@@ -249,6 +294,7 @@ object SheetRoutes {
         SheetExport.ValuableList -> SheetRoute.Document("valuable-list", MIME_XLS, "xls")
         SheetExport.SeatingPlan -> SheetRoute.Page("seating")
         SheetExport.CourseReport -> SheetRoute.ReportForm
+        SheetExport.Day11Report -> SheetRoute.Document("report-day11", MIME_PDF, "pdf")
     }
 }
 
@@ -279,6 +325,16 @@ class SheetTransport(
 
     suspend fun appEditPage(id: Int): SheetPayload = guarded("Application $id") {
         htmlPayload("Application $id", api.appEditPage(id))
+    }
+
+    /** Clarification PDF (`GET /show-clarification/{app}/{clar}`) — cacheDir/sheets, wiped with the rest. */
+    suspend fun clarificationPdf(appId: Int, clarId: Int): SheetPayload = guarded("Clarification") {
+        save(
+            title = "Clarification $clarId",
+            fileName = "clarification-$appId-$clarId.pdf",
+            fallbackMime = SheetRoutes.MIME_PDF,
+            resp = api.showClarification(appId, clarId),
+        )
     }
 
     /** Sheet bodies never outlive the session: wipe every cached document. */

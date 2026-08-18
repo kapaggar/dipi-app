@@ -10,6 +10,7 @@ import org.dhamma.dipi.staff.course.CourseHubLive
 import org.dhamma.dipi.staff.course.CourseHubScreen
 import org.dhamma.dipi.staff.course.courseHubDeskTiles
 import org.dhamma.dipi.staff.course.courseHubTiles
+import org.dhamma.dipi.staff.course.hubSheetLabel
 import org.dhamma.dipi.staff.model.CentreId
 import org.dhamma.dipi.staff.model.Course
 import org.dhamma.dipi.staff.model.CourseId
@@ -134,6 +135,7 @@ class CourseHubScreenTest {
     @Test
     fun overflowMenuReachesTheDeskSiteDestinations() {
         var later: Pair<String, String>? = null
+        var sheet: String? = null
         rule.setContent {
             DipiTheme {
                 CourseHubScreen(
@@ -143,6 +145,7 @@ class CourseHubScreenTest {
                     onApplications = {},
                     onSummary = {},
                     onPhotos = {},
+                    onSheet = { sheet = it },
                     onLater = { title, route -> later = title to route },
                 )
             }
@@ -153,5 +156,38 @@ class CourseHubScreenTest {
         rule.onNodeWithText("Course Summary Report").assertExists()
         rule.onNodeWithText("Add Application").performClick()
         assertEquals("Add Application" to "app/add/1/10", later)
+        assertEquals(null, sheet)
+    }
+
+    @Test
+    fun overflowSheetTilesOpenTheBoardExportNotThePlaceholder() {
+        var later: Pair<String, String>? = null
+        var sheet: String? = null
+        rule.setContent {
+            DipiTheme {
+                CourseHubScreen(
+                    course = course,
+                    centreName = "Dhamma Sudha",
+                    onBack = {},
+                    onApplications = {},
+                    onSummary = {},
+                    onPhotos = {},
+                    onSheet = { sheet = it },
+                    onLater = { title, route -> later = title to route },
+                )
+            }
+        }
+        rule.onNodeWithContentDescription("Desk site links").performClick()
+        rule.onNodeWithText("Seating Plan").performClick()
+        assertEquals("Seating plan", sheet)
+        assertEquals(null, later)
+    }
+
+    @Test
+    fun hubTitlesMapOntoBoardExportLabels() {
+        assertEquals("Day 0 list", hubSheetLabel("Day 0 List"))
+        assertEquals("Teacher list", hubSheetLabel("Teachers List"))
+        assertEquals("Course summary report", hubSheetLabel("Course Summary Report"))
+        assertEquals(null, hubSheetLabel("Add Application"))
     }
 }

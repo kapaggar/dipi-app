@@ -53,4 +53,13 @@ class DeskNavTest {
         assertEquals(DeskScreen.ZeroDay, deskBack(DeskScreen.Rooms, DeskScreen.ZeroDay))
         assertEquals(DeskScreen.CentreOps, deskBack(DeskScreen.Rooms, DeskScreen.CentreOps))
     }
+
+    @Test
+    fun deskReadScreensBackToCentre() {
+        assertEquals(DeskScreen.Centre, deskBack(DeskScreen.DailyActivity, null))
+        assertEquals(DeskScreen.Centre, deskBack(DeskScreen.SmsReport, null))
+        assertEquals(DeskScreen.Centre, deskBack(DeskScreen.ManageCourses, null))
+        assertEquals(DeskScreen.Centre, deskBack(DeskScreen.CentreEdit, null))
+        assertEquals(DeskScreen.Centre, deskBack(DeskScreen.Letters, null))
+    }
 }

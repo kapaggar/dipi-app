@@ -66,6 +66,12 @@ fun CentreScreen(
     onLater: (String, String) -> Unit = { _, _ -> },
     onCentreOps: () -> Unit = {},
     onAdvancedSearch: () -> Unit = {},
+    onDailyActivity: () -> Unit = {},
+    onSmsReport: () -> Unit = {},
+    onManageCourses: () -> Unit = {},
+    onCentreEdit: () -> Unit = {},
+    onLetters: () -> Unit = {},
+    onCourseReport: () -> Unit = {},
     lotus: Boolean = true,
     olderCourses: List<Course> = emptyList(),
 ) {
@@ -201,10 +207,15 @@ fun CentreScreen(
                             .heightIn(min = 62.dp)
                             .deskCard(shape = DeskStyle.tileShape, fill = c.field, border = c.hairline)
                             .clickable {
-                                if (tile.title == "Advanced Search") {
-                                    onAdvancedSearch()
-                                } else {
-                                    onLater(tile.title, tile.route)
+                                when (tile.title) {
+                                    "Advanced Search" -> onAdvancedSearch()
+                                    "Daily Activity" -> onDailyActivity()
+                                    "SMS Report" -> onSmsReport()
+                                    "Manage Courses" -> onManageCourses()
+                                    "Centre Settings" -> onCentreEdit()
+                                    "Letters" -> onLetters()
+                                    "Course Report" -> onCourseReport()
+                                    else -> onLater(tile.title, tile.route)
                                 }
                             }
                             .padding(horizontal = 10.dp, vertical = 10.dp),

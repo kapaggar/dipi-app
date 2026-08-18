@@ -46,11 +46,12 @@ class CentreScreenTest {
     )
 
     @Test
-    fun catalogueOmitsLettersAtAndReferral() {
+    fun catalogueOmitsAtAndReferralAndAddsLetters() {
         val titles = centreDeskTiles(1).map { it.title }
         assertTrue(titles.contains("Centre Settings"))
         assertTrue(titles.contains("Bulk Mail"))
-        assertFalse(titles.any { it.contains("Letter", ignoreCase = true) })
+        assertTrue(titles.contains("Letters"))
+        assertEquals("letters/1", centreDeskTiles(1).first { it.title == "Letters" }.route)
         assertFalse(titles.any { it.contains("AT", ignoreCase = true) })
         assertFalse(titles.any { it.contains("Referral", ignoreCase = true) })
         assertEquals("centre/1/edit", centreDeskTiles(1).first { it.title == "Centre Settings" }.route)
@@ -78,6 +79,12 @@ class CentreScreenTest {
         var later: Pair<String, String>? = null
         var ops = false
         var advanced = false
+        var daily = false
+        var sms = false
+        var manage = false
+        var edit = false
+        var letters = false
+        var report = false
         rule.setContent {
             DipiTheme {
                 CentreScreen(
@@ -87,6 +94,12 @@ class CentreScreenTest {
                     onLater = { title, route -> later = title to route },
                     onCentreOps = { ops = true },
                     onAdvancedSearch = { advanced = true },
+                    onDailyActivity = { daily = true },
+                    onSmsReport = { sms = true },
+                    onManageCourses = { manage = true },
+                    onCentreEdit = { edit = true },
+                    onLetters = { letters = true },
+                    onCourseReport = { report = true },
                 )
             }
         }
@@ -104,19 +117,30 @@ class CentreScreenTest {
         rule.onNodeWithText("Course Report").performScrollTo().assertIsDisplayed()
         rule.onNodeWithText("Bulk Mail").performScrollTo().assertIsDisplayed()
         rule.onNodeWithText("Settings").performScrollTo().assertIsDisplayed()
+        rule.onNodeWithText("Letters").performScrollTo().assertIsDisplayed()
         rule.onNodeWithText("Manage Letters").assertDoesNotExist()
         rule.onNodeWithText("AT Schedule").assertDoesNotExist()
         rule.onNodeWithText("Referral List").assertDoesNotExist()
 
         rule.onNodeWithText("10-Day").performScrollTo().performClick()
         assertEquals(course, picked)
-        // The Advanced Search tile opens the in-app screen, not the desk site.
         rule.onNodeWithText("Advanced Search").performScrollTo().performClick()
         assertTrue(advanced)
         assertNull(later)
         rule.onNodeWithText("Centre Settings").performScrollTo().performClick()
-        assertEquals("Centre Settings" to "centre/1/edit", later)
-        // The global app settings row is separate from the Drupal Centre Settings page.
+        assertTrue(edit)
+        assertNull(later)
+        rule.onNodeWithText("Daily Activity").performScrollTo().performClick()
+        assertTrue(daily)
+        rule.onNodeWithText("SMS Report").performScrollTo().performClick()
+        assertTrue(sms)
+        rule.onNodeWithText("Manage Courses").performScrollTo().performClick()
+        assertTrue(manage)
+        rule.onNodeWithText("Letters").performScrollTo().performClick()
+        assertTrue(letters)
+        rule.onNodeWithText("Course Report").performScrollTo().performClick()
+        assertTrue(report)
+        assertNull(later)
         rule.onNodeWithText("Centre settings").performScrollTo().performClick()
         assertTrue(ops)
     }

@@ -33,6 +33,7 @@ private val EXPORTS = listOf(
     "Day 0 list", "Day 0 summary", "Student chit", "Checking slip",
     "Male PDF", "Female PDF", "Teacher list", "Manager list",
     "Laundry list", "Valuable list", "Seating plan", "Course report",
+    "Course summary report",
 )
 
 /**

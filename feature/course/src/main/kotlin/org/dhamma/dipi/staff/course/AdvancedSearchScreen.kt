@@ -52,20 +52,23 @@ fun advancedSearchMatches(rows: List<ApplicantCard>, query: String): List<Applic
 }
 
 /**
- * The in-app Advanced Search (owner feedback 2026-08-16): a plain search
- * over what the app has already cached in Room — the rows of every course
- * that has been opened on this device — honestly labelled as such. The desk
- * site's full Advanced Search stays one tap away via [onOpenDesk].
+ * Local Room cache plus an optional desk POST (`search-app/{cid}`), labelled
+ * "from desk". Never posts bulk-mail schedule fields.
  */
 @Composable
 fun AdvancedSearchScreen(
     rows: List<ApplicantCard>,
     onOpen: (ApplicantCard) -> Unit,
-    onOpenDesk: () -> Unit = {},
+    onSearchDesk: (String, String?) -> Unit = { _, _ -> },
+    deskRows: List<ApplicantCard> = emptyList(),
+    deskBusy: Boolean = false,
+    deskError: String? = null,
+    deskStatuses: List<String> = emptyList(),
     onBack: () -> Unit = {},
 ) {
     val c = LocalDipi.current
     var query by remember { mutableStateOf("") }
+    var status by remember { mutableStateOf<String?>(null) }
     val matches = advancedSearchMatches(rows, query)
     val courseCount = rows.map { it.courseId }.distinct().size
     Column(
@@ -169,8 +172,61 @@ fun AdvancedSearchScreen(
             }
         }
 
-        TextButton(onClick = onOpenDesk, modifier = Modifier.padding(top = 12.dp)) {
-            Text("Full Advanced Search on the desk site")
+        if (deskStatuses.isNotEmpty()) {
+            Row(
+                Modifier.fillMaxWidth().padding(top = 10.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                deskStatuses.take(6).forEach { s ->
+                    Text(
+                        s,
+                        color = if (status == s) c.accent else c.muted,
+                        fontSize = 12.sp,
+                        modifier = Modifier
+                            .clickable { status = if (status == s) null else s }
+                            .padding(vertical = 4.dp),
+                    )
+                }
+            }
+        }
+        TextButton(
+            onClick = { onSearchDesk(query, status) },
+            modifier = Modifier.padding(top = 4.dp),
+        ) {
+            Text(if (deskBusy) "Searching the desk…" else "Search the desk")
+        }
+        if (deskError != null) {
+            Text(deskError, color = c.foreground, fontSize = 13.sp)
+        }
+        if (deskRows.isNotEmpty()) {
+            Text(
+                "from desk · ${deskRows.size}",
+                color = c.accent,
+                fontSize = 12.sp,
+                modifier = Modifier.padding(top = 10.dp, bottom = 6.dp),
+            )
+            deskRows.take(60).forEach { card ->
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .deskCard(fill = c.field, border = c.hairline)
+                        .clickable { onOpen(card) }
+                        .padding(horizontal = 14.dp, vertical = 11.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                        Text(card.displayName, fontFamily = DipiCondensed, fontSize = 17.sp, color = c.foreground)
+                        Text(card.status.value, color = c.muted, fontSize = 12.sp)
+                    }
+                    Text(
+                        card.confNo?.display() ?: "—",
+                        fontFamily = DipiMono,
+                        fontWeight = FontWeight.Medium,
+                        fontSize = 13.sp,
+                        color = c.foreground,
+                    )
+                }
+            }
         }
     }
 }

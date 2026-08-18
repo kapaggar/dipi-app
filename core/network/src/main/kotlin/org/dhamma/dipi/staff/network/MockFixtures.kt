@@ -315,6 +315,199 @@ internal object MockFixtures {
         </form></body></html>
     """.trimIndent()
 
+    fun dailyActivityFormHtml(cid: Int, withTable: Boolean = false) = """
+        <html><body>
+        <form action="/daily-activity/$cid" method="post" id="dh-daily-activity-form" accept-charset="UTF-8">
+        <select id="edit-course" name="course">
+          <option value="">Choose</option>
+          <option value="10">10-Day</option>
+          <option value="11">Satipatthana</option>
+        </select>
+        <input type="text" id="edit-date-start-datepicker-popup-0" name="date_start[date]" value="2026-08-17" size="20" />
+        <input type="text" id="edit-date-end-datepicker-popup-0" name="date_end[date]" value="2026-08-17" size="20" />
+        <select id="edit-event" name="event">
+          <option value="">Choose</option>
+          <option value="Status Change">Status Change</option>
+          <option value="Letter">Letter</option>
+          <option value="Deleted">Deleted</option>
+        </select>
+        <select id="edit-user" name="user">
+          <option value="">Choose</option>
+          <option value="42">sudha.user</option>
+          <option value="1">Applicant</option>
+        </select>
+        <input type="hidden" name="form_build_id" value="form-DailyActBuIlD" />
+        <input type="hidden" name="form_token" value="mock-form-token" />
+        <input type="hidden" name="form_id" value="dh_daily_activity_form" />
+        <input type="submit" id="edit-sub" name="op" value="Submit" />
+        </form>
+        ${if (withTable) dailyActivityTable else ""}
+        </body></html>
+    """.trimIndent()
+
+    val dailyActivityTable = """
+        <table id="table-daily-activity">
+        <thead><tr><th>Applicant Name</th><th>Course Name</th><th>Event</th><th>Message</th><th>User</th><th>DateTime</th></tr></thead>
+        <tbody>
+        <tr class="odd"><td>Meera Deshpande</td><td>10-Day</td><td>Status Change</td><td>Confirmed</td><td>sudha.user</td><td>2026-08-16 10:22:00</td></tr>
+        <tr class="even"><td>Rakesh Iyer</td><td>10-Day</td><td>Letter</td><td>AT letter sent</td><td>System</td><td>2026-08-15 09:01:00</td></tr>
+        </tbody></table>
+    """.trimIndent()
+
+    fun smsReportHtml(cid: Int) = """
+        <html><body>
+        <h2>SMS Report</h2>
+        <table id="table-applicants"></table>
+        <script>
+        (function ($) {
+            var dataset = [{"cid":10,"course":"10-Day","count":42},{"cid":11,"course":"Satipatthana","count":7}];
+            $("#table-applicants").DataTable({ data: dataset });
+        })(jQuery);
+        </script>
+        </body></html>
+    """.trimIndent()
+
+    fun smsCountHtml(courseId: Int) = """
+        <table>
+        <thead><tr><th>Letter ID</th><th>Letter Name</th><th>SMS Count</th></tr></thead>
+        <tbody>
+        <tr><td>12</td><td>Confirmed</td><td>${if (courseId == 10) "30" else "4"}</td></tr>
+        <tr><td>13</td><td>Expected</td><td>${if (courseId == 10) "12" else "3"}</td></tr>
+        </tbody></table>
+    """.trimIndent()
+
+    val courseHandlerJson = """
+        {"data":[
+         {"DT_RowId":"row_10","dh_course":{"c_id":"10","c_start":"20 Aug 2026","c_end":"31 Aug 2026","c_cancelled":"0","c_status":"Open","c_status_nm":"Open","c_status_om":"Open","c_status_nf":"FastFilling","c_status_of":"Open","c_status_svr_m":"Open","c_status_svr_f":"Open","c_comments":"","c_description":"","c_finalized":"0"},"ctype":{"td_val1":"10-Day"}},
+         {"DT_RowId":"row_8","dh_course":{"c_id":"8","c_start":"06 Aug 2026","c_end":"17 Aug 2026","c_cancelled":"0","c_status":"Completed","c_status_nm":"Closed","c_status_om":"Closed","c_status_nf":"Closed","c_status_of":"Closed","c_status_svr_m":"Closed","c_status_svr_f":"Closed","c_comments":"done","c_description":"","c_finalized":"1"},"ctype":{"td_val1":"10-Day"}}
+        ],"options":{},"files":[]}
+    """.trimIndent()
+
+    fun manageCoursePageHtml(cid: Int) = """
+        <html><body>
+        <h2>Manage Courses</h2>
+        <table id="finalized-courses"><thead><tr><th>Id</th><th>Course Name</th><th>Action</th></tr></thead>
+        <tbody><tr><td>8</td><td>10-Day</td><td>View</td></tr></tbody></table>
+        <table id="course-table" class="display"><thead><tr><th>Id</th></tr></thead></table>
+        </body></html>
+    """.trimIndent()
+
+    fun centreEditHtml(cid: Int) = """
+        <html><body>
+        <form action="/centre/$cid/edit" method="post" id="dh-ma-centre-form" accept-charset="UTF-8">
+        <input type="text" name="c_name" value="Dhamma Sudha" />
+        <input type="text" name="c_trust" value="Vipassana Sudha Trust" />
+        <input type="text" name="c_pincode" value="422003" />
+        <input type="text" name="c_country" value="India" />
+        <input type="text" name="c_state" value="Maharashtra" />
+        <input type="text" name="c_city" value="Nashik" />
+        <textarea name="c_address" rows="2">Igatpuri Road</textarea>
+        <input type="text" name="c_phone" value="+91 253 000 0000" />
+        <input type="text" name="c_fax" value="" />
+        <input type="text" name="c_email" value="info@sudha.dhamma.org" />
+        <input type="text" name="c_url" value="https://sudha.dhamma.org" />
+        <input type="text" name="cs_email_from_name" value="Dhamma Sudha" />
+        <input type="text" name="cs_email_reply_to" value="info@sudha.dhamma.org" />
+        <textarea name="c_announcement"></textarea>
+        <input type="radio" name="cs_preconf_enable" value="1" />
+        <input type="radio" name="cs_preconf_enable" value="0" checked="checked" />
+        <input type="text" name="cs_preconf_days" value="5" />
+        <input type="radio" name="cs_reconf_enable" value="1" checked="checked" />
+        <input type="radio" name="cs_reconf_enable" value="0" />
+        <input type="text" name="cs_reconf_days" value="10" />
+        <input type="text" name="cs_reconf_cancel" value="3" />
+        <input type="radio" name="cs_expected_enable" value="1" checked="checked" />
+        <input type="radio" name="cs_expected_enable" value="0" />
+        <input type="text" name="cs_expected_days" value="3" />
+        <input type="radio" name="cs_whatsapp_preconf" value="1" checked="checked" />
+        <input type="radio" name="cs_whatsapp_preconf" value="0" />
+        <input type="radio" name="cs_whatsapp_reconf" value="1" checked="checked" />
+        <input type="radio" name="cs_whatsapp_reconf" value="0" />
+        <input type="radio" name="cs_whatsapp_msg" value="1" />
+        <input type="radio" name="cs_whatsapp_msg" value="0" checked="checked" />
+        <input type="hidden" name="form_build_id" value="form-CentreEdIt" />
+        <input type="hidden" name="form_token" value="mock-form-token" />
+        <input type="hidden" name="form_id" value="dh_ma_centre_form" />
+        <input type="submit" name="op" value="Save" />
+        </form></body></html>
+    """.trimIndent()
+
+    fun appCoursesHtml(id: Int) = """
+        <h4>Applicant Courses</h4>
+        <table>
+        <thead><tr><th>Course</th><th>Type</th><th>Status</th><th>Attended</th><th>Address</th></tr></thead>
+        <tbody>
+        <tr><td>10-Day · Aug 2026</td><td>Student</td><td>Confirmed</td><td>False</td><td>Pune</td></tr>
+        <tr><td>Satipatthana · Apr 2026</td><td>Student</td><td>Attended</td><td>True</td><td>Pune</td></tr>
+        </tbody></table>
+    """.trimIndent()
+
+    fun appActivityHtml(id: Int) = """
+        <h4>Activity Log</h4>
+        <table>
+        <thead><tr><th>DateTime</th><th>Activity</th><th>User</th></tr></thead>
+        <tbody>
+        <tr><td>2026-08-16 10:22:00</td><td>Status Change · Confirmed</td><td>sudha.user</td></tr>
+        <tr><td>2026-08-10 08:00:00</td><td>Letter · Received</td><td>System</td></tr>
+        </tbody></table>
+    """.trimIndent()
+
+    fun appClarificationsHtml(id: Int) = """
+        <table>
+        <thead><tr><th>DateTime</th><th>Message</th><th>File</th></tr></thead>
+        <tbody>
+        <tr><td>2026-08-12 11:00:00</td><td>Please confirm travel date</td><td><a href="/show-clarification/$id/3">View</a></td></tr>
+        <tr><td>2026-08-08 09:30:00</td><td>Need a doctor's note</td><td>No Upload</td></tr>
+        </tbody></table>
+    """.trimIndent()
+
+    fun searchAppFormHtml(cid: Int) = """
+        <html><body>
+        <form action="/search-app/$cid" method="post" id="dh-manageapp-search-form" accept-charset="UTF-8">
+        <input type="text" id="edit-f-name" name="f_name" value="" />
+        <input type="text" name="l_name" value="" />
+        <input type="text" name="conf_no" value="" />
+        <select id="edit-app-status" name="status[]" multiple="multiple">
+          <option value="Received">Received</option>
+          <option value="Confirmed">Confirmed</option>
+          <option value="Expected">Expected</option>
+          <option value="Cancelled">Cancelled</option>
+        </select>
+        <input type="radio" name="type" value="Student" />
+        <input type="radio" name="type" value="Sevak" />
+        <input type="radio" name="type" value="Both" checked="checked" />
+        <input type="hidden" name="form_build_id" value="form-SearchBuIlD" />
+        <input type="hidden" name="form_token" value="mock-form-token" />
+        <input type="hidden" name="form_id" value="dh_manageapp_search_form" />
+        <input type="submit" name="op" value="Search" />
+        </form></body></html>
+    """.trimIndent()
+
+    fun searchAppResultsHtml(rows: List<ApplicantDto>): String {
+        val dataset = rows.joinToString(",") { p ->
+            """{"aid":${p.id},"name":"${p.givenName} ${p.familyName}","gender":"${if (p.gender == "M") "Male" else "Female"}","o_n":"${if (p.oldStudent) "Old" else "New"}","courseid":${p.courseId},"centreid":${p.centreId},"app_status":"${p.status}","confno":${p.confNo?.let { "\"$it\"" } ?: "null"},"city":"${p.city}","type":"${p.type}"}"""
+        }
+        return """
+            <html><body>
+            <h2>Search results</h2>
+            <script>var dataset = [$dataset];</script>
+            </body></html>
+        """.trimIndent()
+    }
+
+    fun lettersHtml(cid: Int) = """
+        <html><body>
+        <h2>Manage Letters</h2>
+        <table id="table-letters">
+        <thead><tr><th>Letter Name</th><th>Status</th><th>Course Type</th><th>Subject</th><th>Action</th><th>Action</th><th>Action</th></tr></thead>
+        <tbody>
+        <tr><td>Confirmed</td><td>Confirmed</td><td>10-Day</td><td>Your place is confirmed</td><td><a href="/letters/$cid/edit/12">Edit</a></td><td>Copy</td><td>Delete</td></tr>
+        <tr><td>Expected</td><td>Expected</td><td>All</td><td>Please reconfirm</td><td><a href="/letters/$cid/edit/13">Edit</a></td><td>Copy</td><td>Delete</td></tr>
+        </tbody></table>
+        <div class="letter-body">Dear meditator, your place is confirmed.</div>
+        </body></html>
+    """.trimIndent()
+
     fun person(
         id: Int,
         given: String,

@@ -32,17 +32,33 @@ import org.dhamma.dipi.staff.model.SheetExport
 import org.dhamma.dipi.staff.model.SheetPayload
 import org.dhamma.dipi.staff.model.StatusWrite
 import org.dhamma.dipi.staff.model.UserCentreMap
+import org.dhamma.dipi.staff.model.ApplicantActivityRow
+import org.dhamma.dipi.staff.model.ApplicantClarificationRow
+import org.dhamma.dipi.staff.model.ApplicantCourseRow
+import org.dhamma.dipi.staff.model.CentreFormSettings
+import org.dhamma.dipi.staff.model.DailyActivityPage
+import org.dhamma.dipi.staff.model.LetterRow
+import org.dhamma.dipi.staff.model.ManagedCourse
+import org.dhamma.dipi.staff.model.SmsCourseRow
+import org.dhamma.dipi.staff.model.SmsLetterRow
 import org.dhamma.dipi.staff.network.AccoHandlerParser
 import org.dhamma.dipi.staff.network.ApplicantDto
+import org.dhamma.dipi.staff.network.ApplicantHistoryParser
 import org.dhamma.dipi.staff.network.AttendedTableParser
+import org.dhamma.dipi.staff.network.CentreEditFormParser
 import org.dhamma.dipi.staff.network.CentrePageParser
+import org.dhamma.dipi.staff.network.CourseHandlerParser
 import org.dhamma.dipi.staff.network.CropDto
+import org.dhamma.dipi.staff.network.DailyActivityParser
+import org.dhamma.dipi.staff.network.DeskSearchFields
 import org.dhamma.dipi.staff.network.DrupalAuthApi
+import org.dhamma.dipi.staff.network.LettersParser
 import org.dhamma.dipi.staff.network.LoginBody
 import org.dhamma.dipi.staff.network.PhotoUploadBody
 import org.dhamma.dipi.staff.network.SearchPageParser
 import org.dhamma.dipi.staff.network.SessionCookieJar
 import org.dhamma.dipi.staff.network.SheetTransport
+import org.dhamma.dipi.staff.network.SmsReportParser
 import org.dhamma.dipi.staff.network.StaffApi
 import org.dhamma.dipi.staff.network.TokenStore
 import org.dhamma.dipi.staff.network.html
@@ -452,6 +468,127 @@ class StaffRepository @Inject constructor(
      */
     suspend fun fetchAppEditPage(id: ApplicantId): SheetPayload =
         sheets.appEditPage(id.value)
+
+    suspend fun fetchClarification(appId: ApplicantId, clarId: Int): SheetPayload =
+        sheets.clarificationPdf(appId.value, clarId)
+
+    suspend fun loadDailyActivity(
+        centreId: Int,
+        start: String? = null,
+        end: String? = null,
+        event: String = "",
+        course: String = "",
+        user: String = "",
+    ): DailyActivityPage = runCatching {
+        val formResp = api.dailyActivityForm(centreId)
+        val formHtml = formResp.html()
+        if (stillOnLogin(formHtml)) throw ApiException("Access denied", unauthorized = true)
+        if (!formResp.isSuccessful) throw ApiException(formHtml.ifBlank { "HTTP ${formResp.code()}" })
+        val form = DailyActivityParser.form(formHtml)
+            ?: throw ApiException("Could not read the Daily Activity form")
+        val from = start ?: form.startDate
+        val to = end ?: form.endDate
+        val action = form.action.ifBlank { "/daily-activity/$centreId" }
+        val posted = api.submitDailyActivity(
+            action,
+            DailyActivityParser.fields(form, from, to, event, course, user),
+        )
+        val body = posted.html()
+        if (stillOnLogin(body)) throw ApiException("Access denied", unauthorized = true)
+        if (!posted.isSuccessful) throw ApiException(body.ifBlank { "HTTP ${posted.code()}" })
+        DailyActivityParser.parse(body).let { it.copy(form = it.form ?: form) }
+    }.getOrElse { throw it.toApi() }
+
+    suspend fun loadSmsReport(centreId: Int): List<SmsCourseRow> = runCatching {
+        val resp = api.smsReport(centreId)
+        val html = resp.html()
+        if (stillOnLogin(html)) throw ApiException("Access denied", unauthorized = true)
+        if (!resp.isSuccessful) throw ApiException(html.ifBlank { "HTTP ${resp.code()}" })
+        SmsReportParser.courses(html)
+    }.getOrElse { throw it.toApi() }
+
+    suspend fun loadSmsCount(courseId: Int): List<SmsLetterRow> = runCatching {
+        val resp = api.smsCount(courseId)
+        val html = resp.html()
+        if (stillOnLogin(html)) throw ApiException("Access denied", unauthorized = true)
+        if (!resp.isSuccessful) throw ApiException(html.ifBlank { "HTTP ${resp.code()}" })
+        SmsReportParser.letters(html)
+    }.getOrElse { throw it.toApi() }
+
+    suspend fun loadManagedCourses(centreId: Int): List<ManagedCourse> = runCatching {
+        val resp = api.courseHandler(centreId)
+        val body = resp.html()
+        if (stillOnLogin(body)) throw ApiException("Access denied", unauthorized = true)
+        if (!resp.isSuccessful) throw ApiException(body.ifBlank { "HTTP ${resp.code()}" })
+        CourseHandlerParser.coursesOrNull(body)
+            ?: throw ApiException("Could not read the course list")
+    }.getOrElse { throw it.toApi() }
+
+    suspend fun loadCentreForm(centreId: Int): CentreFormSettings = runCatching {
+        val resp = api.centreEditForm(centreId)
+        val html = resp.html()
+        if (stillOnLogin(html)) throw ApiException("Access denied", unauthorized = true)
+        if (!resp.isSuccessful) throw ApiException(html.ifBlank { "HTTP ${resp.code()}" })
+        CentreEditFormParser.parse(html)
+            ?: throw ApiException("Could not read the centre edit form")
+    }.getOrElse { throw it.toApi() }
+
+    suspend fun loadLetters(centreId: Int): List<LetterRow> = runCatching {
+        val resp = api.letters(centreId)
+        val html = resp.html()
+        if (stillOnLogin(html)) throw ApiException("Access denied", unauthorized = true)
+        if (!resp.isSuccessful) throw ApiException(html.ifBlank { "HTTP ${resp.code()}" })
+        LettersParser.letters(html)
+    }.getOrElse { throw it.toApi() }
+
+    /**
+     * Desk Advanced Search: scrape `GET /search-app/{cid}`, POST name/conf
+     * (+ optional status), parse `var dataset`. Never sends bulk-mail fields.
+     * Results stay in memory (plus the existing Room upsert of public DTOs).
+     */
+    suspend fun deskSearch(centreId: Int, q: String, status: String? = null): List<ApplicantCard> =
+        runCatching {
+            val formResp = api.searchAppForm(centreId)
+            val formHtml = formResp.html()
+            if (stillOnLogin(formHtml)) throw ApiException("Access denied", unauthorized = true)
+            if (!formResp.isSuccessful) throw ApiException(formHtml.ifBlank { "HTTP ${formResp.code()}" })
+            val fields = DeskSearchFields.of(formHtml, q, status)
+                ?: throw ApiException("Type a name or conf number to search the desk")
+            val posted = api.searchAppSubmit(centreId, fields)
+            val html = posted.html()
+            if (stillOnLogin(html)) throw ApiException("Access denied", unauthorized = true)
+            if (!posted.isSuccessful) throw ApiException(html.ifBlank { "HTTP ${posted.code()}" })
+            val page = SearchPageParser.parse(html, centreId, baseUrl)
+            sensitive.putAll(page.sensitive)
+            persist(page.dataset)
+            page.dataset.map { it.toModel() }
+        }.getOrElse { throw it.toApi() }
+
+    suspend fun loadSearchStatuses(centreId: Int): List<String> = runCatching {
+        val resp = api.searchAppForm(centreId)
+        val html = resp.html()
+        if (stillOnLogin(html) || !resp.isSuccessful) return@runCatching emptyList()
+        SearchPageParser.parse(html).statuses
+    }.getOrDefault(emptyList())
+
+    suspend fun loadAppCourses(id: ApplicantId): List<ApplicantCourseRow> =
+        fetchFragment(id) { api.appCourses(it) }.let { ApplicantHistoryParser.courses(it) }
+
+    suspend fun loadAppActivity(id: ApplicantId): List<ApplicantActivityRow> =
+        fetchFragment(id) { api.appActivity(it) }.let { ApplicantHistoryParser.activity(it) }
+
+    suspend fun loadAppClarifications(id: ApplicantId): List<ApplicantClarificationRow> =
+        fetchFragment(id) { api.appClarifications(it) }.let { ApplicantHistoryParser.clarifications(it) }
+
+    private suspend fun fetchFragment(id: ApplicantId, call: suspend (Int) -> retrofit2.Response<okhttp3.ResponseBody>): String {
+        return runCatching {
+            val resp = call(id.value)
+            val html = resp.html()
+            if (stillOnLogin(html)) throw ApiException("Access denied", unauthorized = true)
+            if (!resp.isSuccessful) throw ApiException(html.ifBlank { "HTTP ${resp.code()}" })
+            html
+        }.getOrElse { throw it.toApi() }
+    }
 
     private suspend fun markRoomSynced(id: ApplicantId, sent: CheckInRecord) {
         val all = sessionStore.checkInsOnce()

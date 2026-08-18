@@ -33,10 +33,20 @@ import org.dhamma.dipi.staff.model.CallRecord
 import org.dhamma.dipi.staff.model.CheckInRecord
 import org.dhamma.dipi.staff.model.AccoRoom
 import org.dhamma.dipi.staff.model.ApplicantCard
+import org.dhamma.dipi.staff.model.ApplicantDeskHistory
 import org.dhamma.dipi.staff.model.ApplicantId
 import org.dhamma.dipi.staff.model.ApplicantStatus
 import org.dhamma.dipi.staff.model.Centre
+import org.dhamma.dipi.staff.model.CentreFormSettings
 import org.dhamma.dipi.staff.model.CentreOpsPrefs
+import org.dhamma.dipi.staff.model.DailyActivityPage
+import org.dhamma.dipi.staff.model.LetterRow
+import org.dhamma.dipi.staff.model.ManagedCourse
+import org.dhamma.dipi.staff.model.SmsCourseRow
+import org.dhamma.dipi.staff.model.SmsLetterRow
+import org.dhamma.dipi.staff.ui.HISTORY_ACTIVITY
+import org.dhamma.dipi.staff.ui.HISTORY_CLARIFICATIONS
+import org.dhamma.dipi.staff.ui.HISTORY_COURSES
 import org.dhamma.dipi.staff.model.Course
 import org.dhamma.dipi.staff.model.FlushSnack
 import org.dhamma.dipi.staff.model.Gender
@@ -55,7 +65,31 @@ import org.dhamma.dipi.staff.ui.theme.DeskSkin
 import org.dhamma.dipi.staff.ui.theme.Industry
 import javax.inject.Inject
 
-enum class DeskScreen { Login, Centre, CourseHub, Today, Card, Photos, Summary, Settings, DeskAction, ZeroDay, Audit, Calling, Rooms, CentreOps, Search }
+enum class DeskScreen {
+    Login, Centre, CourseHub, Today, Card, Photos, Summary, Settings, DeskAction,
+    ZeroDay, Audit, Calling, Rooms, CentreOps, Search,
+    DailyActivity, SmsReport, ManageCourses, CentreEdit, Letters,
+}
+
+/** In-memory desk-read panes (never persisted). */
+data class DeskReadUi(
+    val loading: Boolean = false,
+    val error: String? = null,
+    val daily: DailyActivityPage? = null,
+    val dailyEvent: String = "",
+    val sms: List<SmsCourseRow> = emptyList(),
+    val smsOpen: Int? = null,
+    val smsLetters: List<SmsLetterRow> = emptyList(),
+    val smsLettersLoading: Boolean = false,
+    val courses: List<ManagedCourse> = emptyList(),
+    val centreForm: CentreFormSettings? = null,
+    val letters: List<LetterRow> = emptyList(),
+    val deskHits: List<ApplicantCard> = emptyList(),
+    val deskBusy: Boolean = false,
+    val deskError: String? = null,
+    val searchStatuses: List<String> = emptyList(),
+    val history: Map<ApplicantId, ApplicantDeskHistory> = emptyMap(),
+)
 
 data class DeskActionDest(val title: String, val route: String)
 
@@ -87,7 +121,13 @@ fun deskBack(screen: DeskScreen, returnTo: DeskScreen?): DeskScreen = when (scre
     DeskScreen.Photos, DeskScreen.Summary -> DeskScreen.Today
     DeskScreen.Today -> DeskScreen.CourseHub
     // The in-app Advanced Search opens from the Centre screen only.
-    DeskScreen.Search -> DeskScreen.Centre
+    DeskScreen.Search,
+    DeskScreen.DailyActivity,
+    DeskScreen.SmsReport,
+    DeskScreen.ManageCourses,
+    DeskScreen.CentreEdit,
+    DeskScreen.Letters,
+    -> DeskScreen.Centre
     DeskScreen.CourseHub -> DeskScreen.Centre
     DeskScreen.Centre, DeskScreen.Login -> screen
 }
@@ -167,6 +207,7 @@ data class DeskUiState(
     val sheetView: SheetViewUi? = null,
     /** One-shot: a streamed PDF/Excel to hand to the system viewer (consumed like [snack]). */
     val openDoc: SheetPayload.Document? = null,
+    val deskRead: DeskReadUi = DeskReadUi(),
 )
 
 /**
@@ -664,6 +705,8 @@ class DeskViewModel @Inject constructor(
         { export, centreId, courseId -> repo.fetchSheet(export, centreId, courseId) }
     internal var editFetch: suspend (ApplicantId) -> SheetPayload =
         { id -> repo.fetchAppEditPage(id) }
+    internal var clarFetch: suspend (ApplicantId, Int) -> SheetPayload =
+        { id, clarId -> repo.fetchClarification(id, clarId) }
 
     /**
      * A Board export cell: open the viewer shell immediately (its progress
@@ -677,6 +720,16 @@ class DeskViewModel @Inject constructor(
         _state.update { it.copy(sheetView = SheetViewUi(title = export.label)) }
         viewModelScope.launch {
             resolveSheet(export.label) { sheetFetch(export, course.centreId.value, course.id.value) }
+        }
+    }
+
+    /** Centre-desk Course Report — the form POST only needs the centre id. */
+    fun openCourseReport() {
+        val cid = _state.value.session?.centres?.firstOrNull()?.id?.value ?: return
+        val export = SheetExport.CourseReport
+        _state.update { it.copy(sheetView = SheetViewUi(title = export.label)) }
+        viewModelScope.launch {
+            resolveSheet(export.label) { sheetFetch(export, cid, 0) }
         }
     }
 
@@ -737,7 +790,145 @@ class DeskViewModel @Inject constructor(
         _state.update { it.copy(screen = DeskScreen.Search) }
         viewModelScope.launch {
             val cached = repo.cachedApplicants()
-            _state.update { it.copy(searchRows = cached) }
+            val cid = centreId()
+            val statuses = if (cid != null) runCatching { repo.loadSearchStatuses(cid) }.getOrDefault(emptyList()) else emptyList()
+            _state.update {
+                it.copy(
+                    searchRows = cached,
+                    deskRead = it.deskRead.copy(searchStatuses = statuses, deskHits = emptyList(), deskError = null),
+                )
+            }
+        }
+    }
+
+    fun searchDesk(q: String, status: String?) {
+        val cid = centreId() ?: return
+        _state.update { it.copy(deskRead = it.deskRead.copy(deskBusy = true, deskError = null)) }
+        viewModelScope.launch {
+            runCatching { repo.deskSearch(cid, q, status) }
+                .onSuccess { hits ->
+                    _state.update {
+                        it.copy(
+                            deskRead = it.deskRead.copy(deskHits = hits, deskBusy = false),
+                            sensitiveById = repo.sensitiveSnapshot(),
+                        )
+                    }
+                }
+                .onFailure { e ->
+                    handleAuth(e)
+                    _state.update { it.copy(deskRead = it.deskRead.copy(deskBusy = false, deskError = e.message)) }
+                }
+        }
+    }
+
+    fun openDailyActivity() = openRead(DeskScreen.DailyActivity) { cid ->
+        val event = _state.value.deskRead.dailyEvent
+        val page = repo.loadDailyActivity(cid, event = event)
+        _state.update { it.copy(deskRead = it.deskRead.copy(daily = page, loading = false, error = null)) }
+    }
+
+    fun setDailyEvent(event: String) {
+        _state.update { it.copy(deskRead = it.deskRead.copy(dailyEvent = event)) }
+    }
+
+    fun applyDailyActivity() = openDailyActivity()
+
+    fun openSmsReport() = openRead(DeskScreen.SmsReport) { cid ->
+        val rows = repo.loadSmsReport(cid)
+        _state.update { it.copy(deskRead = it.deskRead.copy(sms = rows, loading = false, error = null)) }
+    }
+
+    fun expandSms(courseId: Int) {
+        val cur = _state.value.deskRead
+        if (cur.smsOpen == courseId) {
+            _state.update { it.copy(deskRead = cur.copy(smsOpen = null)) }
+            return
+        }
+        _state.update { it.copy(deskRead = cur.copy(smsOpen = courseId, smsLettersLoading = true, smsLetters = emptyList())) }
+        viewModelScope.launch {
+            runCatching { repo.loadSmsCount(courseId) }
+                .onSuccess { letters ->
+                    _state.update { it.copy(deskRead = it.deskRead.copy(smsLetters = letters, smsLettersLoading = false)) }
+                }
+                .onFailure { e ->
+                    handleAuth(e)
+                    _state.update { it.copy(deskRead = it.deskRead.copy(smsLettersLoading = false, error = e.message)) }
+                }
+        }
+    }
+
+    fun openManageCourses() = openRead(DeskScreen.ManageCourses) { cid ->
+        val rows = repo.loadManagedCourses(cid)
+        _state.update { it.copy(deskRead = it.deskRead.copy(courses = rows, loading = false, error = null)) }
+    }
+
+    fun openCentreEdit() = openRead(DeskScreen.CentreEdit) { cid ->
+        val form = repo.loadCentreForm(cid)
+        _state.update { it.copy(deskRead = it.deskRead.copy(centreForm = form, loading = false, error = null)) }
+    }
+
+    fun openLetters() = openRead(DeskScreen.Letters) { cid ->
+        val rows = repo.loadLetters(cid)
+        _state.update { it.copy(deskRead = it.deskRead.copy(letters = rows, loading = false, error = null)) }
+    }
+
+    fun expandHistory(id: ApplicantId, key: String) {
+        val cur = _state.value.deskRead.history[id] ?: ApplicantDeskHistory()
+        val already = when (key) {
+            HISTORY_COURSES -> cur.courses != null
+            HISTORY_ACTIVITY -> cur.activity != null
+            HISTORY_CLARIFICATIONS -> cur.clarifications != null
+            else -> true
+        }
+        if (already) return
+        patchHistory(id, cur.copy(loading = cur.loading + key, errors = cur.errors - key))
+        viewModelScope.launch {
+            runCatching {
+                when (key) {
+                    HISTORY_COURSES -> patchHistory(id, (_state.value.deskRead.history[id] ?: cur).copy(
+                        courses = repo.loadAppCourses(id),
+                        loading = (cur.loading + key) - key,
+                    ))
+                    HISTORY_ACTIVITY -> patchHistory(id, (_state.value.deskRead.history[id] ?: cur).copy(
+                        activity = repo.loadAppActivity(id),
+                        loading = (cur.loading + key) - key,
+                    ))
+                    HISTORY_CLARIFICATIONS -> patchHistory(id, (_state.value.deskRead.history[id] ?: cur).copy(
+                        clarifications = repo.loadAppClarifications(id),
+                        loading = (cur.loading + key) - key,
+                    ))
+                }
+            }.onFailure { e ->
+                handleAuth(e)
+                val now = _state.value.deskRead.history[id] ?: cur
+                patchHistory(id, now.copy(loading = now.loading - key, errors = now.errors + (key to (e.message ?: "Unavailable"))))
+            }
+        }
+    }
+
+    fun openClarification(appId: ApplicantId, clarId: Int) {
+        val title = "Clarification $clarId"
+        _state.update { it.copy(sheetView = SheetViewUi(title = title)) }
+        viewModelScope.launch {
+            resolveSheet(title) { clarFetch(appId, clarId) }
+        }
+    }
+
+    private fun patchHistory(id: ApplicantId, next: ApplicantDeskHistory) {
+        _state.update { it.copy(deskRead = it.deskRead.copy(history = it.deskRead.history + (id to next))) }
+    }
+
+    private fun centreId(): Int? = _state.value.session?.centres?.firstOrNull()?.id?.value
+
+    private fun openRead(screen: DeskScreen, load: suspend (Int) -> Unit) {
+        val cid = centreId() ?: return
+        returnTo = DeskScreen.Centre
+        _state.update { it.copy(screen = screen, deskRead = it.deskRead.copy(loading = true, error = null)) }
+        viewModelScope.launch {
+            runCatching { load(cid) }.onFailure { e ->
+                handleAuth(e)
+                _state.update { it.copy(deskRead = it.deskRead.copy(loading = false, error = e.message)) }
+            }
         }
     }
 

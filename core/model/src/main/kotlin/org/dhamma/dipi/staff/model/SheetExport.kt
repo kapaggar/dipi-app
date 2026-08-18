@@ -3,7 +3,7 @@ package org.dhamma.dipi.staff.model
 import java.io.File
 
 /**
- * The twelve Board export cells, keyed by the exact label BoardPane emits.
+ * The Board export cells, keyed by the exact label BoardPane emits.
  * Path templates and delivery shape live in the network layer; this enum is
  * the seam between the transport (StaffRepository.fetchSheet) and the UI.
  */
@@ -20,6 +20,7 @@ enum class SheetExport(val label: String) {
     ValuableList("Valuable list"),
     SeatingPlan("Seating plan"),
     CourseReport("Course report"),
+    Day11Report("Course summary report"),
     ;
 
     companion object {

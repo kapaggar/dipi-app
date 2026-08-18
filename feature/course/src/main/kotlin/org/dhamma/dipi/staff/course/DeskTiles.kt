@@ -23,6 +23,7 @@ fun centreDeskTiles(centreId: Int): List<DeskTileSpec> = listOf(
     DeskTileSpec("SMS Report", "centre/$centreId/sms-report"),
     DeskTileSpec("Course Report", "centre/$centreId/course-report"),
     DeskTileSpec("Bulk Mail", "centre/$centreId/bulk-mail-schedule"),
+    DeskTileSpec("Letters", "letters/$centreId"),
 )
 
 /**
@@ -59,3 +60,22 @@ fun courseHubLiveTiles(centreId: Int, courseId: Int): List<CourseHubTile> =
 /** Desk-site destinations, tucked into the hub's ⋯ overflow menu. */
 fun courseHubDeskTiles(centreId: Int, courseId: Int): List<CourseHubTile> =
     courseHubTiles(centreId, courseId).filter { it.live == null }
+
+/**
+ * Hub overflow titles that already have a Board [SheetExport] — the phone
+ * opens the same viewer/document path as the tablet, never the placeholder.
+ * Titles that do not map (Add Application) stay on [openLater].
+ */
+fun hubSheetLabel(title: String): String? = when (title) {
+    "Day 0 List" -> "Day 0 list"
+    "Seating Plan" -> "Seating plan"
+    "Student Chit" -> "Student chit"
+    "Checking Slip" -> "Checking slip"
+    "Male PDF" -> "Male PDF"
+    "Female PDF" -> "Female PDF"
+    "Teachers List" -> "Teacher list"
+    "Laundry List" -> "Laundry list"
+    "Valuable List" -> "Valuable list"
+    "Course Summary Report" -> "Course summary report"
+    else -> null
+}
