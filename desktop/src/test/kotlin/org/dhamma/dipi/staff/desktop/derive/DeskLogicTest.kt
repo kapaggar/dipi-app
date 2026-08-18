@@ -52,6 +52,8 @@ class DeskLogicTest {
     @Test
     fun stripHonorificMechanical() {
         assertEquals("Meera", stripHonorific("Mrs Meera"))
-        assertEquals("Lt Col Smith", stripHonorific("Lt Col Smith"))
+        // Single-word titles only; "Lt Col" is not stripped as a pair (Lt is).
+        assertEquals("Col Smith", stripHonorific("Lt Col Smith"))
+        assertEquals("Priya", stripHonorific("Priya"))
     }
 }

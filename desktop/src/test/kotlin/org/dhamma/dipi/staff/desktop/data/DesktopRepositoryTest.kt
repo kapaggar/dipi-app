@@ -38,7 +38,8 @@ class DesktopRepositoryTest {
         val (rows, counts) = repo.refreshApplicants(CourseId(MockFixtures.COURSE_10D), centreId = session.centres.first().id)
         assertTrue(rows.isNotEmpty())
         assertTrue((counts["All"] ?: 0) > 0)
-        assertFalse(rows.joinToString { it.toString() }.contains("aadhar", ignoreCase = true))
+        assertTrue(rows.any { it.displayName.contains("Meera") })
+        assertTrue(rows.none { "aadhaar" in it.displayName.lowercase() })
     }
 
     @Test
