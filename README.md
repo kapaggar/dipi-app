@@ -19,8 +19,18 @@ Product rules (no client ACL, no `/staff` status façade, no attendance write, f
 # Live Drupal (https://dipi.vridhamma.org) is the default.
 ./gradlew :app:assembleDebug
 ./gradlew :app:testDebugUnitTest
-./gradlew :core:model:test :core:network:testDebugUnitTest :core:audit:test
+./gradlew :core:model:test :core:network:testDebugUnitTest :core:audit:test :core:protocol:test
 ```
+
+Linux / Steam Deck OLED (no Android SDK):
+
+```bash
+./gradlew -Pdipi.desktopOnly=true :desktop:test
+./gradlew -Pdipi.desktopOnly=true :desktop:run
+./gradlew -Pdipi.desktopOnly=true :desktop:run --args='--mock'
+```
+
+See [docs/STEAM-DECK.md](docs/STEAM-DECK.md).
 
 Fixtures only if you opt in:
 
@@ -58,8 +68,10 @@ Not student-apply, not a WebView, not AT/SMS/WhatsApp/IVR, not `/api` APP API, n
 
 ```
 :app                 Hilt app, repository, ViewModel, chrome
+:desktop             Compose Desktop client for Linux / Steam Deck OLED (2.0.0)
 :core:model          ids, status, worklist filter, UserCentreMap (mock names)
-:core:network        Retrofit + desk HTML parser + mock dispatcher
+:core:protocol       JVM desk HTML parsers, Retrofit API, mock dispatcher
+:core:network        Android OkHttp/Hilt wiring + photo loader over :core:protocol
 :core:database       Room + SQLCipher (one course + outbox)
 :core:datastore      Encrypted prefs (cookie/CSRF/remember-me) + DataStore
 :core:ui             tokens, badge, row, chips

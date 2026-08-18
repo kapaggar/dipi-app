@@ -69,10 +69,14 @@ Prefer the Wi-Fi serial (`10.0.0.144:5555`) for install/launch so the cable can 
 
 ```bash
 ./gradlew :app:testDebugUnitTest
-./gradlew :core:model:test :core:network:testDebugUnitTest
+./gradlew :core:model:test :core:network:testDebugUnitTest :core:protocol:test
 ./gradlew :app:assembleDebug
 # fixtures only:
 ./gradlew :app:assembleDebug -Pdipi.useMock=true
+# Linux / Steam Deck OLED (Compose Desktop, no Android SDK):
+./gradlew -Pdipi.desktopOnly=true :desktop:test :desktop:run
 ```
+
+Linux port: [`docs/STEAM-DECK.md`](docs/STEAM-DECK.md). Same live Drupal protocol. Never send `Approved`. Never persist NPI.
 
 Kotlin JVM target 17. The Mac that last built this tree used JDK 20 (no JDK 17 toolchain installed). `sdk.dir` in `local.properties`.

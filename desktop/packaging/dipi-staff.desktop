@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=DIPI Staff
+Comment=Registrar desk for dipi.vridhamma.org
+Exec=dipi-staff --deck
+Icon=dipi-staff
+Terminal=false
+Categories=Office;
+StartupWMClass=org-dhamma-dipi-staff-desktop-MainKt

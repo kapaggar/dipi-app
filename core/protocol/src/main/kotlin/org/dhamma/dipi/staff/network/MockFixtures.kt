@@ -3,9 +3,9 @@ package org.dhamma.dipi.staff.network
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
-internal val jsonPretty = Json { encodeDefaults = true; ignoreUnknownKeys = true }
+val jsonPretty = Json { encodeDefaults = true; ignoreUnknownKeys = true }
 
-internal object MockFixtures {
+object MockFixtures {
     const val CENTRE_ID = 1
     const val COURSE_10D = 10
     const val RAKESH_ID = 2

@@ -19,6 +19,7 @@ android {
 
 dependencies {
     implementation(project(":core:model"))
+    api(project(":core:protocol"))
     implementation(libs.okhttp)
     implementation(libs.okhttp.logging)
     implementation(libs.okhttp.mockwebserver)

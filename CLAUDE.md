@@ -17,5 +17,6 @@ Vertical 1 loop: login → centre (from `dh_user_center`) → upcoming courses �
 Centre settings are global (Centre screen), no longer a desk section.
 
 See `AGENTS.md` (current assumptions) and `docs/LIVE-DESK-HAR.md`.
+Linux / Steam Deck OLED client: `:desktop` (Compose Desktop 2.0.0) — `docs/STEAM-DECK.md`. Same desk HTML protocol.
 
 SemVer: bump `versionName` + `versionCode` on every shippable change (MAJOR/MINOR/PATCH). After a major (and any tablet-facing minor), install the debug APK on the Pixel C over Wi-Fi ADB (`10.0.0.144:5555`). Details in `AGENTS.md`.
