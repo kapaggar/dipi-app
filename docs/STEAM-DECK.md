@@ -51,7 +51,9 @@ Artifacts land under `desktop/build/compose/binaries/`. Prefer the **AppImage** 
 5. Optional: install the `.desktop` file from `desktop/packaging/dipi-staff.desktop`.
 6. Steam Game Mode: *Add a non-Steam game* → the AppImage or `dipi-staff` binary. Set resolution 1280×800. Steam Input as mouse is enough; Esc is Back.
 
-`desktop/packaging/install-steam-deck.sh` copies a built distribution into `~/.local/opt/dipi-staff` and installs the launcher.
+`desktop/packaging/install-desktop-icon.sh` puts a lotus **DIPI Staff** icon on `~/Desktop` so you can double-click to launch (also writes `~/.local/share/applications`). It enables XFCE file icons if they were hidden.
+
+`desktop/packaging/install-steam-deck.sh` copies a built distribution into `~/.local/opt/dipi-staff` and then runs the desktop-icon installer.
 
 ## Data on disk
 

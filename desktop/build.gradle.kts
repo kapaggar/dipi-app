@@ -48,6 +48,7 @@ compose.desktop {
                 menuGroup = "Office"
                 debMaintainer = "dipi-staff"
                 debPackageVersion = "2.0.0"
+                iconFile.set(project.file("packaging/icons/dipi-staff.png"))
             }
         }
     }
