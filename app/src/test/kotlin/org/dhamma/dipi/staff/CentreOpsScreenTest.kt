@@ -44,6 +44,7 @@ class CentreOpsScreenTest {
                 )
             }
         }
+        rule.onNodeWithText("Centre settings").assertIsDisplayed()
         rule.onNodeWithText(
             "Three switches change what check-in asks for. " +
                 "The line at the bottom shows the result.",
@@ -54,6 +55,8 @@ class CentreOpsScreenTest {
             "Check-in asks for room, seating, laundry and valuables. " +
                 "Everyone sits in Main Dhamma Hall and Zero Day hides group chips.",
         ).assertIsDisplayed()
+        rule.onAllNodesWithText("ON").assertCountEquals(2)
+        rule.onAllNodesWithText("OFF").assertCountEquals(1)
     }
 
     @Test

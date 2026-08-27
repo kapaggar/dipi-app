@@ -240,5 +240,3 @@ fun DeskSectionPlaceholder(section: DeskSection) {
         )
     }
 }
-
-
