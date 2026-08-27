@@ -1214,6 +1214,15 @@ class DeskViewModel @Inject constructor(
             }
     }
 
+    /**
+     * User-initiated outbox retry from the queued strip. Always attempts the
+     * send — no client-side reachability gate (hard rule 1); failures surface
+     * through the existing FlushSnack path.
+     */
+    fun retrySync() {
+        viewModelScope.launch { flush() }
+    }
+
     private suspend fun flush() {
         runCatching { repo.flushOutbox() }
             .onSuccess { snacks ->

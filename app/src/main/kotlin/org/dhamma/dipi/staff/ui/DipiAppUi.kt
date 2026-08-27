@@ -128,17 +128,11 @@ fun DipiAppUi(vm: DeskViewModel) {
                             .padding(horizontal = 12.dp, vertical = 6.dp),
                     )
                 }
-                if (state.offline || state.queuedCount > 0) {
-                    Text(
-                        text = stringResource(R.string.offline_banner, state.queuedCount),
-                        color = c.foreground,
-                        fontSize = 12.sp,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(c.tint)
-                            .padding(horizontal = 12.dp, vertical = 6.dp),
-                    )
-                }
+                SyncBannerStrips(
+                    offline = state.offline,
+                    queued = state.queuedCount,
+                    onRetry = vm::retrySync,
+                )
                 Box(Modifier.weight(1f)) {
                     val canBack = state.screen != DeskScreen.Login && state.screen != DeskScreen.Centre
                     val activity = LocalContext.current as? Activity
