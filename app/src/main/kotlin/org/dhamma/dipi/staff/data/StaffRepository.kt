@@ -52,6 +52,12 @@ import javax.inject.Inject
 import javax.inject.Named
 import javax.inject.Singleton
 
+/**
+ * The desk lists every course from the last six months in its dropdown; the
+ * registrar only ever reaches for the last few (owner feedback 2026-08-27).
+ */
+const val OLDER_COURSE_LIMIT = 3
+
 @Singleton
 class StaffRepository @Inject constructor(
     private val auth: DrupalAuthApi,
@@ -194,7 +200,7 @@ class StaffRepository @Inject constructor(
             refreshRooms(centreId.value)
             return@runCatching CentreCourses(
                 upcoming = api.courses(centreId.value, upcoming = 1).items.map { it.toModel() },
-                older = api.courses(centreId.value, upcoming = 0).items.map { it.toModel() },
+                older = api.courses(centreId.value, upcoming = 0).items.map { it.toModel() }.take(OLDER_COURSE_LIMIT),
             )
         }
         val dash = api.centreDashboard(centreId.value)
@@ -209,7 +215,7 @@ class StaffRepository @Inject constructor(
         }
         val older = CentrePageParser.olderCourseOptions(html, upcomingIds).map {
             Course(CourseId(it.id), centreId, it.label, "", "")
-        }
+        }.take(OLDER_COURSE_LIMIT)
         CentreCourses(upcoming, older)
     }.getOrElse { throw it.toApi() }
 
