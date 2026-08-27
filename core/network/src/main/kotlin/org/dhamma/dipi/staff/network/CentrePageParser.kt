@@ -1,6 +1,8 @@
 package org.dhamma.dipi.staff.network
 
+import org.dhamma.dipi.staff.model.CourseMatrix
 import org.dhamma.dipi.staff.model.CourseSummary
+import org.dhamma.dipi.staff.model.MatrixRow
 
 /**
  * Reads the per-course status tables on the centre dashboard (`GET /centre/{cid}`,
@@ -95,4 +97,50 @@ object CentrePageParser {
     /** Count cells are blank, `N`, `<a>N</a>` or `<b><a>N</a></b>` — links carry ids in the href only. */
     private fun num(cell: String): Int =
         SearchPageParser.stripTags(cell).filter { it.isDigit() }.toIntOrNull() ?: 0
+
+    /**
+     * The full per-status matrix (new/old/sevak split by gender) keyed by
+     * course id, using the same `summary-block` / `table-heading`
+     * segmentation as [courseSummaries]. Unlike [courseSummaries] this keeps
+     * every status row the desk rendered, in page order, without hardcoding
+     * the status set — a centre can add `COURSE-STATUS` rows.
+     */
+    fun courseMatrices(html: String): Map<Int, CourseMatrix> {
+        val headings = headingRe.findAll(html).toList()
+        val out = linkedMapOf<Int, CourseMatrix>()
+        headings.forEachIndexed { i, heading ->
+            val courseId = heading.groupValues[1].toIntOrNull() ?: return@forEachIndexed
+            val segment = html.substring(
+                heading.range.last + 1,
+                headings.getOrNull(i + 1)?.range?.first ?: html.length,
+            )
+            val table = tableRe.find(segment)?.groupValues?.get(1) ?: return@forEachIndexed
+            out[courseId] = matrixFromTable(table)
+        }
+        return out
+    }
+
+    private fun matrixFromTable(table: String): CourseMatrix {
+        val rows = mutableListOf<MatrixRow>()
+        var total: MatrixRow? = null
+        rowRe.findAll(table).forEach { row ->
+            // The header row is all <th>, so it yields no cells and drops out here.
+            val cells = cellRe.findAll(row.groupValues[1]).map { it.groupValues[1] }.toList()
+            if (cells.size < 10) return@forEach
+            val label = SearchPageParser.stripTags(cells[0]).trim()
+            // Cells 3 and 8 are the desk's own computed student totals —
+            // deliberately ignored; MatrixRow recomputes from NM+OM / NF+OF.
+            val matrixRow = MatrixRow(
+                label = label,
+                newMale = num(cells[1]),
+                oldMale = num(cells[2]),
+                sevakMale = num(cells[4]),
+                newFemale = num(cells[6]),
+                oldFemale = num(cells[7]),
+                sevakFemale = num(cells[9]),
+            )
+            if (label.equals("Total", true)) total = matrixRow else rows.add(matrixRow)
+        }
+        return CourseMatrix(rows, total)
+    }
 }

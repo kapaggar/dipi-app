@@ -214,6 +214,26 @@ internal object MockFixtures {
             0xA1.toByte(), 0xB1.toByte(), 0x1A, 0xE1.toByte(),
         ) + "DIPI mock spreadsheet".toByteArray(Charsets.US_ASCII)
 
+    /**
+     * `GET /centre/{cid}` in the real `course_summary()` shape: one
+     * `summary-block` with the full NM/OM/Total/SM · NF/OF/Total/SF status
+     * matrix, so `-Pdipi.useMock=true` can exercise
+     * [CentrePageParser.courseMatrices] the same way the live desk does.
+     */
+    fun centreDashboardHtml(cid: Int, courseId: Int) = """
+        <html><body>
+        <h1>Manage Dhamma Sudha</h1>
+        <h2>Upcoming Courses</h2>
+        <div class="summary-block"><div class="table-heading"><a href="/course/$cid/$courseId">Dhamma Sudha / 10 Day / 2026 / 2nd-Sep to 13th-Sep</a></div>
+        <table><tr><th></th><th>NM</th><th>OM</th><th>Total</th><th>SM</th><th>&nbsp;&nbsp;</th><th>NF</th><th>OF</th><th>Total</th><th>SF</th></tr>
+        <tr><td><a>Received</a></td><td></td><td></td><td></td><td></td><td>&nbsp;</td><td></td><td><a>2</a></td><td><b><a>2</a></b></td><td></td></tr>
+        <tr><td><a>Confirmed</a></td><td><a>40</a></td><td><a>18</a></td><td><b><a>58</a></b></td><td></td><td>&nbsp;</td><td><a>14</a></td><td><a>5</a></td><td><b><a>19</a></b></td><td><a>1</a></td></tr>
+        <tr><td><a>Cancelled</a></td><td><a>4</a></td><td><a>1</a></td><td><b><a>5</a></b></td><td></td><td>&nbsp;</td><td></td><td><a>2</a></td><td><b><a>2</a></b></td><td></td></tr>
+        <tr><td><b>Total</b></td><td>57</td><td>24</td><td><b>81</b></td><td>3</td><td>&nbsp;</td><td>18</td><td>7</td><td><b>25</b></td><td>2</td></tr>
+        </table></div>
+        </body></html>
+    """.trimIndent()
+
     /** Print-styled desk sheet page (day0-list, teacher-list, …). */
     fun sheetHtml(slug: String, cid: Int, courseId: Int) = """
         <html><head>
