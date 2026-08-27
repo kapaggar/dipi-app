@@ -22,7 +22,6 @@ import androidx.compose.ui.unit.sp
 import org.dhamma.dipi.staff.model.CentreOpsPrefs
 import org.dhamma.dipi.staff.model.centreOpsEffect
 import org.dhamma.dipi.staff.ui.theme.DeskKicker
-import org.dhamma.dipi.staff.ui.theme.DeskStyle
 import org.dhamma.dipi.staff.ui.theme.DipiCondensed
 import org.dhamma.dipi.staff.ui.theme.Industry
 import org.dhamma.dipi.staff.ui.theme.LocalDipi
