@@ -11,14 +11,17 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.dhamma.dipi.staff.model.CentreOpsPrefs
@@ -142,7 +145,13 @@ private fun ToggleRow(title: String, note: String, on: Boolean, onClick: () -> U
     Row(
         Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            // The row is the single toggle target: it carries the click AND the
+            // On/Off semantics (Role.Switch), so a tap anywhere on the row fires
+            // onClick exactly once. The Switch below is display-only
+            // (onCheckedChange = null) so it doesn't install a second, competing
+            // toggleable — that would double-fire on a thumb tap.
+            .toggleable(value = on, onValueChange = { onClick() }, role = Role.Switch)
+            .testTag(testTag)
             .padding(vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -152,8 +161,13 @@ private fun ToggleRow(title: String, note: String, on: Boolean, onClick: () -> U
         }
         Switch(
             checked = on,
-            onCheckedChange = { onClick() },
-            modifier = Modifier.padding(start = 12.dp).testTag(testTag),
+            onCheckedChange = null,
+            modifier = Modifier.padding(start = 12.dp),
+            colors = SwitchDefaults.colors(
+                uncheckedThumbColor = c.muted,
+                uncheckedTrackColor = c.field,
+                uncheckedBorderColor = c.hairlineStrong,
+            ),
         )
     }
 }

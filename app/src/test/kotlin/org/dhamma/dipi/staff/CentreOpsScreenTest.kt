@@ -4,16 +4,20 @@ import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.assertIsOn
+import androidx.compose.ui.test.centerRight
+import androidx.compose.ui.test.click
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTouchInput
 import org.dhamma.dipi.staff.course.CentreOpsScreen
 import org.dhamma.dipi.staff.model.AccoRoom
 import org.dhamma.dipi.staff.model.CentreOpsPrefs
 import org.dhamma.dipi.staff.model.Gender
 import org.dhamma.dipi.staff.ui.theme.DipiTheme
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -97,6 +101,30 @@ class CentreOpsScreenTest {
         }
         rule.onNodeWithText("Laundry").performClick()
         assertTrue(toggled)
+    }
+
+    @Test
+    fun tappingTheSwitchThumbTogglesExactlyOnce() {
+        var count = 0
+        rule.setContent {
+            DipiTheme {
+                CentreOpsScreen(
+                    prefs = CentreOpsPrefs(),
+                    onToggleLaundry = { count++ },
+                    onToggleValuables = {},
+                    onToggleGroups = {},
+                    onOpenRooms = {},
+                    onBack = {},
+                )
+            }
+        }
+        // Tap at the row's trailing edge — where the Switch thumb renders —
+        // rather than the row's text. The row carries a single `toggleable`
+        // (the decorative Switch has onCheckedChange = null), so this must
+        // fire the callback exactly once; a regression to two competing
+        // toggle handlers would fire twice and this count would catch it.
+        rule.onNodeWithTag("toggle-laundry").performTouchInput { click(centerRight) }
+        assertEquals(1, count)
     }
 
     @Test
