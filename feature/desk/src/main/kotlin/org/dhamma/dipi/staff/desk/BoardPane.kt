@@ -43,8 +43,6 @@ private val EXPORTS = listOf(
  */
 @Composable
 fun BoardPane(
-    centreName: String,
-    dayLabel: String?,
     roll: List<ApplicantCard>,
     checkIns: Map<ApplicantId, CheckInRecord>,
     flagged: List<ApplicantCard>,
@@ -69,15 +67,6 @@ fun BoardPane(
             .padding(26.dp),
     ) {
         Column(Modifier.padding(bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text(
-                if (dayLabel != null) "$dayLabel at $centreName" else centreName,
-                fontFamily = DipiCondensed,
-                fontWeight = FontWeight.Bold,
-                fontSize = 40.sp,
-                lineHeight = 40.sp,
-                letterSpacing = (-0.01).em,
-                color = Industry.text,
-            )
             Text(
                 "$total on the roll, $inCount already in their rooms. " +
                     "Everything below is a number you can act on — tap it.",

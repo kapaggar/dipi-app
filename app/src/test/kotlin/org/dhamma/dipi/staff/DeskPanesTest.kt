@@ -373,8 +373,6 @@ class DeskPanesTest {
         rule.setContent {
             DipiTheme {
                 BoardPane(
-                    centreName = "Dhamma Sudha",
-                    dayLabel = "Day 0",
                     roll = roll,
                     checkIns = emptyMap(),
                     flagged = listOf(roll[2]),
@@ -384,7 +382,9 @@ class DeskPanesTest {
                 )
             }
         }
-        rule.onNodeWithText("Day 0 at Dhamma Sudha").assertIsDisplayed()
+        // The centre-name heading is gone (spec S3.3); the roll subtitle is
+        // now the block's first line.
+        rule.onNodeWithText("Day 0 at Dhamma Sudha").assertDoesNotExist()
         rule.onNodeWithText("ARRIVING TODAY").assertIsDisplayed()
         rule.onNodeWithText("STILL TO CALL").assertIsDisplayed()
         rule.onNodeWithText("2 numbers left").assertIsDisplayed()

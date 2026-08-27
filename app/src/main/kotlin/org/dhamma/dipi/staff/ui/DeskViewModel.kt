@@ -823,6 +823,11 @@ class DeskViewModel @Inject constructor(
     fun toggleValuables() = persistOps(_state.value.centreOps.let { it.copy(valuables = !it.valuables) })
     fun toggleGroups() = persistOps(_state.value.centreOps.let { it.copy(groups = !it.groups) })
 
+    /** Room chart column stepper (spec S4): device-local grid shape per gender+section block. */
+    fun setRoomColumns(gender: Gender, section: String, columns: Int) = persistOps(
+        _state.value.centreOps.let { it.copy(roomLayout = it.roomLayout.withColumns(gender, section, columns)) },
+    )
+
     fun setZeroDaySeating(card: ApplicantCard, seating: String) {
         patchDraft(card.id) { it.copy(seating = seating) }
     }

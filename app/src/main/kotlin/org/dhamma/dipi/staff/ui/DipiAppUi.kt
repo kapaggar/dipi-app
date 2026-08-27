@@ -265,6 +265,8 @@ fun DipiAppUi(vm: DeskViewModel) {
                         DeskScreen.Rooms -> RoomsScreen(
                             rooms = state.centreOps.rooms,
                             genderFilter = state.roomsGender,
+                            layout = state.centreOps.roomLayout,
+                            onColumns = vm::setRoomColumns,
                             onPick = vm::pickRoom,
                             onBack = vm::back,
                         )
@@ -337,8 +339,6 @@ private fun DeskHost(
         ) { section ->
             when (section) {
                 DeskSection.Board -> BoardPane(
-                    centreName = session.centres.firstOrNull()?.name ?: course.name,
-                    dayLabel = deskBoardDay(course.start, java.time.LocalDate.now()),
                     roll = roll,
                     checkIns = state.checkIns,
                     flagged = state.auditRows,

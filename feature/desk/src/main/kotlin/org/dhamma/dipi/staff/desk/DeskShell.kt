@@ -64,7 +64,7 @@ data class DeskCourse(
     val dayChip: String?,
 ) {
     val line: String
-        get() = listOfNotNull(label.ifBlank { null }, dates.ifBlank { null }, dayChip)
+        get() = listOfNotNull(dates.ifBlank { null }, dayChip)
             .joinToString(" · ")
 }
 
@@ -212,7 +212,7 @@ private fun DeskTopBar(courseLine: String, clock: String) {
             courseLine,
             fontFamily = DipiCondensed,
             fontWeight = FontWeight.SemiBold,
-            fontSize = 13.sp,
+            fontSize = 17.sp,
             letterSpacing = 0.1.em,
             color = Industry.neutral700,
             maxLines = 1,
