@@ -96,6 +96,8 @@ data class Course(
     val typeKey: String = "",
     /** Null when the centre page shows no status table for this course. */
     val summary: CourseSummary? = null,
+    /** The full centre-dashboard status matrix; null when the desk did not render the block. */
+    val matrix: CourseMatrix? = null,
 )
 
 /** Split of the centre dashboard: next-4 upcoming vs the Select Course older rows. */
