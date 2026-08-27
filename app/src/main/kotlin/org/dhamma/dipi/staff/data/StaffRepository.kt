@@ -207,11 +207,12 @@ class StaffRepository @Inject constructor(
         val html = dash.html()
         if (stillOnLogin(html) || dash.code() == 403) throw ApiException("Access denied", unauthorized = true)
         val summaries = CentrePageParser.courseSummaries(html)
+        val matrices = CentrePageParser.courseMatrices(html)
         refreshRooms(centreId.value)
         val upcomingOpts = SearchPageParser.coursesFromDashboard(html)
         val upcomingIds = upcomingOpts.map { it.id }.toSet()
         val upcoming = upcomingOpts.map {
-            Course(CourseId(it.id), centreId, it.label, "", "", summary = summaries[it.id])
+            Course(CourseId(it.id), centreId, it.label, "", "", summary = summaries[it.id], matrix = matrices[it.id])
         }
         val older = CentrePageParser.olderCourseOptions(html, upcomingIds).map {
             Course(CourseId(it.id), centreId, it.label, "", "")
