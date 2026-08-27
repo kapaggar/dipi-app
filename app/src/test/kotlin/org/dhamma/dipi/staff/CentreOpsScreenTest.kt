@@ -2,8 +2,11 @@ package org.dhamma.dipi.staff
 
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsOff
+import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import org.dhamma.dipi.staff.course.CentreOpsScreen
@@ -55,8 +58,9 @@ class CentreOpsScreenTest {
             "Check-in asks for room, seating, laundry and valuables. " +
                 "Everyone sits in Main Dhamma Hall and Zero Day hides group chips.",
         ).assertIsDisplayed()
-        rule.onAllNodesWithText("ON").assertCountEquals(2)
-        rule.onAllNodesWithText("OFF").assertCountEquals(1)
+        rule.onNodeWithTag("toggle-laundry").assertIsOn()
+        rule.onNodeWithTag("toggle-valuables").assertIsOn()
+        rule.onNodeWithTag("toggle-groups").assertIsOff()
     }
 
     @Test

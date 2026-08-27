@@ -12,11 +12,13 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.dhamma.dipi.staff.model.CentreOpsPrefs
@@ -47,6 +49,25 @@ fun CentreOpsScreen(
     ) {
         Text("Centre settings", fontFamily = DipiCondensed, fontSize = 22.sp, color = c.foreground)
         TextButton(onClick = onBack) { Text("Back") }
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .deskCard()
+                .clickable(onClick = onOpenRooms)
+                .padding(14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text("Room chart", fontFamily = DipiCondensed, fontSize = 18.sp, color = c.foreground)
+                Text(
+                    "Rooms, sections and chart layout",
+                    color = c.muted,
+                    fontSize = 12.sp,
+                    modifier = Modifier.padding(top = 2.dp),
+                )
+            }
+        }
+        Spacer(Modifier.height(14.dp))
         Text(
             "Three switches change what check-in asks for. " +
                 "The line at the bottom shows the result.",
@@ -59,18 +80,21 @@ fun CentreOpsScreen(
             note = "Check-in asks whether laundry was issued.",
             on = prefs.laundry,
             onClick = onToggleLaundry,
+            testTag = "toggle-laundry",
         )
         ToggleRow(
             title = "Valuables",
             note = "Check-in asks whether valuables were deposited.",
             on = prefs.valuables,
             onClick = onToggleValuables,
+            testTag = "toggle-valuables",
         )
         ToggleRow(
             title = "Groups",
             note = "Check-in assigns a sitting group; Zero Day shows group chips.",
             on = prefs.groups,
             onClick = onToggleGroups,
+            testTag = "toggle-groups",
         )
         Spacer(Modifier.height(14.dp))
         Column(
@@ -84,7 +108,6 @@ fun CentreOpsScreen(
             Text(centreOpsEffect(prefs), color = c.foreground, fontSize = 13.sp)
         }
         Spacer(Modifier.height(14.dp))
-        TextButton(onClick = onOpenRooms) { Text("Room chart") }
         Text("Accommodation", fontFamily = DipiCondensed, fontSize = 16.sp, modifier = Modifier.padding(top = 8.dp))
         Text(
             "Room list comes from the desk site (Centre → Edit) and refreshes on sign-in.",
@@ -114,7 +137,7 @@ fun CentreOpsScreen(
 }
 
 @Composable
-private fun ToggleRow(title: String, note: String, on: Boolean, onClick: () -> Unit) {
+private fun ToggleRow(title: String, note: String, on: Boolean, onClick: () -> Unit, testTag: String) {
     val c = LocalDipi.current
     Row(
         Modifier
@@ -127,10 +150,10 @@ private fun ToggleRow(title: String, note: String, on: Boolean, onClick: () -> U
             Text(title, color = c.foreground, fontSize = 15.sp)
             Text(note, color = c.muted, fontSize = 12.sp)
         }
-        DeskKicker(
-            if (on) "ON" else "OFF",
-            if (on) Industry.accent700 else Industry.neutral500,
-            Modifier.padding(start = 12.dp),
+        Switch(
+            checked = on,
+            onCheckedChange = { onClick() },
+            modifier = Modifier.padding(start = 12.dp).testTag(testTag),
         )
     }
 }
