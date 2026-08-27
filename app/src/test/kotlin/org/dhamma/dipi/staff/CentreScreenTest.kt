@@ -113,7 +113,13 @@ class CentreScreenTest {
         }
         rule.onNodeWithText("Upcoming courses").assertIsDisplayed()
         rule.onNodeWithText("10-Day").assertIsDisplayed()
-        rule.onNodeWithText("NM  OM  M  ·  NF  OF  F").assertIsDisplayed()
+        // Finding 3: the kicker header is now per-cell (weight()-based, like
+        // the data rows) rather than one manually-spaced literal string, so
+        // each label sits above its column.
+        rule.onNodeWithText("NM").assertIsDisplayed()
+        rule.onNodeWithText("OM").assertIsDisplayed()
+        rule.onNodeWithText("NF").assertIsDisplayed()
+        rule.onNodeWithText("OF").assertIsDisplayed()
         rule.onNodeWithText("Confirmed").assertIsDisplayed()
         rule.onNodeWithText("41").assertIsDisplayed()
         rule.onNodeWithText("17").assertIsDisplayed()

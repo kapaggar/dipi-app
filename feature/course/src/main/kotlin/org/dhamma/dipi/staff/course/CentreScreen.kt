@@ -21,6 +21,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.dhamma.dipi.staff.model.Centre
@@ -93,8 +94,16 @@ fun CentreScreen(
             // (owner feedback 2026-08-27). Weights, not fillMaxHeight
             // fractions, so nothing nests a same-axis verticalScroll.
             Column(Modifier.fillMaxSize()) {
-                Column(Modifier.padding(horizontal = 20.dp, vertical = 20.dp)) {
-                    CentreHeaderBlock(session, centre, onPickCentre)
+                Column(
+                    Modifier
+                        .heightIn(max = 220.dp)
+                        .padding(horizontal = 20.dp, vertical = 20.dp),
+                ) {
+                    // Bounded so an account with many centres can never
+                    // squeeze the weighted regions below toward 0dp (owner
+                    // feedback 2026-08-27) — the switcher list scrolls
+                    // within this cap instead of pushing content out.
+                    CentreHeaderBlock(session, centre, onPickCentre, maxListHeight = 160.dp)
                 }
                 Column(
                     Modifier
@@ -149,6 +158,12 @@ private fun CentreHeaderBlock(
     session: Session,
     centre: Centre?,
     onPickCentre: (Centre) -> Unit,
+    // Non-null only on the wide layout's fixed header, which has no scroll
+    // of its own to fall back on. Left null on the narrow path, which
+    // already lives inside a single page-level verticalScroll (nesting a
+    // second same-axis scroll there would fight it) — no visible change to
+    // the common single-centre account either way.
+    maxListHeight: Dp? = null,
 ) {
     val c = LocalDipi.current
     Text(
@@ -158,15 +173,22 @@ private fun CentreHeaderBlock(
         color = c.foreground,
     )
     if (session.centres.size > 1) {
-        session.centres.forEach { item ->
-            Text(
-                item.name,
-                color = if (item.id == centre?.id) c.accent else c.muted,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { onPickCentre(item) }
-                    .padding(vertical = 6.dp),
-            )
+        val listModifier = if (maxListHeight != null) {
+            Modifier.heightIn(max = maxListHeight).verticalScroll(rememberScrollState())
+        } else {
+            Modifier
+        }
+        Column(listModifier) {
+            session.centres.forEach { item ->
+                Text(
+                    item.name,
+                    color = if (item.id == centre?.id) c.accent else c.muted,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onPickCentre(item) }
+                        .padding(vertical = 6.dp),
+                )
+            }
         }
     }
 }
@@ -362,14 +384,32 @@ private fun matrixCell(n: Int): String = if (n == 0) "·" else n.toString()
 private fun CourseMatrixTable(matrix: CourseMatrix, modifier: Modifier = Modifier) {
     val c = LocalDipi.current
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        Text(
-            "NM  OM  M  ·  NF  OF  F",
-            fontFamily = DipiMono,
-            fontSize = 10.sp,
-            color = c.muted,
-        )
+        MatrixHeaderRow()
         matrix.highlights.forEach { row -> MatrixDataRow(row.label, row, emphasise = false) }
         matrix.total?.let { total -> MatrixDataRow("Total", total, emphasise = true) }
+    }
+}
+
+/**
+ * The kicker row, built from the same weight()-based `Row` and per-cell
+ * modifiers as [MatrixDataRow] so each label sits directly above its column
+ * on a real device — a manually-spaced literal string can't guarantee that.
+ */
+@Composable
+private fun MatrixHeaderRow() {
+    val c = LocalDipi.current
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+        Spacer(Modifier.weight(1.6f))
+        listOf("NM", "OM", "M", "NF", "OF", "F").forEach { label ->
+            Text(
+                label,
+                fontFamily = DipiMono,
+                fontSize = 10.sp,
+                color = c.muted,
+                textAlign = TextAlign.End,
+                modifier = Modifier.weight(0.75f),
+            )
+        }
     }
 }
 
