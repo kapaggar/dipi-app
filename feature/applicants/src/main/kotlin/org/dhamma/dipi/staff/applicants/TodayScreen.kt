@@ -88,9 +88,7 @@ fun TodayScreen(
         }
         PullToRefreshBox(isRefreshing = loading, onRefresh = onRefresh, modifier = Modifier.fillMaxSize()) {
             if (loading && rows.isEmpty()) {
-                Column {
-                    repeat(6) { Text("········", modifier = Modifier.padding(16.dp), color = c.muted) }
-                }
+                TodaySkeleton()
             } else if (rows.isEmpty()) {
                 Text("No applicants match those filters.", modifier = Modifier.padding(24.dp), color = c.muted)
             } else {
