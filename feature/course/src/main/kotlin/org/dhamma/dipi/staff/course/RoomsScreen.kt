@@ -1,26 +1,33 @@
 package org.dhamma.dipi.staff.course
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.dhamma.dipi.staff.model.AccoRoom
 import org.dhamma.dipi.staff.model.Gender
+import org.dhamma.dipi.staff.model.RoomLayout
 import org.dhamma.dipi.staff.ui.theme.DeskStyle
 import org.dhamma.dipi.staff.ui.theme.DipiCondensed
 import org.dhamma.dipi.staff.ui.theme.DipiMono
@@ -38,6 +45,8 @@ import org.dhamma.dipi.staff.ui.theme.deskCard
 fun RoomsScreen(
     rooms: List<AccoRoom>,
     genderFilter: Gender? = null,
+    layout: RoomLayout = RoomLayout(),
+    onColumns: (Gender, String, Int) -> Unit = { _, _, _ -> },
     onPick: (AccoRoom) -> Unit = {},
     onBack: () -> Unit = {},
 ) {
@@ -64,15 +73,32 @@ fun RoomsScreen(
             val block = shown.filter { it.gender == g }
             if (block.isEmpty()) return@forEach
             block.groupBy { it.section }.forEach { (section, sectionRooms) ->
-                Text(
-                    listOf(label, section).filter { it.isNotBlank() }.joinToString(" · ") +
-                        " · ${sectionRooms.size} rooms",
-                    fontFamily = DipiCondensed,
-                    fontSize = 16.sp,
-                    color = c.foreground,
-                    modifier = Modifier.padding(top = 14.dp, bottom = 6.dp),
-                )
-                sectionRooms.chunked(4).forEachIndexed { i, rowRooms ->
+                val columns = layout.columnsFor(g, section)
+                val rowCount = RoomLayout.rowsFor(sectionRooms.size, columns)
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(top = 14.dp, bottom = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Text(
+                        listOf(label, section).filter { it.isNotBlank() }.joinToString(" · ") +
+                            " · ${sectionRooms.size} rooms · $columns per row · $rowCount rows",
+                        fontFamily = DipiCondensed,
+                        fontSize = 16.sp,
+                        color = c.foreground,
+                        modifier = Modifier.weight(1f),
+                    )
+                    ColumnStepper(
+                        gender = g,
+                        section = section,
+                        columns = columns,
+                        onDecrement = { onColumns(g, section, columns - 1) },
+                        onIncrement = { onColumns(g, section, columns + 1) },
+                    )
+                }
+                sectionRooms.chunked(columns).forEachIndexed { i, rowRooms ->
                     Row(
                         Modifier
                             .fillMaxWidth()
@@ -105,10 +131,80 @@ fun RoomsScreen(
                                 )
                             }
                         }
-                        repeat(4 - rowRooms.size) { Spacer(Modifier.weight(1f)) }
+                        repeat(columns - rowRooms.size) { Spacer(Modifier.weight(1f)) }
                     }
                 }
             }
         }
+    }
+}
+
+/**
+ * Per-block column stepper on the header's trailing edge: `− {C} +`. Rows are
+ * derived (spec S4) so there is no separate row control — the row count
+ * lives in the block header text instead.
+ */
+@Composable
+private fun ColumnStepper(
+    gender: Gender,
+    section: String,
+    columns: Int,
+    onDecrement: () -> Unit,
+    onIncrement: () -> Unit,
+) {
+    val c = LocalDipi.current
+    val label = "${gender.name} $section".trim()
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(2.dp),
+    ) {
+        StepperButton(
+            symbol = "−",
+            enabled = columns > RoomLayout.MIN_COLUMNS,
+            contentDescription = "Decrease columns · $label",
+            onClick = onDecrement,
+        )
+        Text(
+            "$columns",
+            fontFamily = DipiMono,
+            fontSize = 14.sp,
+            color = c.foreground,
+            modifier = Modifier.padding(horizontal = 4.dp),
+        )
+        StepperButton(
+            symbol = "+",
+            enabled = columns < RoomLayout.MAX_COLUMNS,
+            contentDescription = "Increase columns · $label",
+            onClick = onIncrement,
+        )
+    }
+}
+
+/** A single stepper tap target, always at least 48dp regardless of enabled state. */
+@Composable
+private fun StepperButton(
+    symbol: String,
+    enabled: Boolean,
+    contentDescription: String,
+    onClick: () -> Unit,
+) {
+    val c = LocalDipi.current
+    Box(
+        Modifier
+            .size(48.dp)
+            .clip(DeskStyle.controlShape)
+            .background(if (enabled) c.field else androidx.compose.ui.graphics.Color.Transparent)
+            .border(1.dp, c.hairline, DeskStyle.controlShape)
+            .clickable(enabled = enabled, onClick = onClick)
+            .semantics { this.contentDescription = contentDescription },
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            symbol,
+            fontFamily = DipiCondensed,
+            fontWeight = FontWeight.Bold,
+            fontSize = 18.sp,
+            color = if (enabled) c.foreground else c.muted,
+        )
     }
 }
