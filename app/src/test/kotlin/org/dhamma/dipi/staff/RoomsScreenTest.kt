@@ -91,7 +91,7 @@ class RoomsScreenTest {
                 )
             }
         }
-        rule.onNodeWithContentDescription("Increase columns · M Mbk").performClick()
+        rule.onNodeWithContentDescription("Increase columns · Male Mbk").performClick()
         assertEquals(Triple(Gender.M, "Mbk", 5), captured)
     }
 
@@ -106,7 +106,7 @@ class RoomsScreenTest {
                 )
             }
         }
-        rule.onNodeWithContentDescription("Decrease columns · M Mbk").performClick()
+        rule.onNodeWithContentDescription("Decrease columns · Male Mbk").performClick()
         assertEquals(Triple(Gender.M, "Mbk", 3), captured)
     }
 
@@ -118,8 +118,8 @@ class RoomsScreenTest {
                 RoomsScreen(rooms = maleRooms(5), layout = layout)
             }
         }
-        rule.onNodeWithContentDescription("Decrease columns · M Mbk").assertIsNotEnabled()
-        rule.onNodeWithContentDescription("Increase columns · M Mbk").assertIsEnabled()
+        rule.onNodeWithContentDescription("Decrease columns · Male Mbk").assertIsNotEnabled()
+        rule.onNodeWithContentDescription("Increase columns · Male Mbk").assertIsEnabled()
     }
 
     @Test
@@ -130,7 +130,7 @@ class RoomsScreenTest {
                 RoomsScreen(rooms = maleRooms(70), layout = layout)
             }
         }
-        rule.onNodeWithContentDescription("Increase columns · M Mbk").assertIsNotEnabled()
-        rule.onNodeWithContentDescription("Decrease columns · M Mbk").assertIsEnabled()
+        rule.onNodeWithContentDescription("Increase columns · Male Mbk").assertIsNotEnabled()
+        rule.onNodeWithContentDescription("Decrease columns · Male Mbk").assertIsEnabled()
     }
 }

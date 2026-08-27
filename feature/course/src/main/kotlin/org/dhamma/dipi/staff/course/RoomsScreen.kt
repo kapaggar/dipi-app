@@ -35,8 +35,8 @@ import org.dhamma.dipi.staff.ui.theme.LocalDipi
 import org.dhamma.dipi.staff.ui.theme.deskCard
 
 /**
- * Read-only room chart, mirroring the paper chart at the desk: numbered
- * cells in a grid, the amenity mark (G geyser · IC Indian commode ·
+ * Room chart — rooms are read-only; the grid shape per block is adjustable.
+ * Numbered cells in a grid, the amenity mark (G geyser · IC Indian commode ·
  * W Western toilet) under the number. The list itself comes from the desk
  * site's centre config; the app never adds or deletes rooms. When opened
  * from Zero Day the tap still assigns the room to the applicant.
@@ -91,7 +91,7 @@ fun RoomsScreen(
                         modifier = Modifier.weight(1f),
                     )
                     ColumnStepper(
-                        gender = g,
+                        humanLabel = label,
                         section = section,
                         columns = columns,
                         onDecrement = { onColumns(g, section, columns - 1) },
@@ -146,14 +146,14 @@ fun RoomsScreen(
  */
 @Composable
 private fun ColumnStepper(
-    gender: Gender,
+    humanLabel: String,
     section: String,
     columns: Int,
     onDecrement: () -> Unit,
     onIncrement: () -> Unit,
 ) {
     val c = LocalDipi.current
-    val label = "${gender.name} $section".trim()
+    val label = listOf(humanLabel, section).filter { it.isNotBlank() }.joinToString(" ")
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(2.dp),

@@ -57,9 +57,8 @@ data class DeskRail(
     val counts: Map<DeskSection, Int> = emptyMap(),
 )
 
-/** Course identity, shown in the 52dp top bar: "Dhamma Sudha · 10 Day · 26 Aug – 4 Sep · DAY 0". */
+/** Course identity, shown in the 52dp top bar: "10 Day · 26 Aug – 4 Sep · DAY 0". */
 data class DeskCourse(
-    val label: String,
     val dates: String,
     val dayChip: String?,
 ) {

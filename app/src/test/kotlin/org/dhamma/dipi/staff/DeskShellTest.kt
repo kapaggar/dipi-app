@@ -38,7 +38,6 @@ class DeskShellTest {
     )
 
     private val course = DeskCourse(
-        label = "Dhamma Sudha",
         dates = "10 Day · 2–13 Sep 2026",
         dayChip = "DAY 0 · TODAY",
     )

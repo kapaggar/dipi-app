@@ -519,7 +519,6 @@ private fun deskCourse(
 ): DeskCourse {
     val dates = listOf(course.start, course.end).filter { it.isNotBlank() }.joinToString(" – ")
     return DeskCourse(
-        label = session.centres.firstOrNull()?.name ?: course.name,
         dates = dates.ifBlank { course.name },
         dayChip = deskDayChip(course.start, java.time.LocalDate.now()),
     )
