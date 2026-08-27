@@ -222,6 +222,8 @@ data class CentreOpsPrefs(
     val groups: Boolean = false,
     /** Offline cache of the server room config — replaced on every centre-page load. */
     val rooms: List<AccoRoom> = emptyList(),
+    /** Chart grid shape per gender+section block. Device-local; wiped by Erase-all. */
+    val roomLayout: RoomLayout = RoomLayout(),
 )
 
 const val MAIN_DHAMMA_HALL = "Main Dhamma Hall"
