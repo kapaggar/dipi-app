@@ -107,7 +107,7 @@ fun CentreScreen(
                 }
                 Column(
                     Modifier
-                        .weight(0.6f)
+                        .weight(0.6f, fill = false)
                         .verticalScroll(rememberScrollState())
                         .padding(horizontal = 20.dp),
                 ) {
@@ -167,7 +167,7 @@ private fun CentreHeaderBlock(
 ) {
     val c = LocalDipi.current
     Text(
-        "${centre?.name ?: "Centre"} · from your account · ${session.displayName}",
+        "${centre?.name ?: "Centre"} · ${session.displayName}",
         fontFamily = DipiCondensed,
         fontSize = 22.sp,
         color = c.foreground,
@@ -238,13 +238,7 @@ private fun OlderCoursesAndDeskBlock(
         Text(
             "Older courses",
             color = c.muted,
-            modifier = Modifier.padding(top = 18.dp, bottom = 4.dp),
-        )
-        Text(
-            "Teacher list · valuables · seating — check-in is closed",
-            color = c.muted,
-            fontSize = 12.sp,
-            modifier = Modifier.padding(bottom = 8.dp),
+            modifier = Modifier.padding(top = 18.dp, bottom = 10.dp),
         )
         olderCourses.forEach { course ->
             Column(

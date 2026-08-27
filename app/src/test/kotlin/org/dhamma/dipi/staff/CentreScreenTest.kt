@@ -113,6 +113,10 @@ class CentreScreenTest {
         }
         rule.onNodeWithText("Upcoming courses").assertIsDisplayed()
         rule.onNodeWithText("10-Day").assertIsDisplayed()
+        // Owner feedback 2026-08-27: the "from your account" clause was
+        // redundant and is gone from the header.
+        rule.onNodeWithText("Dhamma Sudha · sudha.user").assertIsDisplayed()
+        rule.onNodeWithText("Dhamma Sudha · from your account · sudha.user").assertDoesNotExist()
         // Finding 3: the kicker header is now per-cell (weight()-based, like
         // the data rows) rather than one manually-spaced literal string, so
         // each label sits above its column.
@@ -203,9 +207,10 @@ class CentreScreenTest {
             }
         }
         rule.onNodeWithText("Older courses").performScrollTo().assertIsDisplayed()
+        // Owner feedback 2026-08-27: the sub-line was redundant and is gone;
+        // the deletion is proven, not merely untested.
         rule.onNodeWithText("Teacher list · valuables · seating — check-in is closed")
-            .performScrollTo()
-            .assertIsDisplayed()
+            .assertDoesNotExist()
         rule.onNodeWithText(older.name).performScrollTo().performClick()
         assertEquals(older, picked)
     }

@@ -91,4 +91,30 @@ class CentreScreenWideTest {
         rule.onNodeWithText("Centre desk").performScrollTo().assertIsDisplayed()
         rule.onNodeWithText("Centre Settings").performScrollTo().assertIsDisplayed()
     }
+
+    @Test
+    fun shortUpcomingListLeavesNoDeadBandBeforeOlderCourses() {
+        // Owner feedback 2026-08-27: "useless space. keep the UI tight" — a
+        // short upcoming list must not leave the 0.6-weighted region padded
+        // out to its full share, pushing "Older courses" out of the initial
+        // frame. Modifier.weight(0.6f, fill = false) makes the 60% a ceiling,
+        // not an exact allocation, so both regions land in the same frame
+        // with no intervening scroll required to reach the heading.
+        val older = Course(CourseId(8), CentreId(1), "Dhamma Sudha / 10 Day / 2026", "2026-08-06", "2026-08-17")
+        rule.setContent {
+            DipiTheme {
+                CentreScreen(
+                    session = singleCentreSession,
+                    courses = listOf(course),
+                    onPick = {},
+                    olderCourses = listOf(older),
+                )
+            }
+        }
+        rule.onNodeWithText("Upcoming courses").assertIsDisplayed()
+        rule.onNodeWithText("10-Day").assertIsDisplayed()
+        // No performScrollTo() before this assertion — proving the heading
+        // is already on screen, not stranded below a dead band.
+        rule.onNodeWithText("Older courses").assertIsDisplayed()
+    }
 }
