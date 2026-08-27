@@ -206,13 +206,6 @@ fun deskDayChip(start: String?, today: java.time.LocalDate): String? {
     }
 }
 
-/** The board headline's "Day n" — null before the course starts or without a date. */
-fun deskBoardDay(start: String?, today: java.time.LocalDate): String? {
-    val date = parseCourseStart(start) ?: return null
-    val day = java.time.temporal.ChronoUnit.DAYS.between(date, today)
-    return if (day >= 0) "Day $day" else null
-}
-
 /** Check-in records still owing the server their room allocation. */
 fun deskRoomSyncPending(checkIns: Map<ApplicantId, CheckInRecord>): Int =
     RoomAllocSync.pending(checkIns).size
