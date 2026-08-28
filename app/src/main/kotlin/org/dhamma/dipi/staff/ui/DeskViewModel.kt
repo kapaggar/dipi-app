@@ -206,13 +206,6 @@ fun deskDayChip(start: String?, today: java.time.LocalDate): String? {
     }
 }
 
-/** The board headline's "Day n" — null before the course starts or without a date. */
-fun deskBoardDay(start: String?, today: java.time.LocalDate): String? {
-    val date = parseCourseStart(start) ?: return null
-    val day = java.time.temporal.ChronoUnit.DAYS.between(date, today)
-    return if (day >= 0) "Day $day" else null
-}
-
 /** Check-in records still owing the server their room allocation. */
 fun deskRoomSyncPending(checkIns: Map<ApplicantId, CheckInRecord>): Int =
     RoomAllocSync.pending(checkIns).size
@@ -823,6 +816,11 @@ class DeskViewModel @Inject constructor(
     fun toggleValuables() = persistOps(_state.value.centreOps.let { it.copy(valuables = !it.valuables) })
     fun toggleGroups() = persistOps(_state.value.centreOps.let { it.copy(groups = !it.groups) })
 
+    /** Room chart column stepper (spec S4): device-local grid shape per gender+section block. */
+    fun setRoomColumns(gender: Gender, section: String, columns: Int) = persistOps(
+        _state.value.centreOps.let { it.copy(roomLayout = it.roomLayout.withColumns(gender, section, columns)) },
+    )
+
     fun setZeroDaySeating(card: ApplicantCard, seating: String) {
         patchDraft(card.id) { it.copy(seating = seating) }
     }
@@ -1212,6 +1210,15 @@ class DeskViewModel @Inject constructor(
                 _state.update { it.copy(loading = false) }
                 handleAuth(e)
             }
+    }
+
+    /**
+     * User-initiated outbox retry from the queued strip. Always attempts the
+     * send — no client-side reachability gate (hard rule 1); failures surface
+     * through the existing FlushSnack path.
+     */
+    fun retrySync() {
+        viewModelScope.launch { flush() }
     }
 
     private suspend fun flush() {

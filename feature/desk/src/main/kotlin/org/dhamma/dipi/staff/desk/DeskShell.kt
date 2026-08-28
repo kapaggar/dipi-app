@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import org.dhamma.dipi.staff.ui.R
+import org.dhamma.dipi.staff.ui.theme.DeskKicker
 import org.dhamma.dipi.staff.ui.theme.DeskStyle
 import org.dhamma.dipi.staff.ui.theme.DipiCondensed
 import org.dhamma.dipi.staff.ui.theme.DipiMono
@@ -56,14 +57,13 @@ data class DeskRail(
     val counts: Map<DeskSection, Int> = emptyMap(),
 )
 
-/** Course identity, shown in the 52dp top bar: "Dhamma Sudha · 10 Day · 26 Aug – 4 Sep · DAY 0". */
+/** Course identity, shown in the 52dp top bar: "10 Day · 26 Aug – 4 Sep · DAY 0". */
 data class DeskCourse(
-    val label: String,
     val dates: String,
     val dayChip: String?,
 ) {
     val line: String
-        get() = listOfNotNull(label.ifBlank { null }, dates.ifBlank { null }, dayChip)
+        get() = listOfNotNull(dates.ifBlank { null }, dayChip)
             .joinToString(" · ")
 }
 
@@ -211,7 +211,7 @@ private fun DeskTopBar(courseLine: String, clock: String) {
             courseLine,
             fontFamily = DipiCondensed,
             fontWeight = FontWeight.SemiBold,
-            fontSize = 13.sp,
+            fontSize = 17.sp,
             letterSpacing = 0.1.em,
             color = Industry.neutral700,
             maxLines = 1,
@@ -239,18 +239,3 @@ fun DeskSectionPlaceholder(section: DeskSection) {
         )
     }
 }
-
-/** IBM Plex Mono 600 / 9.5sp / .16em kicker — the system's all-caps label. */
-@Composable
-fun DeskKicker(text: String, color: Color, modifier: Modifier = Modifier) {
-    Text(
-        text,
-        fontFamily = DipiMono,
-        fontWeight = FontWeight.SemiBold,
-        fontSize = 9.5.sp,
-        letterSpacing = 0.16.em,
-        color = color,
-        modifier = modifier,
-    )
-}
-

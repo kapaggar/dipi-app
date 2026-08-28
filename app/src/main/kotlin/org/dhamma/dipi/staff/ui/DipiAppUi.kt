@@ -128,17 +128,11 @@ fun DipiAppUi(vm: DeskViewModel) {
                             .padding(horizontal = 12.dp, vertical = 6.dp),
                     )
                 }
-                if (state.offline || state.queuedCount > 0) {
-                    Text(
-                        text = stringResource(R.string.offline_banner, state.queuedCount),
-                        color = c.foreground,
-                        fontSize = 12.sp,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(c.tint)
-                            .padding(horizontal = 12.dp, vertical = 6.dp),
-                    )
-                }
+                SyncBannerStrips(
+                    offline = state.offline,
+                    queued = state.queuedCount,
+                    onRetry = vm::retrySync,
+                )
                 Box(Modifier.weight(1f)) {
                     val canBack = state.screen != DeskScreen.Login && state.screen != DeskScreen.Centre
                     val activity = LocalContext.current as? Activity
@@ -271,6 +265,8 @@ fun DipiAppUi(vm: DeskViewModel) {
                         DeskScreen.Rooms -> RoomsScreen(
                             rooms = state.centreOps.rooms,
                             genderFilter = state.roomsGender,
+                            layout = state.centreOps.roomLayout,
+                            onColumns = vm::setRoomColumns,
                             onPick = vm::pickRoom,
                             onBack = vm::back,
                         )
@@ -343,8 +339,6 @@ private fun DeskHost(
         ) { section ->
             when (section) {
                 DeskSection.Board -> BoardPane(
-                    centreName = session.centres.firstOrNull()?.name ?: course.name,
-                    dayLabel = deskBoardDay(course.start, java.time.LocalDate.now()),
                     roll = roll,
                     checkIns = state.checkIns,
                     flagged = state.auditRows,
@@ -525,7 +519,6 @@ private fun deskCourse(
 ): DeskCourse {
     val dates = listOf(course.start, course.end).filter { it.isNotBlank() }.joinToString(" – ")
     return DeskCourse(
-        label = session.centres.firstOrNull()?.name ?: course.name,
         dates = dates.ifBlank { course.name },
         dayChip = deskDayChip(course.start, java.time.LocalDate.now()),
     )

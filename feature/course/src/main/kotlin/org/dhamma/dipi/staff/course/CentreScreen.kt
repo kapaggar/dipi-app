@@ -14,17 +14,21 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.dhamma.dipi.staff.model.Centre
 import org.dhamma.dipi.staff.model.Course
+import org.dhamma.dipi.staff.model.CourseMatrix
 import org.dhamma.dipi.staff.model.CourseSummary
+import org.dhamma.dipi.staff.model.MatrixRow
 import org.dhamma.dipi.staff.model.Session
 import org.dhamma.dipi.staff.ui.theme.DeskStyle
 import org.dhamma.dipi.staff.ui.theme.DipiCondensed
@@ -72,7 +76,8 @@ fun CentreScreen(
     val c = LocalDipi.current
     val centre = session.centres.firstOrNull()
     val cid = centre?.id?.value ?: 0
-    val columns = if (LocalConfiguration.current.screenWidthDp >= 600) 2 else 1
+    val wide = LocalConfiguration.current.screenWidthDp >= 600
+    val columns = if (wide) 2 else 1
     Box(Modifier.fillMaxSize().background(c.background)) {
         if (lotus) {
             // The relief: large, very low-contrast, skin-tinted, behind
@@ -83,19 +88,97 @@ fun CentreScreen(
                 modifier = Modifier.align(Alignment.Center),
             )
         }
-        Column(
+        if (wide) {
+            // Fixed header over two independently scrolling regions —
+            // upcoming courses dominate at 60%, everything else gets 40%
+            // (owner feedback 2026-08-27). Weights, not fillMaxHeight
+            // fractions, so nothing nests a same-axis verticalScroll.
+            Column(Modifier.fillMaxSize()) {
+                Column(
+                    Modifier
+                        .heightIn(max = 220.dp)
+                        .padding(horizontal = 20.dp, vertical = 20.dp),
+                ) {
+                    // Bounded so an account with many centres can never
+                    // squeeze the weighted regions below toward 0dp (owner
+                    // feedback 2026-08-27) — the switcher list scrolls
+                    // within this cap instead of pushing content out.
+                    CentreHeaderBlock(session, centre, onPickCentre, maxListHeight = 160.dp)
+                }
+                Column(
+                    Modifier
+                        .weight(0.6f, fill = false)
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = 20.dp),
+                ) {
+                    UpcomingCoursesBlock(courses, columns, onPick)
+                }
+                Column(
+                    Modifier
+                        .weight(0.4f)
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = 20.dp, vertical = 8.dp),
+                ) {
+                    OlderCoursesAndDeskBlock(
+                        olderCourses = olderCourses,
+                        cid = cid,
+                        onPick = onPick,
+                        onLater = onLater,
+                        onCentreOps = onCentreOps,
+                        onAdvancedSearch = onAdvancedSearch,
+                        onSettings = onSettings,
+                    )
+                }
+            }
+        } else {
+            Column(
+                Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(20.dp),
+            ) {
+                CentreHeaderBlock(session, centre, onPickCentre)
+                UpcomingCoursesBlock(courses, columns, onPick)
+                OlderCoursesAndDeskBlock(
+                    olderCourses = olderCourses,
+                    cid = cid,
+                    onPick = onPick,
+                    onLater = onLater,
+                    onCentreOps = onCentreOps,
+                    onAdvancedSearch = onAdvancedSearch,
+                    onSettings = onSettings,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun CentreHeaderBlock(
+    session: Session,
+    centre: Centre?,
+    onPickCentre: (Centre) -> Unit,
+    // Non-null only on the wide layout's fixed header, which has no scroll
+    // of its own to fall back on. Left null on the narrow path, which
+    // already lives inside a single page-level verticalScroll (nesting a
+    // second same-axis scroll there would fight it) — no visible change to
+    // the common single-centre account either way.
+    maxListHeight: Dp? = null,
+) {
+    val c = LocalDipi.current
+    Text(
+        "${centre?.name ?: "Centre"} · ${session.displayName}",
+        fontFamily = DipiCondensed,
+        fontSize = 22.sp,
+        color = c.foreground,
+    )
+    if (session.centres.size > 1) {
+        val listModifier = if (maxListHeight != null) {
+            Modifier.heightIn(max = maxListHeight).verticalScroll(rememberScrollState())
+        } else {
             Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(20.dp),
-        ) {
-        Text(
-            "${centre?.name ?: "Centre"} · from your account · ${session.displayName}",
-            fontFamily = DipiCondensed,
-            fontSize = 22.sp,
-            color = c.foreground,
-        )
-        if (session.centres.size > 1) {
+        }
+        Column(listModifier) {
             session.centres.forEach { item ->
                 Text(
                     item.name,
@@ -107,125 +190,123 @@ fun CentreScreen(
                 )
             }
         }
+    }
+}
 
-        Text("Upcoming courses", color = c.muted, modifier = Modifier.padding(top = 18.dp, bottom = 10.dp))
-        if (courses.isEmpty()) {
-            Text("No upcoming courses.", color = c.muted, fontSize = 13.sp)
-        } else {
-            courses.chunked(columns).forEachIndexed { rowIndex, row ->
-                Row(
-                    Modifier.fillMaxWidth().padding(bottom = 10.dp),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                ) {
-                    row.forEachIndexed { colIndex, course ->
-                        CourseCard(
-                            course = course,
-                            first = rowIndex == 0 && colIndex == 0,
-                            modifier = Modifier.weight(1f),
-                            onClick = { onPick(course) },
-                        )
-                    }
-                    repeat(columns - row.size) { Spacer(Modifier.weight(1f)) }
+@Composable
+private fun UpcomingCoursesBlock(
+    courses: List<Course>,
+    columns: Int,
+    onPick: (Course) -> Unit,
+) {
+    val c = LocalDipi.current
+    Text("Upcoming courses", color = c.muted, modifier = Modifier.padding(top = 18.dp, bottom = 10.dp))
+    if (courses.isEmpty()) {
+        Text("No upcoming courses.", color = c.muted, fontSize = 13.sp)
+    } else {
+        courses.chunked(columns).forEachIndexed { rowIndex, row ->
+            Row(
+                Modifier.fillMaxWidth().padding(bottom = 10.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                row.forEachIndexed { colIndex, course ->
+                    CourseCard(
+                        course = course,
+                        first = rowIndex == 0 && colIndex == 0,
+                        modifier = Modifier.weight(1f),
+                        onClick = { onPick(course) },
+                    )
+                }
+                repeat(columns - row.size) { Spacer(Modifier.weight(1f)) }
+            }
+        }
+    }
+}
+
+@Composable
+private fun OlderCoursesAndDeskBlock(
+    olderCourses: List<Course>,
+    cid: Int,
+    onPick: (Course) -> Unit,
+    onLater: (String, String) -> Unit,
+    onCentreOps: () -> Unit,
+    onAdvancedSearch: () -> Unit,
+    onSettings: () -> Unit,
+) {
+    val c = LocalDipi.current
+    if (olderCourses.isNotEmpty()) {
+        Text(
+            "Older courses",
+            color = c.muted,
+            modifier = Modifier.padding(top = 18.dp, bottom = 10.dp),
+        )
+        olderCourses.forEach { course ->
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 8.dp)
+                    .deskCard(fill = c.field, border = c.hairline)
+                    .clickable { onPick(course) }
+                    .padding(horizontal = 14.dp, vertical = 11.dp),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+            ) {
+                Text(
+                    course.name,
+                    fontFamily = DipiCondensed,
+                    fontSize = 16.sp,
+                    lineHeight = 19.sp,
+                    color = c.foreground,
+                )
+                val dates = listOf(course.start, course.end).filter { it.isNotBlank() }
+                if (dates.isNotEmpty()) {
+                    Text(dates.joinToString(" – "), color = c.muted, fontSize = 12.sp)
                 }
             }
         }
+    }
 
-        if (olderCourses.isNotEmpty()) {
-            Text(
-                "Older courses",
-                color = c.muted,
-                modifier = Modifier.padding(top = 18.dp, bottom = 4.dp),
-            )
-            Text(
-                "Teacher list · valuables · seating — check-in is closed",
-                color = c.muted,
-                fontSize = 12.sp,
-                modifier = Modifier.padding(bottom = 8.dp),
-            )
-            olderCourses.forEach { course ->
-                Column(
+    // The desk links as compact tiles, three across, blended into the page
+    // ground rather than raised (owner feedback 2026-08-27): native screens
+    // (Centre Settings, Advanced Search, App Settings) lead and dispatch via
+    // `DeskTileAction`; every other tile still opens the desk site.
+    Text("Centre desk", color = c.muted, modifier = Modifier.padding(top = 20.dp, bottom = 10.dp))
+    centreDeskTiles(cid).chunked(3).forEach { row ->
+        Row(
+            Modifier.fillMaxWidth().padding(bottom = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            row.forEach { tile ->
+                Box(
                     Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 8.dp)
-                        .deskCard(fill = c.field, border = c.hairline)
-                        .clickable { onPick(course) }
-                        .padding(horizontal = 14.dp, vertical = 11.dp),
-                    verticalArrangement = Arrangement.spacedBy(2.dp),
+                        .weight(1f)
+                        .heightIn(min = 62.dp)
+                        .deskCard(
+                            shape = DeskStyle.tileShape,
+                            fill = Color.Transparent,
+                            border = c.hairline,
+                            elevation = 0.dp,
+                        )
+                        .clickable {
+                            when (tile.action) {
+                                DeskTileAction.CentreOps -> onCentreOps()
+                                DeskTileAction.AdvancedSearch -> onAdvancedSearch()
+                                DeskTileAction.AppSettings -> onSettings()
+                                null -> onLater(tile.title, tile.route)
+                            }
+                        }
+                        .padding(horizontal = 10.dp, vertical = 10.dp),
+                    contentAlignment = Alignment.CenterStart,
                 ) {
                     Text(
-                        course.name,
-                        fontFamily = DipiCondensed,
-                        fontSize = 16.sp,
-                        lineHeight = 19.sp,
+                        tile.title,
                         color = c.foreground,
+                        fontFamily = DipiCondensed,
+                        fontSize = 15.sp,
+                        lineHeight = 18.sp,
                     )
-                    val dates = listOf(course.start, course.end).filter { it.isNotBlank() }
-                    if (dates.isNotEmpty()) {
-                        Text(dates.joinToString(" – "), color = c.muted, fontSize = 12.sp)
-                    }
                 }
             }
-        }
-
-        // Global centre settings — reachable without picking a course.
-        Column(
-            Modifier
-                .fillMaxWidth()
-                .padding(top = 10.dp)
-                .deskCard(fill = c.field, border = c.hairline)
-                .clickable(onClick = onCentreOps)
-                .padding(horizontal = 14.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(2.dp),
-        ) {
-            Text("Centre settings", fontFamily = DipiCondensed, fontSize = 18.sp, color = c.foreground)
-            Text(
-                "Laundry · valuables · groups · room management",
-                color = c.muted,
-                fontSize = 12.sp,
-            )
-        }
-
-        // The desk links as compact tiles, three across (owner feedback
-        // 2026-08-16). Advanced Search rides along as a tile and opens the
-        // in-app search screen; every other tile still opens the desk site.
-        Text("Centre desk", color = c.muted, modifier = Modifier.padding(top = 20.dp, bottom = 10.dp))
-        centreDeskTiles(cid).chunked(3).forEach { row ->
-            Row(
-                Modifier.fillMaxWidth().padding(bottom = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                row.forEach { tile ->
-                    Box(
-                        Modifier
-                            .weight(1f)
-                            .heightIn(min = 62.dp)
-                            .deskCard(shape = DeskStyle.tileShape, fill = c.field, border = c.hairline)
-                            .clickable {
-                                if (tile.title == "Advanced Search") {
-                                    onAdvancedSearch()
-                                } else {
-                                    onLater(tile.title, tile.route)
-                                }
-                            }
-                            .padding(horizontal = 10.dp, vertical = 10.dp),
-                        contentAlignment = Alignment.CenterStart,
-                    ) {
-                        Text(
-                            tile.title,
-                            color = c.accent,
-                            fontFamily = DipiCondensed,
-                            fontSize = 15.sp,
-                            lineHeight = 18.sp,
-                        )
-                    }
-                }
-                repeat(3 - row.size) { Spacer(Modifier.weight(1f)) }
-            }
-        }
-
-        TextButton(onClick = onSettings, modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
-            Text("Settings")
-        }
+            repeat(3 - row.size) { Spacer(Modifier.weight(1f)) }
         }
     }
 }
@@ -265,17 +346,94 @@ private fun CourseCard(
         if (first && days > 0) {
             Text("STARTS IN $days DAYS", color = c.accent, fontFamily = DipiCondensed, fontSize = 12.sp)
         }
-        val counts = courseCountsLine(course.summary)
-        if (counts != null) {
+        val matrix = course.matrix
+        if (matrix != null) {
+            CourseMatrixTable(matrix, modifier = Modifier.padding(top = 4.dp))
+        } else {
+            val counts = courseCountsLine(course.summary)
+            if (counts != null) {
+                Text(
+                    counts,
+                    fontFamily = DipiMono,
+                    fontWeight = FontWeight.Medium,
+                    fontSize = 11.sp,
+                    lineHeight = 16.sp,
+                    color = c.muted,
+                )
+            }
+        }
+    }
+}
+
+/** A zero renders as a middot, never `0` — matching the desk, which leaves empty cells blank. */
+private fun matrixCell(n: Int): String = if (n == 0) "·" else n.toString()
+
+/**
+ * The compact gender-split matrix (spec S4): a kicker header, one row per
+ * [CourseMatrix.highlights] (Received/Confirmed/Cancelled, all-zero rows
+ * already filtered out upstream), then an emphasised Total row with sevak
+ * counts appended when present.
+ */
+@Composable
+private fun CourseMatrixTable(matrix: CourseMatrix, modifier: Modifier = Modifier) {
+    val c = LocalDipi.current
+    Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        MatrixHeaderRow()
+        matrix.highlights.forEach { row -> MatrixDataRow(row.label, row, emphasise = false) }
+        matrix.total?.let { total -> MatrixDataRow("Total", total, emphasise = true) }
+    }
+}
+
+/**
+ * The kicker row, built from the same weight()-based `Row` and per-cell
+ * modifiers as [MatrixDataRow] so each label sits directly above its column
+ * on a real device — a manually-spaced literal string can't guarantee that.
+ */
+@Composable
+private fun MatrixHeaderRow() {
+    val c = LocalDipi.current
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+        Spacer(Modifier.weight(1.6f))
+        listOf("NM", "OM", "M", "NF", "OF", "F").forEach { label ->
             Text(
-                counts,
+                label,
                 fontFamily = DipiMono,
-                fontWeight = FontWeight.Medium,
-                fontSize = 11.sp,
-                lineHeight = 16.sp,
+                fontSize = 10.sp,
                 color = c.muted,
+                textAlign = TextAlign.End,
+                modifier = Modifier.weight(0.75f),
             )
         }
+    }
+}
+
+@Composable
+private fun MatrixDataRow(label: String, row: MatrixRow, emphasise: Boolean) {
+    val c = LocalDipi.current
+    val weight = if (emphasise) FontWeight.Bold else FontWeight.Medium
+    val sevak = row.sevakTotal
+    val displayLabel = if (emphasise && sevak > 0) "$label  +$sevak sevak" else label
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+        Text(
+            displayLabel,
+            fontFamily = DipiCondensed,
+            fontSize = if (emphasise) 13.sp else 12.sp,
+            fontWeight = weight,
+            color = c.foreground,
+            modifier = Modifier.weight(1.6f),
+        )
+        listOf(row.newMale, row.oldMale, row.maleTotal, row.newFemale, row.oldFemale, row.femaleTotal)
+            .forEach { n ->
+                Text(
+                    matrixCell(n),
+                    fontFamily = DipiMono,
+                    fontSize = 11.sp,
+                    fontWeight = weight,
+                    color = if (emphasise) c.foreground else c.muted,
+                    textAlign = TextAlign.End,
+                    modifier = Modifier.weight(0.75f),
+                )
+            }
     }
 }
 

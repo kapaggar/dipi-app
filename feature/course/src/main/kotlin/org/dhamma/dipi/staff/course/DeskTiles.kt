@@ -1,8 +1,12 @@
 package org.dhamma.dipi.staff.course
 
+/** Native-screen dispatch for a desk tile, in place of the fragile title-string match. */
+enum class DeskTileAction { CentreOps, AppSettings, AdvancedSearch }
+
 data class DeskTileSpec(
     val title: String,
     val route: String,
+    val action: DeskTileAction? = null,
 )
 
 enum class CourseHubLive { Applications, Summary, Photos, Audit, Calling, ZeroDay, CentreOps }
@@ -15,10 +19,17 @@ data class CourseHubTile(
     val glyph: String = "",
 )
 
+/**
+ * Native tiles lead — they are what the registrar touches — then the
+ * desk-site links in their existing order (owner feedback 2026-08-27). The
+ * Centre Settings desk-site route is kept for reference but unused once
+ * `action` is set; the native screen replaces it rather than duplicating it.
+ */
 fun centreDeskTiles(centreId: Int): List<DeskTileSpec> = listOf(
-    DeskTileSpec("Centre Settings", "centre/$centreId/edit"),
+    DeskTileSpec("Centre Settings", "centre/$centreId/edit", DeskTileAction.CentreOps),
+    DeskTileSpec("Advanced Search", "search-app/$centreId", DeskTileAction.AdvancedSearch),
+    DeskTileSpec("App Settings", "", DeskTileAction.AppSettings),
     DeskTileSpec("Manage Courses", "manage-course/$centreId"),
-    DeskTileSpec("Advanced Search", "search-app/$centreId"),
     DeskTileSpec("Daily Activity", "daily-activity/$centreId"),
     DeskTileSpec("SMS Report", "centre/$centreId/sms-report"),
     DeskTileSpec("Course Report", "centre/$centreId/course-report"),

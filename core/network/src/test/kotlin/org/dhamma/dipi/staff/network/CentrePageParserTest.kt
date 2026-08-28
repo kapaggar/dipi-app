@@ -143,4 +143,93 @@ class CentrePageParserTest {
         val sep = CentrePageParser.courseSummaries(html).getValue(68670)
         assertEquals(77, sep.confirmed)
     }
+
+    // course_summary() matrix contract: 10 <td> cells per row — label, then
+    // male NM/OM/Total/SM, a spacer, then female NF/OF/Total/SF. Cells 3 and
+    // 8 are the desk's own computed totals and courseMatrices must ignore
+    // them; MatrixRow recomputes from NM+OM / NF+OF instead.
+    private val course41Block = """
+        <div class="summary-block"><div class="table-heading"><a href="/course/7/41">Dhamma Sudha / 10 Day / 2nd-Sep</a></div>
+        <table><tr><th></th><th>NM</th><th>OM</th><th>Total</th><th>SM</th><th>&nbsp;</th><th>NF</th><th>OF</th><th>Total</th><th>SF</th></tr>
+        <tr><td><a>Received</a></td><td></td><td></td><td></td><td></td><td>&nbsp;</td><td></td><td><a>1</a></td><td><b><a>1</a></b></td><td></td></tr>
+        <tr><td><a>Confirmed</a></td><td><a>7</a></td><td><a>3</a></td><td><b><a>10</a></b></td><td><a>1</a></td><td>&nbsp;</td><td><a>3</a></td><td></td><td><b><a>3</a></b></td><td></td></tr>
+        <tr><td><a>Errors</a></td><td></td><td></td><td></td><td></td><td>&nbsp;</td><td></td><td></td><td></td><td></td></tr>
+        <tr><td><b>Total</b></td><td>72</td><td>31</td><td><b>103</b></td><td>4</td><td>&nbsp;</td><td>32</td><td>13</td><td><b>45</b></td><td>3</td></tr>
+        </table></div>
+    """.trimIndent()
+
+    // A second, independent course in the same page — proves segmentation
+    // (heading → next heading) doesn't bleed rows across summary-blocks.
+    private val course55Block = """
+        <div class="summary-block"><div class="table-heading"><a href="/course/7/55">Dhamma Giri / 3 Day / 5th-Sep</a></div>
+        <table><tr><th></th><th>NM</th><th>OM</th><th>Total</th><th>SM</th><th>&nbsp;</th><th>NF</th><th>OF</th><th>Total</th><th>SF</th></tr>
+        <tr><td><a>Cancelled</a></td><td><a>2</a></td><td></td><td><b><a>2</a></b></td><td></td><td>&nbsp;</td><td></td><td><a>1</a></td><td><b><a>1</a></b></td><td></td></tr>
+        <tr><td><b>Total</b></td><td>5</td><td>2</td><td><b>7</b></td><td>0</td><td>&nbsp;</td><td>3</td><td>1</td><td><b>4</b></td><td>0</td></tr>
+        </table></div>
+    """.trimIndent()
+
+    private val matrixHtml = "$course41Block\n$course55Block"
+
+    @Test
+    fun courseMatricesSplitsNewOldSevakByGenderAndRecomputesTotals() {
+        val matrices = CentrePageParser.courseMatrices(matrixHtml)
+        val course41 = matrices.getValue(41)
+
+        val confirmed = course41.row("Confirmed")!!
+        assertEquals(7, confirmed.newMale)
+        assertEquals(3, confirmed.oldMale)
+        assertEquals(1, confirmed.sevakMale)
+        assertEquals(3, confirmed.newFemale)
+        assertEquals(0, confirmed.oldFemale)
+        assertEquals(10, confirmed.maleTotal) // recomputed from NM+OM, not read from the Total cell
+
+        val received = course41.row("Received")!!
+        assertEquals(1, received.oldFemale)
+
+        val errors = course41.row("Errors")!!
+        assertTrue(errors.isEmpty)
+
+        val total = course41.total!!
+        assertEquals(72, total.newMale)
+        assertEquals(3, total.sevakFemale)
+
+        assertEquals(listOf("Received", "Confirmed"), course41.highlights.map { it.label })
+
+        val course55 = matrices.getValue(55)
+        val cancelled = course55.row("Cancelled")!!
+        assertEquals(2, cancelled.newMale)
+        assertEquals(1, cancelled.oldFemale)
+        assertEquals(5, course55.total!!.newMale)
+    }
+
+    @Test
+    fun courseMatricesOmitsHeadingsWithoutATable() {
+        val matrices = CentrePageParser.courseMatrices(html)
+        assertNull(matrices[68671])
+    }
+
+    @Test
+    fun courseMatricesOnPageWithNoSummaryBlocksYieldsEmptyMap() {
+        assertEquals(emptyMap<Int, Any>(), CentrePageParser.courseMatrices("<html><body>login form</body></html>"))
+    }
+
+    @Test
+    fun courseSummariesUnaffectedByMatrixShapedHtml() {
+        // Proof courseMatrices was added without disturbing courseSummaries:
+        // same HTML, same old-shape aggregation via the desk's own totals
+        // (cells 3 and 8) that courseMatrices deliberately ignores.
+        val summaries = CentrePageParser.courseSummaries(matrixHtml)
+        val s41 = summaries.getValue(41)
+        assertEquals(1, s41.received)
+        assertEquals(13, s41.confirmed)
+        assertEquals(0, s41.expected)
+        assertEquals(0, s41.cancelled)
+        assertEquals(155, s41.total)
+
+        val s55 = summaries.getValue(55)
+        assertEquals(0, s55.received)
+        assertEquals(0, s55.confirmed)
+        assertEquals(3, s55.cancelled)
+        assertEquals(11, s55.total)
+    }
 }

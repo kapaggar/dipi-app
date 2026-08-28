@@ -52,6 +52,12 @@ import javax.inject.Inject
 import javax.inject.Named
 import javax.inject.Singleton
 
+/**
+ * The desk lists every course from the last six months in its dropdown; the
+ * registrar only ever reaches for the last few (owner feedback 2026-08-27).
+ */
+const val OLDER_COURSE_LIMIT = 3
+
 @Singleton
 class StaffRepository @Inject constructor(
     private val auth: DrupalAuthApi,
@@ -194,22 +200,23 @@ class StaffRepository @Inject constructor(
             refreshRooms(centreId.value)
             return@runCatching CentreCourses(
                 upcoming = api.courses(centreId.value, upcoming = 1).items.map { it.toModel() },
-                older = api.courses(centreId.value, upcoming = 0).items.map { it.toModel() },
+                older = api.courses(centreId.value, upcoming = 0).items.map { it.toModel() }.take(OLDER_COURSE_LIMIT),
             )
         }
         val dash = api.centreDashboard(centreId.value)
         val html = dash.html()
         if (stillOnLogin(html) || dash.code() == 403) throw ApiException("Access denied", unauthorized = true)
         val summaries = CentrePageParser.courseSummaries(html)
+        val matrices = CentrePageParser.courseMatrices(html)
         refreshRooms(centreId.value)
         val upcomingOpts = SearchPageParser.coursesFromDashboard(html)
         val upcomingIds = upcomingOpts.map { it.id }.toSet()
         val upcoming = upcomingOpts.map {
-            Course(CourseId(it.id), centreId, it.label, "", "", summary = summaries[it.id])
+            Course(CourseId(it.id), centreId, it.label, "", "", summary = summaries[it.id], matrix = matrices[it.id])
         }
         val older = CentrePageParser.olderCourseOptions(html, upcomingIds).map {
             Course(CourseId(it.id), centreId, it.label, "", "")
-        }
+        }.take(OLDER_COURSE_LIMIT)
         CentreCourses(upcoming, older)
     }.getOrElse { throw it.toApi() }
 

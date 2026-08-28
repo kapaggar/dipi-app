@@ -1,18 +1,23 @@
 package org.dhamma.dipi.staff
 
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import org.dhamma.dipi.staff.course.CentreScreen
+import org.dhamma.dipi.staff.course.DeskTileAction
 import org.dhamma.dipi.staff.course.centreDeskTiles
 import org.dhamma.dipi.staff.course.courseCountsLine
 import org.dhamma.dipi.staff.model.Centre
 import org.dhamma.dipi.staff.model.CentreId
 import org.dhamma.dipi.staff.model.Course
 import org.dhamma.dipi.staff.model.CourseId
+import org.dhamma.dipi.staff.model.CourseMatrix
 import org.dhamma.dipi.staff.model.CourseSummary
+import org.dhamma.dipi.staff.model.MatrixRow
 import org.dhamma.dipi.staff.model.Session
 import org.dhamma.dipi.staff.ui.theme.DipiTheme
 import org.junit.Assert.assertEquals
@@ -36,6 +41,17 @@ class CentreScreenTest {
         centres = listOf(Centre(CentreId(1), "Dhamma Sudha")),
         modeTest = false,
     )
+    // Confirmed row deliberately all-nonzero so numeric assertions can't be
+    // confused with the "·" that stands in for a zero elsewhere on screen.
+    private val matrix = CourseMatrix(
+        rows = listOf(
+            MatrixRow("Received", newMale = 1, newFemale = 1),
+            MatrixRow("Confirmed", newMale = 41, oldMale = 17, sevakMale = 3, newFemale = 33, oldFemale = 9, sevakFemale = 2),
+            MatrixRow("Cancelled", newMale = 2, newFemale = 1),
+        ),
+        total = MatrixRow("Total", newMale = 50, oldMale = 20, sevakMale = 4, newFemale = 40, oldFemale = 15, sevakFemale = 3),
+    )
+
     private val course = Course(
         CourseId(10),
         CentreId(1),
@@ -43,6 +59,7 @@ class CentreScreenTest {
         "2026-08-20",
         "2026-08-31",
         summary = CourseSummary(received = 2, confirmed = 77, expected = 0, cancelled = 7, total = 111),
+        matrix = matrix,
     )
 
     @Test
@@ -53,7 +70,11 @@ class CentreScreenTest {
         assertFalse(titles.any { it.contains("Letter", ignoreCase = true) })
         assertFalse(titles.any { it.contains("AT", ignoreCase = true) })
         assertFalse(titles.any { it.contains("Referral", ignoreCase = true) })
-        assertEquals("centre/1/edit", centreDeskTiles(1).first { it.title == "Centre Settings" }.route)
+        assertEquals(
+            DeskTileAction.CentreOps,
+            centreDeskTiles(1).first { it.title == "Centre Settings" }.action,
+        )
+        assertTrue(centreDeskTiles(1).any { it.title == "App Settings" && it.action == DeskTileAction.AppSettings })
         assertEquals("search-app/1", centreDeskTiles(1).first { it.title == "Advanced Search" }.route)
     }
 
@@ -92,7 +113,24 @@ class CentreScreenTest {
         }
         rule.onNodeWithText("Upcoming courses").assertIsDisplayed()
         rule.onNodeWithText("10-Day").assertIsDisplayed()
-        rule.onNodeWithText("Confirmed 77 | Cancelled 7 | Received 2 | Total 111").assertIsDisplayed()
+        // Owner feedback 2026-08-27: the "from your account" clause was
+        // redundant and is gone from the header.
+        rule.onNodeWithText("Dhamma Sudha · sudha.user").assertIsDisplayed()
+        rule.onNodeWithText("Dhamma Sudha · from your account · sudha.user").assertDoesNotExist()
+        // Finding 3: the kicker header is now per-cell (weight()-based, like
+        // the data rows) rather than one manually-spaced literal string, so
+        // each label sits above its column.
+        rule.onNodeWithText("NM").assertIsDisplayed()
+        rule.onNodeWithText("OM").assertIsDisplayed()
+        rule.onNodeWithText("NF").assertIsDisplayed()
+        rule.onNodeWithText("OF").assertIsDisplayed()
+        rule.onNodeWithText("Confirmed").assertIsDisplayed()
+        rule.onNodeWithText("41").assertIsDisplayed()
+        rule.onNodeWithText("17").assertIsDisplayed()
+        rule.onNodeWithText("58").assertIsDisplayed()
+        rule.onNodeWithText("33").assertIsDisplayed()
+        rule.onNodeWithText("9").assertIsDisplayed()
+        rule.onNodeWithText("42").assertIsDisplayed()
         // The desk links render as a tile grid below the courses; Advanced
         // Search rides along as one of the tiles (owner feedback 2026-08-16).
         rule.onNodeWithText("Centre desk").performScrollTo().assertIsDisplayed()
@@ -103,7 +141,7 @@ class CentreScreenTest {
         rule.onNodeWithText("SMS Report").performScrollTo().assertIsDisplayed()
         rule.onNodeWithText("Course Report").performScrollTo().assertIsDisplayed()
         rule.onNodeWithText("Bulk Mail").performScrollTo().assertIsDisplayed()
-        rule.onNodeWithText("Settings").performScrollTo().assertIsDisplayed()
+        rule.onNodeWithText("App Settings").performScrollTo().assertIsDisplayed()
         rule.onNodeWithText("Manage Letters").assertDoesNotExist()
         rule.onNodeWithText("AT Schedule").assertDoesNotExist()
         rule.onNodeWithText("Referral List").assertDoesNotExist()
@@ -114,16 +152,21 @@ class CentreScreenTest {
         rule.onNodeWithText("Advanced Search").performScrollTo().performClick()
         assertTrue(advanced)
         assertNull(later)
+        // The tile is native now: it invokes onCentreOps directly and never
+        // reaches the desk-site onLater path.
         rule.onNodeWithText("Centre Settings").performScrollTo().performClick()
-        assertEquals("Centre Settings" to "centre/1/edit", later)
-        // The global app settings row is separate from the Drupal Centre Settings page.
-        rule.onNodeWithText("Centre settings").performScrollTo().performClick()
         assertTrue(ops)
+        assertNull(later)
     }
 
     @Test
     fun centreSettingsRowIsReachableWithoutCourses() {
+        // Centre settings must stay reachable when the centre has no
+        // upcoming courses — the invariant survived the redesign; only the
+        // widget (now the "Centre Settings" tile, not a standalone card)
+        // changed. App Settings lives in the same grid under the same risk.
         var ops = false
+        var settingsOpened = false
         rule.setContent {
             DipiTheme {
                 CentreScreen(
@@ -131,12 +174,16 @@ class CentreScreenTest {
                     courses = emptyList(),
                     onPick = {},
                     onCentreOps = { ops = true },
+                    onSettings = { settingsOpened = true },
                 )
             }
         }
         rule.onNodeWithText("No upcoming courses.").assertIsDisplayed()
-        rule.onNodeWithText("Centre settings").performScrollTo().performClick()
+        rule.onNodeWithText("App Settings").performScrollTo().assertIsDisplayed()
+        rule.onNodeWithText("Centre Settings").performScrollTo().performClick()
         assertTrue(ops)
+        rule.onNodeWithText("App Settings").performScrollTo().performClick()
+        assertTrue(settingsOpened)
     }
 
     @Test
@@ -160,10 +207,74 @@ class CentreScreenTest {
             }
         }
         rule.onNodeWithText("Older courses").performScrollTo().assertIsDisplayed()
+        // Owner feedback 2026-08-27: the sub-line was redundant and is gone;
+        // the deletion is proven, not merely untested.
         rule.onNodeWithText("Teacher list · valuables · seating — check-in is closed")
-            .performScrollTo()
-            .assertIsDisplayed()
+            .assertDoesNotExist()
         rule.onNodeWithText(older.name).performScrollTo().performClick()
         assertEquals(older, picked)
+    }
+
+    @Test
+    fun matrixCardShowsOnlyTheThreeHighlightRows() {
+        // A non-priority status row alongside the three highlights — the
+        // card must render Received/Confirmed/Cancelled and omit this one.
+        val withExtraRow = course.copy(
+            matrix = matrix.copy(rows = matrix.rows + MatrixRow("Expected", newMale = 6)),
+        )
+        rule.setContent {
+            DipiTheme {
+                CentreScreen(session = session, courses = listOf(withExtraRow), onPick = {})
+            }
+        }
+        rule.onNodeWithText("Received").assertIsDisplayed()
+        rule.onNodeWithText("Confirmed").assertIsDisplayed()
+        rule.onNodeWithText("Cancelled").assertIsDisplayed()
+        rule.onNodeWithText("Expected").assertDoesNotExist()
+    }
+
+    @Test
+    fun zeroMatrixCellRendersAsMiddot() {
+        val zeroMatrix = CourseMatrix(
+            rows = listOf(MatrixRow("Confirmed", newMale = 5, oldMale = 0, newFemale = 3, oldFemale = 2)),
+        )
+        val withZero = course.copy(matrix = zeroMatrix)
+        rule.setContent {
+            DipiTheme {
+                CentreScreen(session = session, courses = listOf(withZero), onPick = {})
+            }
+        }
+        // Exactly one blank cell (oldMale = 0) renders as a middot; the header
+        // kicker row is a separate whole-string node and does not collide.
+        rule.onAllNodesWithText("·").assertCountEquals(1)
+    }
+
+    @Test
+    fun nullMatrixFallsBackToCountsLine() {
+        val noMatrix = course.copy(matrix = null)
+        rule.setContent {
+            DipiTheme {
+                CentreScreen(session = session, courses = listOf(noMatrix), onPick = {})
+            }
+        }
+        rule.onNodeWithText("Confirmed 77 | Cancelled 7 | Received 2 | Total 111").assertIsDisplayed()
+        rule.onNodeWithText("NM  OM  M  ·  NF  OF  F").assertDoesNotExist()
+    }
+
+    @Test
+    fun appSettingsTileInvokesOnSettings() {
+        var settingsOpened = false
+        rule.setContent {
+            DipiTheme {
+                CentreScreen(
+                    session = session,
+                    courses = listOf(course),
+                    onPick = {},
+                    onSettings = { settingsOpened = true },
+                )
+            }
+        }
+        rule.onNodeWithText("App Settings").performScrollTo().performClick()
+        assertTrue(settingsOpened)
     }
 }

@@ -88,24 +88,6 @@ interface StaffApi {
         @FieldMap fields: Map<String, String>,
     ): AttendedUpdateDto
 
-    /** Live desk: Drupal form that embeds `var dataset`. */
-    @GET("/search-app")
-    suspend fun searchAppLanding(): Response<ResponseBody>
-
-    @GET("/search-app/{cid}")
-    suspend fun searchAppForm(@Path("cid") centreId: Int): Response<ResponseBody>
-
-    @FormUrlEncoded
-    @POST("/search-app/{cid}")
-    suspend fun searchAppSubmit(
-        @Path("cid") centreId: Int,
-        @FieldMap fields: Map<String, String>,
-    ): Response<ResponseBody>
-
-    /** Live desk JSON. Permission: transfer course. Optional. */
-    @GET("/get-courses/{cid}")
-    suspend fun getCourses(@Path("cid") centreId: Int): List<LiveCourseDto>
-
     /** HAR: anonymous GET / is 403 but includes user_login_block. */
     @GET("/")
     suspend fun siteRoot(): Response<ResponseBody>
