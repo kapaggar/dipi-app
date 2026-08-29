@@ -170,6 +170,29 @@ data class DeskUiState(
 )
 
 /**
+ * Opening a course wipes the per-course buffers. The scan buffer goes with
+ * them: it is session-scoped, so a conf number typed against one course must
+ * never survive into the next one (the roster would open silently filtered).
+ * The tablet's own gender/seniority filters describe the desk, not the course,
+ * and are deliberately kept.
+ */
+fun deskOpenCourse(state: DeskUiState, course: Course): DeskUiState = state.copy(
+    course = course,
+    screen = deskAfterPickCourse(),
+    deskSection = DeskSection.Board,
+    rows = emptyList(),
+    visible = emptyList(),
+    counts = emptyMap(),
+    selected = emptySet(),
+    query = "",
+    card = null,
+    loading = false,
+    sensitiveById = emptyMap(),
+    sheetView = null,
+    deskScan = "",
+)
+
+/**
  * Rail counts for the v2 desk — derived from the worklist plus the local
  * check-in records, never stored, so the numbers cannot drift.
  */
@@ -382,22 +405,7 @@ class DeskViewModel @Inject constructor(
     fun pickCourse(course: Course) {
         observeJob?.cancel()
         observeJob = null
-        _state.update {
-            it.copy(
-                course = course,
-                screen = deskAfterPickCourse(),
-                deskSection = DeskSection.Board,
-                rows = emptyList(),
-                visible = emptyList(),
-                counts = emptyMap(),
-                selected = emptySet(),
-                query = "",
-                card = null,
-                loading = false,
-                sensitiveById = emptyMap(),
-                sheetView = null,
-            )
-        }
+        _state.update { deskOpenCourse(it, course) }
     }
 
     /** V2 desk: rail navigation between sections. No page transition, no loading state. */

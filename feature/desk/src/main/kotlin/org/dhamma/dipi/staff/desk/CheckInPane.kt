@@ -2,6 +2,7 @@ package org.dhamma.dipi.staff.desk
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -25,15 +26,25 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.dhamma.dipi.staff.model.AccoRoom
@@ -135,44 +146,15 @@ private fun CheckInHeader(
                 horizontalArrangement = Arrangement.spacedBy(14.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Box(
-                    Modifier
-                        .weight(1f)
-                        .deskCard(
-                            shape = DeskStyle.controlShape,
-                            fill = Color.White,
-                            border = Industry.neutral400,
-                            elevation = 0.dp,
-                        ),
-                ) {
-                    BasicTextField(
-                        value = scan,
-                        onValueChange = onScan,
-                        singleLine = true,
-                        textStyle = TextStyle(
-                            fontFamily = DipiMono,
-                            fontWeight = FontWeight.Medium,
-                            fontSize = 17.sp,
-                            color = Industry.text,
-                        ),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 12.dp, vertical = 10.dp),
-                        decorationBox = { inner ->
-                            if (scan.isEmpty()) {
-                                Text(
-                                    "NF24",
-                                    fontFamily = DipiMono,
-                                    fontWeight = FontWeight.Medium,
-                                    fontSize = 17.sp,
-                                    color = Industry.neutral400,
-                                )
-                            }
-                            inner()
-                        },
-                    )
-                }
-                DeskSegmented(listOf("To arrive", "Arrived", "All"), filter, onFilter)
+                ScanField(scan, onScan, Modifier.weight(1f))
+                // The primary row matches the 52dp field; DeskSegmented has no
+                // height parameter, so the padding carries it.
+                DeskSegmented(
+                    listOf("To arrive", "Arrived", "All"),
+                    filter,
+                    onFilter,
+                    verticalPadding = 18.dp,
+                )
             }
             Row(
                 horizontalArrangement = Arrangement.spacedBy(14.dp),
@@ -232,6 +214,103 @@ private fun CheckInHeader(
                 )
             }
         }
+    }
+}
+
+/**
+ * The scan buffer: a chit under the reader, or a conf number typed by hand.
+ * It is session-scoped — [org.dhamma.dipi.staff.ui.deskOpenCourse] empties it
+ * when a course opens, so the roster never opens silently filtered. The clear
+ * control is one tap that empties the field; the roster filter derives from
+ * the scan, so it follows.
+ */
+@Composable
+private fun ScanField(scan: String, onScan: (String) -> Unit, modifier: Modifier = Modifier) {
+    var focused by remember { mutableStateOf(false) }
+    Row(
+        modifier
+            .height(52.dp)
+            .background(DeskStyle.cardFill, DeskStyle.controlShape)
+            // The focus ring is 2dp accent, so the border is drawn here rather
+            // than through deskCard's fixed 1dp hairline.
+            .border(
+                if (focused) 2.dp else 1.dp,
+                if (focused) Industry.accent else Industry.neutral400,
+                DeskStyle.controlShape,
+            )
+            .clip(DeskStyle.controlShape)
+            .padding(start = 14.dp, end = if (scan.isEmpty()) 14.dp else 2.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        ScanGlyph(15.dp, if (focused) Industry.accent else Industry.neutral500)
+        BasicTextField(
+            value = scan,
+            onValueChange = onScan,
+            singleLine = true,
+            textStyle = TextStyle(
+                fontFamily = DipiMono,
+                fontWeight = FontWeight.Medium,
+                fontSize = 15.sp,
+                color = Industry.text,
+            ),
+            modifier = Modifier
+                .weight(1f)
+                .onFocusChanged { focused = it.isFocused },
+            decorationBox = { inner ->
+                if (scan.isEmpty()) {
+                    Text(
+                        "Scan a chit or type a conf number",
+                        fontFamily = DipiSans,
+                        fontSize = 15.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        color = Industry.neutral500,
+                    )
+                }
+                inner()
+            },
+        )
+        if (scan.isNotEmpty()) {
+            Box(
+                Modifier
+                    .size(48.dp)
+                    .clickable { onScan("") }
+                    .semantics { contentDescription = "Clear the scan field" },
+                contentAlignment = Alignment.Center,
+            ) {
+                Box(
+                    Modifier
+                        .size(32.dp)
+                        .clip(CircleShape)
+                        .background(Industry.neutral200),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    DeskIcon(DeskIconKind.Close, 15.dp, Industry.neutral700)
+                }
+            }
+        }
+    }
+}
+
+/** Barcode-reader mark: four corner brackets around a scan line. */
+@Composable
+private fun ScanGlyph(size: Dp, color: Color) {
+    Canvas(Modifier.size(size)) {
+        val s = this.size.width / 24f
+        val stroke = Stroke(width = 1.8f * s, cap = StrokeCap.Round, join = StrokeJoin.Round)
+        fun corner(vararg pts: Pair<Float, Float>) {
+            val path = Path().apply {
+                moveTo(pts[0].first * s, pts[0].second * s)
+                for (p in pts.drop(1)) lineTo(p.first * s, p.second * s)
+            }
+            drawPath(path, color, style = stroke)
+        }
+        corner(3f to 8f, 3f to 3f, 8f to 3f)
+        corner(16f to 3f, 21f to 3f, 21f to 8f)
+        corner(21f to 16f, 21f to 21f, 16f to 21f)
+        corner(8f to 21f, 3f to 21f, 3f to 16f)
+        corner(3f to 12f, 21f to 12f)
     }
 }
 
@@ -352,18 +431,25 @@ private fun CheckInSidebar(
                         .padding(vertical = 6.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
+                    // Label and count are separate columns: a long block name
+                    // ellipsises at the column edge instead of wrapping mid-label.
                     Text(
                         if (sections.isEmpty()) label else "$label · ${sections.joinToString("/")} block",
                         fontSize = 12.5.sp,
                         color = Industry.text,
-                        modifier = Modifier.weight(1f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f).padding(end = 8.dp),
                     )
                     Text(
                         "$free of ${block.size} free",
                         fontFamily = DipiMono,
                         fontWeight = FontWeight.Medium,
-                        fontSize = 11.5.sp,
-                        color = Industry.neutral600,
+                        fontSize = 14.sp,
+                        color = Industry.accent700,
+                        maxLines = 1,
+                        textAlign = TextAlign.End,
+                        modifier = Modifier.width(86.dp),
                     )
                 }
             }
