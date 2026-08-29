@@ -417,7 +417,7 @@ private fun CentreDeskColumn(
             fontWeight = FontWeight.Medium,
             fontSize = 9.sp,
             letterSpacing = 1.7.sp,
-            color = Industry.neutral500,
+            color = c.muted,
         )
         Spacer(Modifier.height(9.dp))
         FlowRow(
@@ -615,6 +615,7 @@ private fun CourseMatrixTable(matrix: CourseMatrix, modifier: Modifier = Modifie
 /** "MALE" and "FEMALE", each centred over its trio of columns. */
 @Composable
 private fun MatrixGroupCapsRow(cell: Dp) {
+    val c = LocalDipi.current
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Spacer(Modifier.weight(1f))
         listOf("MALE", "FEMALE").forEach { cap ->
@@ -624,7 +625,7 @@ private fun MatrixGroupCapsRow(cell: Dp) {
                 fontWeight = FontWeight.Medium,
                 fontSize = 9.sp,
                 letterSpacing = 1.7.sp,
-                color = Industry.neutral500,
+                color = c.muted,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.width(cell * 3),
             )
@@ -705,8 +706,9 @@ private fun MatrixDataRow(label: String, row: MatrixRow, cell: Dp, emphasise: Bo
                     "+$sevak sevak",
                     fontFamily = DipiMono,
                     fontSize = 11.5.sp,
-                    color = Industry.neutral500,
+                    color = c.muted,
                     maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
             }
         }

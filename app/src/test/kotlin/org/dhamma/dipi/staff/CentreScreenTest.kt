@@ -276,6 +276,11 @@ class CentreScreenTest {
         listOf("NM", "OM", "M", "NF", "OF", "F").forEach {
             rule.onNodeWithText(it).performScrollTo().assertIsDisplayed()
         }
+        // The sevak count is its own mono suffix beside "Total" now, not part
+        // of the label string — and it ellipsises rather than clipping
+        // mid-glyph when the phone's label column runs out of room.
+        rule.onNodeWithText("Total").performScrollTo().assertIsDisplayed()
+        rule.onNodeWithText("+7 sevak").performScrollTo().assertIsDisplayed()
     }
 
     @Test
