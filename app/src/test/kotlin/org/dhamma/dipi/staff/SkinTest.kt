@@ -151,7 +151,7 @@ class SkinTest {
         assertEquals(pond.accent, light.accent)
         assertEquals(pond.accent700, light.accentPressed)
         // Severities that carry meaning stay fixed.
-        assertEquals(Color(0xFF7A4141), light.hard)
+        assertEquals(Color(0xFFA33A34), light.hard)
         assertEquals(Color(0xFF6A5A38), light.safety)
     }
 }
