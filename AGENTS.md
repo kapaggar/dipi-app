@@ -6,7 +6,7 @@ Guidance for Claude Code, Cursor, Codex, Fable, Grok.
 
 Centre-staff Android client for the DIPI registrar desk. Package: `org.dhamma.dipi.staff`.
 
-**Shipped:** Vertical 2 desk on `main`, **1.22.0** (`versionCode` 35) — `feat/vertical-1` is merged and deleted. `feat/desk-gap` is ahead of `main` with unmerged **1.19.0** (unsigned desk-gap reads + Day-11 export; QA shots in `docs/qa-1.19.0/`); check it out before continuing that work rather than re-implementing on `main`. Live default is `https://dipi.vridhamma.org`. Backend PHP is **immutable** — do not add `/staff/*` or change `dipi-web`.
+**Shipped:** Vertical 2 desk on `main`, **1.23.0** (`versionCode` 36) — `feat/vertical-1` is merged and deleted. `feat/desk-gap` is ahead of `main` with unmerged **1.19.0** (unsigned desk-gap reads + Day-11 export; QA shots in `docs/qa-1.19.0/`); check it out before continuing that work rather than re-implementing on `main`. Live default is `https://dipi.vridhamma.org`. Backend PHP is **immutable** — do not add `/staff/*` or change `dipi-web`.
 
 **Layout:** `:app` (repository, `DeskViewModel`, `DipiAppUi`), `:core:{model,network,database,datastore,ui,audit}`, `:feature:{auth,course,desk,applicants,photos,summary,settings}`. Tests live in `:app`, `:core:model`, `:core:network`, `:core:datastore`, `:core:audit` only — feature modules have no test source set, so their Compose screens are covered by Robolectric tests in `:app`.
 
@@ -44,7 +44,7 @@ Server reference (read-only): `/Users/wizops/DIPI/dipi-web` module `dh_manageapp
 6. Never use APP API / `get-app-detail`. Parse desk HTML only as above; never store NPI.
 7. No NPI columns in Room or logs (`ae_*`, Aadhaar, PAN, passport, voter id).
 8. Server URL is `BuildConfig.BASE_URL` (`https://dipi.vridhamma.org`). See Current assumptions for the live paths.
-9. Design file `docs/DIPI Staff.dc.html` wins every visual argument.
+9. Design file `version-4/DIPI Staff v4.dc.html` wins every visual argument; use `version-4/README.md` for measurements.
 10. Do not commit `local.properties`, keystores, or real student data.
 11. **SemVer on every shippable change.** Bump `versionName` + `versionCode` in `app/build.gradle.kts` before assembling:
     - **MAJOR** (`x.0.0`) — new vertical, breaking API/UX, or a drop-in incompatible rewrite.

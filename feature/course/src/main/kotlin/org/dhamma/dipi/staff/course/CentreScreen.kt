@@ -4,23 +4,34 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -113,13 +124,18 @@ fun CentreScreen(
                 ) {
                     UpcomingCoursesBlock(courses, columns, onPick)
                 }
-                Column(
+                // Frame 1a: the lower pane is two columns, not a scroll of its
+                // own — older courses keep a scroll on the left, the desk
+                // column on the right is fixed at 416dp and never scrolls, so
+                // all three in-app tiles and the five desk-site chips are
+                // always on screen.
+                Box(
                     Modifier
                         .weight(0.4f)
-                        .verticalScroll(rememberScrollState())
-                        .padding(horizontal = 20.dp, vertical = 8.dp),
+                        .padding(horizontal = 20.dp)
+                        .padding(top = 12.dp, bottom = 8.dp),
                 ) {
-                    OlderCoursesAndDeskBlock(
+                    WideLowerPane(
                         olderCourses = olderCourses,
                         cid = cid,
                         onPick = onPick,
@@ -139,7 +155,7 @@ fun CentreScreen(
             ) {
                 CentreHeaderBlock(session, centre, onPickCentre)
                 UpcomingCoursesBlock(courses, columns, onPick)
-                OlderCoursesAndDeskBlock(
+                NarrowLowerPane(
                     olderCourses = olderCourses,
                     cid = cid,
                     onPick = onPick,
@@ -223,8 +239,68 @@ private fun UpcomingCoursesBlock(
     }
 }
 
+/**
+ * The wide lower pane (frame 1a): a flexing "Older courses" column with its
+ * own scroll on the left, and a fixed 416dp "Centre desk" column on the right
+ * that does not scroll — everything it holds is on screen at once.
+ *
+ * With no older courses (frame 1g) the heading stays omitted, as it always
+ * was, and the desk column takes the full width with its three tiles across.
+ */
 @Composable
-private fun OlderCoursesAndDeskBlock(
+private fun WideLowerPane(
+    olderCourses: List<Course>,
+    cid: Int,
+    onPick: (Course) -> Unit,
+    onLater: (String, String) -> Unit,
+    onCentreOps: () -> Unit,
+    onAdvancedSearch: () -> Unit,
+    onSettings: () -> Unit,
+) {
+    val c = LocalDipi.current
+    if (olderCourses.isEmpty()) {
+        CentreDeskColumn(
+            cid = cid,
+            tilesPerRow = 3,
+            tileHeight = 52.dp,
+            onLater = onLater,
+            onCentreOps = onCentreOps,
+            onAdvancedSearch = onAdvancedSearch,
+            onSettings = onSettings,
+        )
+        return
+    }
+    Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(18.dp)) {
+        Column(Modifier.weight(1f).fillMaxHeight()) {
+            Text("Older courses", color = c.muted, modifier = Modifier.padding(bottom = 10.dp))
+            Column(
+                Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                olderCourses.forEach { course -> OlderCourseRow(course) { onPick(course) } }
+            }
+        }
+        Box(Modifier.width(416.dp)) {
+            CentreDeskColumn(
+                cid = cid,
+                tilesPerRow = 1,
+                tileHeight = 48.dp,
+                onLater = onLater,
+                onCentreOps = onCentreOps,
+                onAdvancedSearch = onAdvancedSearch,
+                onSettings = onSettings,
+            )
+        }
+    }
+}
+
+/**
+ * The phone/narrow lower pane: the same rows, tiles and chips as frame 1a,
+ * stacked inside the page's single scroll rather than split into columns —
+ * a second same-axis scroll here would fight the page's own.
+ */
+@Composable
+private fun NarrowLowerPane(
     olderCourses: List<Course>,
     cid: Int,
     onPick: (Course) -> Unit,
@@ -240,53 +316,86 @@ private fun OlderCoursesAndDeskBlock(
             color = c.muted,
             modifier = Modifier.padding(top = 18.dp, bottom = 10.dp),
         )
-        olderCourses.forEach { course ->
-            Column(
-                Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 8.dp)
-                    .deskCard(fill = c.field, border = c.hairline)
-                    .clickable { onPick(course) }
-                    .padding(horizontal = 14.dp, vertical = 11.dp),
-                verticalArrangement = Arrangement.spacedBy(2.dp),
-            ) {
-                Text(
-                    course.name,
-                    fontFamily = DipiCondensed,
-                    fontSize = 16.sp,
-                    lineHeight = 19.sp,
-                    color = c.foreground,
-                )
-                val dates = listOf(course.start, course.end).filter { it.isNotBlank() }
-                if (dates.isNotEmpty()) {
-                    Text(dates.joinToString(" – "), color = c.muted, fontSize = 12.sp)
-                }
-            }
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            olderCourses.forEach { course -> OlderCourseRow(course) { onPick(course) } }
         }
     }
+    Spacer(Modifier.height(20.dp))
+    CentreDeskColumn(
+        cid = cid,
+        tilesPerRow = 1,
+        tileHeight = 48.dp,
+        onLater = onLater,
+        onCentreOps = onCentreOps,
+        onAdvancedSearch = onAdvancedSearch,
+        onSettings = onSettings,
+    )
+}
 
-    // The desk links as compact tiles, three across, blended into the page
-    // ground rather than raised (owner feedback 2026-08-27): native screens
-    // (Centre Settings, Advanced Search, App Settings) lead and dispatch via
-    // `DeskTileAction`; every other tile still opens the desk site.
-    Text("Centre desk", color = c.muted, modifier = Modifier.padding(top = 20.dp, bottom = 10.dp))
-    centreDeskTiles(cid).chunked(3).forEach { row ->
-        Row(
-            Modifier.fillMaxWidth().padding(bottom = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            row.forEach { tile ->
-                Box(
-                    Modifier
-                        .weight(1f)
-                        .heightIn(min = 62.dp)
-                        .deskCard(
-                            shape = DeskStyle.tileShape,
-                            fill = Color.Transparent,
-                            border = c.hairline,
-                            elevation = 0.dp,
-                        )
-                        .clickable {
+/**
+ * One older-course row: 42dp, card fill on a hairline, the name in condensed
+ * and a `›` chevron. The date sub-line is gone — every real course name
+ * already carries its dates ("… / 2026 / 6th-Aug to 17th-Aug"), which is why
+ * frame 1a draws a single line.
+ */
+@Composable
+private fun OlderCourseRow(course: Course, onClick: () -> Unit) {
+    val c = LocalDipi.current
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .heightIn(min = 42.dp)
+            .deskCard(shape = DeskStyle.controlShape, fill = c.field, border = c.hairline, elevation = 0.dp)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Text(
+            course.name,
+            fontFamily = DipiCondensed,
+            fontSize = 16.sp,
+            lineHeight = 19.sp,
+            color = c.foreground,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f),
+        )
+        Text("›", color = c.muted, fontSize = 15.sp)
+    }
+}
+
+/**
+ * The "Centre desk" column of frame 1a. The 3/5 split is
+ * [DeskTileSpec.action]'s own: the three in-app destinations (Centre Settings,
+ * Advanced Search, App Settings) are the transparent, zero-elevation tiles;
+ * the five desk-site links become pill chips with a trailing `↗` under a
+ * `MORE ON THE DESK SITE` kicker. Every callback fires exactly as before —
+ * chips still hand `onLater` the catalogue's own (title, route) pair.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun CentreDeskColumn(
+    cid: Int,
+    tilesPerRow: Int,
+    tileHeight: Dp,
+    onLater: (String, String) -> Unit,
+    onCentreOps: () -> Unit,
+    onAdvancedSearch: () -> Unit,
+    onSettings: () -> Unit,
+) {
+    val c = LocalDipi.current
+    val tiles = centreDeskTiles(cid)
+    Column(Modifier.fillMaxWidth()) {
+        Text("Centre desk", color = c.muted, modifier = Modifier.padding(bottom = 10.dp))
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            tiles.filter { it.action != null }.chunked(tilesPerRow).forEach { row ->
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    row.forEach { tile ->
+                        DeskTile(tile.title, tileHeight, Modifier.weight(1f)) {
                             when (tile.action) {
                                 DeskTileAction.CentreOps -> onCentreOps()
                                 DeskTileAction.AdvancedSearch -> onAdvancedSearch()
@@ -294,20 +403,86 @@ private fun OlderCoursesAndDeskBlock(
                                 null -> onLater(tile.title, tile.route)
                             }
                         }
-                        .padding(horizontal = 10.dp, vertical = 10.dp),
-                    contentAlignment = Alignment.CenterStart,
-                ) {
-                    Text(
-                        tile.title,
-                        color = c.foreground,
-                        fontFamily = DipiCondensed,
-                        fontSize = 15.sp,
-                        lineHeight = 18.sp,
-                    )
+                    }
+                    repeat(tilesPerRow - row.size) { Spacer(Modifier.weight(1f)) }
                 }
             }
-            repeat(3 - row.size) { Spacer(Modifier.weight(1f)) }
         }
+        Spacer(Modifier.height(14.dp))
+        Box(Modifier.fillMaxWidth().height(1.dp).background(c.hairline))
+        Spacer(Modifier.height(11.dp))
+        Text(
+            "MORE ON THE DESK SITE",
+            fontFamily = DipiMono,
+            fontWeight = FontWeight.Medium,
+            fontSize = 9.sp,
+            letterSpacing = 1.7.sp,
+            color = c.muted,
+        )
+        Spacer(Modifier.height(9.dp))
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            tiles.filter { it.action == null }.forEach { tile ->
+                DeskSiteChip(tile.title) { onLater(tile.title, tile.route) }
+            }
+        }
+    }
+}
+
+/** An in-app desk tile: transparent fill, hairline border, zero elevation. */
+@Composable
+private fun DeskTile(title: String, height: Dp, modifier: Modifier, onClick: () -> Unit) {
+    val c = LocalDipi.current
+    Row(
+        modifier
+            .height(height)
+            .deskCard(
+                shape = DeskStyle.controlShape,
+                fill = Color.Transparent,
+                border = c.hairline,
+                elevation = 0.dp,
+            )
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text(
+            title,
+            color = c.foreground,
+            fontFamily = DipiCondensed,
+            fontSize = 16.sp,
+            letterSpacing = 0.3.sp,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f),
+        )
+        Text("›", color = c.muted, fontSize = 15.sp)
+    }
+}
+
+/** A desk-site link: a 30dp pill chip with a trailing `↗`. */
+@Composable
+private fun DeskSiteChip(title: String, onClick: () -> Unit) {
+    val c = LocalDipi.current
+    Row(
+        Modifier
+            .height(30.dp)
+            .deskCard(
+                shape = DeskStyle.pillShape,
+                fill = Color.Transparent,
+                border = c.hairline,
+                elevation = 0.dp,
+            )
+            .clickable(onClick = onClick)
+            .padding(horizontal = 11.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(5.dp),
+    ) {
+        Text(title, color = c.muted, fontSize = 12.5.sp, maxLines = 1)
+        Text("↗", color = c.muted, fontSize = 11.sp)
     }
 }
 
@@ -325,15 +500,36 @@ private fun CourseCard(
     Column(
         modifier
             .deskCard(fill = c.field, border = c.hairline)
+            // Frame 1a's next-course marker: a 3dp accent bar inset 8dp top
+            // and bottom, on the soonest course only. Drawn 3dp wider than it
+            // shows so its left corners fall outside the card's clip and only
+            // the right pair rounds, as the frame draws it.
+            .then(
+                if (first) {
+                    Modifier.drawBehind {
+                        val w = 3.dp.toPx()
+                        val inset = 8.dp.toPx()
+                        drawRoundRect(
+                            color = c.accent,
+                            topLeft = Offset(-w, inset),
+                            size = Size(w * 2, size.height - inset * 2),
+                            cornerRadius = CornerRadius(w),
+                        )
+                    }
+                } else {
+                    Modifier
+                },
+            )
             .clickable(onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 13.dp),
+            .padding(start = 14.dp, end = 14.dp, top = 11.dp, bottom = 9.dp),
         verticalArrangement = Arrangement.spacedBy(3.dp),
     ) {
         Text(
             course.name,
             fontFamily = DipiCondensed,
-            fontSize = 19.sp,
-            lineHeight = 22.sp,
+            fontSize = 17.sp,
+            lineHeight = 20.sp,
+            letterSpacing = 0.2.sp,
             color = c.foreground,
         )
         if (course.start.isNotBlank() || course.end.isNotBlank()) {
@@ -348,7 +544,7 @@ private fun CourseCard(
         }
         val matrix = course.matrix
         if (matrix != null) {
-            CourseMatrixTable(matrix, modifier = Modifier.padding(top = 4.dp))
+            CourseMatrixTable(matrix, modifier = Modifier.padding(top = 9.dp))
         } else {
             val counts = courseCountsLine(course.summary)
             if (counts != null) {
@@ -369,69 +565,164 @@ private fun CourseCard(
 private fun matrixCell(n: Int): String = if (n == 0) "·" else n.toString()
 
 /**
- * The compact gender-split matrix (spec S4): a kicker header, one row per
- * [CourseMatrix.highlights] (Received/Confirmed/Cancelled, all-zero rows
- * already filtered out upstream), then an emphasised Total row with sevak
- * counts appended when present.
+ * Frame 1a draws the six numeric columns at a fixed 54dp beside a flexing
+ * label column. A phone-width card cannot spare 324dp, so the columns fall
+ * back to the shipped proportion (0.75 of 6.1 weight units) and the 54dp cap
+ * only bites on the tablet the frame was measured on.
+ */
+private const val MATRIX_CELL_FRACTION = 0.75f / 6.1f
+
+/** Where frame 1a starts the subtotal bands and the trio gutter: below the group caps. */
+private val MatrixCapsHeight = 15.dp
+
+/**
+ * The compact gender-split matrix (spec S4), redrawn to frame 1a: MALE and
+ * FEMALE group caps over the two trios, 12sp mono column labels with the M
+ * and F subtotals darker than the four new/old columns, a hairline gutter
+ * between the trios, neutral bands behind the two subtotal columns, one row
+ * per [CourseMatrix.highlights] and an emphasised Total row carrying the
+ * sevak count as its own mono suffix.
  */
 @Composable
 private fun CourseMatrixTable(matrix: CourseMatrix, modifier: Modifier = Modifier) {
     val c = LocalDipi.current
-    Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        MatrixHeaderRow()
-        matrix.highlights.forEach { row -> MatrixDataRow(row.label, row, emphasise = false) }
-        matrix.total?.let { total -> MatrixDataRow("Total", total, emphasise = true) }
+    BoxWithConstraints(modifier.fillMaxWidth()) {
+        val cell = minOf(54.dp, maxWidth * MATRIX_CELL_FRACTION)
+        val band = c.hover
+        val gutter = c.hairline
+        Column(
+            Modifier.fillMaxWidth().drawBehind {
+                val w = cell.toPx()
+                val top = MatrixCapsHeight.toPx()
+                val tall = size.height - top
+                val radius = CornerRadius(3.dp.toPx())
+                // Bands behind the two subtotal columns: F at the right edge,
+                // M three columns in — the same 54dp the header labels use.
+                drawRoundRect(band, Offset(size.width - w, top), Size(w, tall), radius)
+                drawRoundRect(band, Offset(size.width - w * 4, top), Size(w, tall), radius)
+                val hairline = 1.dp.toPx()
+                drawRect(gutter, Offset(size.width - w * 3 - hairline, top), Size(hairline, tall))
+            },
+        ) {
+            MatrixGroupCapsRow(cell)
+            MatrixHeaderRow(cell)
+            matrix.highlights.forEach { row -> MatrixDataRow(row.label, row, cell, emphasise = false) }
+            matrix.total?.let { total -> MatrixDataRow("Total", total, cell, emphasise = true) }
+        }
     }
 }
 
-/**
- * The kicker row, built from the same weight()-based `Row` and per-cell
- * modifiers as [MatrixDataRow] so each label sits directly above its column
- * on a real device — a manually-spaced literal string can't guarantee that.
- */
+/** "MALE" and "FEMALE", each centred over its trio of columns. */
 @Composable
-private fun MatrixHeaderRow() {
+private fun MatrixGroupCapsRow(cell: Dp) {
     val c = LocalDipi.current
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-        Spacer(Modifier.weight(1.6f))
-        listOf("NM", "OM", "M", "NF", "OF", "F").forEach { label ->
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Spacer(Modifier.weight(1f))
+        listOf("MALE", "FEMALE").forEach { cap ->
             Text(
-                label,
+                cap,
                 fontFamily = DipiMono,
-                fontSize = 10.sp,
+                fontWeight = FontWeight.Medium,
+                fontSize = 9.sp,
+                letterSpacing = 1.7.sp,
                 color = c.muted,
-                textAlign = TextAlign.End,
-                modifier = Modifier.weight(0.75f),
+                textAlign = TextAlign.Center,
+                modifier = Modifier.width(cell * 3),
             )
         }
     }
 }
 
+/**
+ * The column labels, built from the same per-cell widths as [MatrixDataRow]
+ * so each sits directly above its column on a real device — a manually-spaced
+ * literal string can't guarantee that. M and F read darker than the four
+ * new/old columns: they are the subtotals the bands sit behind.
+ */
 @Composable
-private fun MatrixDataRow(label: String, row: MatrixRow, emphasise: Boolean) {
+private fun MatrixHeaderRow(cell: Dp) {
     val c = LocalDipi.current
-    val weight = if (emphasise) FontWeight.Bold else FontWeight.Medium
+    val hairline = c.hairline
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .padding(top = 4.dp)
+            .drawBehind {
+                val stroke = 1.dp.toPx()
+                drawRect(hairline, Offset(0f, size.height - stroke), Size(size.width, stroke))
+            }
+            .padding(bottom = 5.dp),
+        verticalAlignment = Alignment.Bottom,
+    ) {
+        Spacer(Modifier.weight(1f))
+        listOf("NM" to false, "OM" to false, "M" to true, "NF" to false, "OF" to false, "F" to true)
+            .forEach { (label, subtotal) ->
+                Text(
+                    label,
+                    fontFamily = DipiMono,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 12.sp,
+                    color = if (subtotal) c.foreground else c.muted,
+                    textAlign = TextAlign.End,
+                    modifier = Modifier.width(cell),
+                )
+            }
+    }
+}
+
+@Composable
+private fun MatrixDataRow(label: String, row: MatrixRow, cell: Dp, emphasise: Boolean) {
+    val c = LocalDipi.current
+    val hairline = c.hairline
     val sevak = row.sevakTotal
-    val displayLabel = if (emphasise && sevak > 0) "$label  +$sevak sevak" else label
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-        Text(
-            displayLabel,
-            fontFamily = DipiCondensed,
-            fontSize = if (emphasise) 13.sp else 12.sp,
-            fontWeight = weight,
-            color = c.foreground,
-            modifier = Modifier.weight(1.6f),
-        )
+    val rowModifier = if (emphasise) {
+        Modifier
+            .fillMaxWidth()
+            .padding(top = 2.dp)
+            .drawBehind {
+                val stroke = 1.dp.toPx()
+                drawRect(hairline, Offset(0f, 0f), Size(size.width, stroke))
+            }
+            .height(30.dp)
+    } else {
+        Modifier.fillMaxWidth().height(26.dp)
+    }
+    Row(rowModifier, verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            Modifier.weight(1f),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(7.dp),
+        ) {
+            Text(
+                label,
+                fontSize = if (emphasise) 14.sp else 13.5.sp,
+                fontWeight = if (emphasise) FontWeight.Medium else FontWeight.Normal,
+                color = if (emphasise) c.foreground else c.muted,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            if (emphasise && sevak > 0) {
+                Text(
+                    "+$sevak sevak",
+                    fontFamily = DipiMono,
+                    fontSize = 11.5.sp,
+                    color = c.muted,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
         listOf(row.newMale, row.oldMale, row.maleTotal, row.newFemale, row.oldFemale, row.femaleTotal)
             .forEach { n ->
                 Text(
                     matrixCell(n),
                     fontFamily = DipiMono,
-                    fontSize = 11.sp,
-                    fontWeight = weight,
-                    color = if (emphasise) c.foreground else c.muted,
+                    fontSize = if (emphasise) 15.sp else 14.5.sp,
+                    fontWeight = if (emphasise) FontWeight.Medium else FontWeight.Normal,
+                    color = c.foreground,
                     textAlign = TextAlign.End,
-                    modifier = Modifier.weight(0.75f),
+                    maxLines = 1,
+                    modifier = Modifier.width(cell),
                 )
             }
     }

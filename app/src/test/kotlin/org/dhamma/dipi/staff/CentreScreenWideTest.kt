@@ -3,14 +3,19 @@ package org.dhamma.dipi.staff
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import org.dhamma.dipi.staff.course.CentreScreen
+import org.dhamma.dipi.staff.course.centreDeskTiles
 import org.dhamma.dipi.staff.model.Centre
 import org.dhamma.dipi.staff.model.CentreId
 import org.dhamma.dipi.staff.model.Course
 import org.dhamma.dipi.staff.model.CourseId
+import org.dhamma.dipi.staff.model.CourseMatrix
+import org.dhamma.dipi.staff.model.MatrixRow
 import org.dhamma.dipi.staff.model.Session
 import org.dhamma.dipi.staff.ui.theme.DipiTheme
+import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -59,10 +64,11 @@ class CentreScreenWideTest {
         // Upper (0.6) region: upcoming courses.
         rule.onNodeWithText("Upcoming courses").assertIsDisplayed()
         rule.onNodeWithText("10-Day").assertIsDisplayed()
-        // Lower (0.4) region is its own independent scroll — its content is
-        // still reachable via performScrollTo() within that region.
-        rule.onNodeWithText("Centre desk").performScrollTo().assertIsDisplayed()
-        rule.onNodeWithText("Centre Settings").performScrollTo().assertIsDisplayed()
+        // Lower (0.4) region: v4 frame 1a makes the right-hand desk column a
+        // fixed 416dp band that never scrolls, so its content must already be
+        // on screen — no performScrollTo() to lean on any more.
+        rule.onNodeWithText("Centre desk").assertIsDisplayed()
+        rule.onNodeWithText("Centre Settings").assertIsDisplayed()
     }
 
     @Test
@@ -87,9 +93,10 @@ class CentreScreenWideTest {
         // Upper region still renders the courses.
         rule.onNodeWithText("Upcoming courses").assertIsDisplayed()
         rule.onNodeWithText("10-Day").assertIsDisplayed()
-        // Lower region is still reachable, not squeezed to 0dp.
-        rule.onNodeWithText("Centre desk").performScrollTo().assertIsDisplayed()
-        rule.onNodeWithText("Centre Settings").performScrollTo().assertIsDisplayed()
+        // Lower region is still reachable, not squeezed to 0dp. The desk
+        // column has no scroll of its own, so "displayed" is the whole test.
+        rule.onNodeWithText("Centre desk").assertIsDisplayed()
+        rule.onNodeWithText("Centre Settings").assertIsDisplayed()
     }
 
     @Test
@@ -117,4 +124,103 @@ class CentreScreenWideTest {
         // is already on screen, not stranded below a dead band.
         rule.onNodeWithText("Older courses").assertIsDisplayed()
     }
+
+    @Test
+    fun lowerPaneSplitsIntoOlderCoursesAndAFixedDeskColumn() {
+        // v4 frame 1a: the lower 40% is two columns — a flexing "Older
+        // courses" column with its own scroll on the left, and a fixed
+        // 416dp "Centre desk" column on the right that does not scroll.
+        // Everything the desk column holds is therefore on screen at once:
+        // the three in-app tiles, the rule + kicker, and the five desk-site
+        // chips.
+        val older = Course(CourseId(8), CentreId(1), "Dhamma Sudha / 10 Day / 2026", "2026-08-06", "2026-08-17")
+        rule.setContent {
+            DipiTheme {
+                CentreScreen(
+                    session = singleCentreSession,
+                    courses = listOf(course),
+                    onPick = {},
+                    olderCourses = listOf(older),
+                )
+            }
+        }
+        rule.onNodeWithText("Older courses").assertIsDisplayed()
+        rule.onNodeWithText(older.name).performScrollTo().assertIsDisplayed()
+        rule.onNodeWithText("Centre desk").assertIsDisplayed()
+        rule.onNodeWithText("Centre Settings").assertIsDisplayed()
+        rule.onNodeWithText("Advanced Search").assertIsDisplayed()
+        rule.onNodeWithText("App Settings").assertIsDisplayed()
+        rule.onNodeWithText("MORE ON THE DESK SITE").assertIsDisplayed()
+        deskSiteTiles.forEach { rule.onNodeWithText(it.title).assertIsDisplayed() }
+    }
+
+    @Test
+    fun deskSiteChipsStillFireOnLaterWithTheSameTitleAndRoute() {
+        // The 3/5 split is a rendering change only: the five `action == null`
+        // entries become pill chips, and each still hands `onLater` exactly
+        // the (title, route) pair `centreDeskTiles` publishes.
+        val fired = mutableListOf<Pair<String, String>>()
+        rule.setContent {
+            DipiTheme {
+                CentreScreen(
+                    session = singleCentreSession,
+                    courses = listOf(course),
+                    onPick = {},
+                    onLater = { title, route -> fired += title to route },
+                )
+            }
+        }
+        deskSiteTiles.forEach { rule.onNodeWithText(it.title).performClick() }
+        assertEquals(deskSiteTiles.map { it.title to it.route }, fired)
+    }
+
+    @Test
+    fun matrixHeaderShowsGroupCapsAboveAllSixColumnLabels() {
+        // v4 frame 1a: MALE/FEMALE caps over each trio, and the six column
+        // labels keep their names — NM/OM/NF/OF muted, M and F darker.
+        val withMatrix = course.copy(
+            matrix = CourseMatrix(
+                rows = listOf(
+                    MatrixRow("Confirmed", newMale = 41, oldMale = 17, newFemale = 33, oldFemale = 9),
+                ),
+                total = MatrixRow("Total", newMale = 50, oldMale = 20, newFemale = 40, oldFemale = 15),
+            ),
+        )
+        rule.setContent {
+            DipiTheme {
+                CentreScreen(session = singleCentreSession, courses = listOf(withMatrix), onPick = {})
+            }
+        }
+        rule.onNodeWithText("MALE").assertIsDisplayed()
+        rule.onNodeWithText("FEMALE").assertIsDisplayed()
+        listOf("NM", "OM", "M", "NF", "OF", "F").forEach {
+            rule.onNodeWithText(it).assertIsDisplayed()
+        }
+    }
+
+    @Test
+    fun emptyOlderCoursesGivesTheDeskColumnTheFullWidth() {
+        // Frame 1g: with no older courses the heading stays omitted and the
+        // desk column reflows to the full width — three tiles across, chips
+        // underneath, still no scroll.
+        rule.setContent {
+            DipiTheme {
+                CentreScreen(
+                    session = singleCentreSession,
+                    courses = listOf(course),
+                    onPick = {},
+                    olderCourses = emptyList(),
+                )
+            }
+        }
+        rule.onNodeWithText("Older courses").assertDoesNotExist()
+        rule.onNodeWithText("Centre desk").assertIsDisplayed()
+        rule.onNodeWithText("Centre Settings").assertIsDisplayed()
+        rule.onNodeWithText("Advanced Search").assertIsDisplayed()
+        rule.onNodeWithText("App Settings").assertIsDisplayed()
+        rule.onNodeWithText("MORE ON THE DESK SITE").assertIsDisplayed()
+        deskSiteTiles.forEach { rule.onNodeWithText(it.title).assertIsDisplayed() }
+    }
+
+    private val deskSiteTiles = centreDeskTiles(1).filter { it.action == null }
 }

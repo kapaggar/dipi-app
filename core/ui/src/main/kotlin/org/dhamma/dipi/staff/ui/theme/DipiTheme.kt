@@ -58,7 +58,7 @@ fun lightDipi(palette: IndustryPalette): DipiColors = DipiColors(
     accentPressed = palette.accent700,
     snack = Color(0xFF2B2B2D),
     snackError = Color(0xFF5A2F2F),
-    hard = Color(0xFF7A4141),
+    hard = Color(0xFFA33A34),
     safety = Color(0xFF6A5A38),
     soft = palette.neutral600,
     flagHard = Color(0xFFA15C5C),
@@ -72,20 +72,39 @@ fun lightDipi(palette: IndustryPalette): DipiColors = DipiColors(
 /** Steel's light block — the wireframe as drawn. */
 val LightDipi = lightDipi(IndustryPalette.Steel)
 
+/**
+ * The v4 "Steel night" ramp — one night ladder for every skin
+ * (`version-4/README.md`, Design tokens; frame 1e states the rule on screen).
+ *
+ * Ladder, ground → foreground:
+ * `#14171A #1A1E22 #22272C #2E3339 #3A4046 #4A5157 #6B7278 #9BA1A8 #E4E6E9`.
+ *
+ * Roles mirror the light builder's ordering off `neutral100..neutral400`, so a
+ * component keeps its relative contrast in both themes:
+ * `field` (card ground, step 2) < `hover` (raised chrome — banners, hovered
+ * rows, step 3) < `hairline` (card and divider rules, step 4) <
+ * `hairlineStrong` (control borders, step 5). `snack` takes the far end of the
+ * surface ramp (step 6) the way light's `snack` takes neutral-900 — a floating
+ * overlay, white text on it. `muted` is step 8, `foreground` step 9.
+ *
+ * Accent is unchanged at `#5980A6`; `tint` is accent-900 `#1D2D3D`. `hard` is
+ * the dark half of the fixed severity pair (light `#A33A34` / dark `#E0796F`),
+ * which never follows the skin.
+ */
 val DarkDipi = DipiColors(
-    background = Color(0xFF14181C),
-    foreground = Color(0xFFECEFF2),
-    muted = Color(0xFF98A1A8),
-    hairline = Color(0xFF232A31),
-    hairlineStrong = Color(0xFF3A424A),
-    hover = Color(0xFF1C2229),
-    field = Color(0xFF1C2229),
-    tint = Color(0xFF22384C),
+    background = Color(0xFF14171A),
+    foreground = Color(0xFFE4E6E9),
+    muted = Color(0xFF9BA1A8),
+    hairline = Color(0xFF2E3339),
+    hairlineStrong = Color(0xFF3A4046),
+    hover = Color(0xFF22272C),
+    field = Color(0xFF1A1E22),
+    tint = Color(0xFF1D2D3D),
     accent = Color(0xFF5980A6),
     accentPressed = Color(0xFF416180),
-    snack = Color(0xFF0D1114),
+    snack = Color(0xFF4A5157),
     snackError = Color(0xFF5A2F2F),
-    hard = Color(0xFFDEAEAE),
+    hard = Color(0xFFE0796F),
     safety = Color(0xFFDBCBA6),
     soft = Color(0xFF7A7A7D),
     flagHard = Color(0xFFA15C5C),

@@ -120,6 +120,12 @@ data class DeskUiState(
     val offline: Boolean = false,
     val queuedById: Map<ApplicantId, String> = emptyMap(),
     val queuedCount: Int = 0,
+    /**
+     * Epoch millis of the last outbox flush attempt — reconnect or manual
+     * RETRY alike. Never persisted: a fresh process shows the queued strip
+     * without a last-try line until the first attempt (spec R7).
+     */
+    val lastSyncAttemptAt: Long? = null,
     val statusChoices: List<String> = ApplicantStatus.SHEET_CHOICES,
     val sheetOpen: Boolean = false,
     val sheetPick: String = "",
@@ -168,6 +174,51 @@ data class DeskUiState(
     /** One-shot: a streamed PDF/Excel to hand to the system viewer (consumed like [snack]). */
     val openDoc: SheetPayload.Document? = null,
 )
+
+/**
+ * Opening a course wipes the per-course buffers. The scan buffer goes with
+ * them: it is session-scoped, so a conf number typed against one course must
+ * never survive into the next one (the roster would open silently filtered).
+ * The tablet's own gender/seniority filters describe the desk, not the course,
+ * and are deliberately kept.
+ */
+fun deskOpenCourse(state: DeskUiState, course: Course): DeskUiState = state.copy(
+    course = course,
+    screen = deskAfterPickCourse(),
+    deskSection = DeskSection.Board,
+    rows = emptyList(),
+    visible = emptyList(),
+    counts = emptyMap(),
+    selected = emptySet(),
+    query = "",
+    card = null,
+    loading = false,
+    sensitiveById = emptyMap(),
+    sheetView = null,
+    deskScan = "",
+)
+
+/**
+ * The search door onto the same swap. Advanced Search runs over the whole
+ * cache, so a result can belong to a course other than the open one; the row's
+ * course is adopted (when it is one of the listed upcoming/older courses) so
+ * the card pane has its context.
+ *
+ * That is still a course swap, so the session-scoped scan buffer goes with it —
+ * otherwise Check-in later opens silently filtered by the previous course's
+ * conf number, exactly as it did before [deskOpenCourse].
+ *
+ * Only the course and the scan move. This opens a Card, not a desk session: it
+ * does not cancel the worklist observer, so clearing the worklist buffers here
+ * would only have them refilled by the still-live collector. Starting a session
+ * is [deskOpenCourse]'s job, and it cancels that observer first.
+ */
+fun deskAdoptSearchCourse(state: DeskUiState, card: ApplicantCard): DeskUiState {
+    val course = (state.courses + state.olderCourses).firstOrNull { it.id == card.courseId }
+        ?: return state
+    if (state.course?.id == course.id) return state
+    return state.copy(course = course, deskScan = "")
+}
 
 /**
  * Rail counts for the v2 desk — derived from the worklist plus the local
@@ -382,22 +433,7 @@ class DeskViewModel @Inject constructor(
     fun pickCourse(course: Course) {
         observeJob?.cancel()
         observeJob = null
-        _state.update {
-            it.copy(
-                course = course,
-                screen = deskAfterPickCourse(),
-                deskSection = DeskSection.Board,
-                rows = emptyList(),
-                visible = emptyList(),
-                counts = emptyMap(),
-                selected = emptySet(),
-                query = "",
-                card = null,
-                loading = false,
-                sensitiveById = emptyMap(),
-                sheetView = null,
-            )
-        }
+        _state.update { deskOpenCourse(it, course) }
     }
 
     /** V2 desk: rail navigation between sections. No page transition, no loading state. */
@@ -738,12 +774,7 @@ class DeskViewModel @Inject constructor(
     fun openSearchResult(card: ApplicantCard) {
         // Adopt the row's course when it is one of the listed upcoming
         // or older courses, so the card pane has its context; otherwise leave as-is.
-        val listed = _state.value.courses + _state.value.olderCourses
-        listed.firstOrNull { it.id == card.courseId }?.let { course ->
-            if (_state.value.course?.id != course.id) {
-                _state.update { it.copy(course = course) }
-            }
-        }
+        _state.update { deskAdoptSearchCourse(it, card) }
         openCard(card)
     }
 
@@ -1222,6 +1253,9 @@ class DeskViewModel @Inject constructor(
     }
 
     private suspend fun flush() {
+        // The one shared flush path: stamped here so the reconnect collector
+        // and retrySync() both feed the strip's "last try" line.
+        _state.update { it.copy(lastSyncAttemptAt = System.currentTimeMillis()) }
         runCatching { repo.flushOutbox() }
             .onSuccess { snacks ->
                 snacks.lastOrNull()?.let { snack -> _state.update { it.copy(snack = snack) } }

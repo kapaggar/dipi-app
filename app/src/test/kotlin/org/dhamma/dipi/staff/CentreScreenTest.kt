@@ -262,6 +262,50 @@ class CentreScreenTest {
     }
 
     @Test
+    fun matrixHeaderShowsGroupCapsAboveAllSixColumnLabels() {
+        // v4 frame 1a: the header gains a MALE/FEMALE group-caps row over the
+        // two trios; the six column labels are unchanged in name, only in
+        // weight (M and F darker than NM/OM/NF/OF).
+        rule.setContent {
+            DipiTheme {
+                CentreScreen(session = session, courses = listOf(course), onPick = {})
+            }
+        }
+        rule.onNodeWithText("MALE").performScrollTo().assertIsDisplayed()
+        rule.onNodeWithText("FEMALE").performScrollTo().assertIsDisplayed()
+        listOf("NM", "OM", "M", "NF", "OF", "F").forEach {
+            rule.onNodeWithText(it).performScrollTo().assertIsDisplayed()
+        }
+        // The sevak count is its own mono suffix beside "Total" now, not part
+        // of the label string — and it ellipsises rather than clipping
+        // mid-glyph when the phone's label column runs out of room.
+        rule.onNodeWithText("Total").performScrollTo().assertIsDisplayed()
+        rule.onNodeWithText("+7 sevak").performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    fun deskSiteChipsStillFireOnLaterWithTheSameTitleAndRoute() {
+        // The five `action == null` entries render as pill chips under
+        // MORE ON THE DESK SITE; each still hands `onLater` exactly the
+        // (title, route) pair `centreDeskTiles` publishes.
+        val deskSite = centreDeskTiles(1).filter { it.action == null }
+        val fired = mutableListOf<Pair<String, String>>()
+        rule.setContent {
+            DipiTheme {
+                CentreScreen(
+                    session = session,
+                    courses = listOf(course),
+                    onPick = {},
+                    onLater = { title, route -> fired += title to route },
+                )
+            }
+        }
+        rule.onNodeWithText("MORE ON THE DESK SITE").performScrollTo().assertIsDisplayed()
+        deskSite.forEach { rule.onNodeWithText(it.title).performScrollTo().performClick() }
+        assertEquals(deskSite.map { it.title to it.route }, fired)
+    }
+
+    @Test
     fun appSettingsTileInvokesOnSettings() {
         var settingsOpened = false
         rule.setContent {

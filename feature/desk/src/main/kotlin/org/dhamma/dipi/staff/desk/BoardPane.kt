@@ -1,22 +1,21 @@
 package org.dhamma.dipi.staff.desk
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
@@ -25,21 +24,32 @@ import org.dhamma.dipi.staff.model.ApplicantCard
 import org.dhamma.dipi.staff.model.ApplicantId
 import org.dhamma.dipi.staff.model.CheckInRecord
 import org.dhamma.dipi.staff.ui.theme.DeskKicker
-import org.dhamma.dipi.staff.ui.theme.DeskStyle
 import org.dhamma.dipi.staff.ui.theme.DipiCondensed
+import org.dhamma.dipi.staff.ui.theme.DipiMono
 import org.dhamma.dipi.staff.ui.theme.Industry
 import org.dhamma.dipi.staff.ui.theme.deskCard
 
-private val EXPORTS = listOf(
-    "Day 0 list", "Day 0 summary", "Student chit", "Checking slip",
-    "Male PDF", "Female PDF", "Teacher list", "Manager list",
-    "Laundry list", "Valuable list", "Seating plan", "Course report",
+/**
+ * The same twelve exports, on three shelves that say what each pile is for
+ * (v4 frame 1f). Names and the `onExport` labels are unchanged — only the
+ * grouping is new. Day 11 · Course summary report is deliberately absent:
+ * it lives on unmerged `feat/desk-gap` (spec R2), and the design file's
+ * dashed marker is canvas annotation, not UI.
+ */
+private val EXPORT_SHELVES = listOf(
+    "ROLL SHEETS" to listOf("Day 0 list", "Day 0 summary", "Male PDF", "Female PDF"),
+    "DESK SLIPS" to listOf("Student chit", "Checking slip", "Seating plan", "Laundry list"),
+    "FOR THE TEAM" to listOf("Teacher list", "Manager list", "Valuable list", "Course report"),
 )
+
+private val CardShape = RoundedCornerShape(8.dp)
+private val ChipShape = RoundedCornerShape(6.dp)
 
 /**
  * The first thing on screen at 09:00: four live numbers carry the
  * navigation, three verb-first rows say what to do next, and the twelve PDF
- * exports drop to small type — they are exports, not decisions.
+ * exports drop to small type — they are exports, not decisions. v4 densifies
+ * all three bands so the whole Board lands on one fold.
  */
 @Composable
 fun BoardPane(
@@ -64,22 +74,20 @@ fun BoardPane(
         Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(26.dp),
+            .padding(horizontal = 20.dp, vertical = 14.dp),
     ) {
-        Column(Modifier.padding(bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text(
-                "$total on the roll, $inCount already in their rooms. " +
-                    "Everything below is a number you can act on — tap it.",
-                fontSize = 14.sp,
-                lineHeight = 20.sp,
-                color = Industry.neutral700,
-                modifier = Modifier.widthIn(max = 640.dp),
-            )
-        }
+        Text(
+            "$total on the roll, $inCount already in their rooms. " +
+                "Everything below is a number you can act on — tap it.",
+            fontSize = 15.sp,
+            lineHeight = 20.sp,
+            color = Industry.neutral700,
+            modifier = Modifier.padding(bottom = 14.dp),
+        )
 
         Row(
-            Modifier.fillMaxWidth().padding(bottom = 26.dp),
-            horizontalArrangement = Arrangement.spacedBy(14.dp),
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             BoardTile("$total", "ARRIVING TODAY", "$total confirmed", Modifier.weight(1f)) {
                 onGoto(DeskSection.CheckIn)
@@ -95,10 +103,10 @@ fun BoardPane(
             }
         }
 
-        DeskKicker("NEXT", Industry.neutral500, Modifier.padding(bottom = 10.dp))
+        DeskKicker("NEXT", Industry.neutral600, Modifier.padding(top = 18.dp, bottom = 8.dp))
         Column(
-            Modifier.fillMaxWidth().padding(bottom = 30.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+            Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(7.dp),
         ) {
             BoardAction("Check in arrivals", "${total - inCount} still to arrive") {
                 onGoto(DeskSection.CheckIn)
@@ -111,28 +119,34 @@ fun BoardPane(
             }
         }
 
-        DeskKicker("SHEETS & EXPORTS · RARELY URGENT", Industry.neutral500, Modifier.padding(bottom = 10.dp))
-        Column(
-            Modifier
-                .fillMaxWidth()
-                .deskCard(fill = Industry.neutral200, elevation = 0.dp)
-                .padding(1.dp),
-            verticalArrangement = Arrangement.spacedBy(1.dp),
-        ) {
-            EXPORTS.chunked(4).forEach { rowItems ->
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(1.dp)) {
-                    rowItems.forEach { label ->
+        DeskKicker(
+            "SHEETS & EXPORTS · RARELY URGENT",
+            Industry.neutral600,
+            Modifier.padding(top = 18.dp),
+        )
+        EXPORT_SHELVES.forEach { (shelf, labels) ->
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(top = 12.dp)
+                    .testTag("export-shelf-$shelf"),
+            ) {
+                DeskKicker(shelf, Industry.neutral500, Modifier.padding(bottom = 7.dp))
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    labels.forEach { label ->
                         Row(
                             Modifier
                                 .weight(1f)
-                                .background(DeskStyle.cardFill)
+                                .height(40.dp)
+                                .deskCard(shape = ChipShape, elevation = 0.dp)
                                 .clickable { onExport(label) }
-                                .padding(horizontal = 12.dp, vertical = 10.dp),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                .padding(horizontal = 13.dp)
+                                .testTag("export-chip"),
+                            horizontalArrangement = Arrangement.spacedBy(9.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            DeskIcon(DeskIconKind.Download, 13.dp, Industry.accent)
-                            Text(label, fontSize = 12.5.sp, maxLines = 1, color = Industry.neutral800)
+                            DeskIcon(DeskIconKind.Download, 13.dp, Industry.accent400)
+                            Text(label, fontSize = 13.5.sp, maxLines = 1, color = Industry.neutral800)
                         }
                     }
                 }
@@ -151,29 +165,40 @@ private fun BoardTile(
 ) {
     Column(
         modifier
-            .deskCard()
+            .height(100.dp)
+            .deskCard(shape = CardShape)
             .clickable(onClick = onClick)
-            .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 14.dp),
+            .padding(horizontal = 15.dp, vertical = 12.dp)
+            .testTag("board-stat"),
     ) {
         Text(
             number,
             fontFamily = DipiCondensed,
             fontWeight = FontWeight.Bold,
-            fontSize = 46.sp,
-            lineHeight = 46.sp,
+            fontSize = 38.sp,
+            lineHeight = 38.sp,
             letterSpacing = (-0.02).em,
             color = Industry.accent800,
         )
         Text(
             label,
-            fontFamily = DipiCondensed,
-            fontWeight = FontWeight.SemiBold,
-            fontSize = 13.sp,
-            letterSpacing = 0.1.em,
-            color = Industry.text,
-            modifier = Modifier.padding(top = 4.dp),
+            fontFamily = DipiMono,
+            fontWeight = FontWeight.Medium,
+            fontSize = 10.sp,
+            lineHeight = 10.sp,
+            letterSpacing = 0.16.em,
+            color = Industry.neutral700,
+            maxLines = 1,
+            modifier = Modifier.padding(top = 9.dp),
         )
-        Text(note, fontSize = 11.5.sp, color = Industry.neutral600)
+        Text(
+            note,
+            fontSize = 12.5.sp,
+            lineHeight = 12.5.sp,
+            color = Industry.neutral500,
+            maxLines = 1,
+            modifier = Modifier.padding(top = 7.dp),
+        )
     }
 }
 
@@ -182,23 +207,34 @@ private fun BoardAction(label: String, sub: String, onClick: () -> Unit) {
     Row(
         Modifier
             .fillMaxWidth()
-            .deskCard()
+            .height(58.dp)
+            .deskCard(shape = CardShape)
             .clickable(onClick = onClick)
-            .padding(horizontal = 18.dp, vertical = 14.dp),
-        horizontalArrangement = Arrangement.spacedBy(16.dp),
+            .padding(horizontal = 16.dp)
+            .testTag("board-next"),
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Column(Modifier.weight(1f)) {
             Text(
                 label,
                 fontFamily = DipiCondensed,
                 fontWeight = FontWeight.SemiBold,
-                fontSize = 20.sp,
-                lineHeight = 22.sp,
+                fontSize = 18.sp,
+                lineHeight = 18.sp,
+                letterSpacing = 0.01.em,
                 color = Industry.text,
+                maxLines = 1,
             )
-            Text(sub, fontSize = 12.sp, color = Industry.neutral600)
+            Text(
+                sub,
+                fontSize = 12.5.sp,
+                lineHeight = 12.5.sp,
+                color = Industry.neutral600,
+                maxLines = 1,
+                modifier = Modifier.padding(top = 6.dp),
+            )
         }
-        DeskIcon(DeskIconKind.ArrowRight, 18.dp, Industry.accent)
+        DeskIcon(DeskIconKind.ArrowRight, 17.dp, Industry.accent400)
     }
 }
