@@ -103,9 +103,14 @@ class LoginScreenTest {
      * Robolectric cannot raise a real IME, so the compact/tall arrangement is a
      * pure function of `imeVisible` on [LoginCard] and the tests force the flag.
      */
-    private fun card(imeVisible: Boolean, error: String? = null, onRemember: (Boolean) -> Unit = {}) {
+    private fun card(
+        imeVisible: Boolean,
+        error: String? = null,
+        dark: Boolean = false,
+        onRemember: (Boolean) -> Unit = {},
+    ) {
         rule.setContent {
-            DipiTheme {
+            DipiTheme(dark = dark) {
                 LoginCard(
                     imeVisible = imeVisible,
                     username = "sudha.user",
@@ -156,6 +161,15 @@ class LoginScreenTest {
     fun errorStripKeepsTheServerTextVerbatimInBothArrangements() {
         val msg = "Unrecognized username or password."
         card(imeVisible = true, error = msg)
+        rule.onNodeWithText("Sign-in failed").assertIsDisplayed()
+        rule.onNodeWithText(msg).assertIsDisplayed()
+    }
+
+    /** The strip's night companions are a separate fixed pair — still verbatim. */
+    @Test
+    fun errorStripKeepsTheServerTextVerbatimOnTheNightRamp() {
+        val msg = "Please Edit application and choose Area teacher before approving!"
+        card(imeVisible = false, error = msg, dark = true)
         rule.onNodeWithText("Sign-in failed").assertIsDisplayed()
         rule.onNodeWithText(msg).assertIsDisplayed()
     }

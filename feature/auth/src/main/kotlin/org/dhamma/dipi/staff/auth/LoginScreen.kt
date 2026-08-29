@@ -43,7 +43,6 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
@@ -277,12 +276,13 @@ private fun LoginBrand(imeVisible: Boolean) {
 
 /**
  * The failure strip: a 3dp severity bar, a title and the server's **verbatim**
- * text. Severity never follows the skin, so every colour here is derived from
- * the fixed pair `hard` (`#A33A34` light / `#E0796F` dark) rather than from the
- * accent ramp — the README's light container hexes (`#FBEFEE` fill, `#E8CDC9`
- * rule, `#7A5450` body) are what those blends reproduce in Light, and the same
- * blends keep the strip legible on the night ramp instead of pasting a pink
- * card onto `#14171A`.
+ * text. Every colour is a fixed hex. Severity never follows the skin, and a
+ * blend off a skin-derived token (`field`, `muted`) would have made it do
+ * exactly that — so the light container is the README's own hexes, verbatim,
+ * and the night container is a companion pair chosen the same way. Contrast on
+ * the container each one sits on: body 5.9:1 light, 8.8:1 dark; title 5.9:1
+ * light, 5.5:1 dark — all clear of AA-small at 12/12.5sp, which matters here
+ * because this is the one string a locked-out registrar has to read.
  */
 @Composable
 private fun LoginErrorStrip(error: String) {
@@ -315,11 +315,33 @@ private fun LoginErrorStrip(error: String) {
     }
 }
 
-private fun errorFill(c: DipiColors): Color = lerp(c.field, c.hard, 0.10f)
+/**
+ * True on the Steel night ramp. `DipiColors` carries no dark flag, so the two
+ * places that legitimately need one (the fixed-severity container and the
+ * focused field's lift) read it off the ground's own luminance rather than
+ * having a boolean threaded down from `DipiTheme` into every call site.
+ */
+private fun DipiColors.isNight(): Boolean = background.luminance() < 0.5f
 
-private fun errorBorder(c: DipiColors): Color = lerp(c.field, c.hard, 0.28f)
+// Fixed severity, light — README frame 1b, verbatim. These are companions to
+// the `hard` pair (#A33A34 / #E0796F) and follow no skin.
+private val ErrorFillLight = Color(0xFFFBEFEE)
+private val ErrorBorderLight = Color(0xFFE8CDC9)
+private val ErrorBodyLight = Color(0xFF7A5450)
 
-private fun errorBody(c: DipiColors): Color = lerp(c.hard, c.muted, 0.45f)
+// Fixed severity, night. The README draws only the light strip, so these are
+// its companions on the Steel night ramp: a warm ground one step above the
+// night card (#1A1E22), a rule that reads against it, and a body tint at
+// 8.8:1 on that ground (and 8.5:1 on the bare card, had it been transparent).
+private val ErrorFillDark = Color(0xFF2A1D1D)
+private val ErrorBorderDark = Color(0xFF5A3B38)
+private val ErrorBodyDark = Color(0xFFE3B3AC)
+
+private fun errorFill(c: DipiColors): Color = if (c.isNight()) ErrorFillDark else ErrorFillLight
+
+private fun errorBorder(c: DipiColors): Color = if (c.isNight()) ErrorBorderDark else ErrorBorderLight
+
+private fun errorBody(c: DipiColors): Color = if (c.isNight()) ErrorBodyDark else ErrorBodyLight
 
 /** 19dp checkbox + label, the whole row toggling as one control. */
 @Composable
@@ -393,11 +415,20 @@ private fun SignInButton(loading: Boolean, onSubmit: () -> Unit) {
 }
 
 /**
+ * The focused field's fill — one step *away* from the card ground, in whichever
+ * direction the running ramp lifts. The README's `#FFF` is a light-mode
+ * rendering of that idea; on the night ramp a white field would glare, so the
+ * night side takes `hover` (`#22272C`), the step above `field` (`#1A1E22`) that
+ * the ramp already reserves for raised chrome. Light has no token above `field`
+ * — `#F5F5F8` is the top of the neutral ladder — so it takes the README's white
+ * directly.
+ */
+private fun focusedFieldFill(c: DipiColors): Color = if (c.isNight()) c.hover else Color.White
+
+/**
  * 40dp field under a mono kicker. Idle sits on the field fill behind a hairline;
- * focus lifts the fill and thickens the rule to 2dp accent, which is the only
- * chromatic mark on the card besides SIGN IN. "Lift" is white on the light
- * ramp and one step up the surface ladder on the night ramp, picked off the
- * ground's own luminance so the card needs no dark flag threaded into it.
+ * focus lifts the fill ([focusedFieldFill]) and thickens the rule to 2dp accent,
+ * which is the only chromatic mark on the card besides SIGN IN.
  */
 @Composable
 private fun LoginField(
@@ -411,7 +442,7 @@ private fun LoginField(
     val c = LocalDipi.current
     val interactions = remember { MutableInteractionSource() }
     val focused by interactions.collectIsFocusedAsState()
-    val lifted = if (c.background.luminance() < 0.5f) c.hover else Color.White
+    val lifted = focusedFieldFill(c)
     Column {
         Text(
             label.uppercase(),
