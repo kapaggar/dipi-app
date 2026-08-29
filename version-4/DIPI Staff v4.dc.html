@@ -1,0 +1,851 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics><meta name="design_doc_mode" content="canvas"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet"><style>
+body{margin:0;background:#e8e6e1;font-family:Roboto,system-ui,sans-serif}
+a{color:#416180;text-decoration:none}a:hover{color:#5980A6}
+.dv-turn{padding:40px 44px 32px;border-bottom:1px solid rgba(0,0,0,.08);scroll-margin-top:16px}
+.dv-thd{display:flex;align-items:baseline;gap:10px;margin:0 0 6px}
+.dv-tid{font:600 10px ui-monospace,Menlo,monospace;padding:3px 7px;background:#1a1a1a;color:#fff;border-radius:4px;text-decoration:none}
+.dv-tname{font:600 13px/1.2 system-ui,sans-serif;color:#1a1a1a}
+.dv-tsub{margin:0 0 24px;font:400 12px/1.5 system-ui,sans-serif;color:rgba(0,0,0,.5);max-width:900px}
+.dv-opts{display:flex;flex-wrap:wrap;gap:40px;align-items:flex-start}
+.dv-opt{flex:none;display:flex;flex-direction:column;gap:10px;scroll-margin-top:16px}
+.dv-oid{font:600 10.5px ui-monospace,Menlo,monospace;padding:3px 7px;background:rgba(0,0,0,.08);color:#1a1a1a;border-radius:5px;text-decoration:none}
+.dv-olabel{display:flex;align-items:baseline;gap:8px;font:400 11px/1.3 system-ui,sans-serif;color:rgba(0,0,0,.55)}
+.dv-opt:target .dv-oid{background:#5980A6;color:#fff}
+.dv-pair{display:flex;gap:20px;align-items:flex-start}
+.dv-cap{font:500 9.5px ui-monospace,Menlo,monospace;letter-spacing:1.3px;color:rgba(0,0,0,.42);margin-bottom:7px;text-transform:uppercase}
+.dv-frame{background:#fff;border:1px solid rgba(0,0,0,.14);box-shadow:0 2px 10px rgba(0,0,0,.08)}
+.dv-note{margin:2px 0 0;padding:0 0 0 14px;max-width:640px;font:400 11.5px/1.65 system-ui,sans-serif;color:rgba(0,0,0,.58)}
+.dv-note li{margin-bottom:2px}
+.dv-next{margin:26px 0 0;font:12px/1.5 system-ui,sans-serif;color:rgba(0,0,0,.5)}
+</style></helmet>
+
+<section class="dv-turn" id="t1">
+<div class="dv-thd"><a class="dv-tid" href="#t1">1</a><span class="dv-tname">v4 pass on shipped 1.22.0 — Pixel C 1280×900dp, Steel + one Blossom</span></div>
+<p class="dv-tsub">Every frame is drawn at the tablet's dp grid (2560×1800px ÷ 2), so sizes here are the sizes in Compose. Before thumbnails are the 1.22.0 captures. Nothing on the accepted list is re-proposed.</p>
+<div class="dv-opts">
+
+<div class="dv-opt" id="1a">
+<div class="dv-olabel"><a class="dv-oid" href="#1a">1a</a>P1 · Centre desk fits the 40% pane — no second scroll</div>
+<div class="dv-pair">
+<sc-if value="{{ showBefore }}" hint-placeholder-val="{{ true }}"><div><div class="dv-cap">Before · 21-centre-steel.png</div><img src="uploads/dipi-ui-export/21-centre-steel.png" style="width:340px;display:block;border:1px solid rgba(0,0,0,.14)"></div></sc-if>
+<div><div class="dv-cap">After</div>
+<div class="dv-frame" style="position:relative;width:1280px;height:900px;background:#F2F2F3;overflow:hidden;font:400 14px/1.35 Roboto,system-ui,sans-serif;color:#1D1F20">
+  <img src="assets/lotus.png" style="position:absolute;left:50%;top:60%;width:400px;transform:translate(-50%,-50%);opacity:.11;filter:saturate(.45) hue-rotate(165deg)">
+  <div style="position:relative;height:24px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;background:#EAEAEB;color:#98989B;font:500 11px/1 Roboto,sans-serif">
+    <div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;border-radius:2px;background:#B7B7BA"></div><div style="width:8px;height:8px;border-radius:50%;background:#B7B7BA"></div><div style="width:8px;height:8px;border-radius:2px;background:#B7B7BA"></div></div>
+    <div style="display:flex;gap:10px;align-items:center"><span>99%</span><span>11:58</span></div>
+  </div>
+  <div style="position:absolute;left:0;right:0;top:24px;bottom:48px;display:flex;flex-direction:column;padding:0 24px">
+    <div style="height:52px;display:flex;align-items:center;flex:none"><div style="font:600 23px/1 'Barlow Condensed',sans-serif;letter-spacing:.2px">Dhamma Sudha · sudha.user</div></div>
+    <div style="max-height:460px;flex:0 0 auto;display:flex;flex-direction:column;overflow:hidden">
+      <div style="font:400 16px/1 Roboto,sans-serif;color:#7A7A7D;margin-bottom:10px">Upcoming courses</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;align-content:start">
+        <sc-for list="{{ courses }}" as="c" hint-placeholder-count="4">
+        <div style="position:relative;background:#FAFAFB;border:1px solid #DEDEE1;border-radius:8px;padding:11px 14px 9px;box-shadow:0 1px 2px rgba(0,0,0,.05)">
+          <sc-if value="{{ c.next }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;left:0;top:8px;bottom:8px;width:3px;border-radius:0 3px 3px 0;background:#5980A6"></div></sc-if>
+          <div style="font:600 17px/1.15 'Barlow Condensed',sans-serif;letter-spacing:.2px;color:#1D1F20">{{ c.t }}</div>
+          <div style="position:relative;margin-top:9px">
+            <div style="position:absolute;top:15px;bottom:0;right:0;width:54px;background:#EDEDF1;border-radius:3px"></div>
+            <div style="position:absolute;top:15px;bottom:0;right:162px;width:54px;background:#EDEDF1;border-radius:3px"></div>
+            <div style="position:absolute;top:15px;bottom:0;right:161px;width:1px;background:#D4D4D7"></div>
+            <div style="position:relative;display:flex;justify-content:flex-end;font:500 9px/1 'IBM Plex Mono',monospace;letter-spacing:1.7px;color:#98989B">
+              <div style="width:162px;text-align:center">MALE</div><div style="width:162px;text-align:center">FEMALE</div>
+            </div>
+            <div style="position:relative;display:flex;align-items:flex-end;margin-top:4px;padding-bottom:5px;border-bottom:1px solid #E0E0E3">
+              <div style="flex:1"></div>
+              <div style="width:54px;text-align:right;font:600 12px/1 'IBM Plex Mono',monospace;color:#7A7A7D">NM</div>
+              <div style="width:54px;text-align:right;font:600 12px/1 'IBM Plex Mono',monospace;color:#7A7A7D">OM</div>
+              <div style="width:54px;text-align:right;font:600 12px/1 'IBM Plex Mono',monospace;color:#2B2B2D">M</div>
+              <div style="width:54px;text-align:right;font:600 12px/1 'IBM Plex Mono',monospace;color:#7A7A7D">NF</div>
+              <div style="width:54px;text-align:right;font:600 12px/1 'IBM Plex Mono',monospace;color:#7A7A7D">OF</div>
+              <div style="width:54px;text-align:right;font:600 12px/1 'IBM Plex Mono',monospace;color:#2B2B2D">F</div>
+            </div>
+            <sc-for list="{{ c.rows }}" as="r" hint-placeholder-count="3">
+            <div style="position:relative;display:flex;align-items:center;height:26px">
+              <div style="flex:1;font:400 13.5px/1 Roboto,sans-serif;color:#5D5D60">{{ r.k }}</div>
+              <sc-for list="{{ r.c }}" as="v" hint-placeholder-count="6"><div style="width:54px;text-align:right;font:400 14.5px/1 'IBM Plex Mono',monospace;color:#424244">{{ v }}</div></sc-for>
+            </div>
+            </sc-for>
+            <div style="position:relative;display:flex;align-items:center;height:30px;border-top:1px solid #E0E0E3;margin-top:2px">
+              <div style="flex:1;display:flex;align-items:baseline;gap:7px"><span style="font:500 14px/1 Roboto,sans-serif;color:#1D1F20">Total</span><span style="font:400 11.5px/1 'IBM Plex Mono',monospace;color:#98989B">{{ c.tot.sev }}</span></div>
+              <sc-for list="{{ c.tot.c }}" as="v" hint-placeholder-count="6"><div style="width:54px;text-align:right;font:500 15px/1 'IBM Plex Mono',monospace;color:#1D1F20">{{ v }}</div></sc-for>
+            </div>
+          </div>
+        </div>
+        </sc-for>
+      </div>
+    </div>
+    <div style="flex:1;min-height:0;display:flex;gap:18px;padding-top:12px">
+      <div style="flex:1;min-width:0;display:flex;flex-direction:column;overflow:hidden">
+        <div style="font:400 16px/1 Roboto,sans-serif;color:#7A7A7D;margin-bottom:10px">Older courses</div>
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <sc-for list="{{ older }}" as="o" hint-placeholder-count="3">
+          <div style="height:42px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:0 14px;background:#FAFAFB;border:1px solid #DEDEE1;border-radius:6px">
+            <span style="font:600 16px/1 'Barlow Condensed',sans-serif;letter-spacing:.2px">{{ o }}</span><span style="font:400 15px/1 Roboto,sans-serif;color:#B7B7BA">›</span>
+          </div>
+          </sc-for>
+        </div>
+      </div>
+      <div style="width:416px;flex:none;display:flex;flex-direction:column">
+        <div style="font:400 16px/1 Roboto,sans-serif;color:#7A7A7D;margin-bottom:10px">Centre desk</div>
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <sc-for list="{{ tiles }}" as="t" hint-placeholder-count="3">
+          <div style="height:48px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:0 14px;border:1px solid #D4D4D7;border-radius:6px">
+            <span style="font:600 16px/1 'Barlow Condensed',sans-serif;letter-spacing:.3px">{{ t }}</span><span style="font:400 15px/1 Roboto,sans-serif;color:#B7B7BA">›</span>
+          </div>
+          </sc-for>
+        </div>
+        <div style="margin-top:14px;padding-top:11px;border-top:1px solid #E0E0E3">
+          <div style="font:500 9px/1 'IBM Plex Mono',monospace;letter-spacing:1.7px;color:#98989B;margin-bottom:9px">MORE ON THE DESK SITE</div>
+          <div style="display:flex;flex-wrap:wrap;gap:6px">
+            <sc-for list="{{ webTiles }}" as="w" hint-placeholder-count="5">
+            <div style="height:30px;display:flex;align-items:center;gap:5px;padding:0 11px;border:1px solid #E0E0E3;border-radius:15px;font:400 12.5px/1 Roboto,sans-serif;color:#5D5D60">{{ w }}<span style="color:#B7B7BA;font-size:11px">↗</span></div>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div style="position:absolute;left:0;right:0;bottom:0;height:48px;background:#EAEAEB;display:flex;align-items:center;justify-content:center;gap:200px">
+    <div style="width:0;height:0;border-top:7px solid transparent;border-bottom:7px solid transparent;border-right:11px solid #98989B"></div>
+    <div style="width:15px;height:15px;border-radius:50%;background:#98989B"></div>
+    <div style="width:12px;height:12px;background:#98989B"></div>
+  </div>
+</div>
+</div>
+</div>
+<sc-if value="{{ showNotes }}" hint-placeholder-val="{{ true }}"><ul class="dv-note">
+<li>40% pane splits into two columns: older courses keep their own scroll, <strong>Centre desk moves beside them</strong> — all three native tiles land above the fold at 48dp, still transparent-fill and 0-elevation. The 60% matrix ceiling is untouched.</li>
+<li>The five desk-site destinations (Manage Courses, Daily Activity, SMS Report, Course Report, Bulk Mail) drop to 30dp outbound chips under a hairline, so they read as "leaves the app" rather than as peers of the three.</li>
+<li>Matrix legibility without a spreadsheet: MALE / FEMALE group caps, column labels up to 12sp mono at neutral700, a hairline gutter between the two trios, and a neutral200 band behind the two subtotal columns. Empty cells stay <code>·</code>.</li>
+<li>Accent appears once — a 3dp rule on the course that is next to open. Live, not decoration.</li>
+</ul></sc-if>
+</div>
+
+<div class="dv-opt" id="1b">
+<div class="dv-olabel"><a class="dv-oid" href="#1b">1b</a>P2 · Login with the keyboard up — SIGN IN and the server error both visible</div>
+<div class="dv-pair">
+<sc-if value="{{ showBefore }}" hint-placeholder-val="{{ true }}"><div><div class="dv-cap">Before · 20-login-clean.png</div><img src="uploads/dipi-ui-export/20-login-clean.png" style="width:340px;display:block;border:1px solid rgba(0,0,0,.14)"></div></sc-if>
+<div><div class="dv-cap">After · IME up</div>
+<div class="dv-frame" style="position:relative;width:1280px;height:900px;background:#F2F2F3;overflow:hidden;font:400 14px/1.35 Roboto,system-ui,sans-serif;color:#1D1F20">
+  <img src="assets/lotus.png" style="position:absolute;left:50%;top:210px;width:340px;transform:translateX(-50%);opacity:.09;filter:saturate(.45) hue-rotate(165deg)">
+  <div style="position:relative;height:24px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;background:#EAEAEB;color:#98989B;font:500 11px/1 Roboto,sans-serif">
+    <div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;border-radius:2px;background:#B7B7BA"></div><div style="width:8px;height:8px;border-radius:50%;background:#B7B7BA"></div></div>
+    <div style="display:flex;gap:10px;align-items:center"><span>99%</span><span>11:58</span></div>
+  </div>
+  <div style="position:absolute;left:0;right:0;top:24px;height:472px;display:flex;align-items:center;justify-content:center">
+    <div style="width:380px;background:#FAFAFB;border:1px solid #DEDEE1;border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,.07);padding:18px 20px 20px">
+      <div style="display:flex;align-items:center;gap:11px">
+        <img src="assets/lotus.png" style="width:34px;height:34px;display:block">
+        <div><div style="font:700 21px/1 'Barlow Condensed',sans-serif;letter-spacing:.3px">DIPI Staff</div><div style="font:400 11.5px/1 Roboto,sans-serif;color:#7A7A7D;margin-top:4px">Centre admin desk</div></div>
+      </div>
+      <div style="margin-top:13px;display:flex;gap:9px;padding:8px 10px;background:#FBEFEE;border:1px solid #E8CDC9;border-left:3px solid #A33A34;border-radius:6px">
+        <div><div style="font:500 12.5px/1.2 Roboto,sans-serif;color:#A33A34">Sign-in failed</div><div style="font:400 12px/1.35 Roboto,sans-serif;color:#7A5450;margin-top:3px">Unrecognized username or password.</div></div>
+      </div>
+      <div style="font:500 9.5px/1 'IBM Plex Mono',monospace;letter-spacing:1.5px;color:#7A7A7D;margin:13px 0 5px">USERNAME</div>
+      <div style="height:40px;display:flex;align-items:center;padding:0 12px;background:#F5F5F8;border:1px solid #D4D4D7;border-radius:6px;font:400 14.5px/1 Roboto,sans-serif">sudha.user</div>
+      <div style="font:500 9.5px/1 'IBM Plex Mono',monospace;letter-spacing:1.5px;color:#7A7A7D;margin:11px 0 5px">PASSWORD</div>
+      <div style="height:40px;display:flex;align-items:center;padding:0 11px;background:#FFF;border:2px solid #5980A6;border-radius:6px">
+        <span style="font:400 14px/1 Roboto,sans-serif;letter-spacing:2px;color:#424244">•••••••</span><span style="width:2px;height:18px;background:#5980A6;margin-left:2px"></span>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px;margin-top:14px">
+        <div style="display:flex;align-items:center;gap:9px;flex:1">
+          <div style="width:19px;height:19px;border-radius:3px;background:#5980A6;display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;line-height:1">✓</div>
+          <span style="font:400 13.5px/1 Roboto,sans-serif">Remember me</span>
+        </div>
+        <div style="width:148px;height:44px;background:#5980A6;border-radius:6px;display:flex;align-items:center;justify-content:center;font:600 14px/1 'Barlow Condensed',sans-serif;letter-spacing:2.2px;color:#fff">SIGN IN</div>
+      </div>
+    </div>
+  </div>
+  <div style="position:absolute;left:0;right:0;bottom:48px;height:356px;background:#D3D5D9;border-top:1px solid #B7B7BA;display:flex;flex-direction:column">
+    <div style="height:44px;flex:none;display:flex;align-items:center;font:400 14px/1 Roboto,sans-serif;color:#424244">
+      <div style="flex:1;text-align:center">sudha</div><div style="width:1px;height:18px;background:#B7B7BA"></div>
+      <div style="flex:1;text-align:center;font-weight:500">sudha.user</div><div style="width:1px;height:18px;background:#B7B7BA"></div>
+      <div style="flex:1;text-align:center">Sudha</div>
+    </div>
+    <div style="flex:1;padding:8px 10px 16px;display:flex;flex-direction:column;gap:8px">
+      <div style="flex:1;display:flex;gap:6px">
+        <sc-for list="{{ rowA }}" as="k" hint-placeholder-count="10">
+        <div style="flex:1;min-width:0;background:#FBFBFC;border-radius:6px;box-shadow:0 1px 0 #A9ACB1;display:flex;align-items:center;justify-content:center;font:400 17px/1 Roboto,sans-serif;color:#1D1F20">{{ k }}</div>
+        </sc-for>
+      </div>
+      <div style="flex:1;display:flex;gap:6px;padding:0 63px">
+        <sc-for list="{{ rowB }}" as="k" hint-placeholder-count="9">
+        <div style="flex:1;min-width:0;background:#FBFBFC;border-radius:6px;box-shadow:0 1px 0 #A9ACB1;display:flex;align-items:center;justify-content:center;font:400 17px/1 Roboto,sans-serif;color:#1D1F20">{{ k }}</div>
+        </sc-for>
+      </div>
+      <div style="flex:1;display:flex;gap:6px">
+        <div style="flex:1.7;background:#C3C6CB;border-radius:6px;box-shadow:0 1px 0 #A9ACB1;display:flex;align-items:center;justify-content:center;font:400 17px/1 Roboto,sans-serif;color:#1D1F20">⇧</div>
+        <sc-for list="{{ rowC }}" as="k" hint-placeholder-count="7">
+        <div style="flex:1;min-width:0;background:#FBFBFC;border-radius:6px;box-shadow:0 1px 0 #A9ACB1;display:flex;align-items:center;justify-content:center;font:400 17px/1 Roboto,sans-serif;color:#1D1F20">{{ k }}</div>
+        </sc-for>
+        <div style="flex:1.7;background:#C3C6CB;border-radius:6px;box-shadow:0 1px 0 #A9ACB1;display:flex;align-items:center;justify-content:center;font:400 17px/1 Roboto,sans-serif;color:#1D1F20">⌫</div>
+      </div>
+      <div style="flex:1;display:flex;gap:6px;justify-content:center">
+        <div style="flex:1.6;background:#C3C6CB;border-radius:6px;box-shadow:0 1px 0 #A9ACB1;display:flex;align-items:center;justify-content:center;font:400 13px/1 'IBM Plex Mono',monospace;color:#1D1F20">?123</div>
+        <div style="flex:1;background:#FBFBFC;border-radius:6px;box-shadow:0 1px 0 #A9ACB1;display:flex;align-items:center;justify-content:center;font:400 17px/1 Roboto,sans-serif">,</div>
+        <div style="flex:6;background:#FBFBFC;border-radius:6px;box-shadow:0 1px 0 #A9ACB1"></div>
+        <div style="flex:1;background:#FBFBFC;border-radius:6px;box-shadow:0 1px 0 #A9ACB1;display:flex;align-items:center;justify-content:center;font:400 17px/1 Roboto,sans-serif">.</div>
+        <div style="flex:1.8;background:#5980A6;border-radius:6px;box-shadow:0 1px 0 #416180;display:flex;align-items:center;justify-content:center;font:400 17px/1 Roboto,sans-serif;color:#fff">⏎</div>
+      </div>
+    </div>
+  </div>
+  <div style="position:absolute;left:0;right:0;bottom:0;height:48px;background:#EAEAEB;display:flex;align-items:center;justify-content:center;gap:200px">
+    <div style="width:0;height:0;border-top:7px solid transparent;border-bottom:7px solid transparent;border-right:11px solid #98989B"></div>
+    <div style="width:15px;height:15px;border-radius:50%;background:#98989B"></div>
+    <div style="width:12px;height:12px;background:#98989B"></div>
+  </div>
+</div>
+</div>
+</div>
+<sc-if value="{{ showNotes }}" hint-placeholder-val="{{ true }}"><ul class="dv-note">
+<li>Card stays 380dp and stays a card — no full-bleed, no photo. IME-up it drops from ~560dp to <strong>324dp</strong> and centres in the 472dp band above the keyboard, so nothing is clipped and nothing scrolls.</li>
+<li>What collapses: brand block becomes one 34dp row, "Your centre is read from your account after sign-in." hides while the IME is up (it is orientation copy, not an action), and Remember me shares the row with SIGN IN.</li>
+<li>The server message keeps its verbatim text in a fixed-hex severity strip pinned directly above the button pair, so error and action are read in one glance.</li>
+</ul></sc-if>
+</div>
+
+<div class="dv-opt" id="1c">
+<div class="dv-olabel"><a class="dv-oid" href="#1c">1c</a>P3 · Check-in opens on an empty scan field</div>
+<div class="dv-pair">
+<sc-if value="{{ showBefore }}" hint-placeholder-val="{{ true }}"><div><div class="dv-cap">Before · 16-desk-checkin.png</div><img src="uploads/dipi-ui-export/16-desk-checkin.png" style="width:340px;display:block;border:1px solid rgba(0,0,0,.14)"><div style="width:340px;margin-top:10px;padding:9px 11px;background:#FBEFEE;border:1px solid #E8CDC9;border-radius:6px;font:400 11px/1.5 system-ui,sans-serif;color:#7A5450">The field is holding <code>NF24</code> from a scan made in an earlier session, so the roster silently opens filtered.</div></div></sc-if>
+<div><div class="dv-cap">After</div>
+<div class="dv-frame" style="position:relative;width:1280px;height:900px;background:#F2F2F3;overflow:hidden;font:400 14px/1.35 Roboto,system-ui,sans-serif;color:#1D1F20">
+  <div style="position:relative;height:24px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;background:#EAEAEB;color:#98989B;font:500 11px/1 Roboto,sans-serif">
+    <div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;border-radius:2px;background:#B7B7BA"></div><div style="width:8px;height:8px;border-radius:50%;background:#B7B7BA"></div></div>
+    <div style="display:flex;gap:10px;align-items:center"><span>99%</span><span>11:59</span></div>
+  </div>
+  <div style="position:absolute;left:0;right:0;top:24px;bottom:48px;display:flex">
+    <div style="width:190px;flex:none;position:relative;background:#EFEFF0;border-right:1px solid #E0E0E3;display:flex;flex-direction:column;padding:14px 0;overflow:hidden">
+      <img src="assets/lotus.png" style="width:54px;height:54px;margin-left:18px;display:block">
+      <div style="font:500 9px/1 'IBM Plex Mono',monospace;letter-spacing:1.7px;color:#98989B;margin:24px 0 8px 18px">DESK</div>
+      <sc-for list="{{ ciBefore }}" as="i" hint-placeholder-count="4">
+      <div style="height:46px;flex:none;display:flex;align-items:center;padding:0 18px"><span style="flex:1;font:400 15.5px/1 Roboto,sans-serif;color:#424244">{{ i.n }}</span><span style="font:400 13px/1 'IBM Plex Mono',monospace;color:#98989B">{{ i.c }}</span></div>
+      </sc-for>
+      <div style="height:46px;flex:none;display:flex;align-items:center;padding:0 18px;background:#EEF6FF;border-left:3px solid #5980A6;margin-left:-0px"><span style="flex:1;font:500 15.5px/1 Roboto,sans-serif;color:#2C455D">Check-in</span><span style="font:500 13px/1 'IBM Plex Mono',monospace;color:#416180">113</span></div>
+      <sc-for list="{{ ciAfter }}" as="i" hint-placeholder-count="1">
+      <div style="height:46px;flex:none;display:flex;align-items:center;padding:0 18px"><span style="flex:1;font:400 15.5px/1 Roboto,sans-serif;color:#424244">{{ i.n }}</span><span style="font:400 13px/1 'IBM Plex Mono',monospace;color:#98989B">{{ i.c }}</span></div>
+      </sc-for>
+      <div style="flex:1"></div>
+      <img src="assets/lotus.png" style="position:absolute;left:-30px;bottom:60px;width:190px;opacity:.1;filter:saturate(.4) hue-rotate(165deg)">
+      <div style="margin-left:18px;position:relative"><div style="font:400 12px/1 'IBM Plex Mono',monospace;color:#7A7A7D">sudha.user</div><div style="font:400 12px/1 'IBM Plex Mono',monospace;color:#98989B;margin-top:6px">synced just now</div></div>
+    </div>
+    <div style="flex:1;min-width:0;display:flex;flex-direction:column">
+      <div style="height:52px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:0 20px;border-bottom:1px solid #E0E0E3">
+        <div style="font:600 17px/1 'Barlow Condensed',sans-serif;letter-spacing:.2px">Dhamma Sudha / 10 Day / 2026 / 2nd-Sep to 13th-Sep</div>
+        <div style="font:400 13px/1 'IBM Plex Mono',monospace;color:#7A7A7D">Fri 28 Aug · 11:59</div>
+      </div>
+      <div style="flex:1;min-height:0;display:flex">
+        <div style="flex:1;min-width:0;padding:14px 18px;display:flex;flex-direction:column">
+          <div style="font:500 9.5px/1 'IBM Plex Mono',monospace;letter-spacing:1.6px;color:#7A7A7D;margin-bottom:6px">CONF NUMBER OR NAME</div>
+          <div style="display:flex;gap:12px;flex:none">
+            <div style="flex:1;height:52px;display:flex;align-items:center;gap:10px;padding:0 14px;background:#FAFAFB;border:1px solid #D4D4D7;border-radius:6px">
+              <div style="width:15px;height:15px;border:2px solid #B7B7BA;border-radius:50%;flex:none"></div>
+              <span style="flex:1;font:400 15px/1 Roboto,sans-serif;color:#98989B">Scan a chit or type a conf number</span>
+            </div>
+            <div style="display:flex;height:52px;border:1px solid #D4D4D7;border-radius:6px;overflow:hidden">
+              <div style="width:112px;display:flex;align-items:center;justify-content:center;background:#5980A6;color:#fff;font:500 14.5px/1 Roboto,sans-serif">To arrive</div>
+              <div style="width:96px;display:flex;align-items:center;justify-content:center;border-left:1px solid #D4D4D7;font:400 14.5px/1 Roboto,sans-serif;color:#424244">Arrived</div>
+              <div style="width:74px;display:flex;align-items:center;justify-content:center;border-left:1px solid #D4D4D7;font:400 14.5px/1 Roboto,sans-serif;color:#424244">All</div>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;margin-top:11px;flex:none">
+            <div style="font:500 9.5px/1 'IBM Plex Mono',monospace;letter-spacing:1.6px;color:#98989B">THIS TABLET</div>
+            <div style="display:flex;height:34px;border:1px solid #D4D4D7;border-radius:5px;overflow:hidden">
+              <div style="width:64px;display:flex;align-items:center;justify-content:center;background:#5980A6;color:#fff;font:500 13.5px/1 Roboto,sans-serif">Both</div>
+              <div style="width:64px;display:flex;align-items:center;justify-content:center;border-left:1px solid #D4D4D7;font:400 13.5px/1 Roboto,sans-serif;color:#424244">Male</div>
+              <div style="width:74px;display:flex;align-items:center;justify-content:center;border-left:1px solid #D4D4D7;font:400 13.5px/1 Roboto,sans-serif;color:#424244">Female</div>
+            </div>
+            <div style="display:flex;height:34px;border:1px solid #D4D4D7;border-radius:5px;overflow:hidden">
+              <div style="width:64px;display:flex;align-items:center;justify-content:center;background:#5980A6;color:#fff;font:500 13.5px/1 Roboto,sans-serif">Both</div>
+              <div style="width:60px;display:flex;align-items:center;justify-content:center;border-left:1px solid #D4D4D7;font:400 13.5px/1 Roboto,sans-serif;color:#424244">New</div>
+              <div style="width:56px;display:flex;align-items:center;justify-content:center;border-left:1px solid #D4D4D7;font:400 13.5px/1 Roboto,sans-serif;color:#424244">Old</div>
+            </div>
+          </div>
+          <div style="margin-top:12px;flex:none;padding:12px 16px 14px;background:#FAFAFB;border:1px solid #DEDEE1;border-radius:8px">
+            <div style="display:flex;align-items:baseline"><span style="font:600 22px/1 'Barlow Condensed',sans-serif;color:#2C455D">0</span><span style="font:400 14.5px/1 Roboto,sans-serif;color:#5D5D60;margin-left:7px;flex:1">of 113 checked in</span><span style="font:400 13px/1 'IBM Plex Mono',monospace;color:#7A7A7D">113 to arrive</span></div>
+            <div style="height:5px;border-radius:3px;background:#E0E0E3;margin-top:11px"></div>
+          </div>
+          <div style="margin-top:6px;flex:1;min-height:0;overflow:hidden">
+            <sc-for list="{{ roster }}" as="p" hint-placeholder-count="6">
+            <div style="height:54px;display:flex;align-items:center;gap:14px;border-bottom:1px solid #E7E7EA">
+              <div style="width:19px;height:19px;border:2px solid #B7B7BA;border-radius:50%;flex:none"></div>
+              <div style="width:56px;font:500 14px/1 'IBM Plex Mono',monospace;color:#5D5D60">{{ p.id }}</div>
+              <div style="flex:1;min-width:0;font:400 15.5px/1 Roboto,sans-serif">{{ p.n }} <span style="color:#749DC4">( View )</span></div>
+              <div style="width:190px;font:400 14px/1 Roboto,sans-serif;color:#7A7A7D">{{ p.m }}</div>
+              <div style="width:132px;height:36px;flex:none;display:flex;align-items:center;justify-content:center;border:1px solid #94BCE3;border-radius:5px;font:500 13.5px/1 Roboto,sans-serif;color:#416180">Mark attended</div>
+            </div>
+            </sc-for>
+          </div>
+        </div>
+        <div style="width:296px;flex:none;border-left:1px solid #E0E0E3;padding:14px 18px;background:#EFEFF0">
+          <div style="font:500 9.5px/1 'IBM Plex Mono',monospace;letter-spacing:1.6px;color:#7A7A7D">THE ROLL</div>
+          <div style="margin-top:9px;background:#FAFAFB;border:1px solid #DEDEE1;border-radius:6px;overflow:hidden">
+            <div style="display:flex;height:26px;align-items:center;padding:0 12px;border-bottom:1px solid #E7E7EA"><span style="flex:1"></span><span style="width:42px;text-align:right;font:600 11px/1 'IBM Plex Mono',monospace;color:#7A7A7D">M</span><span style="width:42px;text-align:right;font:600 11px/1 'IBM Plex Mono',monospace;color:#7A7A7D">F</span></div>
+            <sc-for list="{{ roll }}" as="r" hint-placeholder-count="3">
+            <div style="display:flex;height:34px;align-items:center;padding:0 12px;border-bottom:1px solid #EFEFF2"><span style="flex:1;font:400 14px/1 Roboto,sans-serif;color:#424244">{{ r.k }}</span><span style="width:42px;text-align:right;font:400 14.5px/1 'IBM Plex Mono',monospace">{{ r.m }}</span><span style="width:42px;text-align:right;font:400 14.5px/1 'IBM Plex Mono',monospace">{{ r.f }}</span></div>
+            </sc-for>
+          </div>
+          <div style="font:500 9.5px/1 'IBM Plex Mono',monospace;letter-spacing:1.6px;color:#7A7A7D;margin-top:18px">ROOMS FREE</div>
+          <sc-for list="{{ roomsFree }}" as="r" hint-placeholder-count="2">
+          <div style="display:flex;align-items:baseline;gap:8px;margin-top:9px"><span style="flex:1;font:400 14px/1.25 Roboto,sans-serif;color:#424244">{{ r.k }}</span><span style="font:500 14px/1 'IBM Plex Mono',monospace;color:#416180">{{ r.v }}</span></div>
+          </sc-for>
+          <div style="font:500 9.5px/1 'IBM Plex Mono',monospace;letter-spacing:1.6px;color:#7A7A7D;margin-top:18px">SEATING ISSUED</div>
+          <sc-for list="{{ seating }}" as="s" hint-placeholder-count="4">
+          <div style="display:flex;height:30px;align-items:center;border-bottom:1px solid #E7E7EA"><span style="flex:1;font:400 14px/1 Roboto,sans-serif;color:#424244">{{ s.k }}</span><span style="font:400 14px/1 'IBM Plex Mono',monospace;color:#7A7A7D">{{ s.v }}</span></div>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div style="position:absolute;left:0;right:0;bottom:0;height:48px;background:#EAEAEB;display:flex;align-items:center;justify-content:center;gap:200px">
+    <div style="width:0;height:0;border-top:7px solid transparent;border-bottom:7px solid transparent;border-right:11px solid #98989B"></div>
+    <div style="width:15px;height:15px;border-radius:50%;background:#98989B"></div>
+    <div style="width:12px;height:12px;background:#98989B"></div>
+  </div>
+</div>
+<div style="margin-top:14px;width:1280px;display:flex;gap:14px">
+  <div style="flex:1;padding:13px 15px 15px;background:#FAFAFB;border:1px solid #DEDEE1;border-radius:8px">
+    <div style="font:500 9.5px/1 'IBM Plex Mono',monospace;letter-spacing:1.6px;color:#7A7A7D;margin-bottom:10px">STATE 1 · OPEN — ALWAYS EMPTY</div>
+    <div style="height:52px;display:flex;align-items:center;gap:10px;padding:0 14px;background:#FFF;border:1px solid #D4D4D7;border-radius:6px"><div style="width:15px;height:15px;border:2px solid #B7B7BA;border-radius:50%"></div><span style="flex:1;font:400 15px/1 Roboto,sans-serif;color:#98989B">Scan a chit or type a conf number</span></div>
+    <div style="font:400 12px/1.5 Roboto,sans-serif;color:#7A7A7D;margin-top:9px">The scan buffer is session-scoped: leaving the desk clears it.</div>
+  </div>
+  <div style="flex:1;padding:13px 15px 15px;background:#FAFAFB;border:1px solid #DEDEE1;border-radius:8px">
+    <div style="font:500 9.5px/1 'IBM Plex Mono',monospace;letter-spacing:1.6px;color:#7A7A7D;margin-bottom:10px">STATE 2 · TYPED OR SCANNED</div>
+    <div style="height:52px;display:flex;align-items:center;gap:10px;padding:0 0 0 14px;background:#FFF;border:2px solid #5980A6;border-radius:6px"><div style="width:15px;height:15px;border:2px solid #5980A6;border-radius:50%"></div><span style="flex:1;font:400 15px/1 'IBM Plex Mono',monospace;color:#1D1F20">NF24</span><div style="width:48px;height:48px;flex:none;display:flex;align-items:center;justify-content:center"><div style="width:32px;height:32px;border-radius:16px;background:#E7E7EA;display:flex;align-items:center;justify-content:center;font:400 15px/1 Roboto,sans-serif;color:#5D5D60">✕</div></div></div>
+    <div style="font:400 12px/1.5 Roboto,sans-serif;color:#7A7A7D;margin-top:9px">48dp clear target inside the field, plus ⌫ on the scanner wedge.</div>
+  </div>
+  <div style="flex:1;padding:13px 15px 15px;background:#FAFAFB;border:1px solid #DEDEE1;border-radius:8px">
+    <div style="font:500 9.5px/1 'IBM Plex Mono',monospace;letter-spacing:1.6px;color:#7A7A7D;margin-bottom:10px">STATE 3 · IF A QUERY MUST SURVIVE</div>
+    <div style="height:52px;display:flex;align-items:center;gap:10px;padding:0 1px 0 14px;background:#FFF;border:1px solid #D4D4D7;border-radius:6px"><div style="width:15px;height:15px;border:2px solid #B7B7BA;border-radius:50%"></div><span style="flex:1;font:400 15px/1 'IBM Plex Mono',monospace;color:#1D1F20">NF24</span><div style="width:48px;height:48px;flex:none;display:flex;align-items:center;justify-content:center"><div style="width:32px;height:32px;border-radius:16px;background:#E7E7EA;display:flex;align-items:center;justify-content:center;font:400 15px/1 Roboto,sans-serif;color:#5D5D60">✕</div></div></div>
+    <div style="display:flex;align-items:center;gap:8px;height:30px;margin-top:7px;padding:0 10px;background:#EEF6FF;border-radius:5px"><span style="flex:1;font:400 12.5px/1 Roboto,sans-serif;color:#2C455D">Kept from the last session</span><span style="font:600 11px/1 'Barlow Condensed',sans-serif;letter-spacing:1.4px;color:#416180">CLEAR</span></div>
+  </div>
+</div>
+</div>
+</div>
+<sc-if value="{{ showNotes }}" hint-placeholder-val="{{ true }}"><ul class="dv-note">
+<li>Default behaviour changes, not the language: the scan buffer is scoped to the desk session, so Check-in always opens on 113 of 113 and never on a silently filtered roster.</li>
+<li>Placeholder says what the field is for; the ✕ is a 32dp glyph in a 48×48dp touch target that also drops the roster back to the full list. The field grows 46 → 52dp to carry it. No new filter grammar, no extra chips.</li>
+<li>If persistence is genuinely wanted, state 3 makes it visible and one-tap reversible instead of invisible.</li>
+<li>Small carry-over fix: "Male · Mbk/Guest block  73 of 73 free" no longer wraps mid-label — label and count are separate columns.</li>
+</ul></sc-if>
+</div>
+
+<div class="dv-opt" id="1d">
+<div class="dv-olabel"><a class="dv-oid" href="#1d">1d</a>P5 · Settings uses the tablet width</div>
+<div class="dv-pair">
+<sc-if value="{{ showBefore }}" hint-placeholder-val="{{ true }}"><div><div class="dv-cap">Before · 07-settings-steel-light.png</div><img src="uploads/dipi-ui-export/07-settings-steel-light.png" style="width:340px;display:block;border:1px solid rgba(0,0,0,.14)"></div></sc-if>
+<div><div class="dv-cap">After · Steel, light</div>
+<div class="dv-frame" style="position:relative;width:1280px;height:900px;background:#F2F2F3;overflow:hidden;font:400 14px/1.35 Roboto,system-ui,sans-serif;color:#1D1F20">
+  <img src="assets/lotus.png" style="position:absolute;left:50%;top:72%;width:380px;transform:translate(-50%,-50%);opacity:.11;filter:saturate(.45) hue-rotate(165deg)">
+  <div style="position:relative;height:24px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;background:#EAEAEB;color:#98989B;font:500 11px/1 Roboto,sans-serif">
+    <div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;border-radius:2px;background:#B7B7BA"></div><div style="width:8px;height:8px;border-radius:50%;background:#B7B7BA"></div></div>
+    <div style="display:flex;gap:10px;align-items:center"><span>99%</span><span>11:57</span></div>
+  </div>
+  <div style="position:absolute;left:0;right:0;top:24px;bottom:48px;padding:0 24px;display:flex;flex-direction:column">
+    <div style="height:56px;flex:none;display:flex;align-items:center;font:700 24px/1 'Barlow Condensed',sans-serif;letter-spacing:.3px">Settings</div>
+    <div style="display:flex;gap:18px;align-items:flex-start">
+      <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:14px">
+        <div style="background:#FAFAFB;border:1px solid #DEDEE1;border-radius:8px;padding:15px 18px 17px">
+          <div style="font:500 9.5px/1 'IBM Plex Mono',monospace;letter-spacing:1.7px;color:#7A7A7D">APPEARANCE</div>
+          <div style="display:flex;align-items:center;height:48px;margin-top:6px">
+            <span style="flex:1;font:400 15.5px/1 Roboto,sans-serif">Theme</span>
+            <div style="display:flex;height:38px;border:1px solid #D4D4D7;border-radius:6px;overflow:hidden">
+              <div style="width:84px;display:flex;align-items:center;justify-content:center;background:#5980A6;color:#fff;font:500 14px/1 Roboto,sans-serif">Light</div>
+              <div style="width:84px;display:flex;align-items:center;justify-content:center;border-left:1px solid #D4D4D7;font:400 14px/1 Roboto,sans-serif;color:#424244">Dark</div>
+            </div>
+          </div>
+          <div style="height:1px;background:#E7E7EA;margin:4px 0 14px"></div>
+          <div style="font:500 9.5px/1 'IBM Plex Mono',monospace;letter-spacing:1.7px;color:#7A7A7D">SKIN</div>
+          <div style="display:flex;gap:9px;margin-top:11px">
+            <div style="height:40px;display:flex;align-items:center;gap:9px;padding:0 15px;background:#5980A6;border:1px solid #5980A6;border-radius:6px"><span style="width:15px;height:15px;border-radius:3px;background:linear-gradient(135deg,#B5D9FD,#5980A6 55%,#2F4A66)"></span><span style="font:600 13.5px/1 'Barlow Condensed',sans-serif;letter-spacing:1.3px;color:#fff">STEEL</span></div>
+            <div style="height:40px;display:flex;align-items:center;gap:9px;padding:0 15px;border:1px solid #D4D4D7;border-radius:6px"><span style="width:15px;height:15px;border-radius:3px;background:linear-gradient(135deg,oklch(88% .0225 262),oklch(56% .03 262) 55%,oklch(30% .024 262))"></span><span style="font:600 13.5px/1 'Barlow Condensed',sans-serif;letter-spacing:1.3px;color:#1D1F20">PAPER</span></div>
+            <div style="height:40px;display:flex;align-items:center;gap:9px;padding:0 15px;border:1px solid #D4D4D7;border-radius:6px"><span style="width:15px;height:15px;border-radius:3px;background:linear-gradient(135deg,oklch(88% .0712 352),oklch(56% .095 352) 55%,oklch(30% .076 352))"></span><span style="font:600 13.5px/1 'Barlow Condensed',sans-serif;letter-spacing:1.3px;color:#1D1F20">BLOSSOM</span></div>
+            <div style="height:40px;display:flex;align-items:center;gap:9px;padding:0 15px;border:1px solid #D4D4D7;border-radius:6px"><span style="width:15px;height:15px;border-radius:3px;background:linear-gradient(135deg,oklch(88% .0525 152),oklch(56% .07 152) 55%,oklch(30% .056 152))"></span><span style="font:600 13.5px/1 'Barlow Condensed',sans-serif;letter-spacing:1.3px;color:#1D1F20">POND</span></div>
+            <div style="height:40px;display:flex;align-items:center;gap:9px;padding:0 15px;border:1px solid #D4D4D7;border-radius:6px"><span style="width:15px;height:15px;border-radius:3px;background:linear-gradient(135deg,oklch(88% .0712 272),oklch(56% .095 272) 55%,oklch(30% .076 272))"></span><span style="font:600 13.5px/1 'Barlow Condensed',sans-serif;letter-spacing:1.3px;color:#1D1F20">STILL</span></div>
+          </div>
+          <div style="font:400 13px/1.4 Roboto,sans-serif;color:#7A7A7D;margin-top:11px">Accent ramp, paper, neutrals and the lotus wash all move together.</div>
+          <div style="display:flex;gap:26px;margin-top:14px">
+            <div><div style="font:500 9px/1 'IBM Plex Mono',monospace;letter-spacing:1.6px;color:#98989B;margin-bottom:7px">ACCENT 100–900</div><div style="display:flex;gap:3px"><div style="width:26px;height:18px;border-radius:2px;background:#EEF6FF"></div><div style="width:26px;height:18px;border-radius:2px;background:#D6EBFF"></div><div style="width:26px;height:18px;border-radius:2px;background:#B5D9FD"></div><div style="width:26px;height:18px;border-radius:2px;background:#94BCE3"></div><div style="width:26px;height:18px;border-radius:2px;background:#749DC4"></div><div style="width:26px;height:18px;border-radius:2px;background:#597EA3"></div><div style="width:26px;height:18px;border-radius:2px;background:#416180"></div><div style="width:26px;height:18px;border-radius:2px;background:#2C455D"></div><div style="width:26px;height:18px;border-radius:2px;background:#1D2D3D"></div></div></div>
+            <div><div style="font:500 9px/1 'IBM Plex Mono',monospace;letter-spacing:1.6px;color:#98989B;margin-bottom:7px">NEUTRAL 100–900</div><div style="display:flex;gap:3px"><div style="width:26px;height:18px;border-radius:2px;background:#F5F5F8"></div><div style="width:26px;height:18px;border-radius:2px;background:#E7E7EA"></div><div style="width:26px;height:18px;border-radius:2px;background:#D4D4D7"></div><div style="width:26px;height:18px;border-radius:2px;background:#B7B7BA"></div><div style="width:26px;height:18px;border-radius:2px;background:#98989B"></div><div style="width:26px;height:18px;border-radius:2px;background:#7A7A7D"></div><div style="width:26px;height:18px;border-radius:2px;background:#5D5D60"></div><div style="width:26px;height:18px;border-radius:2px;background:#424244"></div><div style="width:26px;height:18px;border-radius:2px;background:#2B2B2D"></div></div></div>
+          </div>
+          <div style="height:1px;background:#E7E7EA;margin:16px 0 4px"></div>
+          <div style="display:flex;align-items:center;height:48px">
+            <span style="flex:1;font:400 15.5px/1 Roboto,sans-serif">Lotus watermark</span>
+            <div style="width:46px;height:26px;border-radius:13px;background:#5980A6;display:flex;align-items:center;justify-content:flex-end;padding:0 3px"><div style="width:20px;height:20px;border-radius:50%;background:#fff"></div></div>
+          </div>
+          <div style="font:400 13px/1.4 Roboto,sans-serif;color:#7A7A7D">Status colours stay put; they carry meaning, not mood.</div>
+        </div>
+        <div style="background:#FAFAFB;border:1px solid #DEDEE1;border-radius:8px;padding:15px 18px 17px">
+          <div style="font:500 9.5px/1 'IBM Plex Mono',monospace;letter-spacing:1.7px;color:#7A7A7D">TESTING</div>
+          <div style="display:flex;align-items:center;height:44px;margin-top:2px">
+            <span style="flex:1;font:400 15.5px/1 Roboto,sans-serif">Simulate offline</span>
+            <div style="width:46px;height:26px;border-radius:13px;background:#B7B7BA;display:flex;align-items:center;padding:0 3px"><div style="width:20px;height:20px;border-radius:50%;background:#fff"></div></div>
+          </div>
+          <div style="font:400 13px/1.4 Roboto,sans-serif;color:#7A7A7D">Forces the cached list and the queue strip without pulling the plug.</div>
+        </div>
+      </div>
+      <div style="width:428px;flex:none;background:#FAFAFB;border:1px solid #DEDEE1;border-radius:8px;padding:15px 18px 18px">
+        <div style="font:500 9.5px/1 'IBM Plex Mono',monospace;letter-spacing:1.7px;color:#7A7A7D">ACCOUNT &amp; SESSION</div>
+        <div style="font:600 20px/1 'Barlow Condensed',sans-serif;letter-spacing:.2px;margin-top:12px">sudha.user</div>
+        <div style="font:400 14px/1 Roboto,sans-serif;color:#7A7A7D;margin-top:6px">Dhamma Sudha</div>
+        <div style="height:1px;background:#E7E7EA;margin:14px 0 2px"></div>
+        <sc-for list="{{ sessionRows }}" as="s" hint-placeholder-count="3">
+        <div style="display:flex;align-items:baseline;height:34px;border-bottom:1px solid #EFEFF2"><span style="flex:1;font:400 13.5px/1 Roboto,sans-serif;color:#5D5D60">{{ s.k }}</span><span style="font:400 12.5px/1 'IBM Plex Mono',monospace;color:#1D1F20">{{ s.v }}</span></div>
+        </sc-for>
+        <div style="display:flex;gap:12px;margin-top:18px">
+          <div style="height:44px;padding:0 30px;border-radius:22px;background:#5980A6;display:flex;align-items:center;justify-content:center;font:400 15px/1 Roboto,sans-serif;color:#fff">Log out</div>
+        </div>
+        <div style="height:1px;background:#E7E7EA;margin:18px 0 14px"></div>
+        <div style="font:500 15px/1 Roboto,sans-serif;color:#A33A34">Erase all local data</div>
+        <div style="font:400 13px/1.45 Roboto,sans-serif;color:#7A7A7D;margin-top:7px">Removes the saved password, session cookie, course cache, and queued status changes from this tablet.</div>
+      </div>
+    </div>
+  </div>
+  <div style="position:absolute;left:0;right:0;bottom:0;height:48px;background:#EAEAEB;display:flex;align-items:center;justify-content:center;gap:200px">
+    <div style="width:0;height:0;border-top:7px solid transparent;border-bottom:7px solid transparent;border-right:11px solid #98989B"></div>
+    <div style="width:15px;height:15px;border-radius:50%;background:#98989B"></div>
+    <div style="width:12px;height:12px;background:#98989B"></div>
+  </div>
+</div>
+</div>
+</div>
+<sc-if value="{{ showNotes }}" hint-placeholder-val="{{ true }}"><ul class="dv-note">
+<li>Two columns: appearance on the left, account and session on the right. Same items as 1.22.0 — SKIN kicker, five chips, lotus switch, Log out, Erase all — nothing added to the page's job.</li>
+<li>"Theme: Light" and "Simulate offline: off" were text links that read as labels; they become a segmented control and a real switch, matching the switches already accepted on Centre settings.</li>
+<li>The two ramp strips show what a skin actually changes, which is the one thing the sentence underneath could never say.</li>
+<li>Erase all is pinned to the fixed danger hex <code>#A33A34</code>. In 09 it drifts pink with Blossom — severity is not supposed to follow the skin.</li>
+</ul></sc-if>
+</div>
+
+<div class="dv-opt" id="1e">
+<div class="dv-olabel"><a class="dv-oid" href="#1e">1e</a>P4 · Option B — "Dark is Steel night", said out loud</div>
+<div class="dv-pair">
+<sc-if value="{{ showBefore }}" hint-placeholder-val="{{ true }}"><div><div class="dv-cap">Before · 10-settings-dark-steel.png</div><img src="uploads/dipi-ui-export/10-settings-dark-steel.png" style="width:340px;display:block;border:1px solid rgba(0,0,0,.14)"><div style="width:340px;margin-top:10px;padding:9px 11px;background:#FBEFEE;border:1px solid #E8CDC9;border-radius:6px;font:400 11px/1.5 system-ui,sans-serif;color:#7A5450">Blossom chip is lit, surfaces are steel, the offline strip is still pink, "Settings" is near-invisible and Erase all keeps a light-mode red.</div></div></sc-if>
+<div><div class="dv-cap">After · dark</div>
+<div class="dv-frame" style="position:relative;width:1280px;height:900px;background:#14171A;overflow:hidden;font:400 14px/1.35 Roboto,system-ui,sans-serif;color:#E4E6E9">
+  <img src="assets/lotus.png" style="position:absolute;left:50%;top:72%;width:380px;transform:translate(-50%,-50%);opacity:.07;filter:saturate(.35) hue-rotate(165deg)">
+  <div style="position:relative;height:24px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;background:#0E1113;color:#7C848C;font:500 11px/1 Roboto,sans-serif">
+    <div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;border-radius:2px;background:#4A5157"></div><div style="width:8px;height:8px;border-radius:50%;background:#4A5157"></div></div>
+    <div style="display:flex;gap:10px;align-items:center"><span>83%</span><span>10:28</span></div>
+  </div>
+  <div style="position:absolute;left:0;right:0;top:24px;bottom:48px;display:flex;flex-direction:column">
+    <div style="height:38px;flex:none;display:flex;align-items:center;gap:9px;padding:0 24px;background:#22272C;border-bottom:1px solid #2E3339"><span style="color:#9BA1A8;font-size:13px">◍</span><span style="font:400 14px/1 Roboto,sans-serif;color:#C3C9D0">Offline — showing cached list</span></div>
+    <div style="flex:1;min-height:0;padding:0 24px;display:flex;flex-direction:column">
+      <div style="height:56px;flex:none;display:flex;align-items:center;font:700 24px/1 'Barlow Condensed',sans-serif;letter-spacing:.3px;color:#E4E6E9">Settings</div>
+      <div style="display:flex;gap:18px;align-items:flex-start">
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:14px">
+          <div style="background:#1A1E22;border:1px solid #2E3339;border-radius:8px;padding:15px 18px 17px">
+            <div style="font:500 9.5px/1 'IBM Plex Mono',monospace;letter-spacing:1.7px;color:#7C848C">APPEARANCE</div>
+            <div style="display:flex;align-items:center;height:48px;margin-top:6px">
+              <span style="flex:1;font:400 15.5px/1 Roboto,sans-serif">Theme</span>
+              <div style="display:flex;height:38px;border:1px solid #3A4046;border-radius:6px;overflow:hidden">
+                <div style="width:84px;display:flex;align-items:center;justify-content:center;font:400 14px/1 Roboto,sans-serif;color:#9BA1A8">Light</div>
+                <div style="width:84px;display:flex;align-items:center;justify-content:center;border-left:1px solid #3A4046;background:#5980A6;color:#fff;font:500 14px/1 Roboto,sans-serif">Dark</div>
+              </div>
+            </div>
+            <div style="display:flex;gap:9px;align-items:flex-start;padding:11px 13px;background:#1D2D3D;border-radius:6px">
+              <div><div style="font:500 13.5px/1.3 Roboto,sans-serif;color:#B5D9FD">Dark runs the Steel night ramp.</div><div style="font:400 13px/1.45 Roboto,sans-serif;color:#9BA1A8;margin-top:4px">Blossom is remembered and comes back the moment you switch to Light. One night ramp keeps contrast and the fixed status hexes honest.</div></div>
+            </div>
+            <div style="height:1px;background:#2E3339;margin:16px 0 14px"></div>
+            <div style="display:flex;align-items:baseline;gap:10px"><span style="font:500 9.5px/1 'IBM Plex Mono',monospace;letter-spacing:1.7px;color:#7C848C">SKIN</span><span style="font:400 9.5px/1 'IBM Plex Mono',monospace;letter-spacing:1.2px;color:#5E666D">APPLIES IN LIGHT</span></div>
+            <div style="display:flex;gap:9px;margin-top:11px">
+              <div style="height:40px;display:flex;align-items:center;gap:9px;padding:0 15px;border:1px solid #3A4046;border-radius:6px"><span style="width:15px;height:15px;border-radius:3px;background:linear-gradient(135deg,#8FA7BF,#586A7C 55%,#333C45)"></span><span style="font:600 13.5px/1 'Barlow Condensed',sans-serif;letter-spacing:1.3px;color:#9BA1A8">STEEL</span></div>
+              <div style="height:40px;display:flex;align-items:center;gap:9px;padding:0 15px;border:1px solid #3A4046;border-radius:6px"><span style="width:15px;height:15px;border-radius:3px;background:linear-gradient(135deg,#9A9BA4,#606169 55%,#35363D)"></span><span style="font:600 13.5px/1 'Barlow Condensed',sans-serif;letter-spacing:1.3px;color:#9BA1A8">PAPER</span></div>
+              <div style="height:40px;display:flex;align-items:center;gap:9px;padding:0 15px;border:1px solid #5980A6;border-radius:6px;background:#1D2D3D"><span style="width:15px;height:15px;border-radius:3px;background:linear-gradient(135deg,oklch(88% .0712 352),oklch(56% .095 352) 55%,oklch(30% .076 352))"></span><span style="font:600 13.5px/1 'Barlow Condensed',sans-serif;letter-spacing:1.3px;color:#B5D9FD">BLOSSOM</span><span style="font:400 9px/1 'IBM Plex Mono',monospace;letter-spacing:1.1px;color:#749DC4">SAVED</span></div>
+              <div style="height:40px;display:flex;align-items:center;gap:9px;padding:0 15px;border:1px solid #3A4046;border-radius:6px"><span style="width:15px;height:15px;border-radius:3px;background:linear-gradient(135deg,#8E9C93,#59645C 55%,#333833)"></span><span style="font:600 13.5px/1 'Barlow Condensed',sans-serif;letter-spacing:1.3px;color:#9BA1A8">POND</span></div>
+              <div style="height:40px;display:flex;align-items:center;gap:9px;padding:0 15px;border:1px solid #3A4046;border-radius:6px"><span style="width:15px;height:15px;border-radius:3px;background:linear-gradient(135deg,#9497A8,#5C5E6B 55%,#34353D)"></span><span style="font:600 13.5px/1 'Barlow Condensed',sans-serif;letter-spacing:1.3px;color:#9BA1A8">STILL</span></div>
+            </div>
+            <div style="display:flex;gap:26px;margin-top:16px">
+              <div><div style="font:500 9px/1 'IBM Plex Mono',monospace;letter-spacing:1.6px;color:#5E666D;margin-bottom:7px">NIGHT ACCENT</div><div style="display:flex;gap:3px"><div style="width:26px;height:18px;border-radius:2px;background:#1D2D3D"></div><div style="width:26px;height:18px;border-radius:2px;background:#25384B"></div><div style="width:26px;height:18px;border-radius:2px;background:#2C455D"></div><div style="width:26px;height:18px;border-radius:2px;background:#365670"></div><div style="width:26px;height:18px;border-radius:2px;background:#416180"></div><div style="width:26px;height:18px;border-radius:2px;background:#4E7195"></div><div style="width:26px;height:18px;border-radius:2px;background:#5980A6"></div><div style="width:26px;height:18px;border-radius:2px;background:#749DC4"></div><div style="width:26px;height:18px;border-radius:2px;background:#B5D9FD"></div></div></div>
+              <div><div style="font:500 9px/1 'IBM Plex Mono',monospace;letter-spacing:1.6px;color:#5E666D;margin-bottom:7px">NIGHT NEUTRALS</div><div style="display:flex;gap:3px"><div style="width:26px;height:18px;border-radius:2px;background:#14171A"></div><div style="width:26px;height:18px;border-radius:2px;background:#1A1E22"></div><div style="width:26px;height:18px;border-radius:2px;background:#22272C"></div><div style="width:26px;height:18px;border-radius:2px;background:#2E3339"></div><div style="width:26px;height:18px;border-radius:2px;background:#3A4046"></div><div style="width:26px;height:18px;border-radius:2px;background:#4A5157"></div><div style="width:26px;height:18px;border-radius:2px;background:#6B7278"></div><div style="width:26px;height:18px;border-radius:2px;background:#9BA1A8"></div><div style="width:26px;height:18px;border-radius:2px;background:#E4E6E9"></div></div></div>
+            </div>
+            <div style="height:1px;background:#2E3339;margin:16px 0 4px"></div>
+            <div style="display:flex;align-items:center;height:48px">
+              <span style="flex:1;font:400 15.5px/1 Roboto,sans-serif">Lotus watermark</span>
+              <div style="width:46px;height:26px;border-radius:13px;background:#5980A6;display:flex;align-items:center;justify-content:flex-end;padding:0 3px"><div style="width:20px;height:20px;border-radius:50%;background:#E4E6E9"></div></div>
+            </div>
+            <div style="font:400 13px/1.4 Roboto,sans-serif;color:#9BA1A8">Status colours stay put; they carry meaning, not mood.</div>
+          </div>
+          <div style="background:#1A1E22;border:1px solid #2E3339;border-radius:8px;padding:15px 18px 17px">
+            <div style="font:500 9.5px/1 'IBM Plex Mono',monospace;letter-spacing:1.7px;color:#7C848C">TESTING</div>
+            <div style="display:flex;align-items:center;height:44px;margin-top:2px">
+              <span style="flex:1;font:400 15.5px/1 Roboto,sans-serif">Simulate offline</span>
+              <div style="width:46px;height:26px;border-radius:13px;background:#5980A6;display:flex;align-items:center;justify-content:flex-end;padding:0 3px"><div style="width:20px;height:20px;border-radius:50%;background:#E4E6E9"></div></div>
+            </div>
+            <div style="font:400 13px/1.4 Roboto,sans-serif;color:#9BA1A8">Forces the cached list and the queue strip without pulling the plug.</div>
+          </div>
+        </div>
+        <div style="width:428px;flex:none;background:#1A1E22;border:1px solid #2E3339;border-radius:8px;padding:15px 18px 18px">
+          <div style="font:500 9.5px/1 'IBM Plex Mono',monospace;letter-spacing:1.7px;color:#7C848C">ACCOUNT &amp; SESSION</div>
+          <div style="font:600 20px/1 'Barlow Condensed',sans-serif;letter-spacing:.2px;margin-top:12px">sudha.user</div>
+          <div style="font:400 14px/1 Roboto,sans-serif;color:#9BA1A8;margin-top:6px">Dhamma Sudha</div>
+          <div style="height:1px;background:#2E3339;margin:14px 0 2px"></div>
+          <sc-for list="{{ sessionRowsOffline }}" as="s" hint-placeholder-count="3">
+          <div style="display:flex;align-items:baseline;height:34px;border-bottom:1px solid #23282D"><span style="flex:1;font:400 13.5px/1 Roboto,sans-serif;color:#9BA1A8">{{ s.k }}</span><span style="font:400 12.5px/1 'IBM Plex Mono',monospace;color:#E4E6E9">{{ s.v }}</span></div>
+          </sc-for>
+          <div style="display:flex;gap:12px;margin-top:18px">
+            <div style="height:44px;padding:0 30px;border-radius:22px;background:#5980A6;display:flex;align-items:center;justify-content:center;font:400 15px/1 Roboto,sans-serif;color:#fff">Log out</div>
+          </div>
+          <div style="height:1px;background:#2E3339;margin:18px 0 14px"></div>
+          <div style="font:500 15px/1 Roboto,sans-serif;color:#E0796F">Erase all local data</div>
+          <div style="font:400 13px/1.45 Roboto,sans-serif;color:#9BA1A8;margin-top:7px">Removes the saved password, session cookie, course cache, and queued status changes from this tablet.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div style="position:absolute;left:0;right:0;bottom:0;height:48px;background:#0E1113;display:flex;align-items:center;justify-content:center;gap:200px">
+    <div style="width:0;height:0;border-top:7px solid transparent;border-bottom:7px solid transparent;border-right:11px solid #6B7278"></div>
+    <div style="width:15px;height:15px;border-radius:50%;background:#6B7278"></div>
+    <div style="width:12px;height:12px;background:#6B7278"></div>
+  </div>
+</div>
+</div>
+</div>
+<sc-if value="{{ showNotes }}" hint-placeholder-val="{{ true }}"><ul class="dv-note">
+<li><strong>Pick: B.</strong> One night ramp, stated in the UI. Five dark ladders would each need their own contrast pass against fixed status hexes for a screen staff use at a lit reception desk — the cost is real and the payoff is mood.</li>
+<li>The skin row stays visible and keeps Blossom lit as <code>SAVED</code>, so the choice is remembered rather than silently ignored; the kicker reads SKIN · APPLIES IN LIGHT.</li>
+<li>Bugs from 10 fixed: heading is on the night text token, the offline strip sits on neutral (it was still Blossom pink), and Erase all uses the dark half of the fixed danger pair <code>#A33A34 / #E0796F</code> instead of a light-mode red on a dark ground.</li>
+</ul></sc-if>
+</div>
+
+<div class="dv-opt" id="1f">
+<div class="dv-olabel"><a class="dv-oid" href="#1f">1f</a>P6 · Board — NEXT stops eating the fold, exports read as three shelves</div>
+<div class="dv-pair">
+<sc-if value="{{ showBefore }}" hint-placeholder-val="{{ true }}"><div><div class="dv-cap">Before · 12-desk-board.png</div><img src="uploads/dipi-ui-export/12-desk-board.png" style="width:340px;display:block;border:1px solid rgba(0,0,0,.14)"></div></sc-if>
+<div><div class="dv-cap">After</div>
+<div class="dv-frame" style="position:relative;width:1280px;height:900px;background:#F2F2F3;overflow:hidden;font:400 14px/1.35 Roboto,system-ui,sans-serif;color:#1D1F20">
+  <div style="position:relative;height:24px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;background:#EAEAEB;color:#98989B;font:500 11px/1 Roboto,sans-serif">
+    <div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;border-radius:2px;background:#B7B7BA"></div><div style="width:8px;height:8px;border-radius:50%;background:#B7B7BA"></div></div>
+    <div style="display:flex;gap:10px;align-items:center"><span>83%</span><span>10:29</span></div>
+  </div>
+  <div style="position:absolute;left:0;right:0;top:24px;bottom:48px;display:flex">
+    <div style="width:190px;flex:none;position:relative;background:#EFEFF0;border-right:1px solid #E0E0E3;display:flex;flex-direction:column;padding:14px 0;overflow:hidden">
+      <img src="assets/lotus.png" style="width:54px;height:54px;margin-left:18px;display:block">
+      <div style="font:500 9px/1 'IBM Plex Mono',monospace;letter-spacing:1.7px;color:#98989B;margin:24px 0 8px 18px">DESK</div>
+      <div style="height:46px;flex:none;display:flex;align-items:center;padding:0 18px;background:#EEF6FF;border-left:3px solid #5980A6"><span style="flex:1;font:500 15.5px/1 Roboto,sans-serif;color:#2C455D">Board</span></div>
+      <sc-for list="{{ bdAfter }}" as="i" hint-placeholder-count="5">
+      <div style="height:46px;flex:none;display:flex;align-items:center;padding:0 18px"><span style="flex:1;font:400 15.5px/1 Roboto,sans-serif;color:#424244">{{ i.n }}</span><span style="font:400 13px/1 'IBM Plex Mono',monospace;color:#98989B">{{ i.c }}</span></div>
+      </sc-for>
+      <div style="flex:1"></div>
+      <img src="assets/lotus.png" style="position:absolute;left:-30px;bottom:60px;width:190px;opacity:.1;filter:saturate(.4) hue-rotate(165deg)">
+      <div style="margin-left:18px;position:relative"><div style="font:400 12px/1 'IBM Plex Mono',monospace;color:#7A7A7D">sudha.user</div><div style="font:400 12px/1 'IBM Plex Mono',monospace;color:#98989B;margin-top:6px">synced just now</div></div>
+    </div>
+    <div style="flex:1;min-width:0;display:flex;flex-direction:column">
+      <div style="height:52px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:0 20px;border-bottom:1px solid #E0E0E3">
+        <div style="font:600 17px/1 'Barlow Condensed',sans-serif;letter-spacing:.2px">Dhamma Sudha / 10 Day / 2026 / 2nd-Sep to 13th-Sep</div>
+        <div style="font:400 13px/1 'IBM Plex Mono',monospace;color:#7A7A7D">Fri 28 Aug · 10:29</div>
+      </div>
+      <div style="flex:1;min-height:0;padding:14px 20px;display:flex;flex-direction:column">
+        <div style="font:400 15px/1.35 Roboto,sans-serif;color:#5D5D60;flex:none">113 on the roll, 0 already in their rooms. Everything below is a number you can act on — tap it.</div>
+        <div style="display:flex;gap:12px;margin-top:14px;flex:none">
+          <sc-for list="{{ stats }}" as="s" hint-placeholder-count="4">
+          <div style="flex:1;min-width:0;height:100px;background:#FAFAFB;border:1px solid #DEDEE1;border-radius:8px;padding:12px 15px;display:flex;flex-direction:column;box-shadow:0 1px 2px rgba(0,0,0,.05)">
+            <div style="font:700 38px/1 'Barlow Condensed',sans-serif;color:#2C455D">{{ s.n }}</div>
+            <div style="font:500 10px/1 'IBM Plex Mono',monospace;letter-spacing:1.6px;color:#5D5D60;margin-top:9px">{{ s.k }}</div>
+            <div style="font:400 12.5px/1 Roboto,sans-serif;color:#98989B;margin-top:7px">{{ s.s }}</div>
+          </div>
+          </sc-for>
+        </div>
+        <div style="font:500 9.5px/1 'IBM Plex Mono',monospace;letter-spacing:1.7px;color:#7A7A7D;margin:18px 0 8px;flex:none">NEXT</div>
+        <div style="display:flex;flex-direction:column;gap:7px;flex:none">
+          <sc-for list="{{ nextRows }}" as="r" hint-placeholder-count="3">
+          <div style="height:58px;display:flex;align-items:center;gap:14px;padding:0 16px;background:#FAFAFB;border:1px solid #DEDEE1;border-radius:8px">
+            <div style="flex:1;min-width:0"><div style="font:600 18px/1 'Barlow Condensed',sans-serif;letter-spacing:.2px">{{ r.t }}</div><div style="font:400 12.5px/1 Roboto,sans-serif;color:#7A7A7D;margin-top:6px">{{ r.s }}</div></div>
+            <div style="font:400 17px/1 Roboto,sans-serif;color:#749DC4">→</div>
+          </div>
+          </sc-for>
+        </div>
+        <div style="display:flex;align-items:baseline;gap:10px;margin:18px 0 0;flex:none"><span style="font:500 9.5px/1 'IBM Plex Mono',monospace;letter-spacing:1.7px;color:#7A7A7D">SHEETS &amp; EXPORTS</span><span style="font:400 9.5px/1 'IBM Plex Mono',monospace;letter-spacing:1.2px;color:#B7B7BA">RARELY URGENT</span></div>
+        <sc-for list="{{ exportGroups }}" as="g" hint-placeholder-count="3">
+        <div style="margin-top:12px;flex:none">
+          <div style="font:500 9px/1 'IBM Plex Mono',monospace;letter-spacing:1.6px;color:#98989B;margin-bottom:7px">{{ g.k }}</div>
+          <div style="display:flex;gap:8px">
+            <sc-for list="{{ g.items }}" as="x" hint-placeholder-count="4">
+            <div style="flex:1;min-width:0;height:40px;display:flex;align-items:center;gap:9px;padding:0 13px;border:1px solid #E0E0E3;border-radius:6px;background:#FAFAFB"><span style="color:#94BCE3;font-size:13px">↓</span><span style="font:400 13.5px/1 Roboto,sans-serif;color:#424244">{{ x }}</span></div>
+            </sc-for>
+          </div>
+        </div>
+        </sc-for>
+        <div style="display:flex;align-items:center;gap:9px;height:40px;margin-top:12px;padding:0 13px;border:1px dashed #C6C6CA;border-radius:6px;flex:none">
+          <span style="font:400 13.5px/1 Roboto,sans-serif;color:#98989B">Day 11 · Course summary report</span>
+          <span style="font:500 9px/1 'IBM Plex Mono',monospace;letter-spacing:1.5px;color:#7A7A7D;padding:3px 7px;border:1px solid #D4D4D7;border-radius:3px">GAP — NOT IN 1.22.0</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div style="position:absolute;left:0;right:0;bottom:0;height:48px;background:#EAEAEB;display:flex;align-items:center;justify-content:center;gap:200px">
+    <div style="width:0;height:0;border-top:7px solid transparent;border-bottom:7px solid transparent;border-right:11px solid #98989B"></div>
+    <div style="width:15px;height:15px;border-radius:50%;background:#98989B"></div>
+    <div style="width:12px;height:12px;background:#98989B"></div>
+  </div>
+</div>
+</div>
+</div>
+<sc-if value="{{ showNotes }}" hint-placeholder-val="{{ true }}"><ul class="dv-note">
+<li>NEXT rows go 158dp → 58dp (title and sub on one stacked block, arrow right). That alone buys back 300dp, so all twelve exports and the stat row share one fold with no scroll.</li>
+<li>Exports keep all twelve names, grouped on three shelves — roll sheets / desk slips / for the team — at 40dp with the download glyph leading. Four per row instead of a ragged 4×3 block.</li>
+<li>The Day-11 summary is drawn as a <strong>dashed gap marker</strong>, not a shipped tile. It is a question for you, not a claim.</li>
+<li>Applications and Rooms stay out of NEXT on purpose: their counts are inventory, not a queue with a next row. If you want them promoted, they need a "N unverified" style number first — flagging, not building.</li>
+</ul></sc-if>
+</div>
+
+<div class="dv-opt" id="1g">
+<div class="dv-olabel"><a class="dv-oid" href="#1g">1g</a>P7 · Two states with no capture — queued sync, and older courses empty</div>
+<div style="display:flex;flex-direction:column;gap:22px">
+<div><div class="dv-cap">Queued strip stacked under offline · centre, top band</div>
+<div class="dv-frame" style="position:relative;width:1280px;background:#F2F2F3;overflow:hidden;font:400 14px/1.35 Roboto,system-ui,sans-serif;color:#1D1F20">
+  <div style="position:relative;height:24px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;background:#EAEAEB;color:#98989B;font:500 11px/1 Roboto,sans-serif">
+    <div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;border-radius:2px;background:#B7B7BA"></div><div style="width:8px;height:8px;border-radius:50%;background:#B7B7BA"></div></div>
+    <div style="display:flex;gap:10px;align-items:center"><span>82%</span><span>10:31</span></div>
+  </div>
+  <div style="height:38px;display:flex;align-items:center;gap:9px;padding:0 24px;background:#E7E7EA;border-bottom:1px solid #DEDEE1"><span style="color:#7A7A7D;font-size:13px">◍</span><span style="font:400 14px/1 Roboto,sans-serif;color:#5D5D60">Offline — showing cached list</span></div>
+  <div style="height:56px;display:flex;align-items:center;gap:12px;padding:0 16px 0 24px;background:#EEF6FF;border-bottom:1px solid #D6EBFF">
+    <span style="font:400 14px/1 Roboto,sans-serif;color:#2C455D;flex:1">3 change(s) waiting to sync</span>
+    <span style="font:400 12.5px/1 'IBM Plex Mono',monospace;color:#416180">last try 10:29</span>
+    <div style="height:48px;padding:0 22px;display:flex;align-items:center;border:1px solid #94BCE3;border-radius:5px;font:600 13.5px/1 'Barlow Condensed',sans-serif;letter-spacing:1.8px;color:#2C455D">RETRY</div>
+  </div>
+  <div style="padding:0 24px">
+    <div style="height:52px;display:flex;align-items:center;font:600 23px/1 'Barlow Condensed',sans-serif;letter-spacing:.2px">Dhamma Sudha · sudha.user</div>
+    <div style="font:400 16px/1 Roboto,sans-serif;color:#7A7A7D;margin-bottom:10px">Upcoming courses</div>
+    <div style="position:relative;height:96px;overflow:hidden">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div style="background:#FAFAFB;border:1px solid #DEDEE1;border-radius:8px;padding:11px 14px;height:120px"><div style="font:600 17px/1.15 'Barlow Condensed',sans-serif">Dhamma Sudha / 10 Day / 2026 / 2nd-Sep to 13th-Sep</div></div>
+        <div style="background:#FAFAFB;border:1px solid #DEDEE1;border-radius:8px;padding:11px 14px;height:120px"><div style="font:600 17px/1.15 'Barlow Condensed',sans-serif">Dhamma Sudha / 10 Day / 2026 / 16th-Sep to 27th-Sep</div></div>
+      </div>
+      <div style="position:absolute;left:0;right:0;bottom:0;height:56px;background:linear-gradient(rgba(242,242,243,0),#F2F2F3)"></div>
+    </div>
+  </div>
+</div>
+</div>
+<div><div class="dv-cap">Older courses empty · lower pane only</div>
+<div class="dv-frame" style="position:relative;width:1280px;background:#F2F2F3;overflow:hidden;font:400 14px/1.35 Roboto,system-ui,sans-serif;color:#1D1F20;padding:20px 24px 24px">
+  <div style="font:400 16px/1 Roboto,sans-serif;color:#7A7A7D;margin-bottom:10px">Centre desk</div>
+  <div style="display:flex;gap:8px">
+    <sc-for list="{{ tiles }}" as="t" hint-placeholder-count="3">
+    <div style="flex:1;height:52px;display:flex;align-items:center;justify-content:space-between;padding:0 16px;border:1px solid #D4D4D7;border-radius:6px"><span style="font:600 16.5px/1 'Barlow Condensed',sans-serif;letter-spacing:.3px">{{ t }}</span><span style="font:400 15px/1 Roboto,sans-serif;color:#B7B7BA">›</span></div>
+    </sc-for>
+  </div>
+  <div style="margin-top:16px;padding-top:12px;border-top:1px solid #E0E0E3">
+    <div style="font:500 9px/1 'IBM Plex Mono',monospace;letter-spacing:1.7px;color:#98989B;margin-bottom:9px">MORE ON THE DESK SITE</div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px">
+      <sc-for list="{{ webTiles }}" as="w" hint-placeholder-count="5">
+      <div style="height:30px;display:flex;align-items:center;gap:5px;padding:0 11px;border:1px solid #E0E0E3;border-radius:15px;font:400 12.5px/1 Roboto,sans-serif;color:#5D5D60">{{ w }}<span style="color:#B7B7BA;font-size:11px">↗</span></div>
+      </sc-for>
+    </div>
+  </div>
+</div>
+</div>
+</div>
+<sc-if value="{{ showNotes }}" hint-placeholder-val="{{ true }}"><ul class="dv-note">
+<li>Queued strip sits <em>under</em> offline and is the only one that carries an action: accent100 ground, accent800 text, a 48dp RETRY, plus the last attempt time so a stuck queue is visible without opening Settings. The strip is 56dp — deeper than the 38dp offline strip because it is the only one you can tap. Copy stays <code>N change(s) waiting to sync</code>.</li>
+<li>Both strips push the page down rather than float, so nothing they cover is guessed at.</li>
+<li>Empty older courses: heading omitted as the app already does — and because the 40% pane is now two columns, the desk tiles claim the full width at 3-across instead of leaving a hole where the list was.</li>
+</ul></sc-if>
+</div>
+
+<div class="dv-opt" id="1h">
+<div class="dv-olabel"><a class="dv-oid" href="#1h">1h</a>Same frame in Blossom — the skin still holds</div>
+<div class="dv-pair">
+<sc-if value="{{ showBefore }}" hint-placeholder-val="{{ true }}"><div><div class="dv-cap">Before · 11-centre-blossom.png</div><img src="uploads/dipi-ui-export/11-centre-blossom.png" style="width:340px;display:block;border:1px solid rgba(0,0,0,.14)"></div></sc-if>
+<div><div class="dv-cap">After</div>
+<div class="dv-frame" style="position:relative;width:1280px;height:900px;background:oklch(97.4% 0.0152 352);overflow:hidden;font:400 14px/1.35 Roboto,system-ui,sans-serif;color:oklch(23% 0.0238 352)">
+  <img src="assets/lotus.png" style="position:absolute;left:50%;top:60%;width:400px;transform:translate(-50%,-50%);opacity:.17">
+  <div style="position:relative;height:24px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;background:oklch(94.5% 0.0125 352);color:oklch(67% 0.0114 352);font:500 11px/1 Roboto,sans-serif">
+    <div style="display:flex;gap:6px;align-items:center"><div style="width:8px;height:8px;border-radius:2px;background:oklch(78.5% 0.0114 352)"></div><div style="width:8px;height:8px;border-radius:50%;background:oklch(78.5% 0.0114 352)"></div><div style="width:8px;height:8px;border-radius:2px;background:oklch(78.5% 0.0114 352)"></div></div>
+    <div style="display:flex;gap:10px;align-items:center"><span>99%</span><span>11:58</span></div>
+  </div>
+  <div style="position:absolute;left:0;right:0;top:24px;bottom:48px;display:flex;flex-direction:column;padding:0 24px">
+    <div style="height:52px;display:flex;align-items:center;flex:none"><div style="font:600 23px/1 'Barlow Condensed',sans-serif;letter-spacing:.2px">Dhamma Sudha · sudha.user</div></div>
+    <div style="max-height:460px;flex:0 0 auto;display:flex;flex-direction:column;overflow:hidden">
+      <div style="font:400 16px/1 Roboto,sans-serif;color:oklch(55% 0.0114 352);margin-bottom:10px">Upcoming courses</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;align-content:start">
+        <sc-for list="{{ courses }}" as="c" hint-placeholder-count="4">
+        <div style="position:relative;background:oklch(98.4% 0.0091 352);border:1px solid oklch(90.5% 0.0114 352);border-radius:8px;padding:11px 14px 9px;box-shadow:0 1px 2px rgba(0,0,0,.05)">
+          <sc-if value="{{ c.next }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;left:0;top:8px;bottom:8px;width:3px;border-radius:0 3px 3px 0;background:oklch(56% 0.095 352)"></div></sc-if>
+          <div style="font:600 17px/1.15 'Barlow Condensed',sans-serif;letter-spacing:.2px;color:oklch(23% 0.0238 352)">{{ c.t }}</div>
+          <div style="position:relative;margin-top:9px">
+            <div style="position:absolute;top:15px;bottom:0;right:0;width:54px;background:oklch(95.4% 0.0114 352);border-radius:3px"></div>
+            <div style="position:absolute;top:15px;bottom:0;right:162px;width:54px;background:oklch(95.4% 0.0114 352);border-radius:3px"></div>
+            <div style="position:absolute;top:15px;bottom:0;right:161px;width:1px;background:oklch(87.5% 0.0114 352)"></div>
+            <div style="position:relative;display:flex;justify-content:flex-end;font:500 9px/1 'IBM Plex Mono',monospace;letter-spacing:1.7px;color:oklch(67% 0.0114 352)">
+              <div style="width:162px;text-align:center">MALE</div><div style="width:162px;text-align:center">FEMALE</div>
+            </div>
+            <div style="position:relative;display:flex;align-items:flex-end;margin-top:4px;padding-bottom:5px;border-bottom:1px solid oklch(91.5% 0.0114 352)">
+              <div style="flex:1"></div>
+              <div style="width:54px;text-align:right;font:600 12px/1 'IBM Plex Mono',monospace;color:oklch(55% 0.0114 352)">NM</div>
+              <div style="width:54px;text-align:right;font:600 12px/1 'IBM Plex Mono',monospace;color:oklch(55% 0.0114 352)">OM</div>
+              <div style="width:54px;text-align:right;font:600 12px/1 'IBM Plex Mono',monospace;color:oklch(26% 0.0133 352)">M</div>
+              <div style="width:54px;text-align:right;font:600 12px/1 'IBM Plex Mono',monospace;color:oklch(55% 0.0114 352)">NF</div>
+              <div style="width:54px;text-align:right;font:600 12px/1 'IBM Plex Mono',monospace;color:oklch(55% 0.0114 352)">OF</div>
+              <div style="width:54px;text-align:right;font:600 12px/1 'IBM Plex Mono',monospace;color:oklch(26% 0.0133 352)">F</div>
+            </div>
+            <sc-for list="{{ c.rows }}" as="r" hint-placeholder-count="3">
+            <div style="position:relative;display:flex;align-items:center;height:26px">
+              <div style="flex:1;font:400 13.5px/1 Roboto,sans-serif;color:oklch(45% 0.0133 352)">{{ r.k }}</div>
+              <sc-for list="{{ r.c }}" as="v" hint-placeholder-count="6"><div style="width:54px;text-align:right;font:400 14.5px/1 'IBM Plex Mono',monospace;color:oklch(35% 0.0133 352)">{{ v }}</div></sc-for>
+            </div>
+            </sc-for>
+            <div style="position:relative;display:flex;align-items:center;height:30px;border-top:1px solid oklch(91.5% 0.0114 352);margin-top:2px">
+              <div style="flex:1;display:flex;align-items:baseline;gap:7px"><span style="font:500 14px/1 Roboto,sans-serif;color:oklch(23% 0.0238 352)">Total</span><span style="font:400 11.5px/1 'IBM Plex Mono',monospace;color:oklch(67% 0.0114 352)">{{ c.tot.sev }}</span></div>
+              <sc-for list="{{ c.tot.c }}" as="v" hint-placeholder-count="6"><div style="width:54px;text-align:right;font:500 15px/1 'IBM Plex Mono',monospace;color:oklch(23% 0.0238 352)">{{ v }}</div></sc-for>
+            </div>
+          </div>
+        </div>
+        </sc-for>
+      </div>
+    </div>
+    <div style="flex:1;min-height:0;display:flex;gap:18px;padding-top:12px">
+      <div style="flex:1;min-width:0;display:flex;flex-direction:column;overflow:hidden">
+        <div style="font:400 16px/1 Roboto,sans-serif;color:oklch(55% 0.0114 352);margin-bottom:10px">Older courses</div>
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <sc-for list="{{ older }}" as="o" hint-placeholder-count="3">
+          <div style="height:42px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:0 14px;background:oklch(98.4% 0.0091 352);border:1px solid oklch(90.5% 0.0114 352);border-radius:6px">
+            <span style="font:600 16px/1 'Barlow Condensed',sans-serif;letter-spacing:.2px">{{ o }}</span><span style="font:400 15px/1 Roboto,sans-serif;color:oklch(78.5% 0.0114 352)">›</span>
+          </div>
+          </sc-for>
+        </div>
+      </div>
+      <div style="width:416px;flex:none;display:flex;flex-direction:column">
+        <div style="font:400 16px/1 Roboto,sans-serif;color:oklch(55% 0.0114 352);margin-bottom:10px">Centre desk</div>
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <sc-for list="{{ tiles }}" as="t" hint-placeholder-count="3">
+          <div style="height:48px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:0 14px;border:1px solid oklch(87.5% 0.0114 352);border-radius:6px">
+            <span style="font:600 16px/1 'Barlow Condensed',sans-serif;letter-spacing:.3px">{{ t }}</span><span style="font:400 15px/1 Roboto,sans-serif;color:oklch(78.5% 0.0114 352)">›</span>
+          </div>
+          </sc-for>
+        </div>
+        <div style="margin-top:14px;padding-top:11px;border-top:1px solid oklch(91.5% 0.0114 352)">
+          <div style="font:500 9px/1 'IBM Plex Mono',monospace;letter-spacing:1.7px;color:oklch(67% 0.0114 352);margin-bottom:9px">MORE ON THE DESK SITE</div>
+          <div style="display:flex;flex-wrap:wrap;gap:6px">
+            <sc-for list="{{ webTiles }}" as="w" hint-placeholder-count="5">
+            <div style="height:30px;display:flex;align-items:center;gap:5px;padding:0 11px;border:1px solid oklch(91.5% 0.0114 352);border-radius:15px;font:400 12.5px/1 Roboto,sans-serif;color:oklch(45% 0.0133 352)">{{ w }}<span style="color:oklch(78.5% 0.0114 352);font-size:11px">↗</span></div>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div style="position:absolute;left:0;right:0;bottom:0;height:48px;background:oklch(94.5% 0.0125 352);display:flex;align-items:center;justify-content:center;gap:200px">
+    <div style="width:0;height:0;border-top:7px solid transparent;border-bottom:7px solid transparent;border-right:11px solid oklch(67% 0.0114 352)"></div>
+    <div style="width:15px;height:15px;border-radius:50%;background:oklch(67% 0.0114 352)"></div>
+    <div style="width:12px;height:12px;background:oklch(67% 0.0114 352)"></div>
+  </div>
+</div>
+</div>
+</div>
+<sc-if value="{{ showNotes }}" hint-placeholder-val="{{ true }}"><ul class="dv-note">
+<li>Identical geometry, identical hierarchy — only the OKLCH ladder moves (hue 352, chroma 0.095). The accent rule on the next course is the one chromatic mark on the page in either skin.</li>
+<li>Lotus wash goes to 0.17 with no filter, per the Blossom row of the skin table. Nothing else in the frame knows which skin it is running.</li>
+</ul></sc-if>
+</div>
+
+
+<div class="dv-opt" id="1i">
+<div class="dv-olabel"><a class="dv-oid" href="#1i">1i</a>Delta vs 1.22.0</div>
+<div style="width:640px;background:#FAFAFB;border:1px solid #DEDEE1;border-radius:8px;padding:22px 26px 24px;font:400 13px/1.55 Roboto,system-ui,sans-serif;color:#1D1F20">
+<div style="font:700 22px/1 'Barlow Condensed',sans-serif;letter-spacing:.3px">What changed against the shipped build</div>
+<div style="font:400 12px/1 'IBM Plex Mono',monospace;color:#98989B;margin-top:8px">1.22.0 · versionCode 35 · Pixel C 2560×1800</div>
+<div style="height:1px;background:#E7E7EA;margin:16px 0 14px"></div>
+<div style="display:flex;gap:12px;padding:7px 0"><span style="font:500 11px/1.5 'IBM Plex Mono',monospace;color:#94BCE3;width:20px;flex:none">01</span><span>Centre's 40% pane becomes two columns. Older courses keep their scroll; Centre Settings / Advanced Search / App Settings are fully visible at 48dp. The 60% matrix ceiling is unchanged.</span></div>
+<div style="display:flex;gap:12px;padding:7px 0"><span style="font:500 11px/1.5 'IBM Plex Mono',monospace;color:#94BCE3;width:20px;flex:none">02</span><span>The other five desk destinations drop to 30dp outbound chips under a hairline — still present, no longer peers of the three native tiles.</span></div>
+<div style="display:flex;gap:12px;padding:7px 0"><span style="font:500 11px/1.5 'IBM Plex Mono',monospace;color:#94BCE3;width:20px;flex:none">03</span><span>Matrix header: MALE / FEMALE group caps, labels to 12sp mono at neutral700, hairline gutter between the trios, neutral band behind the two subtotal columns. <code>·</code> kept for empty.</span></div>
+<div style="display:flex;gap:12px;padding:7px 0"><span style="font:500 11px/1.5 'IBM Plex Mono',monospace;color:#94BCE3;width:20px;flex:none">04</span><span>One 3dp accent rule on the course that opens next — the page's only chromatic mark.</span></div>
+<div style="display:flex;gap:12px;padding:7px 0"><span style="font:500 11px/1.5 'IBM Plex Mono',monospace;color:#94BCE3;width:20px;flex:none">05</span><span>Login keyboard-up: card 380dp wide, ~560 → 324dp tall. Brand collapses to one row, the "read from your account" line hides while the IME is up, Remember me shares a row with SIGN IN, error strip sits directly above them.</span></div>
+<div style="display:flex;gap:12px;padding:7px 0"><span style="font:500 11px/1.5 'IBM Plex Mono',monospace;color:#94BCE3;width:20px;flex:none">06</span><span>Check-in opens on an empty scan field — buffer is session-scoped — with a real placeholder and a 48dp clear. Rooms-free label and count are separate columns so "Mbk/Guest block" stops wrapping.</span></div>
+<div style="display:flex;gap:12px;padding:7px 0"><span style="font:500 11px/1.5 'IBM Plex Mono',monospace;color:#94BCE3;width:20px;flex:none">07</span><span>Settings runs two columns. "Theme: Light" becomes a segmented control, "Simulate offline: off" becomes a switch, and two ramp strips show what a skin actually moves.</span></div>
+<div style="display:flex;gap:12px;padding:7px 0"><span style="font:500 11px/1.5 'IBM Plex Mono',monospace;color:#94BCE3;width:20px;flex:none">08</span><span><strong>Dark = Steel night (option B)</strong>, said in the UI. SKIN kicker reads APPLIES IN LIGHT, the chosen chip keeps its true swatch and a SAVED tag. Dark heading, offline strip and Erase all are repainted on night tokens.</span></div>
+<div style="display:flex;gap:12px;padding:7px 0"><span style="font:500 11px/1.5 'IBM Plex Mono',monospace;color:#94BCE3;width:20px;flex:none">09</span><span>Severity is a fixed pair — <code>#A33A34</code> light / <code>#E0796F</code> dark — so Erase all stops turning pink under Blossom.</span></div>
+<div style="display:flex;gap:12px;padding:7px 0"><span style="font:500 11px/1.5 'IBM Plex Mono',monospace;color:#94BCE3;width:20px;flex:none">10</span><span>Board: NEXT rows 158 → 58dp; all twelve exports grouped on three 40dp shelves; stat cards 250 → 100dp. Everything lands on one fold.</span></div>
+<div style="display:flex;gap:12px;padding:7px 0"><span style="font:500 11px/1.5 'IBM Plex Mono',monospace;color:#94BCE3;width:20px;flex:none">11</span><span>Queued strip stacks under offline: accent100, <code>N change(s) waiting to sync</code>, last-try time, uppercase RETRY.</span></div>
+<div style="display:flex;gap:12px;padding:7px 0"><span style="font:500 11px/1.5 'IBM Plex Mono',monospace;color:#94BCE3;width:20px;flex:none">12</span><span>Empty older courses: heading stays omitted and the tiles claim the full width, 3-across.</span></div>
+<div style="height:1px;background:#E7E7EA;margin:16px 0 14px"></div>
+<div style="font:500 9.5px/1 'IBM Plex Mono',monospace;letter-spacing:1.7px;color:#7A7A7D;margin-bottom:10px">BACK TO YOU</div>
+<div style="display:flex;gap:12px;padding:5px 0"><span style="color:#B7B7BA;flex:none">—</span><span>Day 11 "Course summary report" is drawn as a dashed gap marker. Is it dropped, deferred, or already merged somewhere I cannot see?</span></div>
+<div style="display:flex;gap:12px;padding:5px 0"><span style="color:#B7B7BA;flex:none">—</span><span>Applications and Rooms stay out of NEXT until they have a queue number (e.g. "N unverified") rather than an inventory count.</span></div>
+<div style="display:flex;gap:12px;padding:5px 0"><span style="color:#B7B7BA;flex:none">—</span><span>Check-in state 3 assumes a restored query is sometimes wanted. If it never is, delete it and keep states 1 and 2.</span></div>
+</div>
+</div>
+
+</div>
+<p class="dv-next">Try next: "tighten <a class="dv-oid" href="#1a">1a</a>'s matrix further" · "show me option A — a real dark ramp per skin — next to <a class="dv-oid" href="#1e">1e</a>" · "drop state 3 from <a class="dv-oid" href="#1c">1c</a>" · "<a class="dv-oid" href="#1f">1f</a> without the gap marker"</p>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1800,&quot;height&quot;:1100},&quot;showBefore&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Canvas&quot;},&quot;showNotes&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Canvas&quot;}}">
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      showBefore: this.props.showBefore ?? true,
+      showNotes: this.props.showNotes ?? true,
+      courses: [
+        { t: 'Dhamma Sudha / 10 Day / 2026 / 2nd-Sep to 13th-Sep', next: true,
+          rows: [{ k: 'Cancelled', c: ['10', '4', '14', '9', '·', '9'] }],
+          tot: { sev: '+7 sevak', c: ['75', '34', '109', '33', '13', '46'] } },
+        { t: 'Dhamma Sudha / 10 Day / 2026 / 16th-Sep to 27th-Sep', next: false,
+          rows: [{ k: 'Received', c: ['·', '·', '·', '·', '·', '·'] }, { k: 'Confirmed', c: ['31', '25', '56', '20', '19', '39'] }, { k: 'Cancelled', c: ['9', '3', '12', '1', '2', '3'] }],
+          tot: { sev: '+12 sevak', c: ['58', '29', '87', '27', '22', '49'] } },
+        { t: 'Dhamma Sudha / 10 Day / 2026 / 7th-Oct to 18th-Oct', next: false,
+          rows: [{ k: 'Confirmed', c: ['13', '13', '26', '2', '3', '5'] }, { k: 'Cancelled', c: ['·', '·', '·', '·', '·', '·'] }],
+          tot: { sev: '+5 sevak', c: ['16', '15', '31', '3', '4', '7'] } },
+        { t: 'Dhamma Sudha / STP / 2026 / 21st-Oct to 29th-Oct', next: false,
+          rows: [{ k: 'Confirmed', c: ['·', '23', '23', '·', '5', '5'] }, { k: 'Cancelled', c: ['·', '·', '·', '·', '1', '1'] }],
+          tot: { sev: '+3 sevak', c: ['·', '30', '30', '·', '9', '9'] } }
+      ],
+      older: ['Dhamma Sudha / 10 Day / 2026 / 19th-Aug to 30th-Aug', 'Dhamma Sudha / 10 Day / 2026 / 5th-Aug to 16th-Aug', 'Dhamma Sudha / 3 Day / 2026 / 30th-Jul to 2nd-Aug'],
+      tiles: ['Centre Settings', 'Advanced Search', 'App Settings'],
+      webTiles: ['Manage Courses', 'Daily Activity', 'SMS Report', 'Course Report', 'Bulk Mail'],
+      rowA: 'q w e r t y u i o p'.split(' '),
+      rowB: 'a s d f g h j k l'.split(' '),
+      rowC: 'z x c v b n m'.split(' '),
+      ciBefore: [{ n: 'Board', c: '' }, { n: 'Applications', c: '162' }, { n: 'Audit', c: '15' }, { n: 'Calling', c: '113' }],
+      ciAfter: [{ n: 'Rooms & seats', c: '119' }],
+      roster: [
+        { id: 'OF10', n: 'Aayushi Kochar', m: '26 F · Dehradun' },
+        { id: 'NM12', n: 'Abhishek Kumar Yadav', m: '23 M · Jaunpur' },
+        { id: 'NM33', n: 'Abhishek Vats', m: '45 M · Dehradun' },
+        { id: 'NM21', n: 'Adhiraj Mantri', m: '27 M · Afzalgarh' },
+        { id: 'NM39', n: 'Amit Kumar', m: '56 M · Dehradun' },
+        { id: 'NM57', n: 'Amnish Sharma', m: '44 M · Muzaffarnagar' },
+        { id: 'NF9', n: 'Amrita Verma', m: '50 F · Delhi' }
+      ],
+      roll: [{ k: 'Old students', m: '23', f: '11' }, { k: 'New students', m: '55', f: '24' }, { k: 'Total', m: '78', f: '35' }],
+      roomsFree: [{ k: 'Female · Fbk block', v: '46 / 46' }, { k: 'Male · Mbk + Guest block', v: '73 / 73' }],
+      seating: [{ k: 'Chowky', v: '0' }, { k: 'Chair', v: '0' }, { k: 'Backrest', v: '0' }, { k: 'None', v: '0' }],
+      accentRamp: ['#EEF6FF', '#D6EBFF', '#B5D9FD', '#94BCE3', '#749DC4', '#597EA3', '#416180', '#2C455D', '#1D2D3D'],
+      neutralRamp: ['#F5F5F8', '#E7E7EA', '#D4D4D7', '#B7B7BA', '#98989B', '#7A7A7D', '#5D5D60', '#424244', '#2B2B2D'],
+      nightAccent: ['#1D2D3D', '#25384B', '#2C455D', '#365670', '#416180', '#4E7195', '#5980A6', '#749DC4', '#B5D9FD'],
+      nightNeutral: ['#14171A', '#1A1E22', '#22272C', '#2E3339', '#3A4046', '#4A5157', '#6B7278', '#9BA1A8', '#E4E6E9'],
+      sessionRows: [{ k: 'Last synced', v: '2026-08-28T17:31:32.772Z' }, { k: 'Queue', v: '0 waiting' }, { k: 'App version', v: '1.22.0' }],
+      bdAfter: [{ n: 'Applications', c: '162' }, { n: 'Audit', c: '15' }, { n: 'Calling', c: '113' }, { n: 'Check-in', c: '113' }, { n: 'Rooms & seats', c: '119' }],
+      stats: [
+        { n: '113', k: 'ARRIVING TODAY', s: '113 confirmed' },
+        { n: '0', k: 'CHECKED IN', s: '0% of the roll' },
+        { n: '113', k: 'STILL TO CALL', s: '0 logged this round' },
+        { n: '15', k: 'NEEDS ATTENTION', s: 'across 3 checks' }
+      ],
+      nextRows: [
+        { t: 'Check in arrivals', s: '113 still to arrive' },
+        { t: 'Clear audit findings', s: '15 findings · 9 must fix' },
+        { t: 'Finish the call round', s: '113 numbers left' }
+      ],
+      exportGroups: [
+        { k: 'ROLL SHEETS', items: ['Day 0 list', 'Day 0 summary', 'Male PDF', 'Female PDF'] },
+        { k: 'DESK SLIPS', items: ['Student chit', 'Checking slip', 'Seating plan', 'Laundry list'] },
+        { k: 'FOR THE TEAM', items: ['Teacher list', 'Manager list', 'Valuable list', 'Course report'] }
+      ],
+      sessionRowsOffline: [{ k: 'Last synced', v: '2026-08-28T10:14:06.410Z' }, { k: 'Queue', v: '0 waiting' }, { k: 'App version', v: '1.22.0' }]
+    };
+  }
+}
+</script>
+</body>
+</html>
