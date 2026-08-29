@@ -131,6 +131,7 @@ fun DipiAppUi(vm: DeskViewModel) {
                 SyncBannerStrips(
                     offline = state.offline,
                     queued = state.queuedCount,
+                    lastTryAtMs = state.lastSyncAttemptAt,
                     onRetry = vm::retrySync,
                 )
                 Box(Modifier.weight(1f)) {

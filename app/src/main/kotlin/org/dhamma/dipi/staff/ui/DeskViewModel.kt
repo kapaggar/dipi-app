@@ -120,6 +120,12 @@ data class DeskUiState(
     val offline: Boolean = false,
     val queuedById: Map<ApplicantId, String> = emptyMap(),
     val queuedCount: Int = 0,
+    /**
+     * Epoch millis of the last outbox flush attempt — reconnect or manual
+     * RETRY alike. Never persisted: a fresh process shows the queued strip
+     * without a last-try line until the first attempt (spec R7).
+     */
+    val lastSyncAttemptAt: Long? = null,
     val statusChoices: List<String> = ApplicantStatus.SHEET_CHOICES,
     val sheetOpen: Boolean = false,
     val sheetPick: String = "",
@@ -1247,6 +1253,9 @@ class DeskViewModel @Inject constructor(
     }
 
     private suspend fun flush() {
+        // The one shared flush path: stamped here so the reconnect collector
+        // and retrySync() both feed the strip's "last try" line.
+        _state.update { it.copy(lastSyncAttemptAt = System.currentTimeMillis()) }
         runCatching { repo.flushOutbox() }
             .onSuccess { snacks ->
                 snacks.lastOrNull()?.let { snack -> _state.update { it.copy(snack = snack) } }
