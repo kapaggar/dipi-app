@@ -45,6 +45,7 @@ import org.dhamma.dipi.staff.model.RoomSyncFailure
 import org.dhamma.dipi.staff.model.SensitiveInfo
 import org.dhamma.dipi.staff.model.WorklistFilter
 import org.dhamma.dipi.staff.ui.DeskUiState
+import org.dhamma.dipi.staff.ui.deskAdoptSearchCourse
 import org.dhamma.dipi.staff.ui.deskOpenCourse
 import org.dhamma.dipi.staff.ui.theme.DipiTheme
 import org.junit.Assert.assertEquals
@@ -256,6 +257,54 @@ class DeskPanesTest {
         assertEquals("New", after.deskSeniority)
         assertEquals("Arrived", after.deskZeroFilter)
         assertEquals(CourseId(11), after.course?.id)
+    }
+
+    private val courseTen = Course(CourseId(10), CentreId(1), "10-Day", "2026-08-20", "2026-08-31")
+    private val courseEleven = Course(CourseId(11), CentreId(1), "10-Day", "2026-09-01", "2026-09-12")
+
+    /**
+     * The second door onto the same bug: Advanced Search opens a result from a
+     * different course, which swaps the course without starting a desk session.
+     * The scan buffer must go with the course, or Check-in opens silently
+     * filtered by the previous course's conf number.
+     */
+    @Test
+    fun openingASearchResultFromAnotherCourseClearsTheScanBuffer() {
+        val before = DeskUiState(
+            course = courseTen,
+            courses = listOf(courseTen, courseEleven),
+            deskScan = "NF24",
+            deskGender = "Female",
+        )
+        val after = deskAdoptSearchCourse(before, card(1).copy(courseId = CourseId(11)))
+        assertEquals(CourseId(11), after.course?.id)
+        assertEquals("", after.deskScan)
+        // The tablet's own filters are not a course property; they stay.
+        assertEquals("Female", after.deskGender)
+    }
+
+    @Test
+    fun openingASearchResultInTheSameCourseKeepsTheScanBuffer() {
+        val before = DeskUiState(
+            course = courseTen,
+            courses = listOf(courseTen, courseEleven),
+            deskScan = "NF24",
+        )
+        val after = deskAdoptSearchCourse(before, card(1).copy(courseId = CourseId(10)))
+        assertEquals(CourseId(10), after.course?.id)
+        assertEquals("NF24", after.deskScan)
+    }
+
+    @Test
+    fun openingASearchResultFromAnUnlistedCourseChangesNothing() {
+        val before = DeskUiState(
+            course = courseTen,
+            courses = listOf(courseTen),
+            deskScan = "NF24",
+        )
+        val after = deskAdoptSearchCourse(before, card(1).copy(courseId = CourseId(99)))
+        assertEquals(CourseId(10), after.course?.id)
+        assertEquals("NF24", after.deskScan)
     }
 
     @Test

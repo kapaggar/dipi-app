@@ -193,6 +193,28 @@ fun deskOpenCourse(state: DeskUiState, course: Course): DeskUiState = state.copy
 )
 
 /**
+ * The search door onto the same swap. Advanced Search runs over the whole
+ * cache, so a result can belong to a course other than the open one; the row's
+ * course is adopted (when it is one of the listed upcoming/older courses) so
+ * the card pane has its context.
+ *
+ * That is still a course swap, so the session-scoped scan buffer goes with it —
+ * otherwise Check-in later opens silently filtered by the previous course's
+ * conf number, exactly as it did before [deskOpenCourse].
+ *
+ * Only the course and the scan move. This opens a Card, not a desk session: it
+ * does not cancel the worklist observer, so clearing the worklist buffers here
+ * would only have them refilled by the still-live collector. Starting a session
+ * is [deskOpenCourse]'s job, and it cancels that observer first.
+ */
+fun deskAdoptSearchCourse(state: DeskUiState, card: ApplicantCard): DeskUiState {
+    val course = (state.courses + state.olderCourses).firstOrNull { it.id == card.courseId }
+        ?: return state
+    if (state.course?.id == course.id) return state
+    return state.copy(course = course, deskScan = "")
+}
+
+/**
  * Rail counts for the v2 desk — derived from the worklist plus the local
  * check-in records, never stored, so the numbers cannot drift.
  */
@@ -746,12 +768,7 @@ class DeskViewModel @Inject constructor(
     fun openSearchResult(card: ApplicantCard) {
         // Adopt the row's course when it is one of the listed upcoming
         // or older courses, so the card pane has its context; otherwise leave as-is.
-        val listed = _state.value.courses + _state.value.olderCourses
-        listed.firstOrNull { it.id == card.courseId }?.let { course ->
-            if (_state.value.course?.id != course.id) {
-                _state.update { it.copy(course = course) }
-            }
-        }
+        _state.update { deskAdoptSearchCourse(it, card) }
         openCard(card)
     }
 
