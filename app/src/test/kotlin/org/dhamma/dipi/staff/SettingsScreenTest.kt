@@ -5,11 +5,13 @@ import androidx.compose.ui.test.assertIsNotSelected
 import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.assertIsSelected
+import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.unit.dp
 import org.dhamma.dipi.staff.model.Centre
 import org.dhamma.dipi.staff.model.CentreId
 import org.dhamma.dipi.staff.model.Session
@@ -26,8 +28,10 @@ import org.robolectric.annotation.Config
 
 // Pixel-C-shaped display: v4 frame 1d puts settings in two columns (left flexes,
 // right 428dp) at tablet width, and the whole page lands on one fold there — so
-// every node is displayed without scrolling. The stacked (<600dp) branch is
-// exercised by [stacksBelowSixHundredDp], which overrides the qualifiers.
+// every node is displayed without scrolling. The stacked branch is exercised at
+// both ends of its range by [stacksOnAPhone] and [stacksInTheSevenHundredBand]
+// (the 600–799dp band a 428dp right column cannot share), which override the
+// qualifiers.
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = "w1240dp-h844dp-land")
 class SettingsScreenTest {
@@ -323,10 +327,10 @@ class SettingsScreenTest {
         rule.onNodeWithText("App version").assertDoesNotExist()
     }
 
-    /** Below 600dp the two columns stack into the one scrolling page. */
+    /** A phone: the two columns stack into the one scrolling page. */
     @Test
     @Config(qualifiers = "w411dp-h891dp")
-    fun stacksBelowSixHundredDp() {
+    fun stacksOnAPhone() {
         rule.setContent {
             DipiTheme {
                 SettingsScreen(
@@ -345,5 +349,90 @@ class SettingsScreenTest {
         rule.onNodeWithText("TESTING").performScrollTo().assertIsDisplayed()
         rule.onNodeWithText("ACCOUNT & SESSION").performScrollTo().assertIsDisplayed()
         rule.onNodeWithText("Erase all local data").performScrollTo().assertIsDisplayed()
+    }
+
+    /**
+     * The 600–799dp band — 7"–9" tablets and split-screen. The right column is a
+     * hard 428dp, so two columns leave the left one too narrow for the 258dp
+     * ramp strips and the 169dp segmented control; the page stacks instead, and
+     * every control stays on screen and operable.
+     */
+    @Test
+    @Config(qualifiers = "w720dp-h1280dp")
+    fun stacksInTheSevenHundredBand() {
+        var themeTaps = 0
+        var offlineTaps = 0
+        var lotusTaps = 0
+        rule.setContent {
+            DipiTheme {
+                SettingsScreen(
+                    session = session,
+                    dark = false,
+                    lastSync = null,
+                    queued = 0,
+                    offline = false,
+                    onToggleTheme = { themeTaps++ },
+                    onToggleOffline = { offlineTaps++ },
+                    onLogout = {},
+                    lotus = true,
+                    onToggleLotus = { lotusTaps++ },
+                    appVersion = "1.22.0",
+                )
+            }
+        }
+        rule.onNodeWithText("Light").performScrollTo().assertIsSelected().assertIsDisplayed()
+        rule.onNodeWithText("Dark").performScrollTo().assertIsDisplayed().performClick()
+        assertEquals(1, themeTaps)
+
+        rule.onNodeWithTag("toggle-lotus").performScrollTo().assertIsDisplayed().assertIsOn().performClick()
+        assertEquals(1, lotusTaps)
+
+        rule.onNodeWithTag("toggle-offline").performScrollTo().assertIsDisplayed().assertIsOff().performClick()
+        assertEquals(1, offlineTaps)
+
+        rule.onNodeWithText("ACCOUNT & SESSION").performScrollTo().assertIsDisplayed()
+        rule.onNodeWithText("Erase all local data").performScrollTo().assertIsDisplayed()
+        assertRampsAreNotSqueezed()
+    }
+
+    /** The same invariant in the two-column branch, where the left column is narrowest. */
+    @Test
+    fun rampStripIsNotSqueezedInTheTwoColumnLayout() {
+        rule.setContent {
+            DipiTheme {
+                SettingsScreen(
+                    session = session,
+                    dark = false,
+                    lastSync = null,
+                    queued = 0,
+                    offline = false,
+                    onToggleTheme = {},
+                    onLogout = {},
+                )
+            }
+        }
+        assertRampsAreNotSqueezed()
+    }
+
+    /**
+     * A ramp strip is nine 26dp swatches with 3dp gaps — a 258dp `Row` that does
+     * not wrap, and the widest thing in the APPEARANCE card. Hand that card less
+     * interior than 258dp and `Row` clamps itself to the constraint while its
+     * children run past the clip, so the strip renders truncated. That is what a
+     * two-column split does below ~788dp, since the right column is a hard
+     * 428dp.
+     *
+     * `assertIsDisplayed` cannot see this — the truncated strip still intersects
+     * the window — so the assertion is on the laid-out width instead.
+     */
+    private fun assertRampsAreNotSqueezed() {
+        listOf("ramp-accent", "ramp-neutral").forEach { tag ->
+            val bounds = rule.onNodeWithTag(tag).getUnclippedBoundsInRoot()
+            val width = bounds.right - bounds.left
+            assertTrue(
+                "$tag was squeezed to $width; nine swatches and eight gaps need 258dp",
+                width >= 258.dp,
+            )
+        }
     }
 }

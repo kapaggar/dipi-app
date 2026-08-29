@@ -40,6 +40,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
@@ -95,7 +96,12 @@ fun SettingsScreen(
 ) {
     val c = LocalDipi.current
     var confirmReset by remember { mutableStateOf(false) }
-    val wide = LocalConfiguration.current.screenWidthDp >= 600
+    // Two columns need room for both: the right column is a hard 428dp, and the
+    // widest thing in the left one is a 258dp ramp strip beside its 36dp of card
+    // padding. Below ~788dp the left column cannot hold that, so the whole page
+    // stacks — the 600dp breakpoint the rest of the app uses would overflow the
+    // 600–787dp band (7"–9" tablets, split-screen) from the theme control down.
+    val wide = LocalConfiguration.current.screenWidthDp >= 800
     Column(
         Modifier
             .fillMaxSize()
@@ -192,7 +198,7 @@ private fun AppearanceCard(
 ) {
     val c = LocalDipi.current
     val industry = LocalIndustry.current
-    SettingsCard {
+    SettingsCard(Modifier.testTag("card-appearance")) {
         DeskKicker("APPEARANCE", c.muted)
         Row(
             Modifier
@@ -264,8 +270,8 @@ private fun AppearanceCard(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             if (dark) {
-                RampStrip("NIGHT ACCENT", NightAccentRamp, dark)
-                RampStrip("NIGHT NEUTRALS", NightNeutralRamp, dark)
+                RampStrip("NIGHT ACCENT", NightAccentRamp, dark, "ramp-accent")
+                RampStrip("NIGHT NEUTRALS", nightNeutralRamp(), dark, "ramp-neutral")
             } else {
                 RampStrip(
                     "ACCENT 100–900",
@@ -275,6 +281,7 @@ private fun AppearanceCard(
                         industry.accent700, industry.accent800, industry.accent900,
                     ),
                     dark,
+                    "ramp-accent",
                 )
                 RampStrip(
                     "NEUTRAL 100–900",
@@ -284,6 +291,7 @@ private fun AppearanceCard(
                         industry.neutral700, industry.neutral800, industry.neutral900,
                     ),
                     dark,
+                    "ramp-neutral",
                 )
             }
         }
@@ -349,9 +357,14 @@ private fun Segment(label: String, selected: Boolean, onSelect: () -> Unit) {
     }
 }
 
-/** Nine 26×18dp swatches — what a skin actually changes, which no sentence can say. */
+/**
+ * Nine 26×18dp swatches — what a skin actually changes, which no sentence can
+ * say. The strip is a fixed 258dp `Row` that does not wrap, so it is the widest
+ * thing in the APPEARANCE card and the piece the layout breakpoint has to keep
+ * room for; [tag] lets a test assert it still fits inside its card.
+ */
 @Composable
-private fun RampStrip(label: String, ramp: List<Color>, dark: Boolean) {
+private fun RampStrip(label: String, ramp: List<Color>, dark: Boolean, tag: String) {
     val c = LocalDipi.current
     val industry = LocalIndustry.current
     Column {
@@ -364,7 +377,7 @@ private fun RampStrip(label: String, ramp: List<Color>, dark: Boolean) {
             color = if (dark) c.muted.copy(alpha = 0.7f) else industry.neutral500,
             modifier = Modifier.padding(bottom = 7.dp),
         )
-        Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+        Row(Modifier.testTag(tag), horizontalArrangement = Arrangement.spacedBy(3.dp)) {
             ramp.forEach { swatch ->
                 Box(
                     Modifier
@@ -616,16 +629,37 @@ private fun SwitchRow(
  */
 private val NightAccentText = IndustryPalette.Steel.accent300
 
-/** Frame 1e's `NIGHT ACCENT` strip, ground → light. */
+/**
+ * Frame 1e's `NIGHT ACCENT` strip, ground → light. Six rungs are the Steel
+ * accent ladder read from its token block; rungs 2, 4 and 6 are literals
+ * **invented by the frame** — interpolations between the Steel rungs with no
+ * token and no README source behind them. They are parked as drawn: if the
+ * accent ladder ever gains those steps, replace them with the tokens.
+ */
 private val NightAccentRamp = listOf(
-    Color(0xFF1D2D3D), Color(0xFF25384B), Color(0xFF2C455D),
-    Color(0xFF365670), Color(0xFF416180), Color(0xFF4E7195),
-    Color(0xFF5980A6), Color(0xFF749DC4), Color(0xFFB5D9FD),
+    IndustryPalette.Steel.accent900,
+    Color(0xFF25384B), // no token — frame interpolation between accent900/800
+    IndustryPalette.Steel.accent800,
+    Color(0xFF365670), // no token — frame interpolation between accent800/700
+    IndustryPalette.Steel.accent700,
+    Color(0xFF4E7195), // no token — frame interpolation between accent700/accent
+    IndustryPalette.Steel.accent,
+    IndustryPalette.Steel.accent500,
+    IndustryPalette.Steel.accent300,
 )
 
-/** The Steel night ladder (`version-4/README.md`, Design tokens). */
-private val NightNeutralRamp = listOf(
-    Color(0xFF14171A), Color(0xFF1A1E22), Color(0xFF22272C),
-    Color(0xFF2E3339), Color(0xFF3A4046), Color(0xFF4A5157),
-    Color(0xFF6B7278), Color(0xFF9BA1A8), Color(0xFFE4E6E9),
-)
+/**
+ * The Steel night ladder, read live off the theme rather than copied out of it —
+ * this strip's whole job is to show what the night ramp actually is, so a hand-
+ * kept list would start lying the moment `DarkDipi` moved. Only rung 7 has no
+ * token of its own; it is derived from the two either side of it.
+ */
+@Composable
+private fun nightNeutralRamp(): List<Color> {
+    val c = LocalDipi.current
+    return listOf(
+        c.background, c.field, c.hover, c.hairline, c.hairlineStrong, c.snack,
+        lerp(c.snack, c.muted, 0.45f),
+        c.muted, c.foreground,
+    )
+}
