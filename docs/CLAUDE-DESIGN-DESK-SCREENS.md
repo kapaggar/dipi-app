@@ -70,8 +70,8 @@ Rooms, Centre settings, Audit, and Calling are full-width on both.
 
 After login. Header: centre name from account + signed-in user.
 Upcoming courses as a short list (name, dates, "starts in N days").
-Then a tile grid of centre ops: Centre Settings, Manage Courses, Advanced
-Search, Daily Activity, SMS Report, Course Report, Bulk Mail.
+Then a tile grid of centre ops: Centre Settings, Advanced Search, Course
+Report, Bulk Mail.
 Do not add Letters, AT, Referral.
 
 ### 2. Course hub (first window after picking a course)

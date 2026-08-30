@@ -24,6 +24,14 @@ The prototype still describes an earlier desk. Three owner rounds after v3 lande
 | Sync banners split | One strip that said “offline” while online if anything was queued | Two strips: offline (`◍ Offline — showing cached list`) then queued (`N change(s) waiting to sync` + RETRY). Desk rail already distinguished | `09`, `11` |
 | App Settings is a tile | Settings only from overflow | Native tile on the centre desk row | `02` |
 
+### 2026-08-30 — three desk destinations retired
+
+| Destination | Reason |
+|---|---|
+| Manage Courses | removed from the app on owner instruction; still reachable on the desk site |
+| Daily Activity | removed from the app on owner instruction; still reachable on the desk site |
+| SMS Report | removed from the app on owner instruction; still reachable on the desk site |
+
 ---
 
 ## Current Industry tokens (`Skin.kt`)
