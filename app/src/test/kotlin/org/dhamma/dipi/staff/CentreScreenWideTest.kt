@@ -1,6 +1,8 @@
 package org.dhamma.dipi.staff
 
+import androidx.compose.ui.test.SemanticsNodeInteraction
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
@@ -27,8 +29,9 @@ import org.robolectric.annotation.Config
 
 /**
  * The wide (Pixel-C-shaped) branch of [CentreScreen]: a fixed header above
- * two independently-scrolling 60/40 regions. Before this file, no test ran
- * at a `screenWidthDp >= 600` config, so this branch was compiled but never
+ * an upcoming-courses region capped at 60% of the space below it, and a lower
+ * pane taking all the rest. Before this file, no test ran at a
+ * `screenWidthDp >= 600` config, so this branch was compiled but never
  * executed (whole-branch review finding 1).
  */
 @RunWith(RobolectricTestRunner::class)
@@ -64,12 +67,12 @@ class CentreScreenWideTest {
                 )
             }
         }
-        // Upper (0.6) region: upcoming courses.
+        // Upper region: upcoming courses.
         rule.onNodeWithText("Upcoming courses").assertIsDisplayed()
         rule.onNodeWithText("10-Day").assertIsDisplayed()
-        // Lower (0.4) region: with no older courses the desk column takes the
-        // whole pane and never scrolls, so its content must already be on
-        // screen — no performScrollTo() to lean on.
+        // Lower region: with no older courses the desk column takes the whole
+        // pane and never scrolls, so its content must already be on screen —
+        // no performScrollTo() to lean on.
         rule.onNodeWithText("Centre desk").assertIsDisplayed()
         rule.onNodeWithText("Centre Settings").assertIsDisplayed()
     }
@@ -105,10 +108,10 @@ class CentreScreenWideTest {
     @Test
     fun shortUpcomingListLeavesNoDeadBandBeforeOlderCourses() {
         // Owner feedback 2026-08-27: "useless space. keep the UI tight" — a
-        // short upcoming list must not leave the 0.6-weighted region padded
-        // out to its full share, pushing "Older courses" out of the initial
-        // frame. Modifier.weight(0.6f, fill = false) makes the 60% a ceiling,
-        // not an exact allocation, so both regions land in the same frame
+        // short upcoming list must not be padded out to its full share,
+        // pushing "Older courses" out of the initial frame. The upcoming
+        // region wraps its content under a heightIn(max = 60%) cap rather
+        // than claiming a fixed slot, so both regions land in the same frame
         // with no intervening scroll required to reach the heading.
         val older = Course(CourseId(8), CentreId(1), "Dhamma Sudha / 10 Day / 2026", "2026-08-06", "2026-08-17")
         rule.setContent {
@@ -157,6 +160,132 @@ class CentreScreenWideTest {
         deskSiteTiles.forEach {
             rule.onNodeWithText(it.title).performScrollTo().assertIsDisplayed()
         }
+    }
+
+    @Test
+    fun deskSiteChipsStayAboveTheFoldWithOlderCoursesPresent() {
+        // The dead-band regression this pins: Compose reserves a weighted
+        // child's slot from the weight ratio alone and never redistributes
+        // what a `fill = false` child declines — so against the old
+        // weight(0.6f)/weight(0.4f) pair the lower pane stayed clamped to 40%
+        // while ~292px sat empty at the bottom of the screen, pushing the
+        // tail of the desk column (the kicker and the two chips) past the
+        // fold. The lower pane's weight(1f) now takes the whole remainder.
+        //
+        // No performScrollTo() anywhere in this test: that is the whole
+        // assertion. It fails against weight(0.4f).
+        val older = Course(CourseId(8), CentreId(1), "Dhamma Sudha / 10 Day / 2026", "2026-08-06", "2026-08-17")
+        rule.setContent {
+            DipiTheme {
+                CentreScreen(
+                    session = singleCentreSession,
+                    courses = listOf(course),
+                    onPick = {},
+                    olderCourses = listOf(older),
+                )
+            }
+        }
+        rule.onNodeWithText("Older courses").assertIsDisplayed()
+        rule.onNodeWithText("Centre desk").assertIsDisplayed()
+        rule.onNodeWithText("MORE ON THE DESK SITE").assertWhollyOnScreen()
+        rule.onNodeWithText("Course Report").assertWhollyOnScreen()
+        rule.onNodeWithText("Bulk Mail").assertWhollyOnScreen()
+    }
+
+    @Test
+    fun allFourUpcomingCoursesStayWhollyOnScreen() {
+        // S2 removed the upcoming pane's scroll on the premise that its
+        // content is bounded and fits under the 60% ceiling: at most four
+        // courses (`limit 4` in the backend's `upcoming_courses()`), two per
+        // row, every card the same fixed height. With no scroll, anything
+        // that does not fit is not merely awkward — it is invisible and
+        // unreachable, so the premise has to be pinned, not asserted in a
+        // comment.
+        //
+        // This is also what stops the dead-band fix from being a re-weighting:
+        // any weight ratio that hands the leftover downward also lowers this
+        // ceiling (weight(0.6f) beside a weight(1f) sibling is a 37.5%
+        // ceiling, which clips the second card row away entirely). Hence the
+        // measured heightIn(max = 60%) cap, which holds both properties.
+        val matrix = CourseMatrix(
+            rows = listOf(
+                MatrixRow("Received", newMale = 1, newFemale = 1),
+                MatrixRow("Confirmed", newMale = 41, oldMale = 17, newFemale = 33, oldFemale = 9),
+                MatrixRow("Cancelled", newMale = 2, newFemale = 1),
+            ),
+            total = MatrixRow("Total", newMale = 44, oldMale = 17, newFemale = 35, oldFemale = 9),
+        )
+        val upcoming = (1..4).map {
+            course.copy(id = CourseId(it), name = "Course $it", matrix = matrix)
+        }
+        rule.setContent {
+            DipiTheme {
+                CentreScreen(
+                    session = singleCentreSession,
+                    courses = upcoming,
+                    onPick = {},
+                    olderCourses = emptyList(),
+                )
+            }
+        }
+        upcoming.forEach {
+            rule.onNodeWithText(it.name, useUnmergedTree = true).onParent().assertWhollyOnScreen()
+        }
+    }
+
+    @Test
+    fun theLowerPaneStillNeedsItsScrollAtTheBoundedWorstCase() {
+        // Why the pane keeps its verticalScroll even after weight(1f): the
+        // worst case the desk can serve still overflows it. Header capped at
+        // 220dp by 8 centres, the backend's full four upcoming courses each
+        // carrying a matrix (the tallest card there is), and OLDER_COURSE_LIMIT
+        // older courses. The chips are then only reachable by scrolling — so a
+        // missing scroll here would strand a control, and performScrollTo()
+        // would fail outright with no scrollable ancestor.
+        val matrix = CourseMatrix(
+            rows = listOf(
+                MatrixRow("Received", newMale = 1, newFemale = 1),
+                MatrixRow("Confirmed", newMale = 41, oldMale = 17, newFemale = 33, oldFemale = 9),
+                MatrixRow("Cancelled", newMale = 2, newFemale = 1),
+            ),
+            total = MatrixRow("Total", newMale = 44, oldMale = 17, newFemale = 35, oldFemale = 9),
+        )
+        val upcoming = (1..4).map {
+            course.copy(id = CourseId(it), name = "Course $it", matrix = matrix)
+        }
+        val older = (5..7).map {
+            Course(CourseId(it), CentreId(1), "Older course $it", "2026-07-06", "2026-07-17")
+        }
+        rule.setContent {
+            DipiTheme {
+                CentreScreen(
+                    session = singleCentreSession.copy(
+                        centres = (1..8).map { Centre(CentreId(it), "Dhamma Centre $it") },
+                    ),
+                    courses = upcoming,
+                    onPick = {},
+                    olderCourses = older,
+                )
+            }
+        }
+        rule.onNodeWithText("Older courses").assertIsDisplayed()
+        deskSiteTiles.forEach {
+            rule.onNodeWithText(it.title).performScrollTo().assertIsDisplayed()
+        }
+    }
+
+    /**
+     * Stronger than [assertIsDisplayed], which is satisfied by a single
+     * visible pixel — against `weight(0.4f)` the chips hung 26dp below the
+     * pane and still "displayed". A node is only above the fold when the
+     * pane's clip takes nothing off it, i.e. its clipped bounds are its
+     * unclipped bounds.
+     */
+    private fun SemanticsNodeInteraction.assertWhollyOnScreen() {
+        val clipped = getBoundsInRoot()
+        val unclipped = getUnclippedBoundsInRoot()
+        assertEquals(unclipped.top.value, clipped.top.value, 1f)
+        assertEquals(unclipped.bottom.value, clipped.bottom.value, 1f)
     }
 
     @Test

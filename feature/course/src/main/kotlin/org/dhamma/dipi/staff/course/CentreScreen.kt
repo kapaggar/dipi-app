@@ -100,10 +100,10 @@ fun CentreScreen(
             )
         }
         if (wide) {
-            // Fixed header over two independently scrolling regions —
-            // upcoming courses dominate at 60%, everything else gets 40%
-            // (owner feedback 2026-08-27). Weights, not fillMaxHeight
-            // fractions, so nothing nests a same-axis verticalScroll.
+            // Fixed header over two regions — upcoming courses take up to 60%
+            // and the lower pane takes the rest (owner feedback 2026-08-27,
+            // amended 2026-08-30). No fillMaxHeight fractions, so nothing
+            // nests a same-axis verticalScroll.
             Column(Modifier.fillMaxSize()) {
                 Column(
                     Modifier
@@ -111,44 +111,68 @@ fun CentreScreen(
                         .padding(horizontal = 20.dp, vertical = 20.dp),
                 ) {
                     // Bounded so an account with many centres can never
-                    // squeeze the weighted regions below toward 0dp (owner
-                    // feedback 2026-08-27) — the switcher list scrolls
-                    // within this cap instead of pushing content out.
+                    // squeeze the regions below toward 0dp (owner feedback
+                    // 2026-08-27) — the switcher list scrolls within this cap
+                    // instead of pushing content out.
                     CentreHeaderBlock(session, centre, onPickCentre, maxListHeight = 160.dp)
                 }
-                // No scroll here (owner decision 2026-08-30): the block is
-                // bounded. The desk serves at most four upcoming courses
-                // (`limit 4` in the backend's `upcoming_courses()`), rendered
-                // two per row, so the pane holds at most two card rows; and
-                // every card is now the same fixed height (S3, `cardRows`).
-                // Both premises are load-bearing — if either changed, this
-                // pane would clip rather than scroll.
-                Column(
-                    Modifier
-                        .weight(0.6f, fill = false)
-                        .padding(horizontal = 20.dp),
-                ) {
-                    UpcomingCoursesBlock(courses, columns, onPick)
-                }
-                // Owner decision 2026-08-30: the lower pane no longer splits
-                // into two columns — older courses take the full width on the
-                // upcoming grid, with the desk column stacked beneath.
-                Box(
-                    Modifier
-                        .weight(0.4f)
-                        .padding(horizontal = 20.dp)
-                        .padding(top = 12.dp, bottom = 8.dp),
-                ) {
-                    WideLowerPane(
-                        olderCourses = olderCourses,
-                        columns = columns,
-                        cid = cid,
-                        onPick = onPick,
-                        onLater = onLater,
-                        onCentreOps = onCentreOps,
-                        onAdvancedSearch = onAdvancedSearch,
-                        onSettings = onSettings,
-                    )
+                // The 60/40 split cannot be two sibling weights any more.
+                // Compose reserves a weighted child's slot from the weight
+                // ratio alone and never redistributes what a `fill = false`
+                // child declines, so weight(0.6f)/weight(0.4f) left the space
+                // upcoming turned down (~292px on the Pixel C) dead at the
+                // bottom of the screen, with the lower pane still clamped to
+                // 40% and its chips pushed past the fold. Re-weighting cannot
+                // fix that: any ratio that hands the leftover downward also
+                // lowers the upcoming ceiling (0.6f beside 1f is a 37.5%
+                // ceiling, which clips the second card row away entirely).
+                //
+                // So the ceiling is measured rather than weighted:
+                // BoxWithConstraints gives the height below the header,
+                // upcoming is capped at 60% of it, and the lower pane's
+                // weight(1f) takes everything else — the full remainder when
+                // upcoming declines its share. Both properties hold at once.
+                BoxWithConstraints(Modifier.weight(1f)) {
+                    val belowHeader = maxHeight
+                    Column(Modifier.fillMaxSize()) {
+                        // No scroll here (owner decision 2026-08-30): the
+                        // block is bounded. The desk serves at most four
+                        // upcoming courses (`limit 4` in the backend's
+                        // `upcoming_courses()`), rendered two per row, so the
+                        // pane holds at most two card rows; and every card is
+                        // now the same fixed height (S3, `cardRows`). Both
+                        // premises are load-bearing — if either changed, this
+                        // pane would clip rather than scroll, and a clipped
+                        // card here is unreachable, not merely cut off.
+                        Column(
+                            Modifier
+                                .heightIn(max = belowHeader * 0.6f)
+                                .padding(horizontal = 20.dp),
+                        ) {
+                            UpcomingCoursesBlock(courses, columns, onPick)
+                        }
+                        // Owner decision 2026-08-30: the lower pane no longer
+                        // splits into two columns — older courses take the
+                        // full width on the upcoming grid, with the desk
+                        // column stacked beneath.
+                        Box(
+                            Modifier
+                                .weight(1f)
+                                .padding(horizontal = 20.dp)
+                                .padding(top = 12.dp, bottom = 8.dp),
+                        ) {
+                            WideLowerPane(
+                                olderCourses = olderCourses,
+                                columns = columns,
+                                cid = cid,
+                                onPick = onPick,
+                                onLater = onLater,
+                                onCentreOps = onCentreOps,
+                                onAdvancedSearch = onAdvancedSearch,
+                                onSettings = onSettings,
+                            )
+                        }
+                    }
                 }
             }
         } else {
