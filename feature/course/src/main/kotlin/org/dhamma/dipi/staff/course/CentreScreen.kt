@@ -402,6 +402,10 @@ private fun OlderCourseRow(
             fontSize = 16.sp,
             lineHeight = 19.sp,
             color = c.foreground,
+            // Finding 2: same treatment as the upcoming card's name — pin
+            // the slot to two lines so older buttons in the same grid row
+            // don't diverge in height depending on how long the name is.
+            minLines = 2,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f),
@@ -570,6 +574,14 @@ private fun CourseCard(
             .padding(start = 14.dp, end = 14.dp, top = 11.dp, bottom = 9.dp),
         verticalArrangement = Arrangement.spacedBy(3.dp),
     ) {
+        // Gate-review fix (Finding 1): a card's height must not depend on
+        // its content. The name slot is pinned to exactly two lines — a
+        // one-line name still reserves the second line's height instead of
+        // shrinking the card — and the date / "starts in" line renders
+        // unconditionally so its slot is reserved even when blank. Compose
+        // still lays out an empty string at the style's line height (Text
+        // defaults to minLines = 1), so a blank line here costs the same
+        // height as a filled one; no magic dp guess needed.
         Text(
             course.name,
             fontFamily = DipiCondensed,
@@ -577,17 +589,21 @@ private fun CourseCard(
             lineHeight = 20.sp,
             letterSpacing = 0.2.sp,
             color = c.foreground,
+            minLines = 2,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
         )
-        if (course.start.isNotBlank() || course.end.isNotBlank()) {
-            Text(
-                listOf(course.start, course.end).filter { it.isNotBlank() }.joinToString(" – "),
-                color = c.muted,
-                fontSize = 13.sp,
-            )
-        }
-        if (first && days > 0) {
-            Text("STARTS IN $days DAYS", color = c.accent, fontFamily = DipiCondensed, fontSize = 12.sp)
-        }
+        Text(
+            listOf(course.start, course.end).filter { it.isNotBlank() }.joinToString(" – "),
+            color = c.muted,
+            fontSize = 13.sp,
+        )
+        Text(
+            if (first && days > 0) "STARTS IN $days DAYS" else "",
+            color = c.accent,
+            fontFamily = DipiCondensed,
+            fontSize = 12.sp,
+        )
         val matrix = course.matrix
         if (matrix != null) {
             CourseMatrixTable(matrix, modifier = Modifier.padding(top = 9.dp))

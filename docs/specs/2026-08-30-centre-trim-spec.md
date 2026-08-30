@@ -42,8 +42,17 @@ document the *server*, not the app's surface. They stay accurate as-is.
 ## S2 — No scroll on upcoming courses
 
 The upcoming pane is `weight(0.6f, fill = false).verticalScroll(...)`
-(`CentreScreen.kt:121-122`). Remove the `verticalScroll` and its scroll state;
-keep `weight(0.6f, fill = false)`.
+(`CentreScreen.kt:121-122`). Remove the `verticalScroll` and its scroll state.
+
+**Correction (gate-review, 2026-08-30):** `weight(0.6f, fill = false)` was
+never re-added, and should not be. A weighted child's slot is `weight /
+total weight`, so `0.6f` beside the lower pane's `1f` is a 37.5% ceiling, not
+60%, and it clips the second card row away entirely. What shipped instead:
+`BoxWithConstraints` around the region below the header measures
+`belowHeader`, the upcoming `Column` is capped with
+`heightIn(max = belowHeader * 0.6f)`, and the lower pane takes
+`Modifier.weight(1f)` — so upcoming gets a true 60% ceiling and the lower
+pane gets the full remainder, including whatever upcoming declines to use.
 
 **Safe because the content is bounded:** the desk serves at most four upcoming
 courses (`upcoming_courses()` in `inc/centre.inc` — `limit 4`), rendered two per

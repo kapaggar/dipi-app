@@ -2,11 +2,14 @@ package org.dhamma.dipi.staff
 
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onParent
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.unit.height
 import org.dhamma.dipi.staff.course.CentreScreen
 import org.dhamma.dipi.staff.course.DeskTileAction
 import org.dhamma.dipi.staff.course.centreDeskTiles
@@ -323,6 +326,58 @@ class CentreScreenTest {
     }
 
     @Test
+    fun coursesWithDifferentlyWrappingNamesGetEqualHeightCards() {
+        // Gate-review Finding 1: the owner's literal request was to
+        // "standardize the heights of the boxes of coming courses". A prior
+        // pass fixed the matrix rows (S3) but left CourseCard's name Text
+        // without a maxLines/minLines, so a real course name long enough to
+        // wrap ("Dhamma Sudha / 10 Day / 2026 / 6th-Aug to 17th-Aug") made a
+        // taller card than a short one ("10-Day") beside it. That matters
+        // beyond cosmetics: the upcoming pane has no scroll (S2) and is
+        // capped at 60% of the space below the header, so a taller row can
+        // push later cards past the cap where they are unreachable.
+        //
+        // Robolectric's default (legacy) graphics shadow does not perform
+        // real width-based line breaking for Compose Text — measured in
+        // isolation, the same 51-character string stays a single line no
+        // matter how narrow the container is given. It does honor an
+        // explicit line break, though, which is what a real device's word
+        // wrap would produce at this exact point, so the long name carries
+        // one to get a genuine two-line layout deterministically. Both
+        // courses share the same (past) dates so neither renders
+        // "STARTS IN N DAYS" — the only variable that reaches the assertion
+        // is the name's line count.
+        val longNameCourse = Course(
+            CourseId(30),
+            CentreId(1),
+            "Dhamma Sudha / 10 Day / 2026 /\n6th-Aug to 17th-Aug",
+            "2026-07-06",
+            "2026-07-17",
+        )
+        val shortNameCourse = Course(
+            CourseId(31),
+            CentreId(1),
+            "10-Day",
+            "2026-07-06",
+            "2026-07-17",
+        )
+        rule.setContent {
+            DipiTheme {
+                CentreScreen(
+                    session = session,
+                    courses = listOf(longNameCourse, shortNameCourse),
+                    onPick = {},
+                )
+            }
+        }
+        val longCardHeight = rule.onNodeWithText(longNameCourse.name, useUnmergedTree = true)
+            .onParent().getUnclippedBoundsInRoot().height
+        val shortCardHeight = rule.onNodeWithText(shortNameCourse.name, useUnmergedTree = true)
+            .onParent().getUnclippedBoundsInRoot().height
+        assertEquals(longCardHeight.value, shortCardHeight.value, 1f)
+    }
+
+    @Test
     fun zeroMatrixCellRendersAsMiddot() {
         val zeroMatrix = CourseMatrix(
             rows = listOf(MatrixRow("Confirmed", newMale = 5, oldMale = 0, newFemale = 3, oldFemale = 2)),
@@ -351,7 +406,12 @@ class CentreScreenTest {
             }
         }
         rule.onNodeWithText("Confirmed 77 | Cancelled 7 | Received 2 | Total 111").assertIsDisplayed()
-        rule.onNodeWithText("NM  OM  M  ·  NF  OF  F").assertDoesNotExist()
+        // Gate-review fix (Finding 3): the fallback is exclusive — with no
+        // matrix, the matrix table itself never renders alongside the counts
+        // line, so its "NM" column header is genuinely absent rather than
+        // just untested. (The prior assertion here checked for a literal
+        // string no code path ever emits.)
+        rule.onNodeWithText("NM").assertDoesNotExist()
     }
 
     @Test

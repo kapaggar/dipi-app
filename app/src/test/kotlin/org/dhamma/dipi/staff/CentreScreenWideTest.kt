@@ -71,10 +71,11 @@ class CentreScreenWideTest {
         rule.onNodeWithText("Upcoming courses").assertIsDisplayed()
         rule.onNodeWithText("10-Day").assertIsDisplayed()
         // Lower region: with no older courses the desk column takes the whole
-        // pane and never scrolls, so its content must already be on screen —
-        // no performScrollTo() to lean on.
-        rule.onNodeWithText("Centre desk").assertIsDisplayed()
-        rule.onNodeWithText("Centre Settings").assertIsDisplayed()
+        // pane and never scrolls, so its content must already be wholly on
+        // screen — no performScrollTo() to lean on, and assertIsDisplayed()
+        // alone would pass on a single visible pixel.
+        rule.onNodeWithText("Centre desk").assertWhollyOnScreen()
+        rule.onNodeWithText("Centre Settings").assertWhollyOnScreen()
     }
 
     @Test
@@ -100,9 +101,10 @@ class CentreScreenWideTest {
         rule.onNodeWithText("Upcoming courses").assertIsDisplayed()
         rule.onNodeWithText("10-Day").assertIsDisplayed()
         // Lower region is still reachable, not squeezed to 0dp. The desk
-        // column has no scroll of its own, so "displayed" is the whole test.
-        rule.onNodeWithText("Centre desk").assertIsDisplayed()
-        rule.onNodeWithText("Centre Settings").assertIsDisplayed()
+        // column has no scroll of its own, so being wholly on screen (not
+        // merely one visible pixel via assertIsDisplayed()) is the whole test.
+        rule.onNodeWithText("Centre desk").assertWhollyOnScreen()
+        rule.onNodeWithText("Centre Settings").assertWhollyOnScreen()
     }
 
     @Test
@@ -127,8 +129,9 @@ class CentreScreenWideTest {
         rule.onNodeWithText("Upcoming courses").assertIsDisplayed()
         rule.onNodeWithText("10-Day").assertIsDisplayed()
         // No performScrollTo() before this assertion — proving the heading
-        // is already on screen, not stranded below a dead band.
-        rule.onNodeWithText("Older courses").assertIsDisplayed()
+        // is already wholly on screen, not stranded below a dead band (and
+        // not merely one visible pixel via assertIsDisplayed()).
+        rule.onNodeWithText("Older courses").assertWhollyOnScreen()
     }
 
     @Test
