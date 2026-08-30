@@ -1,10 +1,13 @@
 package org.dhamma.dipi.staff
 
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onParent
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.unit.width
 import org.dhamma.dipi.staff.course.CentreScreen
 import org.dhamma.dipi.staff.course.centreDeskTiles
 import org.dhamma.dipi.staff.model.Centre
@@ -64,9 +67,9 @@ class CentreScreenWideTest {
         // Upper (0.6) region: upcoming courses.
         rule.onNodeWithText("Upcoming courses").assertIsDisplayed()
         rule.onNodeWithText("10-Day").assertIsDisplayed()
-        // Lower (0.4) region: v4 frame 1a makes the right-hand desk column a
-        // fixed 416dp band that never scrolls, so its content must already be
-        // on screen — no performScrollTo() to lean on any more.
+        // Lower (0.4) region: with no older courses the desk column takes the
+        // whole pane and never scrolls, so its content must already be on
+        // screen — no performScrollTo() to lean on.
         rule.onNodeWithText("Centre desk").assertIsDisplayed()
         rule.onNodeWithText("Centre Settings").assertIsDisplayed()
     }
@@ -126,13 +129,13 @@ class CentreScreenWideTest {
     }
 
     @Test
-    fun lowerPaneSplitsIntoOlderCoursesAndAFixedDeskColumn() {
-        // v4 frame 1a: the lower 40% is two columns — a flexing "Older
-        // courses" column with its own scroll on the left, and a fixed
-        // 416dp "Centre desk" column on the right that does not scroll.
-        // Everything the desk column holds is therefore on screen at once:
-        // the three in-app tiles, the rule + kicker, and the five desk-site
-        // chips.
+    fun lowerPaneStacksOlderCoursesAboveAFullWidthDeskColumn() {
+        // S4 (owner decision 2026-08-30): the side-by-side split is gone.
+        // Older courses take the pane's full width on the upcoming grid, and
+        // the desk column stacks beneath them, also full width — three tiles
+        // across, then the rule + kicker and the two surviving desk-site
+        // chips. The pane keeps the scroll the older column used to carry, so
+        // the tail of the stack is reachable rather than lost.
         val older = Course(CourseId(8), CentreId(1), "Dhamma Sudha / 10 Day / 2026", "2026-08-06", "2026-08-17")
         rule.setContent {
             DipiTheme {
@@ -150,13 +153,43 @@ class CentreScreenWideTest {
         rule.onNodeWithText("Centre Settings").assertIsDisplayed()
         rule.onNodeWithText("Advanced Search").assertIsDisplayed()
         rule.onNodeWithText("App Settings").assertIsDisplayed()
-        rule.onNodeWithText("MORE ON THE DESK SITE").assertIsDisplayed()
-        deskSiteTiles.forEach { rule.onNodeWithText(it.title).assertIsDisplayed() }
+        rule.onNodeWithText("MORE ON THE DESK SITE").performScrollTo().assertIsDisplayed()
+        deskSiteTiles.forEach {
+            rule.onNodeWithText(it.title).performScrollTo().assertIsDisplayed()
+        }
+    }
+
+    @Test
+    fun olderCourseButtonsAreAsWideAsAnUpcomingCard() {
+        // S4: older courses render on the same two-column grid as upcoming
+        // courses, inside a pane with the same horizontal insets — so an
+        // older button is exactly as wide as an upcoming card, the "mid way"
+        // the owner asked for. Compare the clickable rows themselves (the
+        // Text nodes' semantic parent), not the label nodes.
+        val older = listOf(
+            Course(CourseId(8), CentreId(1), "Older course A", "2026-08-06", "2026-08-17"),
+            Course(CourseId(9), CentreId(1), "Older course B", "2026-07-06", "2026-07-17"),
+        )
+        rule.setContent {
+            DipiTheme {
+                CentreScreen(
+                    session = singleCentreSession,
+                    courses = listOf(course),
+                    onPick = {},
+                    olderCourses = older,
+                )
+            }
+        }
+        val cardWidth = rule.onNodeWithText("10-Day", useUnmergedTree = true)
+            .onParent().getUnclippedBoundsInRoot().width
+        val buttonWidth = rule.onNodeWithText("Older course A", useUnmergedTree = true)
+            .onParent().getUnclippedBoundsInRoot().width
+        assertEquals(cardWidth.value, buttonWidth.value, 1f)
     }
 
     @Test
     fun deskSiteChipsStillFireOnLaterWithTheSameTitleAndRoute() {
-        // The 3/5 split is a rendering change only: the five `action == null`
+        // The 3/2 split is a rendering change only: the `action == null`
         // entries become pill chips, and each still hands `onLater` exactly
         // the (title, route) pair `centreDeskTiles` publishes.
         val fired = mutableListOf<Pair<String, String>>()

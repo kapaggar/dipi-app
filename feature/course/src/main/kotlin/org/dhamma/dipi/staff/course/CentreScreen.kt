@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -41,6 +40,7 @@ import org.dhamma.dipi.staff.model.CourseMatrix
 import org.dhamma.dipi.staff.model.CourseSummary
 import org.dhamma.dipi.staff.model.MatrixRow
 import org.dhamma.dipi.staff.model.Session
+import org.dhamma.dipi.staff.model.cardRows
 import org.dhamma.dipi.staff.ui.theme.DeskStyle
 import org.dhamma.dipi.staff.ui.theme.DipiCondensed
 import org.dhamma.dipi.staff.ui.theme.DipiMono
@@ -116,19 +116,23 @@ fun CentreScreen(
                     // within this cap instead of pushing content out.
                     CentreHeaderBlock(session, centre, onPickCentre, maxListHeight = 160.dp)
                 }
+                // No scroll here (owner decision 2026-08-30): the block is
+                // bounded. The desk serves at most four upcoming courses
+                // (`limit 4` in the backend's `upcoming_courses()`), rendered
+                // two per row, so the pane holds at most two card rows; and
+                // every card is now the same fixed height (S3, `cardRows`).
+                // Both premises are load-bearing — if either changed, this
+                // pane would clip rather than scroll.
                 Column(
                     Modifier
                         .weight(0.6f, fill = false)
-                        .verticalScroll(rememberScrollState())
                         .padding(horizontal = 20.dp),
                 ) {
                     UpcomingCoursesBlock(courses, columns, onPick)
                 }
-                // Frame 1a: the lower pane is two columns, not a scroll of its
-                // own — older courses keep a scroll on the left, the desk
-                // column on the right is fixed at 416dp and never scrolls, so
-                // all three in-app tiles and the five desk-site chips are
-                // always on screen.
+                // Owner decision 2026-08-30: the lower pane no longer splits
+                // into two columns — older courses take the full width on the
+                // upcoming grid, with the desk column stacked beneath.
                 Box(
                     Modifier
                         .weight(0.4f)
@@ -137,6 +141,7 @@ fun CentreScreen(
                 ) {
                     WideLowerPane(
                         olderCourses = olderCourses,
+                        columns = columns,
                         cid = cid,
                         onPick = onPick,
                         onLater = onLater,
@@ -240,9 +245,18 @@ private fun UpcomingCoursesBlock(
 }
 
 /**
- * The wide lower pane (frame 1a): a flexing "Older courses" column with its
- * own scroll on the left, and a fixed 416dp "Centre desk" column on the right
- * that does not scroll — everything it holds is on screen at once.
+ * The wide lower pane. Owner decision 2026-08-30: the older-course buttons
+ * were noticeably narrower than the upcoming cards above them, so they now
+ * render on the **same [columns] grid**, inside a pane with the same
+ * horizontal insets — an older button is exactly as wide as an upcoming card.
+ *
+ * That needs the full pane width, so the side-by-side split is gone: older
+ * courses stack, then the "Centre desk" column beneath them, also full width
+ * and therefore laid out exactly as the no-older-courses case always did
+ * (three tiles across at 52dp — one row, not three, which is what keeps the
+ * stack short enough to be worth stacking). The scroll the older column used
+ * to carry moves to the stack, so a long older list pushes the desk column
+ * into the scroll rather than off the pane.
  *
  * With no older courses (frame 1g) the heading stays omitted, as it always
  * was, and the desk column takes the full width with its three tiles across.
@@ -250,6 +264,7 @@ private fun UpcomingCoursesBlock(
 @Composable
 private fun WideLowerPane(
     olderCourses: List<Course>,
+    columns: Int,
     cid: Int,
     onPick: (Course) -> Unit,
     onLater: (String, String) -> Unit,
@@ -270,27 +285,29 @@ private fun WideLowerPane(
         )
         return
     }
-    Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(18.dp)) {
-        Column(Modifier.weight(1f).fillMaxHeight()) {
-            Text("Older courses", color = c.muted, modifier = Modifier.padding(bottom = 10.dp))
-            Column(
-                Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(6.dp),
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+        Text("Older courses", color = c.muted, modifier = Modifier.padding(bottom = 10.dp))
+        olderCourses.chunked(columns).forEach { row ->
+            Row(
+                Modifier.fillMaxWidth().padding(bottom = 6.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                olderCourses.forEach { course -> OlderCourseRow(course) { onPick(course) } }
+                row.forEach { course ->
+                    OlderCourseRow(course, Modifier.weight(1f)) { onPick(course) }
+                }
+                repeat(columns - row.size) { Spacer(Modifier.weight(1f)) }
             }
         }
-        Box(Modifier.width(416.dp)) {
-            CentreDeskColumn(
-                cid = cid,
-                tilesPerRow = 1,
-                tileHeight = 48.dp,
-                onLater = onLater,
-                onCentreOps = onCentreOps,
-                onAdvancedSearch = onAdvancedSearch,
-                onSettings = onSettings,
-            )
-        }
+        Spacer(Modifier.height(14.dp))
+        CentreDeskColumn(
+            cid = cid,
+            tilesPerRow = 3,
+            tileHeight = 52.dp,
+            onLater = onLater,
+            onCentreOps = onCentreOps,
+            onAdvancedSearch = onAdvancedSearch,
+            onSettings = onSettings,
+        )
     }
 }
 
@@ -339,10 +356,14 @@ private fun NarrowLowerPane(
  * frame 1a draws a single line.
  */
 @Composable
-private fun OlderCourseRow(course: Course, onClick: () -> Unit) {
+private fun OlderCourseRow(
+    course: Course,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+) {
     val c = LocalDipi.current
     Row(
-        Modifier
+        modifier
             .fillMaxWidth()
             .heightIn(min = 42.dp)
             .deskCard(shape = DeskStyle.controlShape, fill = c.field, border = c.hairline, elevation = 0.dp)
@@ -366,12 +387,13 @@ private fun OlderCourseRow(course: Course, onClick: () -> Unit) {
 }
 
 /**
- * The "Centre desk" column of frame 1a. The 3/5 split is
+ * The "Centre desk" column of frame 1a. The tile/chip split is
  * [DeskTileSpec.action]'s own: the three in-app destinations (Centre Settings,
  * Advanced Search, App Settings) are the transparent, zero-elevation tiles;
- * the five desk-site links become pill chips with a trailing `↗` under a
- * `MORE ON THE DESK SITE` kicker. Every callback fires exactly as before —
- * chips still hand `onLater` the catalogue's own (title, route) pair.
+ * the remaining desk-site links (two, after the S1 trim) become pill chips
+ * with a trailing `↗` under a `MORE ON THE DESK SITE` kicker. Every callback
+ * fires exactly as before — chips still hand `onLater` the catalogue's own
+ * (title, route) pair.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -580,8 +602,13 @@ private val MatrixCapsHeight = 15.dp
  * FEMALE group caps over the two trios, 12sp mono column labels with the M
  * and F subtotals darker than the four new/old columns, a hairline gutter
  * between the trios, neutral bands behind the two subtotal columns, one row
- * per [CourseMatrix.highlights] and an emphasised Total row carrying the
- * sevak count as its own mono suffix.
+ * per [cardRows] and an emphasised Total row carrying the sevak count as its
+ * own mono suffix.
+ *
+ * [cardRows] rather than `highlights` (owner decision 2026-08-30): it always
+ * yields the same three rows — an absent status renders as an empty row of
+ * middots instead of dropping out — so every card in a grid row is the same
+ * height. That in turn is what lets the upcoming pane go without a scroll.
  */
 @Composable
 private fun CourseMatrixTable(matrix: CourseMatrix, modifier: Modifier = Modifier) {
@@ -606,7 +633,7 @@ private fun CourseMatrixTable(matrix: CourseMatrix, modifier: Modifier = Modifie
         ) {
             MatrixGroupCapsRow(cell)
             MatrixHeaderRow(cell)
-            matrix.highlights.forEach { row -> MatrixDataRow(row.label, row, cell, emphasise = false) }
+            matrix.cardRows.forEach { row -> MatrixDataRow(row.label, row, cell, emphasise = false) }
             matrix.total?.let { total -> MatrixDataRow("Total", total, cell, emphasise = true) }
         }
     }

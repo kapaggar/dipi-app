@@ -79,6 +79,65 @@ class CentreScreenTest {
     }
 
     @Test
+    fun catalogueRetiresManageCoursesDailyActivityAndSmsReport() {
+        // S1 (owner decision 2026-08-30): three desk destinations leave the
+        // app's surface entirely. Five remain — three native, two chips.
+        val tiles = centreDeskTiles(1)
+        assertEquals(
+            listOf("Centre Settings", "Advanced Search", "App Settings", "Course Report", "Bulk Mail"),
+            tiles.map { it.title },
+        )
+        listOf("Manage Courses", "Daily Activity", "SMS Report").forEach { gone ->
+            assertFalse(tiles.any { it.title == gone })
+        }
+        assertEquals(3, tiles.count { it.action != null })
+        assertEquals(2, tiles.count { it.action == null })
+    }
+
+    @Test
+    fun theFiveSurvivingTilesRenderAndFireTheirCallbacks() {
+        var ops = false
+        var advanced = false
+        var settingsOpened = false
+        val fired = mutableListOf<Pair<String, String>>()
+        rule.setContent {
+            DipiTheme {
+                CentreScreen(
+                    session = session,
+                    courses = listOf(course),
+                    onPick = {},
+                    onLater = { title, route -> fired += title to route },
+                    onCentreOps = { ops = true },
+                    onAdvancedSearch = { advanced = true },
+                    onSettings = { settingsOpened = true },
+                )
+            }
+        }
+        listOf(
+            "Centre Settings", "Advanced Search", "App Settings", "Course Report", "Bulk Mail",
+        ).forEach { rule.onNodeWithText(it).performScrollTo().assertIsDisplayed() }
+
+        rule.onNodeWithText("Centre Settings").performScrollTo().performClick()
+        assertTrue(ops)
+        rule.onNodeWithText("Advanced Search").performScrollTo().performClick()
+        assertTrue(advanced)
+        rule.onNodeWithText("App Settings").performScrollTo().performClick()
+        assertTrue(settingsOpened)
+        // The three native tiles never reach the desk-site path.
+        assertTrue(fired.isEmpty())
+
+        rule.onNodeWithText("Course Report").performScrollTo().performClick()
+        rule.onNodeWithText("Bulk Mail").performScrollTo().performClick()
+        assertEquals(
+            listOf(
+                "Course Report" to "centre/1/course-report",
+                "Bulk Mail" to "centre/1/bulk-mail-schedule",
+            ),
+            fired,
+        )
+    }
+
+    @Test
     fun countsLineDropsZeroesAndAbsentSummaries() {
         assertNull(courseCountsLine(null))
         assertNull(courseCountsLine(CourseSummary()))
@@ -124,7 +183,8 @@ class CentreScreenTest {
         rule.onNodeWithText("OM").assertIsDisplayed()
         rule.onNodeWithText("NF").assertIsDisplayed()
         rule.onNodeWithText("OF").assertIsDisplayed()
-        rule.onNodeWithText("Confirmed").assertIsDisplayed()
+        // S3: Confirmed and Expected are summed into one fixed card row.
+        rule.onNodeWithText("Confirmed + Expected").assertIsDisplayed()
         rule.onNodeWithText("41").assertIsDisplayed()
         rule.onNodeWithText("17").assertIsDisplayed()
         rule.onNodeWithText("58").assertIsDisplayed()
@@ -136,9 +196,11 @@ class CentreScreenTest {
         rule.onNodeWithText("Centre desk").performScrollTo().assertIsDisplayed()
         rule.onNodeWithText("Advanced Search").performScrollTo().assertIsDisplayed()
         rule.onNodeWithText("Centre Settings").performScrollTo().assertIsDisplayed()
-        rule.onNodeWithText("Manage Courses").performScrollTo().assertIsDisplayed()
-        rule.onNodeWithText("Daily Activity").performScrollTo().assertIsDisplayed()
-        rule.onNodeWithText("SMS Report").performScrollTo().assertIsDisplayed()
+        // S1 (owner decision 2026-08-30): these three desk destinations are
+        // retired from the app's surface — pinned absent, not merely untested.
+        rule.onNodeWithText("Manage Courses").assertDoesNotExist()
+        rule.onNodeWithText("Daily Activity").assertDoesNotExist()
+        rule.onNodeWithText("SMS Report").assertDoesNotExist()
         rule.onNodeWithText("Course Report").performScrollTo().assertIsDisplayed()
         rule.onNodeWithText("Bulk Mail").performScrollTo().assertIsDisplayed()
         rule.onNodeWithText("App Settings").performScrollTo().assertIsDisplayed()
@@ -216,21 +278,48 @@ class CentreScreenTest {
     }
 
     @Test
-    fun matrixCardShowsOnlyTheThreeHighlightRows() {
-        // A non-priority status row alongside the three highlights — the
-        // card must render Received/Confirmed/Cancelled and omit this one.
-        val withExtraRow = course.copy(
-            matrix = matrix.copy(rows = matrix.rows + MatrixRow("Expected", newMale = 6)),
+    fun matrixCardSumsConfirmedAndExpectedIntoOneRow() {
+        // S3: the card renders three fixed rows; Confirmed and Expected are
+        // read together by the desk hand, so they are summed field-wise under
+        // a single "Confirmed + Expected" label — neither is filtered out.
+        val withExpected = course.copy(
+            matrix = matrix.copy(rows = matrix.rows + MatrixRow("Expected", newMale = 6, oldFemale = 4)),
         )
         rule.setContent {
             DipiTheme {
-                CentreScreen(session = session, courses = listOf(withExtraRow), onPick = {})
+                CentreScreen(session = session, courses = listOf(withExpected), onPick = {})
             }
         }
         rule.onNodeWithText("Received").assertIsDisplayed()
-        rule.onNodeWithText("Confirmed").assertIsDisplayed()
+        rule.onNodeWithText("Confirmed + Expected").assertIsDisplayed()
         rule.onNodeWithText("Cancelled").assertIsDisplayed()
+        rule.onNodeWithText("Confirmed").assertDoesNotExist()
         rule.onNodeWithText("Expected").assertDoesNotExist()
+        // 41 + 6 new male, 17 old male -> 64 male; 33 new female,
+        // 9 + 4 old female -> 46 female.
+        rule.onNodeWithText("47").assertIsDisplayed()
+        rule.onNodeWithText("64").assertIsDisplayed()
+        rule.onNodeWithText("13").assertIsDisplayed()
+        rule.onNodeWithText("46").assertIsDisplayed()
+    }
+
+    @Test
+    fun cardKeepsAReceivedLineWhenTheMatrixHasNone() {
+        // S3: equal card heights come from rendering every fixed row even
+        // when the status is absent — the row is there, filled with middots.
+        val noReceived = course.copy(
+            matrix = CourseMatrix(
+                rows = listOf(MatrixRow("Confirmed", newMale = 4, newFemale = 3)),
+                total = MatrixRow("Total", newMale = 4, newFemale = 3),
+            ),
+        )
+        rule.setContent {
+            DipiTheme {
+                CentreScreen(session = session, courses = listOf(noReceived), onPick = {})
+            }
+        }
+        rule.onNodeWithText("Received").performScrollTo().assertIsDisplayed()
+        rule.onNodeWithText("Cancelled").performScrollTo().assertIsDisplayed()
     }
 
     @Test
@@ -244,9 +333,13 @@ class CentreScreenTest {
                 CentreScreen(session = session, courses = listOf(withZero), onPick = {})
             }
         }
-        // Exactly one blank cell (oldMale = 0) renders as a middot; the header
-        // kicker row is a separate whole-string node and does not collide.
-        rule.onAllNodesWithText("·").assertCountEquals(1)
+        // S3 fixed rows: Received and Cancelled are absent, so both render
+        // six middots; Confirmed + Expected contributes the one blank cell
+        // (oldMale = 0). No Total row on this matrix. 6 + 1 + 6 = 13.
+        // Unmerged tree: the card's clickable Column merges its descendants,
+        // so the merged tree collapses every cell into one node and cannot
+        // count them.
+        rule.onAllNodesWithText("·", useUnmergedTree = true).assertCountEquals(13)
     }
 
     @Test
