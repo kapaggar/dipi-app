@@ -50,4 +50,62 @@ class CourseMatrixTest {
     fun anEmptyMatrixHasNoHighlights() {
         assertEquals(emptyList<MatrixRow>(), CourseMatrix().highlights)
     }
+
+    @Test
+    fun plusSumsEveryCountAndKeepsTheReceiverLabel() {
+        val a = MatrixRow("Confirmed", newMale = 7, oldMale = 3, sevakMale = 1, newFemale = 3)
+        val b = MatrixRow("Expected", newMale = 44, oldMale = 19, newFemale = 19, oldFemale = 10, sevakFemale = 1)
+        val sum = a + b
+        assertEquals("Confirmed", sum.label)
+        assertEquals(51, sum.newMale)
+        assertEquals(22, sum.oldMale)
+        assertEquals(1, sum.sevakMale)
+        assertEquals(22, sum.newFemale)
+        assertEquals(10, sum.oldFemale)
+        assertEquals(1, sum.sevakFemale)
+        assertEquals(73, sum.maleTotal)
+    }
+
+    @Test
+    fun plusNullIsTheReceiver() {
+        val a = MatrixRow("Confirmed", newMale = 7)
+        assertEquals(a, a + null)
+    }
+
+    @Test
+    fun cardRowsAlwaysHasFourRowsInOrderEvenWhenStatusesAreAbsent() {
+        val empty = CourseMatrix().cardRows
+        assertEquals(listOf("Received", "Confirmed + Expected", "Cancelled"), empty.map { it.label })
+        assertEquals(3, empty.size)
+        assertTrue(empty.all { it.isEmpty })
+    }
+
+    @Test
+    fun cardRowsMergesConfirmedAndExpected() {
+        val m = CourseMatrix(
+            rows = listOf(
+                MatrixRow("Received", oldFemale = 1),
+                MatrixRow("Confirmed", newMale = 7, oldMale = 3),
+                MatrixRow("Expected", newMale = 44, oldMale = 19),
+                MatrixRow("Cancelled", newMale = 10),
+            ),
+        )
+        val rows = m.cardRows
+        assertEquals(listOf("Received", "Confirmed + Expected", "Cancelled"), rows.map { it.label })
+        assertEquals(51, rows[1].newMale)
+        assertEquals(22, rows[1].oldMale)
+        assertEquals(73, rows[1].maleTotal)
+        assertEquals(1, rows[0].oldFemale)
+        assertEquals(10, rows[2].newMale)
+    }
+
+    @Test
+    fun cardRowsKeepsAnAbsentStatusAsAnEmptyRowRatherThanDroppingIt() {
+        val m = CourseMatrix(rows = listOf(MatrixRow("Confirmed", newMale = 5)))
+        val rows = m.cardRows
+        assertEquals(3, rows.size)
+        assertTrue(rows[0].isEmpty)   // Received absent
+        assertEquals(5, rows[1].newMale)
+        assertTrue(rows[2].isEmpty)   // Cancelled absent
+    }
 }
