@@ -105,7 +105,9 @@ class BoardPaneTest {
     @Test
     fun twelveExportsSitOnThreeShelvesInTheDesignsGrouping() {
         board()
-        rule.onNodeWithText("SHEETS & EXPORTS · RARELY URGENT").assertIsDisplayed()
+        rule.onNodeWithText("SHEETS & EXPORTS").assertIsDisplayed()
+        rule.onNodeWithText("RARELY URGENT").assertIsDisplayed()
+        rule.onNodeWithText("SHEETS & EXPORTS · RARELY URGENT").assertDoesNotExist()
         rule.onAllNodesWithTag("export-chip").assertCountEquals(13)
 
         shelves.forEach { (kicker, names) ->

@@ -119,11 +119,28 @@ fun BoardPane(
             }
         }
 
-        DeskKicker(
-            "SHEETS & EXPORTS · RARELY URGENT",
-            Industry.neutral600,
+        Row(
             Modifier.padding(top = 18.dp),
-        )
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                "SHEETS & EXPORTS",
+                fontFamily = DipiMono,
+                fontWeight = FontWeight.Medium,
+                fontSize = 9.5.sp,
+                letterSpacing = 1.7.sp,
+                color = Industry.neutral600,
+            )
+            Text(
+                "RARELY URGENT",
+                fontFamily = DipiMono,
+                fontWeight = FontWeight.Normal,
+                fontSize = 9.5.sp,
+                letterSpacing = 1.2.sp,
+                color = Industry.neutral400,
+            )
+        }
         EXPORT_SHELVES.forEach { (shelf, labels) ->
             Column(
                 Modifier
@@ -187,7 +204,7 @@ private fun BoardTile(
     Column(
         modifier
             .height(100.dp)
-            .deskCard(shape = CardShape)
+            .deskCard(shape = CardShape, elevation = 1.dp)
             .clickable(onClick = onClick)
             .padding(horizontal = 15.dp, vertical = 12.dp)
             .testTag("board-stat"),
@@ -229,7 +246,7 @@ private fun BoardAction(label: String, sub: String, onClick: () -> Unit) {
         Modifier
             .fillMaxWidth()
             .height(58.dp)
-            .deskCard(shape = CardShape)
+            .deskCard(shape = CardShape, elevation = 1.dp)
             .clickable(onClick = onClick)
             .padding(horizontal = 16.dp)
             .testTag("board-next"),

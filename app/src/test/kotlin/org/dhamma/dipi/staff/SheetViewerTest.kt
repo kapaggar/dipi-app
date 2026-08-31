@@ -260,7 +260,8 @@ class SheetViewerTest {
         rule.waitForIdle()
         rule.onNodeWithTag("sheet-viewer").assertDoesNotExist()
         // The Board pane is still the section underneath.
-        rule.onNodeWithText("SHEETS & EXPORTS · RARELY URGENT").assertIsDisplayed()
+        rule.onNodeWithText("SHEETS & EXPORTS").assertIsDisplayed()
+        rule.onNodeWithText("RARELY URGENT").assertIsDisplayed()
     }
 
     @Test

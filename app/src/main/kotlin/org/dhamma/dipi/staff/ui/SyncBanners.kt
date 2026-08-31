@@ -175,31 +175,27 @@ private fun QueuedStrip(count: Int, lastTryAtMs: Long?, onRetry: () -> Unit) {
                 .fillMaxWidth()
                 .height(56.dp)
                 .background(queuedStripFill(c))
-                .padding(horizontal = 16.dp),
+                .padding(start = 24.dp, end = 16.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Column(Modifier.weight(1f)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        count.toString(),
-                        fontFamily = DipiMono,
-                        fontSize = 14.sp,
-                        color = queuedStripText(c),
-                    )
-                    Text(
-                        pluralStringResource(R.plurals.changes_waiting, count),
-                        fontSize = 14.sp,
-                        color = queuedStripText(c),
-                        modifier = Modifier.padding(start = 6.dp),
-                    )
-                }
+            Row(
+                Modifier.weight(1f),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(count.toString(), fontFamily = DipiMono, fontSize = 14.sp, color = queuedStripText(c))
+                Text(
+                    pluralStringResource(R.plurals.changes_waiting, count),
+                    fontSize = 14.sp,
+                    color = queuedStripText(c),
+                    modifier = Modifier.padding(start = 6.dp).weight(1f),
+                )
                 lastTryLabel(lastTryAtMs)?.let { line ->
                     Text(
                         line,
                         fontFamily = DipiMono,
                         fontSize = 12.5.sp,
                         color = queuedStripDim(c),
-                        modifier = Modifier.padding(top = 1.dp),
+                        modifier = Modifier.padding(start = 8.dp),
                     )
                 }
             }

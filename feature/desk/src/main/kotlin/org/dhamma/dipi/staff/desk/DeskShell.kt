@@ -20,7 +20,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
@@ -28,11 +27,9 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import org.dhamma.dipi.staff.ui.R
 import org.dhamma.dipi.staff.ui.theme.DeskKicker
-import org.dhamma.dipi.staff.ui.theme.DeskStyle
 import org.dhamma.dipi.staff.ui.theme.DipiCondensed
 import org.dhamma.dipi.staff.ui.theme.DipiMono
 import org.dhamma.dipi.staff.ui.theme.DipiSans
@@ -68,7 +65,7 @@ data class DeskCourse(
 }
 
 /**
- * The tablet desk shell: fixed 212dp rail, 52dp top bar, and the active
+ * The tablet desk shell: fixed 190dp rail, 52dp top bar, and the active
  * section's pane. The desk never scrolls as a whole — each pane scrolls
  * independently. Under all content sit the version-3 ambient accent washes
  * and — when [lotus] is on — the lotus watermark bottom-left, both static
@@ -121,17 +118,19 @@ private fun DeskRailPane(
 ) {
     Column(
         Modifier
-            .width(212.dp)
+            .width(190.dp)
             .fillMaxHeight()
+            .background(Industry.surface)
             .rightHairline(Industry.neutral300)
-            .padding(top = 20.dp, bottom = 16.dp),
+            .padding(top = 20.dp, bottom = 16.dp)
+            .testTag("desk-rail"),
     ) {
         Image(
             painterResource(R.drawable.lotus_mark),
             contentDescription = "DIPI",
             modifier = Modifier
-                .padding(start = 14.dp, end = 14.dp, bottom = 12.dp)
-                .size(72.dp)
+                .padding(start = 18.dp, end = 14.dp, bottom = 12.dp)
+                .size(54.dp)
                 .graphicsLayer { alpha = 0.78f },
         )
 
@@ -149,12 +148,11 @@ private fun DeskRailPane(
         Spacer(Modifier.weight(1f))
 
         Column(Modifier.padding(horizontal = 18.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(rail.userName, fontFamily = DipiSans, fontSize = 11.5.sp, color = Industry.neutral600)
+            Text(rail.userName, fontFamily = DipiMono, fontSize = 12.sp, color = Industry.neutral600)
             Text(
                 rail.syncLine,
                 fontFamily = DipiMono,
-                fontWeight = FontWeight.Medium,
-                fontSize = 10.5.sp,
+                fontSize = 12.sp,
                 color = Industry.neutral500,
             )
         }
@@ -163,34 +161,41 @@ private fun DeskRailPane(
 
 @Composable
 private fun DeskNavRow(label: String, count: Int?, active: Boolean, onClick: () -> Unit) {
-    // Sleek pass: the active section reads as a rounded accent-tinted
-    // highlight instead of the wireframe's 2dp bar + hairline rows.
     Row(
         Modifier
             .fillMaxWidth()
-            .padding(horizontal = 10.dp, vertical = 2.dp)
-            .clip(DeskStyle.controlShape)
+            .height(46.dp)
             .background(if (active) Industry.accent100 else Color.Transparent)
-            .clickable(onClick = onClick)
-            .padding(horizontal = 10.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
+            .clickable(onClick = onClick),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        if (active) {
+            Box(
+                Modifier
+                    .width(3.dp)
+                    .fillMaxHeight()
+                    .background(Industry.accent)
+                    .testTag("rail-accent-bar"),
+            )
+        }
         Text(
             label,
             fontFamily = DipiSans,
-            fontSize = 13.5.sp,
-            fontWeight = if (active) FontWeight.SemiBold else FontWeight.Normal,
+            fontSize = 15.5.sp,
+            fontWeight = if (active) FontWeight.Medium else FontWeight.Normal,
             color = if (active) Industry.accent800 else Industry.neutral700,
-            modifier = Modifier.weight(1f),
+            modifier = Modifier
+                .weight(1f)
+                .padding(start = if (active) 15.dp else 18.dp),
         )
         if (count != null) {
             Text(
                 count.toString(),
                 fontFamily = DipiMono,
                 fontWeight = FontWeight.Medium,
-                fontSize = 11.sp,
+                fontSize = 13.sp,
                 color = if (active) Industry.accent700 else Industry.neutral500,
+                modifier = Modifier.padding(end = 18.dp),
             )
         }
     }
@@ -203,7 +208,7 @@ private fun DeskTopBar(courseLine: String, clock: String) {
             .fillMaxWidth()
             .height(52.dp)
             .bottomHairline(Industry.neutral300)
-            .padding(horizontal = 26.dp),
+            .padding(horizontal = 20.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -212,16 +217,16 @@ private fun DeskTopBar(courseLine: String, clock: String) {
             fontFamily = DipiCondensed,
             fontWeight = FontWeight.SemiBold,
             fontSize = 17.sp,
-            letterSpacing = 0.1.em,
-            color = Industry.neutral700,
+            letterSpacing = 0.2.sp,
+            color = Industry.text,
             maxLines = 1,
         )
         Text(
             clock,
             fontFamily = DipiMono,
             fontWeight = FontWeight.Medium,
-            fontSize = 11.sp,
-            color = Industry.neutral500,
+            fontSize = 13.sp,
+            color = Industry.neutral600,
         )
     }
 }

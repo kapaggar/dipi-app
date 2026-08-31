@@ -15,11 +15,14 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.height
 import androidx.compose.ui.unit.width
 import org.dhamma.dipi.staff.desk.ApplicationsPane
 import org.dhamma.dipi.staff.desk.AuditPane
@@ -156,6 +159,29 @@ class DeskPanesTest {
         }
         rule.onNodeWithText("Priya Nair").performClick()
         assertEquals(1, opened?.id?.value)
+    }
+
+    @Test
+    fun markAttendedChromeIsOneHundredThirtyTwoByThirtySix() {
+        val roll = listOf(card(1, given = "Priya", family = "Nair"))
+        rule.setContent {
+            DipiTheme {
+                CheckInPane(
+                    roll = roll,
+                    checkIns = emptyMap(),
+                    rooms = rooms,
+                    scan = "",
+                    filter = "To arrive",
+                    flaggedIds = emptySet(),
+                    onScan = {},
+                    onFilter = {},
+                    onOpen = {},
+                )
+            }
+        }
+        val b = rule.onNodeWithTag("checkin-mark", useUnmergedTree = true).getUnclippedBoundsInRoot()
+        assertEquals(132.dp.value, b.width.value, 0.5f)
+        assertEquals(36.dp.value, b.height.value, 0.5f)
     }
 
     @Test

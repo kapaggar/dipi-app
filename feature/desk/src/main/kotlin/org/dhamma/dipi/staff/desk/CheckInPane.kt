@@ -23,6 +23,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
@@ -40,6 +41,7 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
@@ -91,8 +93,7 @@ fun CheckInPane(
         Column(
             Modifier
                 .weight(1f)
-                .fillMaxHeight()
-                .rightHairline(Industry.neutral300),
+                .fillMaxHeight(),
         ) {
             CheckInHeader(
                 scoped, checkIns, scan, filter, gender, seniority,
@@ -179,7 +180,7 @@ private fun CheckInHeader(
                     "$inCount",
                     fontFamily = DipiCondensed,
                     fontWeight = FontWeight.Bold,
-                    fontSize = 26.sp,
+                    fontSize = 22.sp,
                     lineHeight = 26.sp,
                     color = Industry.accent800,
                 )
@@ -194,7 +195,7 @@ private fun CheckInHeader(
                     "${total - inCount} to arrive",
                     fontFamily = DipiMono,
                     fontWeight = FontWeight.Medium,
-                    fontSize = 11.sp,
+                    fontSize = 13.sp,
                     color = Industry.neutral600,
                     modifier = Modifier.padding(bottom = 2.dp),
                 )
@@ -203,15 +204,15 @@ private fun CheckInHeader(
             Box(
                 Modifier
                     .fillMaxWidth()
-                    .height(8.dp)
-                    .clip(DeskStyle.pillShape)
+                    .height(5.dp)
+                    .clip(RoundedCornerShape(3.dp))
                     .background(Industry.neutral200),
             ) {
                 Box(
                     Modifier
                         .fillMaxWidth(fill)
-                        .height(8.dp)
-                        .clip(DeskStyle.pillShape)
+                        .height(5.dp)
+                        .clip(RoundedCornerShape(3.dp))
                         .background(Industry.accent),
                 )
             }
@@ -360,7 +361,7 @@ private fun RosterRow(
                 card.displayName,
                 fontFamily = DipiSans,
                 fontWeight = FontWeight.Medium,
-                fontSize = 14.5.sp,
+                fontSize = 15.5.sp,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 color = Industry.text,
@@ -375,24 +376,29 @@ private fun RosterRow(
         Text(
             listOfNotNull(card.age?.toString(), card.gender.name).joinToString(" ") +
                 (card.city?.let { " · $it" } ?: ""),
-            fontSize = 12.5.sp,
+            fontSize = 14.sp,
             color = Industry.neutral600,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.width(170.dp),
+            modifier = Modifier.width(190.dp),
         )
-        Text(
-            if (isIn) "${record?.room} · ${record?.seat}" else "Mark attended",
-            fontSize = 12.sp,
-            textAlign = TextAlign.Center,
-            maxLines = 1,
-            color = if (isIn) Industry.neutral700 else Industry.accent800,
-            modifier = Modifier
-                .width(150.dp)
-                .clip(DeskStyle.controlShape)
-                .border(1.dp, if (isIn) Industry.neutral300 else Industry.accent, DeskStyle.controlShape)
-                .padding(horizontal = 8.dp, vertical = 6.dp),
-        )
+        Box(
+            Modifier
+                .width(132.dp)
+                .height(36.dp)
+                .clip(RoundedCornerShape(5.dp))
+                .border(1.dp, if (isIn) Industry.neutral300 else Industry.accent300, RoundedCornerShape(5.dp))
+                .testTag("checkin-mark"),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                if (isIn) "${record?.room} · ${record?.seat}" else "Mark attended",
+                fontSize = 13.5.sp,
+                textAlign = TextAlign.Center,
+                maxLines = 1,
+                color = if (isIn) Industry.neutral700 else Industry.accent800,
+            )
+        }
     }
 }
 
@@ -405,8 +411,10 @@ private fun CheckInSidebar(
 ) {
     Column(
         Modifier
-            .width(266.dp)
+            .width(296.dp)
             .fillMaxHeight()
+            .background(Industry.surface)
+            .leftHairline(Industry.neutral300)
             .padding(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 24.dp),
         verticalArrangement = Arrangement.spacedBy(20.dp),
     ) {
@@ -444,7 +452,7 @@ private fun CheckInSidebar(
                         modifier = Modifier.weight(1f).padding(end = 8.dp),
                     )
                     Text(
-                        "$free of ${block.size} free",
+                        "$free / ${block.size}",
                         fontFamily = DipiMono,
                         fontWeight = FontWeight.Medium,
                         fontSize = 14.sp,

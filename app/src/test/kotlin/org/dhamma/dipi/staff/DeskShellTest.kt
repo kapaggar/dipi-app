@@ -1,11 +1,14 @@
 package org.dhamma.dipi.staff
 
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.width
 import org.dhamma.dipi.staff.desk.BoardPane
 import org.dhamma.dipi.staff.desk.DeskCourse
 import org.dhamma.dipi.staff.desk.DeskRail
@@ -127,6 +130,21 @@ class DeskShellTest {
             }
         }
         rule.onNodeWithTag("desk-watermark").assertDoesNotExist()
+    }
+
+    @Test
+    fun railIsOneHundredNinetyDpWithAThreeDpAccentBarOnTheSelectedRow() {
+        rule.setContent {
+            DipiTheme {
+                DeskShell(section = DeskSection.Board, rail = rail, course = course, clock = "", onSection = {})
+            }
+        }
+        // Tag the rail column `desk-rail` in DeskRailPane.
+        val w = rule.onNodeWithTag("desk-rail").getUnclippedBoundsInRoot().width
+        assertEquals(190.dp.value, w.value, 0.5f)
+        rule.onNodeWithTag("rail-accent-bar", useUnmergedTree = true).assertExists()
+        val bar = rule.onNodeWithTag("rail-accent-bar", useUnmergedTree = true).getUnclippedBoundsInRoot()
+        assertEquals(3.dp.value, bar.width.value, 0.5f)
     }
 
     @Test

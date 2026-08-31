@@ -55,6 +55,11 @@ internal fun Modifier.rightHairline(color: Color): Modifier = drawBehind {
     drawLine(color, Offset(x, 0f), Offset(x, size.height), 1.dp.toPx())
 }
 
+internal fun Modifier.leftHairline(color: Color): Modifier = drawBehind {
+    val x = 0.5.dp.toPx()
+    drawLine(color, Offset(x, 0f), Offset(x, size.height), 1.dp.toPx())
+}
+
 internal fun Modifier.topHairline(color: Color): Modifier = drawBehind {
     val y = 0.5.dp.toPx()
     drawLine(color, Offset(0f, y), Offset(size.width, y), 1.dp.toPx())
