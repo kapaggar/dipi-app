@@ -11,6 +11,8 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTouchInput
 import org.dhamma.dipi.staff.course.CentreOpsScreen
 import org.dhamma.dipi.staff.model.AccoRoom
@@ -142,13 +144,41 @@ class CentreOpsScreenTest {
                 )
             }
         }
+        // The accommodation summary now sits under the WhatsApp-message card,
+        // so it has to be scrolled to before it is on screen.
         rule.onNodeWithText("Room list comes from the desk site (Centre → Edit) and refreshes on sign-in.")
+            .performScrollTo()
             .assertIsDisplayed()
-        rule.onNodeWithText("2 rooms").assertIsDisplayed()
+        rule.onNodeWithText("2 rooms").performScrollTo().assertIsDisplayed()
         rule.onAllNodesWithText("Add rooms").assertCountEquals(0)
         rule.onAllNodesWithText("Delete").assertCountEquals(0)
 
-        rule.onNodeWithText("Room chart").performClick()
+        rule.onNodeWithText("Room chart").performScrollTo().performClick()
         assertTrue(openedRooms)
+    }
+
+    @Test
+    fun whatsAppMessageIsCentreWritableAndPreviewsAgainstASampleApplicant() {
+        var written: String? = null
+        rule.setContent {
+            DipiTheme {
+                CentreOpsScreen(
+                    prefs = CentreOpsPrefs(whatsAppTemplate = "Hi {name}, {course} starts {dates}."),
+                    onToggleLaundry = {},
+                    onToggleValuables = {},
+                    onToggleGroups = {},
+                    onOpenRooms = {},
+                    onBack = {},
+                    onWhatsAppTemplate = { written = it },
+                )
+            }
+        }
+        // The preview is the message as it will actually be sent.
+        rule.onNodeWithText("Hi Rajat, 10 Day starts 2 Sep - 13 Sep.").performScrollTo().assertIsDisplayed()
+        rule.onNodeWithTag("whatsapp-template").performScrollTo().performTextInput("X")
+        assertTrue(written!!.contains("Hi {name}"))
+        // Reset hands back a blank template, which means the built-in default.
+        rule.onNodeWithText("Reset to the default message").performScrollTo().performClick()
+        assertEquals("", written)
     }
 }

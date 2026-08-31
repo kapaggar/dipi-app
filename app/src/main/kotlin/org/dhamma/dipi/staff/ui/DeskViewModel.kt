@@ -22,6 +22,7 @@ import org.dhamma.dipi.staff.data.StaffRepository
 import org.dhamma.dipi.staff.datastore.SessionStore
 import org.dhamma.dipi.staff.desk.DeskSection
 import org.dhamma.dipi.staff.desk.deskCallList
+import org.dhamma.dipi.staff.desk.deskCallLogged
 import org.dhamma.dipi.staff.desk.deskCheckedIn
 import org.dhamma.dipi.staff.desk.deskFindingCount
 import org.dhamma.dipi.staff.desk.deskOccupied
@@ -142,6 +143,10 @@ data class DeskUiState(
     val zeroDayDrafts: Map<ApplicantId, ZeroDayDraft> = emptyMap(),
     val callState: Map<ApplicantId, CallRecord> = emptyMap(),
     val callFilter: String = "To call",
+    /** Call-round name box. Session-only — a search is never worth restoring. */
+    val callSearch: String = "",
+    /** Call-round order: false is A-Z, true floats the still-to-reach rows up. */
+    val callPriority: Boolean = false,
     val roomsGender: Gender? = null,
     val roomsApplicantId: ApplicantId? = null,
     val deskSection: DeskSection = DeskSection.Board,
@@ -229,7 +234,7 @@ fun deskRailCounts(state: DeskUiState): Map<DeskSection, Int> = buildMap {
     val applications = state.counts["All"] ?: state.rows.size
     if (applications > 0) put(DeskSection.Applications, applications)
     put(DeskSection.Audit, deskFindingCount(state.auditRows))
-    put(DeskSection.Calling, deskCallList(roll).count { state.callState[it.id]?.logged != true })
+    put(DeskSection.Calling, deskCallList(roll).count { !deskCallLogged(state.callState[it.id]) })
     put(DeskSection.CheckIn, roll.count { !deskCheckedIn(it, state.checkIns) })
     val occupied = deskOccupied(roll, state.checkIns)
     put(DeskSection.Rooms, state.centreOps.rooms.count { it.code !in occupied })
@@ -847,6 +852,11 @@ class DeskViewModel @Inject constructor(
     fun toggleValuables() = persistOps(_state.value.centreOps.let { it.copy(valuables = !it.valuables) })
     fun toggleGroups() = persistOps(_state.value.centreOps.let { it.copy(groups = !it.groups) })
 
+    /** The centre's own reconfirmation wording; blank restores the default. */
+    fun setWhatsAppTemplate(text: String) = persistOps(
+        _state.value.centreOps.copy(whatsAppTemplate = text.take(1000)),
+    )
+
     /** Room chart column stepper (spec S4): device-local grid shape per gender+section block. */
     fun setRoomColumns(gender: Gender, section: String, columns: Int) = persistOps(
         _state.value.centreOps.let { it.copy(roomLayout = it.roomLayout.withColumns(gender, section, columns)) },
@@ -873,6 +883,10 @@ class DeskViewModel @Inject constructor(
     }
 
     fun setCallFilter(filter: String) { _state.update { it.copy(callFilter = filter) } }
+
+    fun setCallSearch(q: String) { _state.update { it.copy(callSearch = q) } }
+
+    fun toggleCallPriority() { _state.update { it.copy(callPriority = !it.callPriority) } }
 
     /** Log an outcome. "No answer" also counts as an attempt, mirroring the tracker. */
     fun setCallState(card: ApplicantCard, value: String) {
@@ -1047,6 +1061,22 @@ class DeskViewModel @Inject constructor(
                     cur.copy(snack = snack, card = updated ?: cur.card)
                 }
             }.onFailure { handleAuth(it) }
+        }
+    }
+
+    /**
+     * A status change made from a row rather than from the open card — the
+     * calling round's inline changer. Same write as [confirmStatus]: the
+     * repository echoes locally, queues the GET and flushes when online, so
+     * the outcome reads back in the snackbar either way.
+     */
+    fun changeStatusFor(card: ApplicantCard, status: String) {
+        val value = status.trim()
+        if (value.isBlank()) return
+        viewModelScope.launch {
+            runCatching { repo.changeStatus(card.id, value, "", _state.value.offline) }
+                .onSuccess { snack -> _state.update { it.copy(snack = snack) } }
+                .onFailure { handleAuth(it) }
         }
     }
 

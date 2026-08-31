@@ -633,7 +633,7 @@ class DeskPanesTest {
     /* ── Slice 5: calling ──────────────────────────────────────────── */
 
     @Test
-    fun callingLogsOutcomesDialsAndHandsOffToWhatsApp() {
+    fun callingCardOpensOnTapAndLogsOutcomesDialsAndHandsOffToWhatsApp() {
         var outcome: Pair<Int, String>? = null
         var dialed: String? = null
         var wa: Int? = null
@@ -654,19 +654,28 @@ class DeskPanesTest {
         rule.onNodeWithText("0 of 1 logged · log the outcome as you go, the list empties itself").assertIsDisplayed()
         // Segmented labels carry the pile sizes.
         rule.onNodeWithText("To call 1").assertIsDisplayed()
-        rule.onNodeWithText("Reached 0").assertIsDisplayed()
+        rule.onNodeWithText("Confirmed 0").assertIsDisplayed()
+        // The closed card is a line: name, meta and the pile badge — no number,
+        // no outcome buttons until it is opened.
+        rule.onNodeWithText("Priya Nair").assertIsDisplayed()
+        rule.onNodeWithText("NF1 · Confirmed · No attempts yet").assertIsDisplayed()
+        rule.onNodeWithText("TO CALL").assertIsDisplayed()
+        rule.onAllNodesWithText("9876543210").assertCountEquals(0)
+
+        rule.onNodeWithText("Priya Nair").performClick()
         rule.onNodeWithText("9876543210").performClick()
         assertEquals("9876543210", dialed)
         rule.onNodeWithContentDescription("WhatsApp Priya Nair").performClick()
         assertEquals(1, wa)
-        // The segmented option is "Reached 0" now, so the bare label is the row chip.
-        rule.onNodeWithText("Reached").performClick()
-        assertEquals(1 to "Reached", outcome)
+        // "Confirmed 0" is the segment, so the bare label is the grid button.
+        rule.onNodeWithText("Confirmed").performClick()
+        assertEquals(1 to "Confirmed", outcome)
     }
 
     @Test
-    fun callingShowsAttemptsMetaAndSavesNotes() {
+    fun callingShowsAttemptsMetaSavesNotesAndClearsTheOutcome() {
         var note: Pair<Int, String>? = null
+        var outcome: Pair<Int, String>? = null
         val rec = CallRecord(outcome = "No answer", attempts = 2, lastAttemptMs = System.currentTimeMillis())
         rule.setContent {
             DipiTheme {
@@ -675,7 +684,7 @@ class DeskPanesTest {
                     outcomes = mapOf(ApplicantId(1) to rec),
                     filter = "No answer",
                     onFilter = {},
-                    onOutcome = { _, _ -> },
+                    onOutcome = { c, o -> outcome = c.id.value to o },
                     onDial = {},
                     onWhatsApp = {},
                     onNote = { c, n -> note = c.id.value to n },
@@ -683,10 +692,127 @@ class DeskPanesTest {
             }
         }
         rule.onNodeWithText("1 of 1 logged · log the outcome as you go, the list empties itself").assertIsDisplayed()
-        rule.onNodeWithText("×2 · just now").assertIsDisplayed()
-        rule.onNodeWithText("Note").performClick()
+        rule.onNodeWithText("NF1 · Confirmed · ×2 · just now").assertIsDisplayed()
+        rule.onNodeWithText("NO ANSWER").assertIsDisplayed()
+        rule.onNodeWithText("Priya Nair").performClick()
         rule.onNodeWithContentDescription("Note for Priya Nair").performTextInput("call after 6pm")
         assertEquals(1 to "call after 6pm", note)
+        rule.onNodeWithText("↩ Back to To call").performClick()
+        assertEquals(1 to "", outcome)
+    }
+
+    @Test
+    fun callingLogsWrittenUnderTheOldWordingStillShowInAPile() {
+        // A log saved as "Reached" reads back as Confirmed rather than
+        // vanishing into a segment the pane no longer offers.
+        rule.setContent {
+            DipiTheme {
+                CallingPane(
+                    roll = listOf(card(1, given = "Priya", family = "Nair")),
+                    outcomes = mapOf(ApplicantId(1) to CallRecord(outcome = "Reached")),
+                    filter = "Confirmed",
+                    onFilter = {},
+                    onOutcome = { _, _ -> },
+                    onDial = {},
+                    onWhatsApp = {},
+                    onNote = { _, _ -> },
+                )
+            }
+        }
+        rule.onNodeWithText("Priya Nair").assertIsDisplayed()
+        rule.onNodeWithText("CONFIRMED").assertIsDisplayed()
+        rule.onNodeWithText("1 of 1 logged · log the outcome as you go, the list empties itself").assertIsDisplayed()
+    }
+
+    @Test
+    fun callingInlineStatusChangerWritesThroughTheSameEndpointAsTheSheet() {
+        var changed: Pair<Int, String>? = null
+        rule.setContent {
+            DipiTheme {
+                CallingPane(
+                    roll = listOf(card(1, given = "Priya", family = "Nair", status = "Expected")),
+                    outcomes = emptyMap(),
+                    filter = "To call",
+                    onFilter = {},
+                    onOutcome = { _, _ -> },
+                    onDial = {},
+                    onWhatsApp = {},
+                    onNote = { _, _ -> },
+                    // Deliberately not an outcome label: the desk status and
+                    // the call outcome are different fields on the same card.
+                    statusChoices = listOf("Expected", "Reconfirmation", "Custom…"),
+                    onChangeStatus = { c, v -> changed = c.id.value to v },
+                )
+            }
+        }
+        rule.onNodeWithText("Priya Nair").performClick()
+        rule.onNodeWithText("Desk status").assertIsDisplayed()
+        // The picker opens on the card's own status when the desk offers it,
+        // and UPDATE sends exactly what the picker shows.
+        rule.onNodeWithContentDescription("Choose a new status for Priya Nair").performClick()
+        rule.onNodeWithText("Reconfirmation").performClick()
+        rule.onNodeWithText("UPDATE").performClick()
+        assertEquals(1 to "Reconfirmation", changed)
+    }
+
+    @Test
+    fun callingSearchNarrowsTheListWithoutTouchingThePileCounts() {
+        var typed = ""
+        rule.setContent {
+            DipiTheme {
+                var q by remember { mutableStateOf("") }
+                typed = q
+                CallingPane(
+                    roll = listOf(
+                        card(1, conf = "NM66", given = "Rajat", family = "Kumar"),
+                        card(2, conf = "OM9", given = "Harendra", family = "Singh"),
+                    ),
+                    outcomes = emptyMap(),
+                    filter = "To call",
+                    onFilter = {},
+                    onOutcome = { _, _ -> },
+                    onDial = {},
+                    onWhatsApp = {},
+                    onNote = { _, _ -> },
+                    search = q,
+                    onSearch = { q = it },
+                )
+            }
+        }
+        rule.onNodeWithContentDescription("Search the call list by name")
+            .performTextInput("harendra")
+        rule.waitForIdle()
+        assertEquals("harendra", typed)
+        rule.onNodeWithText("Harendra Singh").assertIsDisplayed()
+        rule.onAllNodesWithText("Rajat Kumar").assertCountEquals(0)
+        // The segment still counts the whole pile, not the search hits.
+        rule.onNodeWithText("To call 2").assertIsDisplayed()
+    }
+
+    @Test
+    fun callingPriorityOrderFloatsTheStillToReachRowsUp() {
+        rule.setContent {
+            DipiTheme {
+                var priority by remember { mutableStateOf(false) }
+                CallingPane(
+                    roll = listOf(
+                        card(1, given = "Arun", family = "Kale"),
+                        card(2, given = "Bikram", family = "Poonia"),
+                    ),
+                    outcomes = mapOf(ApplicantId(1) to CallRecord(outcome = "Callback")),
+                    filter = "All",
+                    onFilter = {},
+                    onOutcome = { _, _ -> },
+                    onDial = {},
+                    onWhatsApp = {},
+                    onNote = { _, _ -> },
+                    priority = priority,
+                    onPriority = { priority = !priority },
+                )
+            }
+        }
+        rule.onNodeWithText("A–Z").performClick()
+        rule.onNodeWithText("Priority order").assertIsDisplayed()
     }
 
     @Test
@@ -695,7 +821,7 @@ class DeskPanesTest {
             DipiTheme {
                 CallingPane(
                     roll = listOf(card(1)),
-                    outcomes = mapOf(ApplicantId(1) to CallRecord(outcome = "Reached")),
+                    outcomes = mapOf(ApplicantId(1) to CallRecord(outcome = "Confirmed")),
                     filter = "To call",
                     onFilter = {},
                     onOutcome = { _, _ -> },

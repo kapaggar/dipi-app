@@ -9,6 +9,7 @@ import org.dhamma.dipi.staff.model.CheckInRecord
 import org.dhamma.dipi.staff.model.ConfPrefix
 import org.dhamma.dipi.staff.model.ConfSeniority
 import org.dhamma.dipi.staff.model.Gender
+import org.dhamma.dipi.staff.model.StatusTone
 
 /**
  * Every number the desk shows derives from the check-in records plus the
@@ -260,19 +261,54 @@ fun stripHonorific(givenName: String): String {
 
 /* ── Calling ───────────────────────────────────────────────────────── */
 
-val CALL_OUTCOMES = listOf("Reached", "No answer", "Call back")
+val CALL_OUTCOMES = listOf("Confirmed", "Cancelled", "No answer", "Callback", "Left msg")
+
+/**
+ * The stored outcome read back through the current vocabulary. Logs written
+ * before the tracker's wording landed hold "Reached" / "Call back", and a
+ * value matching nothing at all falls back to the To-call pile rather than
+ * vanishing into a filter no segment shows. The attempts counter and the
+ * timestamp are untouched either way, so a re-read row still says "×2 · 12m ago".
+ */
+fun deskCallOutcome(raw: String?): String {
+    val t = raw?.trim().orEmpty()
+    if (t.isEmpty()) return ""
+    CALL_OUTCOMES.firstOrNull { it.equals(t, ignoreCase = true) }?.let { return it }
+    return when (t.lowercase()) {
+        "reached" -> "Confirmed"
+        "call back" -> "Callback"
+        "left message", "left msg" -> "Left msg"
+        else -> ""
+    }
+}
+
+/** True once a row carries an outcome the current vocabulary recognises. */
+fun deskCallLogged(record: CallRecord?): Boolean = deskCallOutcome(record?.outcome).isNotBlank()
 
 /** The call round: everyone on the roll with a number. */
 fun deskCallList(roll: List<ApplicantCard>): List<ApplicantCard> =
     roll.filter { !it.mobile.isNullOrBlank() }
 
+/**
+ * One pile, optionally narrowed by the name box. [search] matches the name or
+ * the confirmation number, case-insensitive substring — the pile counts stay
+ * un-searched so the segments keep reading as sizes, not as hits.
+ */
 fun deskCallRows(
     roll: List<ApplicantCard>,
     outcomes: Map<ApplicantId, CallRecord>,
     filter: String,
-): List<ApplicantCard> = deskCallList(roll).filter { card ->
-    val o = outcomes[card.id]?.outcome.orEmpty()
-    if (filter == "To call") o.isBlank() else o == filter
+    search: String = "",
+): List<ApplicantCard> {
+    val q = search.trim().lowercase()
+    return deskCallList(roll).filter { card ->
+        val o = deskCallOutcome(outcomes[card.id]?.outcome)
+        val okPile = if (filter == "To call") o.isBlank() else o == filter
+        val okQ = q.isEmpty() ||
+            card.displayName.lowercase().contains(q) ||
+            card.confNo?.value.orEmpty().lowercase().contains(q)
+        okPile && okQ
+    }
 }
 
 /** Pile sizes for the segmented labels — "To call" plus each outcome. */
@@ -281,6 +317,43 @@ fun deskCallCounts(
     outcomes: Map<ApplicantId, CallRecord>,
 ): Map<String, Int> =
     (listOf("To call") + CALL_OUTCOMES).associateWith { deskCallRows(roll, outcomes, it).size }
+
+/**
+ * Call-priority rank, lowest first: still to reach, then the ones worth
+ * another ring, then the settled ones. Mirrors the tracker's PRIORITY map.
+ */
+fun deskCallRank(record: CallRecord?): Int = when (deskCallOutcome(record?.outcome)) {
+    "" -> 0
+    "Callback" -> 1
+    "No answer" -> 2
+    "Left msg" -> 3
+    "Confirmed" -> 4
+    "Cancelled" -> 5
+    else -> 3
+}
+
+/**
+ * List order: A–Z by default, or priority — still-to-reach floated to the top,
+ * alphabetical within a rank so the round stays predictable between taps.
+ */
+fun deskCallSorted(
+    rows: List<ApplicantCard>,
+    outcomes: Map<ApplicantId, CallRecord>,
+    priority: Boolean,
+): List<ApplicantCard> = if (priority) {
+    rows.sortedWith(compareBy({ deskCallRank(outcomes[it.id]) }, { it.displayName.lowercase() }))
+} else {
+    rows.sortedBy { it.displayName.lowercase() }
+}
+
+/** Badge colouring for an outcome, borrowed from the shared status tones. */
+fun deskCallTone(outcome: String?): StatusTone = when (deskCallOutcome(outcome)) {
+    "Confirmed" -> StatusTone.Confirmed
+    "Cancelled" -> StatusTone.Cancelled
+    "No answer" -> StatusTone.Expected
+    "Callback" -> StatusTone.Received
+    else -> StatusTone.Pending
+}
 
 /** The tracker's timeAgo: "just now" / "12m ago" / "3h ago" / "2d ago". */
 fun deskCallAgo(thenMs: Long, nowMs: Long): String {

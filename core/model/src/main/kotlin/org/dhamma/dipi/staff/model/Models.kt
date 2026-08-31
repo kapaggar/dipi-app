@@ -224,6 +224,12 @@ data class CentreOpsPrefs(
     val rooms: List<AccoRoom> = emptyList(),
     /** Chart grid shape per gender+section block. Device-local; wiped by Erase-all. */
     val roomLayout: RoomLayout = RoomLayout(),
+    /**
+     * The centre's own reconfirmation wording for the calling round's WhatsApp
+     * hand-off. Blank uses [WHATSAPP_DEFAULT_TEMPLATE]; see [whatsAppMessage]
+     * for the tokens.
+     */
+    val whatsAppTemplate: String = "",
 )
 
 const val MAIN_DHAMMA_HALL = "Main Dhamma Hall"

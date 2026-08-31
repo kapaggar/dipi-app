@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
@@ -25,7 +26,10 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.dhamma.dipi.staff.model.CentreOpsPrefs
+import org.dhamma.dipi.staff.model.WHATSAPP_DEFAULT_TEMPLATE
+import org.dhamma.dipi.staff.model.WHATSAPP_TOKENS
 import org.dhamma.dipi.staff.model.centreOpsEffect
+import org.dhamma.dipi.staff.model.whatsAppMessage
 import org.dhamma.dipi.staff.ui.theme.DeskKicker
 import org.dhamma.dipi.staff.ui.theme.DipiCondensed
 import org.dhamma.dipi.staff.ui.theme.Industry
@@ -40,6 +44,7 @@ fun CentreOpsScreen(
     onToggleGroups: () -> Unit,
     onOpenRooms: () -> Unit,
     onBack: () -> Unit,
+    onWhatsAppTemplate: (String) -> Unit = {},
 ) {
     val c = LocalDipi.current
     val grouped = prefs.rooms.groupBy { it.gender to it.section }
@@ -111,6 +116,8 @@ fun CentreOpsScreen(
             Text(centreOpsEffect(prefs), color = c.foreground, fontSize = 13.sp)
         }
         Spacer(Modifier.height(14.dp))
+        WhatsAppTemplateCard(prefs.whatsAppTemplate, onWhatsAppTemplate)
+        Spacer(Modifier.height(14.dp))
         Text("Accommodation", fontFamily = DipiCondensed, fontSize = 16.sp, modifier = Modifier.padding(top = 8.dp))
         Text(
             "Room list comes from the desk site (Centre → Edit) and refreshes on sign-in.",
@@ -169,5 +176,54 @@ private fun ToggleRow(title: String, note: String, on: Boolean, onClick: () -> U
                 uncheckedBorderColor = c.hairlineStrong,
             ),
         )
+    }
+}
+
+/**
+ * The calling round's WhatsApp wording. Blank means the built-in default, so
+ * the field opens showing what will actually be sent rather than an empty box.
+ * The preview renders the tokens against a sample applicant — the real message
+ * is built the same way at hand-off time and never stored.
+ */
+@Composable
+private fun WhatsAppTemplateCard(template: String, onTemplate: (String) -> Unit) {
+    val c = LocalDipi.current
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .deskCard()
+            .padding(14.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text("WhatsApp message", fontFamily = DipiCondensed, fontSize = 18.sp, color = c.foreground)
+        Text(
+            "Sent by the calling round's WhatsApp button. " +
+                WHATSAPP_TOKENS.joinToString(" ") + " are filled in per applicant.",
+            color = c.muted,
+            fontSize = 12.sp,
+        )
+        OutlinedTextField(
+            value = template,
+            onValueChange = onTemplate,
+            modifier = Modifier.fillMaxWidth().testTag("whatsapp-template"),
+            minLines = 3,
+            placeholder = { Text(WHATSAPP_DEFAULT_TEMPLATE, fontSize = 13.sp) },
+        )
+        Text("PREVIEW", color = c.muted, fontSize = 11.sp)
+        Text(
+            whatsAppMessage(
+                template = template,
+                name = "Rajat Kumar",
+                course = "10 Day",
+                dates = "2 Sep - 13 Sep",
+                centre = "Dhamma Sudha",
+                conf = "NM66",
+            ),
+            color = c.foreground,
+            fontSize = 13.sp,
+        )
+        if (template.isNotBlank()) {
+            TextButton(onClick = { onTemplate("") }) { Text("Reset to the default message") }
+        }
     }
 }

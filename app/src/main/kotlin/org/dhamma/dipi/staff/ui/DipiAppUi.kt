@@ -67,6 +67,7 @@ import org.dhamma.dipi.staff.desk.SheetViewerPane
 import org.dhamma.dipi.staff.desk.deskRoll
 import org.dhamma.dipi.staff.desk.deskWaNumber
 import org.dhamma.dipi.staff.model.SheetPayload
+import org.dhamma.dipi.staff.model.whatsAppMessage
 import org.dhamma.dipi.staff.photos.PhotoReviewScreen
 import org.dhamma.dipi.staff.settings.SettingsScreen
 import org.dhamma.dipi.staff.summary.DaySummaryScreen
@@ -278,6 +279,7 @@ fun DipiAppUi(vm: DeskViewModel) {
                             onToggleGroups = vm::toggleGroups,
                             onOpenRooms = vm::openRoomsFromCentreOps,
                             onBack = vm::back,
+                            onWhatsAppTemplate = vm::setWhatsAppTemplate,
                         )
                         DeskScreen.Settings -> SettingsPane(vm, state)
                         else -> DeskBody(vm, state, wide)
@@ -322,6 +324,9 @@ private fun DeskHost(
         context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:$tel")))
     }
     val roll = deskRoll(state.rows)
+    // Both feed the calling round's WhatsApp template tokens.
+    val centre = session.centres.firstOrNull()?.name.orEmpty()
+    val courseDates = listOf(course.start, course.end).filter { it.isNotBlank() }.joinToString(" – ")
     val flagsById = remember(state.auditRows) { state.auditRows.associate { it.id to it.flags } }
     val openApp: (org.dhamma.dipi.staff.model.ApplicantCard) -> Unit = { card ->
         vm.selectDeskApp(card)
@@ -384,8 +389,18 @@ private fun DeskHost(
                     onWhatsApp = { card ->
                         val wa = deskWaNumber(card.mobile) ?: return@CallingPane
                         vm.logCallAttempt(card)
-                        context.startActivity(
-                            Intent(Intent.ACTION_VIEW, Uri.parse("https://wa.me/$wa")),
+                        // The centre's own wording, rendered against this card;
+                        // nothing about the applicant is stored to build it.
+                        context.openWhatsApp(
+                            wa,
+                            whatsAppMessage(
+                                template = state.centreOps.whatsAppTemplate,
+                                name = card.displayName,
+                                course = course.name,
+                                dates = courseDates,
+                                centre = centre,
+                                conf = card.confNo?.value.orEmpty(),
+                            ),
                         )
                     },
                     onNote = vm::setCallNote,
@@ -393,6 +408,12 @@ private fun DeskHost(
                     seniority = state.deskSeniority,
                     onGender = vm::setDeskGender,
                     onSeniority = vm::setDeskSeniority,
+                    search = state.callSearch,
+                    onSearch = vm::setCallSearch,
+                    priority = state.callPriority,
+                    onPriority = vm::toggleCallPriority,
+                    statusChoices = state.statusChoices,
+                    onChangeStatus = vm::changeStatusFor,
                 )
                 DeskSection.Rooms -> RoomsPane(
                     roll = roll,

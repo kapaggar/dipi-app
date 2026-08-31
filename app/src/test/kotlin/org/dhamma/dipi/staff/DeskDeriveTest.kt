@@ -4,6 +4,10 @@ import org.dhamma.dipi.staff.desk.CALL_OUTCOMES
 import org.dhamma.dipi.staff.desk.deskCallAgo
 import org.dhamma.dipi.staff.desk.deskCallCounts
 import org.dhamma.dipi.staff.desk.deskCallList
+import org.dhamma.dipi.staff.desk.deskCallLogged
+import org.dhamma.dipi.staff.desk.deskCallOutcome
+import org.dhamma.dipi.staff.desk.deskCallRank
+import org.dhamma.dipi.staff.desk.deskCallSorted
 import org.dhamma.dipi.staff.desk.deskCallMeta
 import org.dhamma.dipi.staff.desk.deskCallRows
 import org.dhamma.dipi.staff.desk.deskWaNumber
@@ -264,19 +268,84 @@ class DeskDeriveTest {
     fun callRowsEmptyThemselvesAsOutcomesAreLogged() {
         val roll = listOf(card(1), card(2), card(3, mobile = null))
         assertEquals(2, deskCallList(roll).size)
-        val outcomes = mapOf(ApplicantId(1) to CallRecord(outcome = "Reached"))
+        val outcomes = mapOf(ApplicantId(1) to CallRecord(outcome = "Confirmed"))
         assertEquals(listOf(2), deskCallRows(roll, outcomes, "To call").map { it.id.value })
-        assertEquals(listOf(1), deskCallRows(roll, outcomes, "Reached").map { it.id.value })
+        assertEquals(listOf(1), deskCallRows(roll, outcomes, "Confirmed").map { it.id.value })
         assertTrue(deskCallRows(roll, outcomes, "No answer").isEmpty())
-        assertEquals(listOf("Reached", "No answer", "Call back"), CALL_OUTCOMES)
+        assertEquals(
+            listOf("Confirmed", "Cancelled", "No answer", "Callback", "Left msg"),
+            CALL_OUTCOMES,
+        )
         // An attempt without an outcome keeps the row in the To-call pile.
         val attempted = mapOf(ApplicantId(1) to CallRecord(attempts = 1, lastAttemptMs = 5L))
         assertEquals(listOf(1, 2), deskCallRows(roll, attempted, "To call").map { it.id.value })
         // Pile sizes for the segmented labels.
         assertEquals(
-            mapOf("To call" to 1, "Reached" to 1, "No answer" to 0, "Call back" to 0),
+            mapOf(
+                "To call" to 1,
+                "Confirmed" to 1,
+                "Cancelled" to 0,
+                "No answer" to 0,
+                "Callback" to 0,
+                "Left msg" to 0,
+            ),
             deskCallCounts(roll, outcomes),
         )
+    }
+
+    @Test
+    fun logsWrittenBeforeTheTrackerWordingStillLandInAPile() {
+        // "Reached" and "Call back" were the old labels; a value belonging to
+        // no vocabulary at all falls back to To-call rather than disappearing.
+        assertEquals("Confirmed", deskCallOutcome("Reached"))
+        assertEquals("Callback", deskCallOutcome("Call back"))
+        assertEquals("Left msg", deskCallOutcome("Left message"))
+        assertEquals("No answer", deskCallOutcome("no answer"))
+        assertEquals("", deskCallOutcome("Tentative"))
+        assertEquals("", deskCallOutcome(null))
+        assertTrue(deskCallLogged(CallRecord(outcome = "Reached")))
+        assertFalse(deskCallLogged(CallRecord(attempts = 3)))
+
+        val roll = listOf(card(1), card(2))
+        val legacy = mapOf(ApplicantId(1) to CallRecord(outcome = "Reached"))
+        assertEquals(listOf(1), deskCallRows(roll, legacy, "Confirmed").map { it.id.value })
+        assertEquals(listOf(2), deskCallRows(roll, legacy, "To call").map { it.id.value })
+    }
+
+    @Test
+    fun callSearchMatchesNameOrConfNumberAndLeavesTheCountsAlone() {
+        val roll = listOf(
+            card(1, conf = "NM66", given = "Rajat", family = "Kumar"),
+            card(2, conf = "OM9", given = "Harendra", family = "Singh"),
+        )
+        assertEquals(listOf(1), deskCallRows(roll, emptyMap(), "To call", "rajat").map { it.id.value })
+        assertEquals(listOf(2), deskCallRows(roll, emptyMap(), "To call", "om9").map { it.id.value })
+        assertEquals(listOf(1, 2), deskCallRows(roll, emptyMap(), "To call", "  ").map { it.id.value })
+        assertTrue(deskCallRows(roll, emptyMap(), "To call", "zzz").isEmpty())
+        // Segment labels keep reading as pile sizes, not as search hits.
+        assertEquals(2, deskCallCounts(roll, emptyMap())["To call"])
+    }
+
+    @Test
+    fun prioritySortFloatsTheStillToReachRowsUp() {
+        val roll = listOf(
+            card(1, given = "Arun", family = "Kale"),
+            card(2, given = "Bikram", family = "Poonia"),
+            card(3, given = "Chandan", family = "Rao"),
+            card(4, given = "Deepak", family = "Sen"),
+        )
+        val outcomes = mapOf(
+            ApplicantId(1) to CallRecord(outcome = "Confirmed"),
+            ApplicantId(2) to CallRecord(outcome = "Callback"),
+            ApplicantId(3) to CallRecord(outcome = "Cancelled"),
+        )
+        assertEquals(0, deskCallRank(null))
+        assertEquals(1, deskCallRank(CallRecord(outcome = "Callback")))
+        assertEquals(5, deskCallRank(CallRecord(outcome = "Cancelled")))
+        // A-Z ignores the log; priority puts the un-called row first, then the
+        // callback, and leaves the settled pair at the back.
+        assertEquals(listOf(1, 2, 3, 4), deskCallSorted(roll, outcomes, false).map { it.id.value })
+        assertEquals(listOf(4, 2, 1, 3), deskCallSorted(roll, outcomes, true).map { it.id.value })
     }
 
     @Test
