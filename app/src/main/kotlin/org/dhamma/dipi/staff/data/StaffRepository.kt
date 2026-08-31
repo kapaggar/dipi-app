@@ -58,6 +58,16 @@ import javax.inject.Singleton
  */
 const val OLDER_COURSE_LIMIT = 3
 
+/**
+ * The status vocabulary offered in the sheet: the desk's own select when the
+ * page carried one, else whatever statuses the roster shows (the pre-1.28
+ * behaviour, kept as the fallback for filtered fetches whose HTML fragment
+ * has no form). Never invents entries; "Approved" is excluded downstream by
+ * ApplicantStatus.mergeChoices, not here.
+ */
+internal fun deriveStatuses(parsed: List<String>, counts: Map<String, Int>): List<String> =
+    parsed.ifEmpty { counts.keys.filter { it != "All" } }
+
 @Singleton
 class StaffRepository @Inject constructor(
     private val auth: DrupalAuthApi,
@@ -291,7 +301,9 @@ class StaffRepository @Inject constructor(
             rows.groupingBy { it.status }.eachCount().forEach { (k, v) ->
                 if (k.isNotBlank()) counts[k] = v
             }
-            if (counts.keys.size > 1) lastStatuses = counts.keys.filter { it != "All" }
+            // was: if (counts.keys.size > 1) lastStatuses = counts.keys.filter { it != "All" }
+            val derived = deriveStatuses(result.statuses, counts)
+            if (derived.isNotEmpty()) lastStatuses = derived
             rows.map { it.toModel() } to counts
         }.getOrElse { throw it.toApi() }
     }
