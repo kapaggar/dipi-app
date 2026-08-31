@@ -574,14 +574,22 @@ private fun CourseCard(
             .padding(start = 14.dp, end = 14.dp, top = 11.dp, bottom = 9.dp),
         verticalArrangement = Arrangement.spacedBy(3.dp),
     ) {
-        // Gate-review fix (Finding 1): a card's height must not depend on
-        // its content. The name slot is pinned to exactly two lines — a
-        // one-line name still reserves the second line's height instead of
-        // shrinking the card — and the date / "starts in" line renders
-        // unconditionally so its slot is reserved even when blank. Compose
-        // still lays out an empty string at the style's line height (Text
-        // defaults to minLines = 1), so a blank line here costs the same
-        // height as a filled one; no magic dp guess needed.
+        // Bug A fix (owner screenshot 2026-08-30): the previous gate-review
+        // pass reserved height for two lines that this data can never fill —
+        // StaffRepository always builds upcoming Courses with start = end =
+        // "" (the desk's own course name already carries the dates), so the
+        // date line and "STARTS IN n DAYS" line were rendering as permanent
+        // blank slots (~36dp), and minLines = 2 on the name reserved a
+        // second line every one-line real course name never uses (~20dp).
+        // ~56dp of dead space per card was the gap the owner saw between the
+        // title and the MALE/FEMALE header. A card's height must still not
+        // *balloon* with content — maxLines/ellipsis on the name caps a long
+        // name at two lines — but it must not reserve what cannot render:
+        // the date and starts-in lines are gated on having content, and the
+        // name drops minLines entirely. Equal heights across a grid row
+        // still hold because CourseMatrixTable renders a constant three rows
+        // plus Total (cardRows) and real course names fit one line at this
+        // card width.
         Text(
             course.name,
             fontFamily = DipiCondensed,
@@ -589,21 +597,21 @@ private fun CourseCard(
             lineHeight = 20.sp,
             letterSpacing = 0.2.sp,
             color = c.foreground,
-            minLines = 2,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
         )
-        Text(
-            listOf(course.start, course.end).filter { it.isNotBlank() }.joinToString(" – "),
-            color = c.muted,
-            fontSize = 13.sp,
-        )
-        Text(
-            if (first && days > 0) "STARTS IN $days DAYS" else "",
-            color = c.accent,
-            fontFamily = DipiCondensed,
-            fontSize = 12.sp,
-        )
+        val dateLine = listOf(course.start, course.end).filter { it.isNotBlank() }.joinToString(" – ")
+        if (dateLine.isNotBlank()) {
+            Text(dateLine, color = c.muted, fontSize = 13.sp)
+        }
+        if (first && days > 0) {
+            Text(
+                "STARTS IN $days DAYS",
+                color = c.accent,
+                fontFamily = DipiCondensed,
+                fontSize = 12.sp,
+            )
+        }
         val matrix = course.matrix
         if (matrix != null) {
             CourseMatrixTable(matrix, modifier = Modifier.padding(top = 9.dp))
@@ -617,6 +625,19 @@ private fun CourseCard(
                     fontSize = 11.sp,
                     lineHeight = 16.sp,
                     color = c.muted,
+                )
+            } else {
+                // Bug B UX fix: a course can have no matrix AND no counts —
+                // confirmed root cause is the desk's own course_summary(),
+                // which builds its per-course blocks only from applicant
+                // rows found in the window's query, so a course with zero
+                // applicants yet never gets a summary-block at all (not a
+                // parser bug: a four-block fixture parses cleanly). Whatever
+                // the cause, a card must never render as a silent empty box.
+                Text(
+                    "No applications yet",
+                    color = c.muted,
+                    fontSize = 12.sp,
                 )
             }
         }

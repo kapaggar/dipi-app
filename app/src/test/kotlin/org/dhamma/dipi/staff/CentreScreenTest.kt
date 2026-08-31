@@ -326,55 +326,56 @@ class CentreScreenTest {
     }
 
     @Test
-    fun coursesWithDifferentlyWrappingNamesGetEqualHeightCards() {
-        // Gate-review Finding 1: the owner's literal request was to
-        // "standardize the heights of the boxes of coming courses". A prior
-        // pass fixed the matrix rows (S3) but left CourseCard's name Text
-        // without a maxLines/minLines, so a real course name long enough to
-        // wrap ("Dhamma Sudha / 10 Day / 2026 / 6th-Aug to 17th-Aug") made a
-        // taller card than a short one ("10-Day") beside it. That matters
-        // beyond cosmetics: the upcoming pane has no scroll (S2) and is
-        // capped at 60% of the space below the header, so a taller row can
-        // push later cards past the cap where they are unreachable.
+    fun coursesWithDifferentlyLengthedRealNamesGetEqualHeightCards() {
+        // Gate-review Finding 1 (owner's literal request): "standardize the
+        // heights of the boxes of coming courses". The ORIGINAL fix for that
+        // pinned the name Text to minLines = 2 and rendered the date /
+        // "starts in" lines unconditionally, so every card reserved height
+        // for slots that (per StaffRepository.kt, which always builds
+        // upcoming Courses with start = end = "") could never be filled.
+        // That was the wrong mechanic — Bug A on the owner's 2026-08-30
+        // screenshot: ~56dp of dead space between the title and the
+        // MALE/FEMALE header on every card.
         //
-        // Robolectric's default (legacy) graphics shadow does not perform
-        // real width-based line breaking for Compose Text — measured in
-        // isolation, the same 51-character string stays a single line no
-        // matter how narrow the container is given. It does honor an
-        // explicit line break, though, which is what a real device's word
-        // wrap would produce at this exact point, so the long name carries
-        // one to get a genuine two-line layout deterministically. Both
-        // courses share the same (past) dates so neither renders
-        // "STARTS IN N DAYS" — the only variable that reaches the assertion
-        // is the name's line count.
-        val longNameCourse = Course(
+        // The real invariant this test protects is narrower than "any two
+        // names, however different in length, must match": it's that the
+        // desk's actual one-line course names — which already carry their
+        // own dates, e.g. "Dhamma Sudha / 10 Day / 2026 / 2nd-Sep to
+        // 13th-Sep" — produce equal-height cards purely from the matrix's
+        // constant three rows plus Total (cardRows), with no minLines
+        // reservation needed. Two such names, of different lengths, share
+        // the same matrix here so the only variable reaching the assertion
+        // is the name string itself.
+        val septemberCourse = Course(
             CourseId(30),
             CentreId(1),
-            "Dhamma Sudha / 10 Day / 2026 /\n6th-Aug to 17th-Aug",
-            "2026-07-06",
-            "2026-07-17",
+            "Dhamma Sudha / 10 Day / 2026 / 2nd-Sep to 13th-Sep",
+            "",
+            "",
+            matrix = matrix,
         )
-        val shortNameCourse = Course(
+        val octoberCourse = Course(
             CourseId(31),
             CentreId(1),
-            "10-Day",
-            "2026-07-06",
-            "2026-07-17",
+            "Dhamma Sudha / STP / 2026 / 21st-Oct to 29th-Oct",
+            "",
+            "",
+            matrix = matrix,
         )
         rule.setContent {
             DipiTheme {
                 CentreScreen(
                     session = session,
-                    courses = listOf(longNameCourse, shortNameCourse),
+                    courses = listOf(septemberCourse, octoberCourse),
                     onPick = {},
                 )
             }
         }
-        val longCardHeight = rule.onNodeWithText(longNameCourse.name, useUnmergedTree = true)
+        val septemberCardHeight = rule.onNodeWithText(septemberCourse.name, useUnmergedTree = true)
             .onParent().getUnclippedBoundsInRoot().height
-        val shortCardHeight = rule.onNodeWithText(shortNameCourse.name, useUnmergedTree = true)
+        val octoberCardHeight = rule.onNodeWithText(octoberCourse.name, useUnmergedTree = true)
             .onParent().getUnclippedBoundsInRoot().height
-        assertEquals(longCardHeight.value, shortCardHeight.value, 1f)
+        assertEquals(septemberCardHeight.value, octoberCardHeight.value, 1f)
     }
 
     @Test
@@ -395,6 +396,28 @@ class CentreScreenTest {
         // so the merged tree collapses every cell into one node and cannot
         // count them.
         rule.onAllNodesWithText("·", useUnmergedTree = true).assertCountEquals(13)
+    }
+
+    @Test
+    fun cardWithNoMatrixAndNoSummaryShowsNoApplicationsYetInsteadOfAnEmptyBox() {
+        // Bug B (owner screenshot 2026-08-30): cards 3/4 rendered only a
+        // title — no matrix and no counts-line fallback — because both are
+        // null for those course ids. Root cause (confirmed against the
+        // desk's course_summary()/course.inc): it builds its per-course
+        // summary-blocks only from courses it finds in the applicant query
+        // for the window, so a course with no applicants yet never gets a
+        // block at all — this is not a client parser bug (a four-block
+        // fixture parses cleanly in CentrePageParserTest). Whatever upstream
+        // cause produced the gap, the card itself must always say something
+        // rather than render as a silent empty box.
+        val noApplicantsYet = course.copy(matrix = null, summary = null)
+        rule.setContent {
+            DipiTheme {
+                CentreScreen(session = session, courses = listOf(noApplicantsYet), onPick = {})
+            }
+        }
+        rule.onNodeWithText("No applications yet").assertIsDisplayed()
+        rule.onNodeWithText("NM").assertDoesNotExist()
     }
 
     @Test

@@ -213,6 +213,48 @@ class CentrePageParserTest {
         assertEquals(emptyMap<Int, Any>(), CentrePageParser.courseMatrices("<html><body>login form</body></html>"))
     }
 
+    // Diagnostic for the owner's "bottom two cards render nothing" report:
+    // a page with FOUR summary-blocks (four distinct course ids), back to
+    // back with no filler between them, must yield four parsed entries from
+    // both courseMatrices and courseSummaries. If this fails, the parser
+    // itself drops later blocks — a real regression. If it passes (as it
+    // does), the parser's heading→next-heading segmentation is not the
+    // cause of the owner's missing cards, and the cause lies upstream (the
+    // desk simply not emitting a block for those two course ids).
+    private fun simpleBlock(courseId: Int, name: String, totalRow: String): String = """
+        <div class="summary-block"><div class="table-heading"><a href="/course/91/$courseId">$name</a></div>
+        <table><tr><th></th><th>NM</th><th>OM</th><th>Total</th><th>SM</th><th>&nbsp;</th><th>NF</th><th>OF</th><th>Total</th><th>SF</th></tr>
+        <tr><td><a>Confirmed</a></td><td><a>1</a></td><td></td><td><b><a>1</a></b></td><td></td><td>&nbsp;</td><td><a>1</a></td><td></td><td><b><a>1</a></b></td><td></td></tr>
+        $totalRow
+        </table></div>
+    """.trimIndent()
+
+    @Test
+    fun fourSummaryBlocksBackToBackAllParse() {
+        val fourBlocksHtml = listOf(
+            simpleBlock(101, "Course A", "<tr><td><b>Total</b></td><td>1</td><td>0</td><td><b>1</b></td><td>0</td><td>&nbsp;</td><td>1</td><td>0</td><td><b>1</b></td><td>0</td></tr>"),
+            simpleBlock(102, "Course B", "<tr><td><b>Total</b></td><td>2</td><td>0</td><td><b>2</b></td><td>0</td><td>&nbsp;</td><td>2</td><td>0</td><td><b>2</b></td><td>0</td></tr>"),
+            simpleBlock(103, "Course C", "<tr><td><b>Total</b></td><td>3</td><td>0</td><td><b>3</b></td><td>0</td><td>&nbsp;</td><td>3</td><td>0</td><td><b>3</b></td><td>0</td></tr>"),
+            simpleBlock(104, "Course D", "<tr><td><b>Total</b></td><td>4</td><td>0</td><td><b>4</b></td><td>0</td><td>&nbsp;</td><td>4</td><td>0</td><td><b>4</b></td><td>0</td></tr>"),
+        ).joinToString("\n")
+
+        val matrices = CentrePageParser.courseMatrices(fourBlocksHtml)
+        assertEquals(setOf(101, 102, 103, 104), matrices.keys)
+        // Each block's own Total row is distinct (1/2/3/4) — proves no
+        // cross-block bleed, not just four present keys.
+        assertEquals(1, matrices.getValue(101).total!!.newMale)
+        assertEquals(2, matrices.getValue(102).total!!.newMale)
+        assertEquals(3, matrices.getValue(103).total!!.newMale)
+        assertEquals(4, matrices.getValue(104).total!!.newMale)
+
+        val summaries = CentrePageParser.courseSummaries(fourBlocksHtml)
+        assertEquals(setOf(101, 102, 103, 104), summaries.keys)
+        // Total row's male + female Total cells (no sevaks in this fixture):
+        // block B is 2+2=4, block D is 4+4=8.
+        assertEquals(4, summaries.getValue(102).total)
+        assertEquals(8, summaries.getValue(104).total)
+    }
+
     @Test
     fun courseSummariesUnaffectedByMatrixShapedHtml() {
         // Proof courseMatrices was added without disturbing courseSummaries:
