@@ -2,9 +2,9 @@ package org.dhamma.dipi.staff
 
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.performTextInput
 import org.dhamma.dipi.staff.model.AccoRoom
 import org.dhamma.dipi.staff.model.ApplicantCard
 import org.dhamma.dipi.staff.model.ApplicantId
@@ -68,7 +68,7 @@ class ZeroDayScreenTest {
                     course = course,
                     rows = listOf(card()),
                     prefs = CentreOpsPrefs(laundry = true, valuables = true, groups = false),
-                    onSeating = { _, s -> seat = s },
+                    onSeat = { _, s -> seat = s },
                 )
             }
         }
@@ -97,5 +97,41 @@ class ZeroDayScreenTest {
         }
         rule.onNodeWithText("Pull rooms").assertIsDisplayed().performClick()
         assertTrue(pulled)
+    }
+
+    @Test
+    fun seatTapReportsCardAndSeat() {
+        var got: Pair<ApplicantCard, String>? = null
+        val meera = card()
+        rule.setContent {
+            DipiTheme {
+                ZeroDayScreen(
+                    course = course,
+                    rows = listOf(meera),
+                    prefs = CentreOpsPrefs(laundry = true, valuables = true, groups = false),
+                    onSeat = { c, s -> got = c to s },
+                )
+            }
+        }
+        rule.onNodeWithText("Chair").performClick()
+        assertEquals(meera.id, got?.first?.id)
+        assertEquals("Chair", got?.second)
+    }
+
+    @Test
+    fun laundryToggleFiresExactlyOnce() {
+        var n = 0
+        rule.setContent {
+            DipiTheme {
+                ZeroDayScreen(
+                    course = course,
+                    rows = listOf(card()),
+                    prefs = CentreOpsPrefs(laundry = true, valuables = true),
+                    onLaundry = { n += 1 },
+                )
+            }
+        }
+        rule.onNodeWithTag("zero-day-laundry").performClick()
+        assertEquals(1, n)
     }
 }

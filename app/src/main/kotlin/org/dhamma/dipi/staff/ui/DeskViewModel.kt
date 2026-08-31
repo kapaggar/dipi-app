@@ -13,7 +13,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import org.dhamma.dipi.staff.applicants.ZeroDayDraft
 import org.dhamma.dipi.staff.audit.ClientAudit
 import org.dhamma.dipi.staff.data.ApiException
 import org.dhamma.dipi.staff.data.ConnectivityMonitor
@@ -140,7 +139,6 @@ data class DeskUiState(
     val deskAction: DeskActionDest? = null,
     val centreOps: CentreOpsPrefs = CentreOpsPrefs(),
     val auditRows: List<ApplicantCard> = emptyList(),
-    val zeroDayDrafts: Map<ApplicantId, ZeroDayDraft> = emptyMap(),
     val callState: Map<ApplicantId, CallRecord> = emptyMap(),
     val callFilter: String = "To call",
     /** Call-round name box. Session-only — a search is never worth restoring. */
@@ -850,13 +848,7 @@ class DeskViewModel @Inject constructor(
     }
 
     fun pickRoom(room: AccoRoom) {
-        val id = _state.value.roomsApplicantId
-        if (id != null) {
-            _state.update { cur ->
-                val draft = cur.zeroDayDrafts[id] ?: ZeroDayDraft()
-                cur.copy(zeroDayDrafts = cur.zeroDayDrafts + (id to draft.copy(roomCode = room.code)))
-            }
-        }
+        _state.value.roomsApplicantId?.let { id -> patchRecord(id) { it.copy(room = room.code) } }
         back()
     }
 
@@ -877,22 +869,39 @@ class DeskViewModel @Inject constructor(
         _state.value.centreOps.let { it.copy(roomLayout = it.roomLayout.withColumns(gender, section, columns)) },
     )
 
-    fun setZeroDaySeating(card: ApplicantCard, seating: String) {
-        patchDraft(card.id) { it.copy(seating = seating) }
+    /** Phone Zero Day edits the same records the tablet dialog writes. */
+    private fun patchRecord(id: ApplicantId, patch: (CheckInRecord) -> CheckInRecord) {
+        val cur = _state.value.checkIns[id] ?: CheckInRecord()
+        persistCheckIns(_state.value.checkIns + (id to patch(cur).clearSyncedIfChanged(cur)))
     }
 
-    fun setZeroDayLaundry(card: ApplicantCard, value: String) {
-        patchDraft(card.id) { it.copy(laundry = value) }
-    }
+    fun setZeroDaySeat(card: ApplicantCard, seat: String) =
+        patchRecord(card.id) { it.copy(seat = seat) }
 
-    fun setZeroDayValuables(card: ApplicantCard, value: String) {
-        patchDraft(card.id) { it.copy(valuables = value) }
-    }
+    fun toggleZeroDayLaundry(card: ApplicantCard) =
+        patchRecord(card.id) { it.copy(laundry = !it.laundry) }
+
+    fun toggleZeroDayValuables(card: ApplicantCard) =
+        patchRecord(card.id) { it.copy(valuables = !it.valuables) }
 
     fun markAttended(card: ApplicantCard) {
+        val record = _state.value.checkIns[card.id] ?: CheckInRecord()
+        val (text, err) = deskSaveSnack(record, card)
+        if (err) {
+            _state.update { it.copy(snack = FlushSnack(text, error = true)) }
+            return
+        }
+        persistCheckIns(
+            _state.value.checkIns + (card.id to record.copy(checkedIn = true).clearSyncedIfChanged(record)),
+        )
         _state.update { cur ->
             val rows = cur.rows.map { if (it.id == card.id) it.copy(attended = true) else it }
-            cur.copy(rows = rows, visible = WorklistFilter.visible(rows, cur.selected, cur.query), auditRows = flagAudit(rows))
+            cur.copy(
+                rows = rows,
+                visible = WorklistFilter.visible(rows, cur.selected, cur.query),
+                auditRows = flagAudit(rows),
+                snack = FlushSnack(text, error = false),
+            )
         }
         viewModelScope.launch { repo.markAttendedLocal(card.id) }
     }
@@ -935,13 +944,6 @@ class DeskViewModel @Inject constructor(
         _state.update { it.copy(callState = records) }
         viewModelScope.launch {
             sessionStore.setCallLog(records.entries.associate { (id, rec) -> id.value to rec })
-        }
-    }
-
-    private fun patchDraft(id: ApplicantId, block: (ZeroDayDraft) -> ZeroDayDraft) {
-        _state.update { cur ->
-            val draft = block(cur.zeroDayDrafts[id] ?: ZeroDayDraft())
-            cur.copy(zeroDayDrafts = cur.zeroDayDrafts + (id to draft))
         }
     }
 
