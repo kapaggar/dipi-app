@@ -176,6 +176,22 @@ interface StaffApi {
     @GET("/app/{id}/edit")
     suspend fun appEditPage(@Path("id") id: Int): Response<ResponseBody>
 
+    @GET("/app-courses/{id}")
+    suspend fun appCourses(@Path("id") id: Int): Response<ResponseBody>
+
+    @GET("/app-activity/{id}")
+    suspend fun appActivity(@Path("id") id: Int): Response<ResponseBody>
+
+    @GET("/app-clarifications/{id}")
+    suspend fun appClarifications(@Path("id") id: Int): Response<ResponseBody>
+
+    @Streaming
+    @GET("/show-clarification/{appId}/{clarId}")
+    suspend fun showClarification(
+        @Path("appId") appId: Int,
+        @Path("clarId") clarId: Int,
+    ): Response<ResponseBody>
+
     /**
      * Course report is `drupal_get_form(dh_center_course_report_form)`
      * (inc/reports.inc:111), not a plain GET: scrape this form, then POST it.
@@ -262,6 +278,15 @@ class SheetTransport(
 
     suspend fun appEditPage(id: Int): SheetPayload = guarded("Application $id") {
         htmlPayload("Application $id", api.appEditPage(id))
+    }
+
+    suspend fun clarificationPdf(appId: Int, clarId: Int): SheetPayload = guarded("Clarification") {
+        save(
+            title = "Clarification $clarId",
+            fileName = "clarification-$appId-$clarId.pdf",
+            fallbackMime = SheetRoutes.MIME_PDF,
+            resp = api.showClarification(appId, clarId),
+        )
     }
 
     /** Sheet bodies never outlive the session: wipe every cached document. */
