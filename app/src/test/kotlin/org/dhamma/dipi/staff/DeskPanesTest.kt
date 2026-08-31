@@ -4,9 +4,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.test.SemanticsNodeInteraction
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.getBoundsInRoot
+import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
@@ -495,6 +497,57 @@ class DeskPanesTest {
         assertEquals("F21", pickedRoom)
         rule.onNodeWithText("CHECK IN PRIYA").performClick()
         assertTrue(saved)
+    }
+
+    /**
+     * The owner's screenshot: a 73-room block at three per row needs 25 rows,
+     * so unscrolled only about nine fit and the list is clipped at "Mbk 27" —
+     * the registrar cannot reach any room above roughly 27. The action row
+     * must also stay reachable without scrolling, so a future change cannot
+     * push it below the fold.
+     */
+    @Test
+    fun dialogRoomPickerScrollsToReachTheLastRoomInALargeBlock() {
+        val arun = card(1, given = "Arun", family = "Kale", gender = Gender.M)
+        val bigBlock = (1..73).map {
+            AccoRoom("Mbk %02d".format(it), Gender.M, "Mbk")
+        }
+        rule.setContent {
+            DipiTheme {
+                CheckInDialog(
+                    card = arun,
+                    record = CheckInRecord(),
+                    roll = listOf(arun),
+                    checkIns = emptyMap(),
+                    rooms = bigBlock,
+                    roomOpen = true,
+                    laundryOn = false,
+                    valuablesOn = false,
+                    groupsOn = false,
+                    onToggleRooms = {},
+                    onRoom = {},
+                    onSeat = {},
+                    onValuables = {},
+                    onLaundry = {},
+                    onGroup = {},
+                    onSave = {},
+                    onUndo = {},
+                    onClose = {},
+                )
+            }
+        }
+        // The action row is visible without scrolling — the primary action
+        // never needs the fix to be reachable.
+        rule.onNodeWithText("CHECK IN ARUN").assertWhollyOnScreen()
+        // Two hops: on this long a non-lazy scroll (25 rows), a single
+        // performScrollTo() straight at the last room undershoots — verified
+        // empirically by comparing clipped vs unclipped bounds mid-debug —
+        // leaving it just below the fold. Scrolling past it (to the seating
+        // row that follows the picker) first, then back up to it, converges
+        // exactly; this is a test-tooling quirk on very long content, not a
+        // property of the fix itself, which is proven red/green below.
+        rule.onNodeWithText("Chowky").performScrollTo()
+        rule.onNodeWithText("Mbk 73").performScrollTo().assertWhollyOnScreen()
     }
 
     /* ── Slice 3: board ────────────────────────────────────────────── */
@@ -1021,5 +1074,19 @@ class DeskPanesTest {
         rule.onAllNodesWithText("Priya Nair").assertCountEquals(0)
         rule.onAllNodesWithText("Arun Kale").assertCountEquals(0)
         rule.onAllNodesWithText("Vikram Rao").assertCountEquals(0)
+    }
+
+    /**
+     * Stronger than [assertIsDisplayed], which is satisfied by a single
+     * visible pixel and has already let two clipping bugs through in this
+     * screen family (see CentreScreenWideTest). A node is only above the
+     * fold when the clip takes nothing off it, i.e. its clipped bounds are
+     * its unclipped bounds.
+     */
+    private fun SemanticsNodeInteraction.assertWhollyOnScreen() {
+        val clipped = getBoundsInRoot()
+        val unclipped = getUnclippedBoundsInRoot()
+        assertEquals(unclipped.top.value, clipped.top.value, 1f)
+        assertEquals(unclipped.bottom.value, clipped.bottom.value, 1f)
     }
 }

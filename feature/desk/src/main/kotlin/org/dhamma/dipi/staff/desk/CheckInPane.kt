@@ -21,8 +21,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -628,10 +630,15 @@ fun CheckInDialog(
                 }
             }
 
-            // Body
+            // Body. A free-room block can run past 70 rooms at three per
+            // row, so this is the one scroll for the whole dialog body —
+            // nothing inside it (room picker, seating, valuables/laundry,
+            // group grid) scrolls on its own. Header and footer stay
+            // outside, so the primary action is never scrolled out of reach.
             Column(
                 Modifier
                     .weight(1f, fill = false)
+                    .verticalScroll(rememberScrollState())
                     .padding(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 18.dp)
                     .fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
