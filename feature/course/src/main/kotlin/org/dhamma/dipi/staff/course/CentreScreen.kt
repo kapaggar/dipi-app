@@ -820,12 +820,3 @@ private fun MatrixDataRow(label: String, row: MatrixRow, cell: Dp, emphasise: Bo
             }
     }
 }
-
-@Composable
-fun CoursesScreen(
-    session: Session,
-    courses: List<Course>,
-    onPick: (Course) -> Unit,
-    onPickCentre: (Centre) -> Unit = {},
-    onSettings: () -> Unit = {},
-) = CentreScreen(session, courses, onPick, onPickCentre, onSettings)

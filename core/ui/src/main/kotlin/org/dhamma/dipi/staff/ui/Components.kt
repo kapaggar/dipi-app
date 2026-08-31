@@ -83,17 +83,6 @@ fun ApplicantRow(
 }
 
 @Composable
-fun Hairline() {
-    val c = LocalDipi.current
-    Box(
-        Modifier
-            .fillMaxWidth()
-            .background(c.hairline)
-            .padding(vertical = 0.5.dp),
-    )
-}
-
-@Composable
 fun FilterChip(label: String, selected: Boolean, onClick: () -> Unit) {
     val c = LocalDipi.current
     val bg = if (selected) c.accent else androidx.compose.ui.graphics.Color.Transparent
