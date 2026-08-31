@@ -4,6 +4,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.SemanticsNodeInteraction
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
@@ -16,6 +18,7 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.unit.width
 import org.dhamma.dipi.staff.desk.ApplicationsPane
@@ -539,14 +542,23 @@ class DeskPanesTest {
         // The action row is visible without scrolling — the primary action
         // never needs the fix to be reachable.
         rule.onNodeWithText("CHECK IN ARUN").assertWhollyOnScreen()
-        // Two hops: on this long a non-lazy scroll (25 rows), a single
-        // performScrollTo() straight at the last room undershoots — verified
-        // empirically by comparing clipped vs unclipped bounds mid-debug —
-        // leaving it just below the fold. Scrolling past it (to the seating
-        // row that follows the picker) first, then back up to it, converges
-        // exactly; this is a test-tooling quirk on very long content, not a
-        // property of the fix itself, which is proven red/green below.
-        rule.onNodeWithText("Chowky").performScrollTo()
+        // Two hops. First, drive the scrollable's own ScrollBy semantics
+        // action by a huge amount to reach its true max — on this long a
+        // non-lazy scroll (25 rows), a single performScrollTo() straight at
+        // the last room undershoots (verified empirically by comparing
+        // clipped vs unclipped bounds mid-debug), so a raw max-scroll is
+        // used instead of relying on that heuristic. The landing spot
+        // ("Chowky", in the seating row right after the picker) is itself
+        // asserted wholly on screen: that is what proves the scroll range
+        // genuinely extends past Mbk 73, not just "some" scroll happened —
+        // a future change that clipped the body's bottom would make this
+        // hop impossible too, so it cannot silently mask a real reach
+        // failure the way an unasserted intermediate step could. Second,
+        // performScrollTo() precisely onto Mbk 73 itself (accurate once the
+        // scroll state is no longer at its untouched starting position).
+        rule.onNode(SemanticsMatcher.keyIsDefined(SemanticsActions.ScrollBy))
+            .performSemanticsAction(SemanticsActions.ScrollBy) { scrollBy -> scrollBy(0f, 100_000f) }
+        rule.onNodeWithText("Chowky").assertWhollyOnScreen()
         rule.onNodeWithText("Mbk 73").performScrollTo().assertWhollyOnScreen()
     }
 
