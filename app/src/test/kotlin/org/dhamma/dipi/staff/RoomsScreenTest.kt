@@ -81,33 +81,67 @@ class RoomsScreenTest {
     }
 
     @Test
-    fun plusButtonCallsOnColumnsWithIncrementedValue() {
-        var captured: Triple<Gender, String, Int>? = null
+    fun plusButtonReflowsGridWithoutPersisting() {
+        var callCount = 0
         rule.setContent {
             DipiTheme {
                 RoomsScreen(
                     rooms = maleRooms(5),
-                    onColumns = { g, section, n -> captured = Triple(g, section, n) },
+                    onColumns = { _, _, _ -> callCount++ },
                 )
             }
         }
+        // Default is 4/row -> ceil(5/4) = 2 rows; a tap should reflow to 5/row -> 1 row.
+        rule.onNodeWithText("Male · Mbk · 5 rooms · 4 per row · 2 rows").assertIsDisplayed()
         rule.onNodeWithContentDescription("Increase columns · Male Mbk").performClick()
-        assertEquals(Triple(Gender.M, "Mbk", 5), captured)
+        rule.onNodeWithText("Male · Mbk · 5 rooms · 5 per row · 1 rows").assertIsDisplayed()
+        assertEquals(0, callCount)
     }
 
     @Test
-    fun minusButtonCallsOnColumnsWithDecrementedValue() {
-        var captured: Triple<Gender, String, Int>? = null
+    fun minusButtonReflowsGridWithoutPersisting() {
+        var callCount = 0
         rule.setContent {
             DipiTheme {
                 RoomsScreen(
                     rooms = maleRooms(5),
-                    onColumns = { g, section, n -> captured = Triple(g, section, n) },
+                    onColumns = { _, _, _ -> callCount++ },
                 )
             }
         }
         rule.onNodeWithContentDescription("Decrease columns · Male Mbk").performClick()
-        assertEquals(Triple(Gender.M, "Mbk", 3), captured)
+        rule.onNodeWithText("Male · Mbk · 5 rooms · 3 per row · 2 rows").assertIsDisplayed()
+        assertEquals(0, callCount)
+    }
+
+    @Test
+    fun saveRoomLayoutPersistsOnlyChangedBlocksOnce() {
+        val captured = mutableListOf<Triple<Gender, String, Int>>()
+        rule.setContent {
+            DipiTheme {
+                RoomsScreen(
+                    rooms = maleRooms(5),
+                    onColumns = { g, section, n -> captured.add(Triple(g, section, n)) },
+                )
+            }
+        }
+        rule.onNodeWithContentDescription("Increase columns · Male Mbk").performClick()
+        rule.onNodeWithContentDescription("Increase columns · Male Mbk").performClick()
+        assertEquals(0, captured.size)
+        rule.onNodeWithText("SAVE ROOM LAYOUT").performClick()
+        assertEquals(listOf(Triple(Gender.M, "Mbk", 6)), captured)
+    }
+
+    @Test
+    fun saveRoomLayoutDisabledWhenCleanEnabledWhenDirty() {
+        rule.setContent {
+            DipiTheme {
+                RoomsScreen(rooms = maleRooms(5))
+            }
+        }
+        rule.onNodeWithText("SAVE ROOM LAYOUT").assertIsNotEnabled()
+        rule.onNodeWithContentDescription("Increase columns · Male Mbk").performClick()
+        rule.onNodeWithText("SAVE ROOM LAYOUT").assertIsEnabled()
     }
 
     @Test
