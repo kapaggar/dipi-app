@@ -32,6 +32,19 @@ The prototype still describes an earlier desk. Three owner rounds after v3 lande
 | Daily Activity | removed from the app on owner instruction; still reachable on the desk site |
 | SMS Report | removed from the app on owner instruction; still reachable on the desk site |
 
+### Post-v4 owner decisions (2026-08-30 / 2026-08-31)
+
+Do not re-propose:
+
+| Decision | What the v4 canvas still shows | What shipped |
+|---|---|---|
+| Centre lower pane | 416dp two-column (older \| desk) | Older courses on the upcoming grid; desk column stacked beneath (`centre-trim-spec.md` §S4) |
+| Upcoming ceiling | 460dp / 60% + independent pane scrolls | Fixed header + one below-header scroll (card-bloat fix, `4ba1b3b`) |
+| Matrix cards | separate Confirmed and Expected rows | Fixed `cardRows` with `Confirmed + Expected` summed (§S3) |
+| Day-11 Board chip | dashed GAP row, "do not implement" | Solid fourth-line chip under the 3×4 shelves (T1, 2026-08-31) |
+| Status vocabulary | (undescribed) | Desk `edit-app-status` select, roster fallback (T3) |
+| v4 drift polish | (the six P-items in T7) | P1–P6 all shipped: 0.2sp top-bar tracking, 190dp rail + 3dp accent bar, 296dp check-in sidebar, Board kicker split, queued last-try on the same row, radius ramp 8/6/6 |
+
 ---
 
 ## Current Industry tokens (`Skin.kt`)

@@ -2,14 +2,14 @@
 
 DIPI Staff Android (`org.dhamma.dipi.staff`).
 
-**Now shipping:** Vertical 2 desk **1.27.0** (`versionCode` 42) on `main` — `feat/vertical-1` is merged and gone. The Day-11 export (`SheetExport.Day11Report` → `report-day11`, phone hub only) was cherry-picked from `feat/desk-gap` on 2026-08-30; its Board chip is deliberately unplaced (v4 shelf grid). `feat/desk-gap` still carries unmerged **1.19.0**, but only applicant desk history, server-side Advanced Search and the `HtmlForms`/`HtmlTables` scrapers remain live — its centre tiles and letters are retired, see `AGENTS.md`. Default host is live `https://dipi.vridhamma.org`.
+**Now shipping:** Vertical 2 desk **post-T8 / pending integrator bump** (last integrator ship **1.30.0** / 46) on `main` — `feat/vertical-1` is merged and gone. Day-11 (`SheetExport.Day11Report` → `report-day11`) is a solid fourth-line Board chip (T1); phone hub overflow still reaches it. `feat/desk-gap` still carries unmerged **1.19.0** server-side Advanced Search; applicant desk history and `HtmlForms`/`HtmlTables` shipped in T6. Default host is live `https://dipi.vridhamma.org`.
 
 Governing product rules: `docs/DIPI-STAFF-IMPLEMENTATION-PROMPT-GROK-4.6.md` (no client ACL, no `Approved`, no attendance write).  
 **Transport (this file + `AGENTS.md` win):** the live desk is Drupal HTML, not Services login and not `/staff/*`. Backend PHP is immutable.
 
 Vertical 1 loop: login → centre (from `dh_user_center`) → upcoming courses → today worklist (`var dataset`) → public card → `GET /change-status` → settings (remember me / erase all local data). Photo review/upload is mock-only.
 
-Vertical 2 desk: one course, six rail sections (`DeskSection`: Board, Applications, Audit, Calling, Check-in, Rooms & seats) plus the `DeskScreen` phone routes. Board = the live desk's 12 sheets/exports through `SheetTransport`; Check-in/Rooms merge web-assigned rooms parsed from `#table-attending` on `GET /zero-day/{cid}/{courseId}`; centre room config is read-only from `GET /centre/{cid}/acco-handler`; `nf`/`om`/`sm` confirmation prefixes drive the gender + new/old filters (`ConfPrefix`).
+Vertical 2 desk: one course, six rail sections (`DeskSection`: Board, Applications, Audit, Calling, Check-in, Rooms & seats) plus the `DeskScreen` phone routes. Board = the live desk's 12 shelf exports through `SheetTransport` plus Day-11 on the fourth-line row (not a 13th 3×4 cell); Check-in/Rooms merge web-assigned rooms parsed from `#table-attending` on `GET /zero-day/{cid}/{courseId}`; centre room config is read-only from `GET /centre/{cid}/acco-handler`; `nf`/`om`/`sm` confirmation prefixes drive the gender + new/old filters (`ConfPrefix`). Status vocabulary comes from the worklist `edit-app-status` select with roster fallback (T3).
 
 **Tests:** full green suite is `./gradlew :core:model:test :core:audit:test :core:network:testDebugUnitTest :core:datastore:testDebugUnitTest :app:testDebugUnitTest`. Never `./gradlew test` at the root — it drags in `:app:testReleaseUnitTest`, where every Robolectric Compose test dies (`ui-test-manifest` is `debugImplementation`, so `ComponentActivity` will not resolve).
 
