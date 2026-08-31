@@ -27,6 +27,7 @@ import org.dhamma.dipi.staff.model.ApplicantCard
 import org.dhamma.dipi.staff.model.ApplicantId
 import org.dhamma.dipi.staff.model.CheckInRecord
 import org.dhamma.dipi.staff.model.Gender
+import org.dhamma.dipi.staff.model.RoomLayout
 import org.dhamma.dipi.staff.model.RoomSyncFailure
 import org.dhamma.dipi.staff.ui.theme.DeskStyle
 import org.dhamma.dipi.staff.ui.theme.DipiCondensed
@@ -46,6 +47,7 @@ fun RoomsPane(
     roll: List<ApplicantCard>,
     checkIns: Map<ApplicantId, CheckInRecord>,
     rooms: List<AccoRoom>,
+    layout: RoomLayout = RoomLayout(),
     pendingSync: Int = 0,
     syncBusy: Boolean = false,
     pullBusy: Boolean = false,
@@ -89,61 +91,90 @@ fun RoomsPane(
             }
         }
 
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(26.dp)) {
-            listOf(Gender.F to "Female", Gender.M to "Male").forEach { (g, label) ->
-                val block = rooms.filter { it.gender == g }
-                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    val free = block.count { it.code !in occupantByRoom }
-                    val sections = block.map { it.section }.distinct().filter { it.isNotBlank() }
-                    Row(
-                        Modifier
-                            .fillMaxWidth()
-                            .bottomHairline(Industry.neutral400)
-                            .padding(bottom = 7.dp),
-                        verticalAlignment = Alignment.Bottom,
-                    ) {
-                        Text(
-                            if (sections.isEmpty()) label else "$label · ${sections.joinToString("/")} block",
-                            fontFamily = DipiCondensed,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 22.sp,
-                            lineHeight = 22.sp,
-                            color = Industry.text,
-                            modifier = Modifier.weight(1f),
-                        )
-                        Text(
-                            "${block.size} rooms · $free free",
-                            fontFamily = DipiMono,
-                            fontWeight = FontWeight.Medium,
-                            fontSize = 11.5.sp,
-                            color = Industry.neutral600,
-                        )
-                    }
-                    // Chart bands like the paper ROOM CHART: four cells a row,
-                    // alternate rows on a soft rounded band of the neutral ground.
-                    block.chunked(4).forEachIndexed { i, rowRooms ->
-                        Row(
-                            Modifier
-                                .fillMaxWidth()
-                                .clip(DeskStyle.tileShape)
-                                .background(if (i % 2 == 1) Industry.neutral100 else Color.Transparent),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            rowRooms.forEach { room ->
-                                val who = occupantByRoom[room.code]
-                                RoomCell(room, who, Modifier.weight(1f))
-                            }
-                            repeat(4 - rowRooms.size) { Spacer(Modifier.weight(1f)) }
-                        }
-                    }
-                    if (block.isEmpty()) {
-                        DeskEmpty(
-                            "No rooms configured on the desk site yet.",
-                            Modifier.fillMaxWidth().padding(vertical = 20.dp),
-                        )
-                    }
+        // Stacked full-width, one block per gender+section — matching RoomLayout's
+        // own keying — inside the pane's single verticalScroll above. No side-by-side
+        // columns, so each block's grid gets the pane's full width.
+        Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(24.dp)) {
+            listOf(Gender.F to "Female", Gender.M to "Male").forEach { (gender, label) ->
+                val genderRooms = rooms.filter { it.gender == gender }
+                val sections = genderRooms.map { it.section }.distinct().ifEmpty { listOf("") }
+                sections.forEach { section ->
+                    val block = genderRooms.filter { it.section == section }
+                    RoomBlock(
+                        label = label,
+                        section = section,
+                        block = block,
+                        columns = layout.columnsFor(gender, section),
+                        occupantByRoom = occupantByRoom,
+                    )
                 }
             }
+        }
+    }
+}
+
+/**
+ * One gender+section block of the room chart: header with the block's own
+ * "n rooms · n free" counts, then the grid at the block's own column count
+ * (from `RoomLayout`, keyed `gender|section` — see S2 of the room-layout spec).
+ */
+@Composable
+private fun RoomBlock(
+    label: String,
+    section: String,
+    block: List<AccoRoom>,
+    columns: Int,
+    occupantByRoom: Map<String, String>,
+) {
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        val free = block.count { it.code !in occupantByRoom }
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .bottomHairline(Industry.neutral400)
+                .padding(bottom = 7.dp),
+            verticalAlignment = Alignment.Bottom,
+        ) {
+            Text(
+                if (section.isBlank()) label else "$label · $section",
+                fontFamily = DipiCondensed,
+                fontWeight = FontWeight.Bold,
+                fontSize = 22.sp,
+                lineHeight = 22.sp,
+                color = Industry.text,
+                modifier = Modifier.weight(1f),
+            )
+            Text(
+                "${block.size} rooms · $free free",
+                fontFamily = DipiMono,
+                fontWeight = FontWeight.Medium,
+                fontSize = 11.5.sp,
+                color = Industry.neutral600,
+            )
+        }
+        // Chart bands like the paper ROOM CHART: `columns` cells a row (from the
+        // Centre Settings room-chart layout), alternate rows on a soft rounded
+        // band of the neutral ground.
+        block.chunked(columns).forEachIndexed { i, rowRooms ->
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .clip(DeskStyle.tileShape)
+                    .background(if (i % 2 == 1) Industry.neutral100 else Color.Transparent),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                rowRooms.forEach { room ->
+                    val who = occupantByRoom[room.code]
+                    RoomCell(room, who, Modifier.weight(1f))
+                }
+                repeat(columns - rowRooms.size) { Spacer(Modifier.weight(1f)) }
+            }
+        }
+        if (block.isEmpty()) {
+            DeskEmpty(
+                "No rooms configured on the desk site yet.",
+                Modifier.fillMaxWidth().padding(vertical = 20.dp),
+            )
         }
     }
 }

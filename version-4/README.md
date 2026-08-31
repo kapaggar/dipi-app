@@ -49,9 +49,11 @@ Open the file in a browser. Each option is a `{turn}{letter}` id (`1a`…`1i`) w
 
 **Lower pane, left column (flex):** "Older courses" kicker; rows 42dp, `#FAFAFB` on 1dp `#DEDEE1`, radius 6dp, padding 0 14dp, Barlow Condensed 600 16sp + a `›` chevron `neutral400`. 6dp gap. Own scroll.
 
-**Lower pane, right column (416dp fixed, no scroll):** "Centre desk" kicker; three tiles 48dp, **transparent fill**, 1dp `#D4D4D7`, radius 6dp, Barlow Condensed 600 16sp + `›`. 6dp gap. Then 14dp margin, 11dp padding above a 1dp `#E0E0E3` rule, kicker `MORE ON THE DESK SITE` (mono 500 9sp / ls 1.7 / `neutral500`), then the five desk-site links as 30dp pill chips — 1dp `#E0E0E3`, radius 15dp, Roboto 12.5sp `neutral700`, trailing `↗` `neutral400`, 6dp gap, wrapping.
+**Lower pane, right column (416dp fixed, no scroll):** "Centre desk" kicker; three tiles 48dp, **transparent fill**, 1dp `#D4D4D7`, radius 6dp, Barlow Condensed 600 16sp + `›`. 6dp gap. Then 14dp margin, 11dp padding above a 1dp `#E0E0E3` rule, kicker `MORE ON THE DESK SITE` (mono 500 9sp / ls 1.7 / `neutral500`), then the two desk-site links as 30dp pill chips — 1dp `#E0E0E3`, radius 15dp, Roboto 12.5sp `neutral700`, trailing `↗` `neutral400`, 6dp gap, wrapping.
 
 **Empty older-courses (see 1g):** heading omitted (as today) and the desk column takes the **full width, three tiles across at 52dp**.
+
+**2026-08-30:** Manage Courses, Daily Activity and SMS Report are gone from the desk-site chip row — owner instruction; still reachable on the desk site. The chip row is now two links (Course Report, Bulk Mail), not five. See the do-not-re-propose list in `uploads/dipi-ui-export/SHIPPED-DELTA.md`.
 
 ### 1b — Login, keyboard up · before `20-login-clean.png`
 
@@ -127,7 +129,7 @@ Identical geometry. Only the OKLCH ladder moves (hue 352, chroma 0.095) and the 
 
 ## Interactions & behaviour
 
-- **Centre:** upcoming and older lists scroll independently; the desk column does not scroll. Tapping a course opens the desk at Board. Tiles 1–3 are in-app; the five chips open the desk site externally.
+- **Centre:** upcoming and older lists scroll independently; the desk column does not scroll. Tapping a course opens the desk at Board. Tiles 1–3 are in-app; the two chips open the desk site externally.
 - **Login:** IME visibility drives the compact/tall card. The error strip appears on a failed POST and holds the server's verbatim message; it does not clear until the next submit.
 - **Check-in:** the scan buffer lives for the desk session only. `✕` clears the field and the roster filter in one action.
 - **Settings:** Theme is a two-way segmented control; skin chips apply instantly in Light and are stored (not applied) in Dark; the lotus switch gates the watermark everywhere.

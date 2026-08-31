@@ -4,9 +4,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.SemanticsNodeInteraction
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.getBoundsInRoot
+import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
@@ -14,6 +18,7 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.unit.width
 import org.dhamma.dipi.staff.desk.ApplicationsPane
@@ -495,6 +500,66 @@ class DeskPanesTest {
         assertEquals("F21", pickedRoom)
         rule.onNodeWithText("CHECK IN PRIYA").performClick()
         assertTrue(saved)
+    }
+
+    /**
+     * The owner's screenshot: a 73-room block at three per row needs 25 rows,
+     * so unscrolled only about nine fit and the list is clipped at "Mbk 27" —
+     * the registrar cannot reach any room above roughly 27. The action row
+     * must also stay reachable without scrolling, so a future change cannot
+     * push it below the fold.
+     */
+    @Test
+    fun dialogRoomPickerScrollsToReachTheLastRoomInALargeBlock() {
+        val arun = card(1, given = "Arun", family = "Kale", gender = Gender.M)
+        val bigBlock = (1..73).map {
+            AccoRoom("Mbk %02d".format(it), Gender.M, "Mbk")
+        }
+        rule.setContent {
+            DipiTheme {
+                CheckInDialog(
+                    card = arun,
+                    record = CheckInRecord(),
+                    roll = listOf(arun),
+                    checkIns = emptyMap(),
+                    rooms = bigBlock,
+                    roomOpen = true,
+                    laundryOn = false,
+                    valuablesOn = false,
+                    groupsOn = false,
+                    onToggleRooms = {},
+                    onRoom = {},
+                    onSeat = {},
+                    onValuables = {},
+                    onLaundry = {},
+                    onGroup = {},
+                    onSave = {},
+                    onUndo = {},
+                    onClose = {},
+                )
+            }
+        }
+        // The action row is visible without scrolling — the primary action
+        // never needs the fix to be reachable.
+        rule.onNodeWithText("CHECK IN ARUN").assertWhollyOnScreen()
+        // Two hops. First, drive the scrollable's own ScrollBy semantics
+        // action by a huge amount to reach its true max — on this long a
+        // non-lazy scroll (25 rows), a single performScrollTo() straight at
+        // the last room undershoots (verified empirically by comparing
+        // clipped vs unclipped bounds mid-debug), so a raw max-scroll is
+        // used instead of relying on that heuristic. The landing spot
+        // ("Chowky", in the seating row right after the picker) is itself
+        // asserted wholly on screen: that is what proves the scroll range
+        // genuinely extends past Mbk 73, not just "some" scroll happened —
+        // a future change that clipped the body's bottom would make this
+        // hop impossible too, so it cannot silently mask a real reach
+        // failure the way an unasserted intermediate step could. Second,
+        // performScrollTo() precisely onto Mbk 73 itself (accurate once the
+        // scroll state is no longer at its untouched starting position).
+        rule.onNode(SemanticsMatcher.keyIsDefined(SemanticsActions.ScrollBy))
+            .performSemanticsAction(SemanticsActions.ScrollBy) { scrollBy -> scrollBy(0f, 100_000f) }
+        rule.onNodeWithText("Chowky").assertWhollyOnScreen()
+        rule.onNodeWithText("Mbk 73").performScrollTo().assertWhollyOnScreen()
     }
 
     /* ── Slice 3: board ────────────────────────────────────────────── */
@@ -1021,5 +1086,19 @@ class DeskPanesTest {
         rule.onAllNodesWithText("Priya Nair").assertCountEquals(0)
         rule.onAllNodesWithText("Arun Kale").assertCountEquals(0)
         rule.onAllNodesWithText("Vikram Rao").assertCountEquals(0)
+    }
+
+    /**
+     * Stronger than [assertIsDisplayed], which is satisfied by a single
+     * visible pixel and has already let two clipping bugs through in this
+     * screen family (see CentreScreenWideTest). A node is only above the
+     * fold when the clip takes nothing off it, i.e. its clipped bounds are
+     * its unclipped bounds.
+     */
+    private fun SemanticsNodeInteraction.assertWhollyOnScreen() {
+        val clipped = getBoundsInRoot()
+        val unclipped = getUnclippedBoundsInRoot()
+        assertEquals(unclipped.top.value, clipped.top.value, 1f)
+        assertEquals(unclipped.bottom.value, clipped.bottom.value, 1f)
     }
 }

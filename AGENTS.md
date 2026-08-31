@@ -6,7 +6,7 @@ Guidance for Claude Code, Cursor, Codex, Fable, Grok.
 
 Centre-staff Android client for the DIPI registrar desk. Package: `org.dhamma.dipi.staff`.
 
-**Shipped:** Vertical 2 desk on `main`, **1.23.0** (`versionCode` 36) — `feat/vertical-1` is merged and deleted. `feat/desk-gap` is ahead of `main` with unmerged **1.19.0** (unsigned desk-gap reads + Day-11 export; QA shots in `docs/qa-1.19.0/`); check it out before continuing that work rather than re-implementing on `main`. Live default is `https://dipi.vridhamma.org`. Backend PHP is **immutable** — do not add `/staff/*` or change `dipi-web`.
+**Shipped:** Vertical 2 desk on `main`, **1.25.0** (`versionCode` 40) — `feat/vertical-1` is merged and deleted. `feat/desk-gap` is ahead of `main` with unmerged **1.19.0** (unsigned desk-gap reads + Day-11 export; QA shots in `docs/qa-1.19.0/`); check it out before continuing that work rather than re-implementing on `main`. Live default is `https://dipi.vridhamma.org`. Backend PHP is **immutable** — do not add `/staff/*` or change `dipi-web`.
 
 **Layout:** `:app` (repository, `DeskViewModel`, `DipiAppUi`), `:core:{model,network,database,datastore,ui,audit}`, `:feature:{auth,course,desk,applicants,photos,summary,settings}`. Tests live in `:app`, `:core:model`, `:core:network`, `:core:datastore`, `:core:audit` only — feature modules have no test source set, so their Compose screens are covered by Robolectric tests in `:app`.
 

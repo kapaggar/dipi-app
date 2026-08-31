@@ -35,3 +35,32 @@ data class CourseMatrix(
         val HIGHLIGHT_LABELS = listOf("Received", "Confirmed", "Cancelled")
     }
 }
+
+/** Field-wise sum, for rows the desk keeps apart but the desk-hand reads together. */
+operator fun MatrixRow.plus(other: MatrixRow?): MatrixRow {
+    if (other == null) return this
+    return copy(
+        newMale = newMale + other.newMale,
+        oldMale = oldMale + other.oldMale,
+        sevakMale = sevakMale + other.sevakMale,
+        newFemale = newFemale + other.newFemale,
+        oldFemale = oldFemale + other.oldFemale,
+        sevakFemale = sevakFemale + other.sevakFemale,
+    )
+}
+
+/**
+ * The fixed card rows, in order; absent statuses become empty rows so every
+ * card is the same height. The Total row is [CourseMatrix.total] and the card
+ * renders it separately.
+ */
+val CourseMatrix.cardRows: List<MatrixRow>
+    get() {
+        val confirmedPlusExpected =
+            (row("Confirmed") ?: MatrixRow("Confirmed")) + row("Expected")
+        return listOf(
+            row("Received") ?: MatrixRow("Received"),
+            confirmedPlusExpected.copy(label = "Confirmed + Expected"),
+            row("Cancelled") ?: MatrixRow("Cancelled"),
+        )
+    }

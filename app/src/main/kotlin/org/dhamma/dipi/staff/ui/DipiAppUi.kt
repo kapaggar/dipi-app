@@ -398,6 +398,7 @@ private fun DeskHost(
                     roll = roll,
                     checkIns = state.checkIns,
                     rooms = state.centreOps.rooms,
+                    layout = state.centreOps.roomLayout,
                     pendingSync = deskRoomSyncPending(state.checkIns),
                     syncBusy = state.roomSyncBusy,
                     pullBusy = state.roomPullBusy,

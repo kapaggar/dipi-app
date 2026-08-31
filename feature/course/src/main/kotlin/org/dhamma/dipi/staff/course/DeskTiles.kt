@@ -24,14 +24,15 @@ data class CourseHubTile(
  * desk-site links in their existing order (owner feedback 2026-08-27). The
  * Centre Settings desk-site route is kept for reference but unused once
  * `action` is set; the native screen replaces it rather than duplicating it.
+ *
+ * Manage Courses, Daily Activity and SMS Report were retired from the app's
+ * surface by owner decision 2026-08-30 — the routes still exist on the live
+ * Drupal desk, they simply are not offered here. Do not re-propose them.
  */
 fun centreDeskTiles(centreId: Int): List<DeskTileSpec> = listOf(
     DeskTileSpec("Centre Settings", "centre/$centreId/edit", DeskTileAction.CentreOps),
     DeskTileSpec("Advanced Search", "search-app/$centreId", DeskTileAction.AdvancedSearch),
     DeskTileSpec("App Settings", "", DeskTileAction.AppSettings),
-    DeskTileSpec("Manage Courses", "manage-course/$centreId"),
-    DeskTileSpec("Daily Activity", "daily-activity/$centreId"),
-    DeskTileSpec("SMS Report", "centre/$centreId/sms-report"),
     DeskTileSpec("Course Report", "centre/$centreId/course-report"),
     DeskTileSpec("Bulk Mail", "centre/$centreId/bulk-mail-schedule"),
 )
