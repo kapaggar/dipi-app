@@ -172,6 +172,7 @@ fun DipiAppUi(vm: DeskViewModel) {
                                     vm::pickCentre,
                                     vm::openSettings,
                                     vm::openLater,
+                                    onExport = { vm.openCourseReport() },
                                     onCentreOps = vm::openCentreOps,
                                     onAdvancedSearch = vm::openAdvancedSearch,
                                     lotus = state.lotus,

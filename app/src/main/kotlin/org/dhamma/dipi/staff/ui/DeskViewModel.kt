@@ -714,6 +714,21 @@ class DeskViewModel @Inject constructor(
         }
     }
 
+    /**
+     * The Centre screen's Course report chip. The export is centre-scoped —
+     * `SheetRoute.ReportForm` never reads the courseId — so it works with no
+     * course open; 0 is a deliberate dummy. Document payloads land in
+     * `openDoc`, collected above the width gate, so this works on both sizes.
+     */
+    fun openCourseReport() {
+        val cid = _state.value.session?.centres?.firstOrNull()?.id?.value ?: return
+        val label = SheetExport.CourseReport.label
+        _state.update { it.copy(sheetView = SheetViewUi(title = label)) }
+        viewModelScope.launch {
+            resolveSheet(label) { sheetFetch(SheetExport.CourseReport, cid, 0) }
+        }
+    }
+
     /** Applications "Edit": the desk's own edit page, display-only, in the same viewer. */
     fun openAppEdit(card: ApplicantCard) {
         val title = "Edit · ${card.displayName}"
