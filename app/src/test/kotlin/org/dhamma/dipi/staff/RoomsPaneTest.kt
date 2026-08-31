@@ -5,6 +5,7 @@ import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.unit.Dp
 import org.dhamma.dipi.staff.desk.RoomsPane
 import org.dhamma.dipi.staff.model.AccoRoom
 import org.dhamma.dipi.staff.model.Gender
@@ -16,6 +17,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import kotlin.math.abs
 
 /**
  * S2/S3 of docs/specs/2026-08-30-room-layout-reach-spec.md: `RoomsPane` must
@@ -41,11 +43,18 @@ class RoomsPaneTest {
         }
         rule.onNodeWithText("Male · Mbk").assertIsDisplayed()
         rule.onNodeWithText("14 rooms · 14 free").assertIsDisplayed()
-        // Room 7 is in the 7-wide first row; room 8 only reachable by wrapping
-        // to row two — both tiles must still be present regardless.
-        rule.onNodeWithText("Mbk 07").assertIsDisplayed()
-        rule.onNodeWithText("Mbk 08").performScrollTo().assertIsDisplayed()
-        rule.onNodeWithText("Mbk 14").performScrollTo().assertIsDisplayed()
+        // Positional proof, not just presence: at 7 columns, room 1 and room 7
+        // sit in the same row (equal top) while room 8 has wrapped to row two
+        // (a different top). Scroll to the last node used in the comparison
+        // first, so every bounds read below comes from the same settled
+        // scroll position — a bare presence/scroll-reachability check here
+        // would pass unchanged against a reverted chunked(4).
+        rule.onNodeWithText("Mbk 08").performScrollTo()
+        val top1 = rule.onNodeWithText("Mbk 01").getUnclippedBoundsInRoot().top
+        val top7 = rule.onNodeWithText("Mbk 07").getUnclippedBoundsInRoot().top
+        val top8 = rule.onNodeWithText("Mbk 08").getUnclippedBoundsInRoot().top
+        assertSameRow(top1, top7)
+        assertDifferentRow(top1, top8)
     }
 
     @Test
@@ -58,11 +67,14 @@ class RoomsPaneTest {
                 RoomsPane(roll = emptyList(), checkIns = emptyMap(), rooms = rooms, layout = RoomLayout())
             }
         }
-        // With DEFAULT_COLUMNS (4) and 6 rooms, the last two rooms wrap to a
-        // second row — reachable, proving the fallback column count applied
-        // rather than a single unbounded row.
-        rule.onNodeWithText("Fbk 04").assertIsDisplayed()
-        rule.onNodeWithText("Fbk 06").performScrollTo().assertIsDisplayed()
+        // Same positional technique at the fallback column count (4): rooms
+        // 1 and 4 share a row, room 5 has wrapped to the next one.
+        rule.onNodeWithText("Fbk 05").performScrollTo()
+        val top1 = rule.onNodeWithText("Fbk 01").getUnclippedBoundsInRoot().top
+        val top4 = rule.onNodeWithText("Fbk 04").getUnclippedBoundsInRoot().top
+        val top5 = rule.onNodeWithText("Fbk 05").getUnclippedBoundsInRoot().top
+        assertSameRow(top1, top4)
+        assertDifferentRow(top1, top5)
     }
 
     @Test
@@ -101,5 +113,15 @@ class RoomsPaneTest {
         rule.onNodeWithText("Male · Mbk").assertIsDisplayed()
         rule.onNodeWithText("Male · Guest").performScrollTo().assertIsDisplayed()
         rule.onNodeWithText("Female · Fbk").assertIsDisplayed()
+    }
+
+    /** Same row: tops within rounding noise (sub-pixel/sub-dp), not literally equal. */
+    private fun assertSameRow(a: Dp, b: Dp) {
+        assertTrue("expected same row: $a vs $b", abs(a.value - b.value) < 1f)
+    }
+
+    /** Different row: a wrap moves a whole tile height (~54dp), far past rounding noise. */
+    private fun assertDifferentRow(a: Dp, b: Dp) {
+        assertTrue("expected different rows: $a vs $b", abs(a.value - b.value) > 10f)
     }
 }
