@@ -627,15 +627,15 @@ private fun CourseCard(
                     color = c.muted,
                 )
             } else {
-                // Bug B UX fix: a course can have no matrix AND no counts —
-                // confirmed root cause is the desk's own course_summary(),
-                // which builds its per-course blocks only from applicant
-                // rows found in the window's query, so a course with zero
-                // applicants yet never gets a summary-block at all (not a
-                // parser bug: a four-block fixture parses cleanly). Whatever
-                // the cause, a card must never render as a silent empty box.
+                // Bug B UX fix: a course can have no matrix AND no counts.
+                // Root cause NOT established — disproved on the live tablet
+                // (a course rendering this fallback opened with 51
+                // applications, 36 on the roll). This wording must assert
+                // only what the dashboard fetch actually told us: it gave
+                // no summary block for this course. It must NOT claim the
+                // course is empty. See .superpowers/sdd/centre-card-bloat.md.
                 Text(
-                    "No applications yet",
+                    "No summary on the dashboard",
                     color = c.muted,
                     fontSize = 12.sp,
                 )

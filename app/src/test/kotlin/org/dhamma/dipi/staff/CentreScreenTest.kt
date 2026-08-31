@@ -399,24 +399,23 @@ class CentreScreenTest {
     }
 
     @Test
-    fun cardWithNoMatrixAndNoSummaryShowsNoApplicationsYetInsteadOfAnEmptyBox() {
+    fun cardWithNoMatrixAndNoSummaryShowsDashboardCountsUnavailableInsteadOfAnEmptyBox() {
         // Bug B (owner screenshot 2026-08-30): cards 3/4 rendered only a
         // title — no matrix and no counts-line fallback — because both are
-        // null for those course ids. Root cause (confirmed against the
-        // desk's course_summary()/course.inc): it builds its per-course
-        // summary-blocks only from courses it finds in the applicant query
-        // for the window, so a course with no applicants yet never gets a
-        // block at all — this is not a client parser bug (a four-block
-        // fixture parses cleanly in CentrePageParserTest). Whatever upstream
-        // cause produced the gap, the card itself must always say something
-        // rather than render as a silent empty box.
+        // null for those course ids. The "no applications yet" root cause
+        // was DISPROVED on the live tablet: tapping one of those cards
+        // opened a course with 51 applications, 36 on the roll. Root cause
+        // is unresolved (see .superpowers/sdd/centre-card-bloat.md), so the
+        // fallback text must assert only that the dashboard gave no summary
+        // block — never that the course itself is empty — while still never
+        // rendering as a silent empty box.
         val noApplicantsYet = course.copy(matrix = null, summary = null)
         rule.setContent {
             DipiTheme {
                 CentreScreen(session = session, courses = listOf(noApplicantsYet), onPick = {})
             }
         }
-        rule.onNodeWithText("No applications yet").assertIsDisplayed()
+        rule.onNodeWithText("No summary on the dashboard").assertIsDisplayed()
         rule.onNodeWithText("NM").assertDoesNotExist()
     }
 

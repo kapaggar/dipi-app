@@ -274,4 +274,115 @@ class CentrePageParserTest {
         assertEquals(3, s55.cancelled)
         assertEquals(11, s55.total)
     }
+
+    // --- Bug B REOPENED (2026-08-30): "No applications yet" was disproved —
+    // the owner tapped the 7-Oct card live and it opened with 51
+    // applications, 36 on the roll. The heading for that course id DOES
+    // appear in the fetched HTML (SearchPageParser.coursesFromDashboard
+    // sources the upcoming list from the identical table-heading markup),
+    // and dh_manageapp's course_summary() (course.inc:679-743) unconditionally
+    // emits the <div class="summary-block"> + theme('table', ...) call in
+    // the SAME loop iteration as the table-heading — there is no code path
+    // that emits one without the other. So whatever produced the gap must
+    // either be a parser defect below, or something not reconstructable from
+    // the PHP source alone (see the final test + report for the verdict).
+
+    /**
+     * Byte-faithful to what theme_table() (includes/theme.inc:1996) actually
+     * emits: <thead><tr>...</tr></thead><tbody><tr class="odd/even">...
+     * </tr></tbody>, striping classes on every body <tr>, and the real
+     * course_summary() spacer cell. Four blocks, back to back, mirroring
+     * the owner's observed layout where blocks 1-2 rendered fine and blocks
+     * 3-4 (by position, not content) did not.
+     */
+    private fun themedRow(striping: String, cells: List<String>): String =
+        "<tr class=\"$striping\">" + cells.joinToString("") { "<td>$it</td>" } + "</tr>"
+
+    private fun themedBlock(courseId: Int, name: String, totalCells: List<String>): String {
+        val header = "<thead><tr><th></th><th>NM</th><th>OM</th><th>Total</th><th>SM</th>" +
+            "<th>&nbsp;&nbsp;</th><th>NF</th><th>OF</th><th>Total</th><th>SF</th></tr></thead>"
+        val confirmedRow = themedRow(
+            "odd",
+            listOf(
+                "<a href=\"/search-course/91/$courseId?s=Confirmed\">Confirmed</a>",
+                "<a>1</a>", "", "<b><a>1</a></b>", "", "&nbsp;&nbsp;&nbsp;",
+                "<a>1</a>", "", "<b><a>1</a></b>", "",
+            ),
+        )
+        val totalRow = "<tr class=\"even\">" +
+            "<td><b>Total</b></td>" +
+            totalCells.joinToString("") { "<td>$it</td>" } +
+            "</tr>"
+        return """<div class="summary-block"><div class="table-heading"><a href="/course/91/$courseId">$name</a></div>
+            <table class="sticky-enabled">$header<tbody>
+            $confirmedRow
+            $totalRow
+            </tbody></table></div>"""
+    }
+
+    @Test
+    fun fourThemeTableFaithfulBlocksAllParseRegardlessOfPosition() {
+        val fourBlocksHtml = listOf(
+            themedBlock(201, "Course A", listOf("1", "0", "<b>1</b>", "0", "&nbsp;&nbsp;&nbsp;", "1", "0", "<b>1</b>", "0")),
+            themedBlock(202, "Course B", listOf("2", "0", "<b>2</b>", "0", "&nbsp;&nbsp;&nbsp;", "2", "0", "<b>2</b>", "0")),
+            // 7-Oct analog: a 3-day course, third of four.
+            themedBlock(203, "Course C / 3 Day / 7th-Oct", listOf("3", "0", "<b>3</b>", "0", "&nbsp;&nbsp;&nbsp;", "3", "0", "<b>3</b>", "0")),
+            // STP analog: last of four, its segment runs to end-of-document.
+            themedBlock(204, "Course D / STP", listOf("4", "0", "<b>4</b>", "0", "&nbsp;&nbsp;&nbsp;", "4", "0", "<b>4</b>", "0")),
+        ).joinToString("\n") + "\n<footer><table><tr><td>unrelated footer table</td></tr></table></footer>"
+
+        val matrices = CentrePageParser.courseMatrices(fourBlocksHtml)
+        assertEquals(setOf(201, 202, 203, 204), matrices.keys)
+        assertEquals(3, matrices.getValue(203).total!!.newMale)
+        assertEquals(4, matrices.getValue(204).total!!.newMale)
+
+        val summaries = CentrePageParser.courseSummaries(fourBlocksHtml)
+        assertEquals(setOf(201, 202, 203, 204), summaries.keys)
+        assertEquals(6, summaries.getValue(203).total) // 3 + 3
+        assertEquals(8, summaries.getValue(204).total) // 4 + 4
+    }
+
+    /**
+     * Candidate cause from the task: does a nested <table> inside a cell
+     * (tableRe is non-greedy, so it stops at the FIRST </table>) truncate
+     * the segment before the real Total row? course_summary() itself never
+     * nests a table in a cell (cells are plain link text), so this does not
+     * reproduce the observed bug — but it is worth pinning down as a real,
+     * separate latent fragility of the non-greedy `tableRe` regex.
+     */
+    @Test
+    fun nestedTableInACellIsNotWhatCourseSummaryEmits_butWouldTruncateIfItDid() {
+        val withNestedTable = """
+            <div class="summary-block"><div class="table-heading"><a href="/course/91/301">Course E</a></div>
+            <table><tr><th></th><th>NM</th><th>OM</th><th>Total</th><th>SM</th><th>&nbsp;</th><th>NF</th><th>OF</th><th>Total</th><th>SF</th></tr>
+            <tr><td><table><tr><td>nested</td></tr></table>Confirmed</td><td><a>1</a></td><td></td><td><b><a>1</a></b></td><td></td><td>&nbsp;</td><td><a>1</a></td><td></td><td><b><a>1</a></b></td><td></td></tr>
+            <tr><td><b>Total</b></td><td>1</td><td>0</td><td><b>1</b></td><td>0</td><td>&nbsp;</td><td>1</td><td>0</td><td><b>1</b></td><td>0</td></tr>
+            </table></div>
+        """.trimIndent()
+        // Proves the failure mode exists in principle (truncated table ->
+        // no Total row found -> null), while confirming it is not what the
+        // real course_summary() markup produces.
+        assertNull(CentrePageParser.courseSummaries(withNestedTable)[301])
+    }
+
+    /**
+     * Candidate cause from the task: a row using <th> for the label, or
+     * fewer than 10 <td>s, causes matrixFromTable/summaryFromTable to skip
+     * every row including Total, leaving `total` null. course_summary()
+     * always emits exactly 10 <td> cells per row (label + 9 data cells,
+     * course.inc:684-741), so this is not what produces the real page's
+     * markup either — but it is the parser's actual failure mode whenever a
+     * Total row is short.
+     */
+    @Test
+    fun totalRowWithFewerThanTenCellsIsSkippedAndSummaryStaysNull() {
+        val shortTotalRow = """
+            <div class="summary-block"><div class="table-heading"><a href="/course/91/302">Course F</a></div>
+            <table><tr><th></th><th>NM</th><th>OM</th><th>Total</th></tr>
+            <tr><td><b>Total</b></td><td>1</td><td>0</td><td><b>1</b></td></tr>
+            </table></div>
+        """.trimIndent()
+        assertNull(CentrePageParser.courseSummaries(shortTotalRow)[302])
+        assertNull(CentrePageParser.courseMatrices(shortTotalRow)[302]?.total)
+    }
 }
