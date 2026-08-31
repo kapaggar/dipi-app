@@ -969,7 +969,18 @@ class DeskViewModel @Inject constructor(
         // Back from the card returns to the Advanced Search results only when
         // the card was opened from there; any other origin backs to Today.
         returnTo = DeskScreen.Search.takeIf { _state.value.screen == DeskScreen.Search }
-        _state.update { it.copy(card = card, screen = DeskScreen.Card) }
+        _state.update { cur ->
+            val hasHealth = cur.sensitiveById[card.id]?.health?.isNotEmpty() == true
+            cur.copy(
+                card = card,
+                screen = DeskScreen.Card,
+                snack = if (hasHealth) {
+                    FlushSnack("Health disclosures on file — review before confirming", error = false)
+                } else {
+                    cur.snack
+                },
+            )
+        }
         viewModelScope.launch {
             val fresh = runCatching { repo.loadCard(card.id) }.getOrElse { e ->
                 handleAuth(e)

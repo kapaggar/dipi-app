@@ -688,6 +688,7 @@ private fun CardPane(vm: DeskViewModel, state: DeskUiState) {
         dark = state.dark,
         onChangeStatus = vm::openSheet,
         onPhoto = vm::openPhotos,
+        sensitive = state.sensitiveById[card.id],
     )
     if (state.sheetOpen) {
         StatusSheet(
