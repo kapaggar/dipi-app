@@ -7,8 +7,4 @@
         <item quantity="one">change waiting to sync</item>
         <item quantity="other">changes waiting to sync</item>
     </plurals>
-    <string name="letter_notice">The server may send the applicant a letter for this change.</string>
-    <string name="status_updated">Status updated</string>
-    <string name="no_photos">No fixed, un-uploaded photos yet</string>
-    <string name="uploaded_photos">✓ Uploaded %1$d photo(s), all other fields preserved</string>
 </resources>

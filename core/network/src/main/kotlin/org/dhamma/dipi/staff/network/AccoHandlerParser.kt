@@ -42,8 +42,6 @@ object AccoHandlerParser {
     private val markedToken = Regex("""^(\d+)\s*((?:IC|W|G)+)$""", RegexOption.IGNORE_CASE)
     private val leadingDigits = Regex("""^\d+""")
 
-    fun rooms(body: String): List<AccoRoom> = roomsOrNull(body).orEmpty()
-
     /**
      * Null when [body] is not an Editor payload at all (HTML, error JSON) —
      * callers keep their cache then. An empty list is a real answer: the
