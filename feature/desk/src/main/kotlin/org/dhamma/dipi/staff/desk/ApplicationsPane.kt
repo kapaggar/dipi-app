@@ -39,10 +39,12 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.dhamma.dipi.staff.model.ApplicantCard
+import org.dhamma.dipi.staff.model.ApplicantDeskHistory
 import org.dhamma.dipi.staff.model.ApplicantId
 import org.dhamma.dipi.staff.model.AuditFlag
 import org.dhamma.dipi.staff.model.AuditSeverity
 import org.dhamma.dipi.staff.model.SensitiveInfo
+import org.dhamma.dipi.staff.ui.ApplicantHistorySections
 import org.dhamma.dipi.staff.ui.theme.DeskKicker
 import org.dhamma.dipi.staff.ui.theme.DeskStyle
 import org.dhamma.dipi.staff.ui.theme.DipiCondensed
@@ -77,6 +79,9 @@ fun ApplicationsPane(
     seniority: String = "Both",
     onGender: (String) -> Unit = {},
     onSeniority: (String) -> Unit = {},
+    historyById: Map<ApplicantId, ApplicantDeskHistory> = emptyMap(),
+    onExpandHistory: (ApplicantId, String) -> Unit = { _, _ -> },
+    onOpenClarification: (ApplicantId, Int) -> Unit = { _, _ -> },
 ) {
     val scoped = deskScoped(rows, deskGenderScope(gender), deskSeniorityScope(seniority))
     val selected = scoped.firstOrNull { it.id == selectedId } ?: scoped.firstOrNull()
@@ -124,6 +129,9 @@ fun ApplicationsPane(
                 onDial = { selected.mobile?.let(onDial) },
                 onEdit = { onEdit(selected) },
                 loadPhoto = loadPhoto,
+                historyById = historyById,
+                onExpandHistory = onExpandHistory,
+                onOpenClarification = onOpenClarification,
                 modifier = Modifier.weight(1f),
             )
         } else {
@@ -295,6 +303,9 @@ private fun AppDetail(
     onDial: () -> Unit,
     onEdit: () -> Unit,
     loadPhoto: suspend (ApplicantId) -> ImageBitmap?,
+    historyById: Map<ApplicantId, ApplicantDeskHistory> = emptyMap(),
+    onExpandHistory: (ApplicantId, String) -> Unit = { _, _ -> },
+    onOpenClarification: (ApplicantId, Int) -> Unit = { _, _ -> },
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -388,6 +399,12 @@ private fun AppDetail(
             FactRow("Date of birth", card.dob ?: "—")
             FactRow("Applied", card.createdAt ?: "—")
         }
+
+        ApplicantHistorySections(
+            history = historyById[card.id] ?: ApplicantDeskHistory(),
+            onExpand = { key -> onExpandHistory(card.id, key) },
+            onOpenClarification = { clarId -> onOpenClarification(card.id, clarId) },
+        )
 
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             DeskPrimaryButton("Change status", onChangeStatus)

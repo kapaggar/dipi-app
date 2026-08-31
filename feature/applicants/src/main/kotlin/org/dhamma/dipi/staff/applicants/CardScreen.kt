@@ -24,8 +24,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.dhamma.dipi.staff.model.ApplicantCard
+import org.dhamma.dipi.staff.model.ApplicantDeskHistory
 import org.dhamma.dipi.staff.model.AuditSeverity
 import org.dhamma.dipi.staff.model.SensitiveInfo
+import org.dhamma.dipi.staff.ui.ApplicantHistorySections
 import org.dhamma.dipi.staff.ui.SeverityDot
 import org.dhamma.dipi.staff.ui.StatusBadge
 import org.dhamma.dipi.staff.ui.theme.DipiCondensed
@@ -40,6 +42,9 @@ fun CardScreen(
     onChangeStatus: () -> Unit,
     onPhoto: () -> Unit,
     sensitive: SensitiveInfo? = null,
+    history: ApplicantDeskHistory? = null,
+    onExpandHistory: (String) -> Unit = {},
+    onOpenClarification: (Int) -> Unit = {},
 ) {
     val c = LocalDipi.current
     val uri = LocalUriHandler.current
@@ -154,6 +159,12 @@ fun CardScreen(
                 modifier = Modifier.padding(top = 4.dp),
             )
         }
+        Spacer(Modifier.height(24.dp))
+        ApplicantHistorySections(
+            history = history ?: ApplicantDeskHistory(),
+            onExpand = onExpandHistory,
+            onOpenClarification = onOpenClarification,
+        )
         Spacer(Modifier.height(24.dp))
         Row {
             TextButton({ card.mobile?.let { uri.openUri("tel:${it.filter { ch -> ch.isDigit() || ch == '+' }}") } }) { Text("Call") }

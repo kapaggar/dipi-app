@@ -449,6 +449,9 @@ private fun DeskHost(
                     seniority = state.deskSeniority,
                     onGender = vm::setDeskGender,
                     onSeniority = vm::setDeskSeniority,
+                    historyById = state.history,
+                    onExpandHistory = vm::expandHistory,
+                    onOpenClarification = { appId, clarId -> vm.openClarification(appId, clarId) },
                 )
             }
         }
@@ -690,6 +693,9 @@ private fun CardPane(vm: DeskViewModel, state: DeskUiState) {
         onChangeStatus = vm::openSheet,
         onPhoto = vm::openPhotos,
         sensitive = state.sensitiveById[card.id],
+        history = state.history[card.id],
+        onExpandHistory = { key -> vm.expandHistory(card.id, key) },
+        onOpenClarification = { clarId -> vm.openClarification(card.id, clarId) },
     )
     if (state.sheetOpen) {
         StatusSheet(
