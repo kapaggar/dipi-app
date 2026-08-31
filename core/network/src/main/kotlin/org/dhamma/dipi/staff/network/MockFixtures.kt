@@ -74,7 +74,6 @@ internal object MockFixtures {
             old = true, city = "Pune", state = "Maharashtra", age = 34,
             mobile = "+91 98220 41783", email = "meera.deshpande@gmail.com",
             home = "+91 20 2567 1120", dob = "11 Mar 1992", applied = "2 Jul 2026",
-            photo = "good",
             history = HistoryDto(
                 "10 Jul 2018 · Dhamma Sudha · Pundalik Ahire",
                 "1 Apr 2026 · Dhamma Pattana · Bhumidhar",
@@ -85,7 +84,7 @@ internal object MockFixtures {
             RAKESH_ID, "Rakesh", "Iyer", "M", "Pending", null,
             city = "Chennai", state = "Tamil Nadu", age = 28,
             mobile = "+91 50031 55402", email = "r.iyer@outlook.com",
-            dob = "5 Sep 1997", applied = "28 Jul 2026", photo = "rot90",
+            dob = "5 Sep 1997", applied = "28 Jul 2026",
             emergency = false,
             flags = listOf(
                 FlagDto("HARD", "Mobile number cannot be an Indian number", "phone_prefix_invalid · +91 50031 55402", "phone_prefix_invalid"),
@@ -97,7 +96,7 @@ internal object MockFixtures {
             3, "Ananya", "Bhosale", "F", "Received", "NF131",
             city = "Nashik", state = "Maharashtra", age = 22,
             mobile = "+91 88888 20114", email = "ananya.b@gmail.com",
-            dob = "19 Jan 2004", applied = "21 Jul 2026", photo = "crop",
+            dob = "19 Jan 2004", applied = "21 Jul 2026",
             flags = listOf(FlagDto("HARD", "Aadhar number is masked", "aadhar_masked · XXXX XXXX 4417", "aadhar_masked")),
         ),
         person(
@@ -134,7 +133,7 @@ internal object MockFixtures {
             7, "Fatima", "Sheikh", "F", "Confirmed", "NF133",
             city = "Hyderabad", state = "Telangana", age = 31,
             mobile = "+91 70930 55811", email = "fatima.sheikh@gmail.com",
-            dob = "24 Apr 1995", applied = "19 Jul 2026", photo = "noface",
+            dob = "24 Apr 1995", applied = "19 Jul 2026",
             flags = listOf(
                 FlagDto(
                     "HARD",
@@ -155,7 +154,7 @@ internal object MockFixtures {
             9, "Lakshmi", "Menon", "F", "Received", "NF136",
             old = true, city = "Thrissur", state = "Kerala", age = 58,
             mobile = "+91 97440 21008", email = "lakshmi.menon@gmail.com",
-            home = "+91 487 2331 004", dob = "9 May 1968", applied = "25 Jul 2026", photo = "rot180",
+            home = "+91 487 2331 004", dob = "9 May 1968", applied = "25 Jul 2026",
             history = HistoryDto(
                 "14 Jan 1999 · Dhamma Ketana · S. Ramanathan",
                 "20 Jun 2025 · Dhamma Ketana · Uma Rangan",
@@ -361,7 +360,6 @@ internal object MockFixtures {
         home: String? = null,
         dob: String,
         applied: String,
-        photo: String = "good",
         monk: Boolean = false,
         emergency: Boolean? = true,
         history: HistoryDto? = null,
@@ -388,7 +386,6 @@ internal object MockFixtures {
         age = age,
         monk = monk,
         createdAt = applied,
-        photoUrl = photo,
         emergencyPresent = emergency,
         history = history,
         flags = flags,

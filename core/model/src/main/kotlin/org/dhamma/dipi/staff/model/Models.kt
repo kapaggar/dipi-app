@@ -45,7 +45,6 @@ data class ApplicantCard(
     val age: Int? = null,
     val monk: Boolean = false,
     val createdAt: String? = null,
-    val photoUrl: String? = null,
     val emergencyPresent: Boolean? = null,
     /** Any ID document field (Aadhaar/PAN/passport/voter ID) non-empty — presence only, never the value. */
     val idPresent: Boolean? = null,
