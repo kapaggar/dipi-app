@@ -5,6 +5,7 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onParent
 import androidx.compose.ui.test.performClick
@@ -237,14 +238,64 @@ class CentreScreenWideTest {
     }
 
     @Test
+    fun fourthCardsTotalRowIsReachableWithoutClipping() {
+        // Bug B (SOLVED 2026-08-30, .superpowers/sdd/centre-card-bloat.md):
+        // a post-1.24.1 screenshot showed the third and fourth cards (the
+        // second card row) rendering Received and Confirmed + Expected, then
+        // ending abruptly — Cancelled and Total were clipped off by the
+        // upcoming pane's heightIn(max = 60%) ceiling, which had no scroll.
+        // allFourUpcomingCoursesStayWhollyOnScreen above did not catch this:
+        // it checks the bounds of the node that is the course *name*'s
+        // parent, which sits at the very top of the card and stayed wholly
+        // on screen even while the card's own bottom was clipped away — an
+        // assertion that passed against the broken layout. This test targets
+        // the fourth card's Total row directly, with a full four-row matrix
+        // (Received, Confirmed, Expected, Cancelled, plus the Total row) so
+        // all four rendered rows are present, matching the screenshot.
+        val matrix = CourseMatrix(
+            rows = listOf(
+                MatrixRow("Received", newMale = 1, newFemale = 1),
+                MatrixRow("Confirmed", newMale = 16, oldMale = 13, newFemale = 16, oldFemale = 13),
+                MatrixRow("Expected", newMale = 2, newFemale = 2),
+                MatrixRow("Cancelled", newMale = 2, newFemale = 1),
+            ),
+            total = MatrixRow("Total", newMale = 44, oldMale = 17, newFemale = 35, oldFemale = 9),
+        )
+        val upcoming = (1..4).map {
+            course.copy(id = CourseId(it), name = "Course $it", matrix = matrix)
+        }
+        rule.setContent {
+            DipiTheme {
+                CentreScreen(
+                    session = singleCentreSession,
+                    courses = upcoming,
+                    onPick = {},
+                )
+            }
+        }
+        // Four cards -> four "Total" rows, in card order (row 0: 1, 2; row
+        // 1: 3, 4). Index 3 is the fourth card's.
+        rule.onAllNodesWithText("Total")[3].performScrollTo().assertWhollyOnScreen()
+    }
+
+    @Test
     fun theLowerPaneStillNeedsItsScrollAtTheBoundedWorstCase() {
-        // Why the pane keeps its verticalScroll even after weight(1f): the
-        // worst case the desk can serve still overflows it. Header capped at
-        // 220dp by 8 centres, the backend's full four upcoming courses each
-        // carrying a matrix (the tallest card there is), and OLDER_COURSE_LIMIT
-        // older courses. The chips are then only reachable by scrolling — so a
-        // missing scroll here would strand a control, and performScrollTo()
-        // would fail outright with no scrollable ancestor.
+        // Why the below-header region still needs its verticalScroll: the
+        // worst case the desk can serve still overflows the viewport. Header
+        // capped at 220dp by 8 centres, the backend's full four upcoming
+        // courses each carrying a matrix (the tallest card there is), and
+        // OLDER_COURSE_LIMIT older courses. "Older courses" and the chips are
+        // then only reachable by scrolling — so a missing scroll here would
+        // strand a control, and performScrollTo() would fail outright with
+        // no scrollable ancestor (as it now does pre-fix — see
+        // fourthCardsTotalRowIsReachableWithoutClipping).
+        //
+        // Post-Bug-B-fix (2026-08-30): the scroll moved from the lower
+        // pane's own box to the one outer scroll covering upcoming + the
+        // lower pane, so "Older courses" is no longer guaranteed inside the
+        // initial viewport the way it was when the lower pane had a bounded,
+        // separately-scrolling box of its own — it is still reachable, just
+        // via the same scroll as everything else now.
         val matrix = CourseMatrix(
             rows = listOf(
                 MatrixRow("Received", newMale = 1, newFemale = 1),
@@ -271,7 +322,7 @@ class CentreScreenWideTest {
                 )
             }
         }
-        rule.onNodeWithText("Older courses").assertIsDisplayed()
+        rule.onNodeWithText("Older courses").performScrollTo().assertIsDisplayed()
         deskSiteTiles.forEach {
             rule.onNodeWithText(it.title).performScrollTo().assertIsDisplayed()
         }
