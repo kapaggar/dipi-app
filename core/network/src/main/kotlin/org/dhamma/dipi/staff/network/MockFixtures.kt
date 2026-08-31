@@ -315,6 +315,35 @@ internal object MockFixtures {
         </form></body></html>
     """.trimIndent()
 
+    fun appCoursesHtml(id: Int) = """
+        <h4>Applicant Courses</h4>
+        <table>
+        <thead><tr><th>Course</th><th>Type</th><th>Status</th><th>Attended</th><th>Address</th></tr></thead>
+        <tbody>
+        <tr><td>10-Day · Aug 2026</td><td>Student</td><td>Confirmed</td><td>False</td><td>Pune</td></tr>
+        <tr><td>Satipatthana · Apr 2026</td><td>Student</td><td>Attended</td><td>True</td><td>Pune</td></tr>
+        </tbody></table>
+    """.trimIndent()
+
+    fun appActivityHtml(id: Int) = """
+        <h4>Activity Log</h4>
+        <table>
+        <thead><tr><th>DateTime</th><th>Activity</th><th>User</th></tr></thead>
+        <tbody>
+        <tr><td>2026-08-16 10:22:00</td><td>Status Change · Confirmed</td><td>sudha.user</td></tr>
+        <tr><td>2026-08-10 08:00:00</td><td>Letter · Received</td><td>System</td></tr>
+        </tbody></table>
+    """.trimIndent()
+
+    fun appClarificationsHtml(id: Int) = """
+        <table>
+        <thead><tr><th>DateTime</th><th>Message</th><th>File</th></tr></thead>
+        <tbody>
+        <tr><td>2026-08-12 11:00:00</td><td>Please confirm travel date</td><td><a href="/show-clarification/$id/3">View</a></td></tr>
+        <tr><td>2026-08-08 09:30:00</td><td>Need a doctor's note</td><td>No Upload</td></tr>
+        </tbody></table>
+    """.trimIndent()
+
     fun person(
         id: Int,
         given: String,
