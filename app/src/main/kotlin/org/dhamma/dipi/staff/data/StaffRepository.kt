@@ -12,7 +12,10 @@ import org.dhamma.dipi.staff.database.ApplicantEntity
 import org.dhamma.dipi.staff.database.OutboxDao
 import org.dhamma.dipi.staff.database.OutboxEntity
 import org.dhamma.dipi.staff.datastore.SessionStore
+import org.dhamma.dipi.staff.model.ApplicantActivityRow
 import org.dhamma.dipi.staff.model.ApplicantCard
+import org.dhamma.dipi.staff.model.ApplicantClarificationRow
+import org.dhamma.dipi.staff.model.ApplicantCourseRow
 import org.dhamma.dipi.staff.model.ApplicantId
 import org.dhamma.dipi.staff.model.CentreCourses
 import org.dhamma.dipi.staff.model.CentreId
@@ -34,6 +37,7 @@ import org.dhamma.dipi.staff.model.StatusWrite
 import org.dhamma.dipi.staff.model.UserCentreMap
 import org.dhamma.dipi.staff.network.AccoHandlerParser
 import org.dhamma.dipi.staff.network.ApplicantDto
+import org.dhamma.dipi.staff.network.ApplicantHistoryParser
 import org.dhamma.dipi.staff.network.AttendedTableParser
 import org.dhamma.dipi.staff.network.CentrePageParser
 import org.dhamma.dipi.staff.network.CropDto
@@ -471,6 +475,29 @@ class StaffRepository @Inject constructor(
      */
     suspend fun fetchAppEditPage(id: ApplicantId): SheetPayload =
         sheets.appEditPage(id.value)
+
+    suspend fun fetchClarification(appId: ApplicantId, clarId: Int): SheetPayload =
+        sheets.clarificationPdf(appId.value, clarId)
+
+    suspend fun loadAppCourses(id: ApplicantId): List<ApplicantCourseRow> =
+        fetchFragment(id) { api.appCourses(it) }.let { ApplicantHistoryParser.courses(it) }
+
+    suspend fun loadAppActivity(id: ApplicantId): List<ApplicantActivityRow> =
+        fetchFragment(id) { api.appActivity(it) }.let { ApplicantHistoryParser.activity(it) }
+
+    suspend fun loadAppClarifications(id: ApplicantId): List<ApplicantClarificationRow> =
+        fetchFragment(id) { api.appClarifications(it) }.let { ApplicantHistoryParser.clarifications(it) }
+
+    private suspend fun fetchFragment(
+        id: ApplicantId,
+        call: suspend (Int) -> retrofit2.Response<okhttp3.ResponseBody>,
+    ): String = runCatching {
+        val resp = call(id.value)
+        val html = resp.html()
+        if (stillOnLogin(html)) throw ApiException("Access denied", unauthorized = true)
+        if (!resp.isSuccessful) throw ApiException(html.ifBlank { "HTTP ${resp.code()}" })
+        html
+    }.getOrElse { throw it.toApi() }
 
     private suspend fun markRoomSynced(id: ApplicantId, sent: CheckInRecord) {
         val all = sessionStore.checkInsOnce()

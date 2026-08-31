@@ -33,8 +33,12 @@ import org.dhamma.dipi.staff.model.CallRecord
 import org.dhamma.dipi.staff.model.CheckInRecord
 import org.dhamma.dipi.staff.model.AccoRoom
 import org.dhamma.dipi.staff.model.ApplicantCard
+import org.dhamma.dipi.staff.model.ApplicantDeskHistory
 import org.dhamma.dipi.staff.model.ApplicantId
 import org.dhamma.dipi.staff.model.ApplicantStatus
+import org.dhamma.dipi.staff.model.HISTORY_ACTIVITY
+import org.dhamma.dipi.staff.model.HISTORY_CLARIFICATIONS
+import org.dhamma.dipi.staff.model.HISTORY_COURSES
 import org.dhamma.dipi.staff.model.Centre
 import org.dhamma.dipi.staff.model.CentreOpsPrefs
 import org.dhamma.dipi.staff.model.Course
@@ -164,6 +168,11 @@ data class DeskUiState(
      * repository's session-scoped in-memory map. Never persisted or logged.
      */
     val sensitiveById: Map<ApplicantId, SensitiveInfo> = emptyMap(),
+    /**
+     * Lazy desk-history fragments by applicant. Null list = not fetched yet.
+     * In-memory only — never Room, never DataStore, never NPI.
+     */
+    val history: Map<ApplicantId, ApplicantDeskHistory> = emptyMap(),
     /** Bulk room-allocation sync in flight (owner amendment 2026-08-16). */
     val roomSyncBusy: Boolean = false,
     /** Zero-day attended-table pull in flight. */
@@ -696,6 +705,8 @@ class DeskViewModel @Inject constructor(
         { export, centreId, courseId -> repo.fetchSheet(export, centreId, courseId) }
     internal var editFetch: suspend (ApplicantId) -> SheetPayload =
         { id -> repo.fetchAppEditPage(id) }
+    internal var clarFetch: suspend (ApplicantId, Int) -> SheetPayload =
+        { appId, clarId -> repo.fetchClarification(appId, clarId) }
 
     /**
      * A Board export cell: open the viewer shell immediately (its progress
@@ -734,6 +745,67 @@ class DeskViewModel @Inject constructor(
         viewModelScope.launch {
             resolveSheet(title) { editFetch(card.id) }
         }
+    }
+
+    fun expandHistory(id: ApplicantId, key: String) {
+        val cur = _state.value.history[id] ?: ApplicantDeskHistory()
+        val already = when (key) {
+            HISTORY_COURSES -> cur.courses != null
+            HISTORY_ACTIVITY -> cur.activity != null
+            HISTORY_CLARIFICATIONS -> cur.clarifications != null
+            else -> true
+        }
+        if (already) return
+        patchHistory(id, cur.copy(loading = cur.loading + key, errors = cur.errors - key))
+        viewModelScope.launch {
+            runCatching {
+                when (key) {
+                    HISTORY_COURSES -> patchHistory(
+                        id,
+                        (_state.value.history[id] ?: cur).copy(
+                            courses = repo.loadAppCourses(id),
+                            loading = (cur.loading + key) - key,
+                        ),
+                    )
+                    HISTORY_ACTIVITY -> patchHistory(
+                        id,
+                        (_state.value.history[id] ?: cur).copy(
+                            activity = repo.loadAppActivity(id),
+                            loading = (cur.loading + key) - key,
+                        ),
+                    )
+                    HISTORY_CLARIFICATIONS -> patchHistory(
+                        id,
+                        (_state.value.history[id] ?: cur).copy(
+                            clarifications = repo.loadAppClarifications(id),
+                            loading = (cur.loading + key) - key,
+                        ),
+                    )
+                }
+            }.onFailure { e ->
+                handleAuth(e)
+                val now = _state.value.history[id] ?: cur
+                patchHistory(
+                    id,
+                    now.copy(
+                        loading = now.loading - key,
+                        errors = now.errors + (key to (e.message ?: "Unavailable")),
+                    ),
+                )
+            }
+        }
+    }
+
+    fun openClarification(appId: ApplicantId, clarId: Int) {
+        val title = "Clarification $clarId"
+        _state.update { it.copy(sheetView = SheetViewUi(title = title)) }
+        viewModelScope.launch {
+            resolveSheet(title) { clarFetch(appId, clarId) }
+        }
+    }
+
+    private fun patchHistory(id: ApplicantId, next: ApplicantDeskHistory) {
+        _state.update { it.copy(history = it.history + (id to next)) }
     }
 
     fun closeSheet() = _state.update { it.copy(sheetView = null) }

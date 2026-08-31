@@ -1,5 +1,9 @@
 package org.dhamma.dipi.staff.model
 
+const val HISTORY_COURSES = "courses"
+const val HISTORY_ACTIVITY = "activity"
+const val HISTORY_CLARIFICATIONS = "clarifications"
+
 data class ApplicantCourseRow(
     val course: String,
     val type: String,
