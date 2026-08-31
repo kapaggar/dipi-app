@@ -31,16 +31,10 @@ import org.dhamma.dipi.staff.ui.theme.deskCard
 
 /**
  * The same twelve exports, on three shelves that say what each pile is for
- * (v4 frame 1f). Names and the `onExport` labels are unchanged — only the
- * grouping is new.
- *
- * Day 11 · Course summary report is still deliberately absent HERE, but the
- * reason has changed: `SheetExport.Day11Report` now exists and fetches, and
- * the phone hub overflow reaches it via `hubSheetLabel`. Only the Board chip
- * is outstanding, because a 13th chip breaks the 3x4 shelf grid this frame is
- * built on (a 5-wide shelf truncates "Course summary report" at `maxLines=1`).
- * Placing it is a v4 layout decision, not a transport gap. The design file's
- * dashed marker remains canvas annotation, not UI.
+ * (v4 frame 1f), plus Day 11 on the design's own fourth-line row
+ * (`dc.html:579-582`). Names and the `onExport` labels are unchanged — only
+ * the grouping is new. Day 11 is content-width, not a 13th flex chip, so the
+ * 3x4 shelf grid stays intact.
  */
 private val EXPORT_SHELVES = listOf(
     "ROLL SHEETS" to listOf("Day 0 list", "Day 0 summary", "Male PDF", "Female PDF"),
@@ -157,6 +151,27 @@ fun BoardPane(
                     }
                 }
             }
+        }
+        // Day 11 lands after the course; the design's own fourth line keeps it
+        // out of the urgent shelves (v4 frame 1f, dc.html:579).
+        Row(
+            Modifier
+                .padding(top = 12.dp)
+                .height(40.dp)
+                .deskCard(shape = ChipShape, elevation = 0.dp)
+                .clickable { onExport("Course summary report") }
+                .padding(horizontal = 13.dp)
+                .testTag("export-chip"),
+            horizontalArrangement = Arrangement.spacedBy(9.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            DeskIcon(DeskIconKind.Download, 13.dp, Industry.accent400)
+            Text(
+                "Day 11 · Course summary report",
+                fontSize = 13.5.sp,
+                maxLines = 1,
+                color = Industry.neutral800,
+            )
         }
     }
 }

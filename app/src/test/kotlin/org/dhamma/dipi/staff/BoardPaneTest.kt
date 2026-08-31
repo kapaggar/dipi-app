@@ -35,9 +35,9 @@ import org.robolectric.annotation.Config
 /**
  * v4 frame 1f: the Board lands on one fold. Stat cards are 100dp, NEXT rows
  * 58dp, and the twelve exports — same names, same callback — sit on three
- * labelled shelves of four 40dp chips. Nothing is drawn for the Day 11
- * export: it lives on unmerged `feat/desk-gap` (spec R2), and the design
- * file's dashed marker is canvas annotation, not UI.
+ * labelled shelves of four 40dp chips. Day 11 · Course summary report ships
+ * on the design's own fourth-line row (content-width, 40dp), not inside the
+ * 3×4 shelf grid. The dashed GAP badge is not drawn.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = "w1240dp-h844dp-land")
@@ -106,7 +106,7 @@ class BoardPaneTest {
     fun twelveExportsSitOnThreeShelvesInTheDesignsGrouping() {
         board()
         rule.onNodeWithText("SHEETS & EXPORTS · RARELY URGENT").assertIsDisplayed()
-        rule.onAllNodesWithTag("export-chip").assertCountEquals(12)
+        rule.onAllNodesWithTag("export-chip").assertCountEquals(13)
 
         shelves.forEach { (kicker, names) ->
             rule.onNodeWithText(kicker).assertIsDisplayed()
@@ -180,11 +180,49 @@ class BoardPaneTest {
     }
 
     @Test
-    fun noDayElevenGapMarkerIsDrawn() {
-        board()
-        rule.onNodeWithText("Day 11 · Course summary report").assertDoesNotExist()
+    fun dayElevenChipSitsOnTheFourthLineAndFiresTheExportLabel() {
+        var exported: String? = null
+        board(onExport = { exported = it })
+
+        rule.onNodeWithText("Day 11 · Course summary report").assertIsDisplayed()
         rule.onNodeWithText("GAP — NOT IN 1.22.0").assertDoesNotExist()
-        // Applications and Rooms stay out of NEXT — their counts are inventory.
         rule.onNodeWithText("Review applications").assertDoesNotExist()
+
+        val chip = rule.onNodeWithText("Day 11 · Course summary report").getBoundsInRoot()
+        val team = rule.onNodeWithTag("export-shelf-FOR THE TEAM").getBoundsInRoot()
+        assertTrue(
+            "Day 11 must sit below the FOR THE TEAM shelf",
+            chip.top.value >= team.bottom.value - 0.5f,
+        )
+        assertEquals(40.dp.value, chip.height.value, 0.5f)
+
+        rule.onNodeWithText("Day 11 · Course summary report").performClick()
+        assertEquals("Course summary report", exported)
+    }
+
+    @Test
+    fun twelveShelfChipsAreUnchanged() {
+        board()
+        shelves.forEach { (kicker, names) ->
+            rule.onNodeWithText(kicker).assertIsDisplayed()
+            val shelf = rule.onNodeWithTag("export-shelf-$kicker").getBoundsInRoot()
+            names.forEach { name ->
+                val chip = rule.onNodeWithText(name).getBoundsInRoot()
+                assertTrue(
+                    "$name should sit on the $kicker shelf",
+                    chip.top >= shelf.top && chip.bottom <= shelf.bottom,
+                )
+            }
+        }
+        // Day 11 is NOT inside any shelf tag.
+        val day11 = rule.onNodeWithText("Day 11 · Course summary report").getBoundsInRoot()
+        shelves.forEach { (kicker, _) ->
+            val shelf = rule.onNodeWithTag("export-shelf-$kicker").getBoundsInRoot()
+            assertTrue(
+                "Day 11 must not sit inside $kicker",
+                day11.bottom.value <= shelf.top.value + 0.5f ||
+                    day11.top.value >= shelf.bottom.value - 0.5f,
+            )
+        }
     }
 }
