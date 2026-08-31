@@ -64,7 +64,7 @@ class DipiMockDispatcher : Dispatcher() {
             path.matches(Regex("/centre/\\d+/acco-handler.*")) -> ok(MockFixtures.accoHandlerJson)
             method == "POST" && path.startsWith("/app-update-attended/") -> updateAttended(request, path)
             path.startsWith("/change-status/") -> changeStatus(path)
-            path.matches(Regex("/(day0-list|teacher-list|manager-list|student-chit|checking-slip|seating|zero-day|course-pdf-[mf]|laundry-list|valuable-list)/\\d+/\\d+(\\?.*)?")) ->
+            path.matches(Regex("/(day0-list|teacher-list|manager-list|student-chit|checking-slip|seating|zero-day|course-pdf-[mf]|laundry-list|valuable-list|report-day11)/\\d+/\\d+(\\?.*)?")) ->
                 sheet(path)
             path.matches(Regex("/centre/\\d+/course-report(\\?.*)?")) -> courseReport(request, path)
             method == "GET" && path.matches(Regex("/app/\\d+/edit(\\?.*)?")) -> {
@@ -94,7 +94,8 @@ class DipiMockDispatcher : Dispatcher() {
         val courseId = parts[2].toInt()
         if (cid == MockFixtures.FORBIDDEN_CENTRE) return forbidden()
         return when (slug) {
-            "course-pdf-m", "course-pdf-f" -> binary(MockFixtures.pdfBytes, "application/pdf")
+            "course-pdf-m", "course-pdf-f", "report-day11" ->
+                binary(MockFixtures.pdfBytes, "application/pdf")
             "laundry-list", "valuable-list" ->
                 binary(MockFixtures.xlsBytes, "application/vnd.ms-excel; charset=utf-8")
             "zero-day" -> html(MockFixtures.zeroDayHtml(cid, courseId))

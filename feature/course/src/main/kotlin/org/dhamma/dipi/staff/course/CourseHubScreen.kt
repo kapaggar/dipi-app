@@ -59,6 +59,7 @@ fun CourseHubScreen(
     onCalling: () -> Unit = {},
     onZeroDay: () -> Unit = {},
     onCentreOps: () -> Unit = {},
+    onSheet: (String) -> Unit = {},
     onLater: (String, String) -> Unit,
 ) {
     val c = LocalDipi.current
@@ -90,7 +91,8 @@ fun CourseHubScreen(
                             text = { Text(tile.title) },
                             onClick = {
                                 menuOpen = false
-                                onLater(tile.title, tile.route)
+                                val sheet = hubSheetLabel(tile.title)
+                                if (sheet != null) onSheet(sheet) else onLater(tile.title, tile.route)
                             },
                         )
                     }
@@ -145,7 +147,10 @@ fun CourseHubScreen(
                                     CourseHubLive.Calling -> onCalling()
                                     CourseHubLive.ZeroDay -> onZeroDay()
                                     CourseHubLive.CentreOps -> onCentreOps()
-                                    null -> onLater(tile.title, tile.route)
+                                    null -> {
+                                        val sheet = hubSheetLabel(tile.title)
+                                        if (sheet != null) onSheet(sheet) else onLater(tile.title, tile.route)
+                                    }
                                 }
                             },
                         )

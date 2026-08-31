@@ -18,7 +18,7 @@ import java.io.File
 import java.util.concurrent.TimeUnit
 
 /**
- * All 12 Board "Sheets & exports" labels against the fixtures desk:
+ * All Board "Sheets & exports" labels against the fixtures desk:
  * correct live paths (with cid/courseId substitution), session cookie on
  * every request, PDF/Excel/CSV streamed to the sheets cache dir with the
  * right mime, HTML back intact and in memory only, `#day-summary`
@@ -75,7 +75,7 @@ class ExportMockTest {
         (1..server.requestCount).mapNotNull { server.takeRequest(1, TimeUnit.SECONDS) }
 
     @Test
-    fun allTwelveExportsHitTheirLiveDeskPaths() {
+    fun allExportsHitTheirLiveDeskPaths() {
         SheetExport.entries.forEach { export ->
             val payload = fetch(export, cid = 3, courseId = 42)
             assertFalse(
@@ -98,6 +98,7 @@ class ExportMockTest {
             "GET /seating/3/42",
             "GET /centre/3/course-report",
             "POST /centre/3/course-report",
+            "GET /report-day11/3/42",
         )
         assertEquals(expected, requests.map { "${it.method} ${it.path}" })
         requests.forEach { req ->
@@ -124,6 +125,7 @@ class ExportMockTest {
         listOf(
             SheetExport.MalePdf to "course-pdf-m-1-10.pdf",
             SheetExport.FemalePdf to "course-pdf-f-1-10.pdf",
+            SheetExport.Day11Report to "report-day11-1-10.pdf",
         ).forEach { (export, name) ->
             val payload = fetch(export)
             assertTrue("$export should be a Document", payload is SheetPayload.Document)

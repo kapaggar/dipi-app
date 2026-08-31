@@ -210,6 +210,7 @@ fun DipiAppUi(vm: DeskViewModel) {
                                     onCalling = vm::openCalling,
                                     onZeroDay = vm::openZeroDay,
                                     onCentreOps = vm::openCentreOps,
+                                    onSheet = vm::openSheet,
                                     onLater = vm::openLater,
                                 )
                             }

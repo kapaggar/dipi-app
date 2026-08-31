@@ -71,3 +71,26 @@ fun courseHubLiveTiles(centreId: Int, courseId: Int): List<CourseHubTile> =
 /** Desk-site destinations, tucked into the hub's ⋯ overflow menu. */
 fun courseHubDeskTiles(centreId: Int, courseId: Int): List<CourseHubTile> =
     courseHubTiles(centreId, courseId).filter { it.live == null }
+
+/**
+ * Hub overflow titles that already have a Board `SheetExport`, so the phone
+ * fetches the real document instead of the [DeskTileAction]-less placeholder.
+ *
+ * Deliberately narrower than the catalogue: only exports whose `SheetRoute`
+ * is a `Document` are listed. `Page` exports (Day 0 List, Seating Plan,
+ * Student Chit, Checking Slip, Teachers List) resolve to HTML that only
+ * `SheetViewerPane` can draw, and that pane lives inside the tablet desk
+ * frame — routing them here would fetch a body the phone never shows.
+ * Documents reach the system viewer through `DeskUiState.openDoc`, which is
+ * collected at the top of `DipiAppUi` and therefore works on both sizes.
+ *
+ * `hubSheetLabelsAreAllDocumentRoutes` in `CourseHubScreenTest` pins that.
+ */
+fun hubSheetLabel(title: String): String? = when (title) {
+    "Male PDF" -> "Male PDF"
+    "Female PDF" -> "Female PDF"
+    "Laundry List" -> "Laundry list"
+    "Valuable List" -> "Valuable list"
+    "Course Summary Report" -> "Course summary report"
+    else -> null
+}

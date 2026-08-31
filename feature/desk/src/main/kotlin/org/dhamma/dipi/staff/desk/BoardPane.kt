@@ -32,9 +32,15 @@ import org.dhamma.dipi.staff.ui.theme.deskCard
 /**
  * The same twelve exports, on three shelves that say what each pile is for
  * (v4 frame 1f). Names and the `onExport` labels are unchanged — only the
- * grouping is new. Day 11 · Course summary report is deliberately absent:
- * it lives on unmerged `feat/desk-gap` (spec R2), and the design file's
- * dashed marker is canvas annotation, not UI.
+ * grouping is new.
+ *
+ * Day 11 · Course summary report is still deliberately absent HERE, but the
+ * reason has changed: `SheetExport.Day11Report` now exists and fetches, and
+ * the phone hub overflow reaches it via `hubSheetLabel`. Only the Board chip
+ * is outstanding, because a 13th chip breaks the 3x4 shelf grid this frame is
+ * built on (a 5-wide shelf truncates "Course summary report" at `maxLines=1`).
+ * Placing it is a v4 layout decision, not a transport gap. The design file's
+ * dashed marker remains canvas annotation, not UI.
  */
 private val EXPORT_SHELVES = listOf(
     "ROLL SHEETS" to listOf("Day 0 list", "Day 0 summary", "Male PDF", "Female PDF"),

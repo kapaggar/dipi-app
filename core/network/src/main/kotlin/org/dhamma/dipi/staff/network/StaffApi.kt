@@ -231,6 +231,7 @@ object SheetRoutes {
         SheetExport.ValuableList -> SheetRoute.Document("valuable-list", MIME_XLS, "xls")
         SheetExport.SeatingPlan -> SheetRoute.Page("seating")
         SheetExport.CourseReport -> SheetRoute.ReportForm
+        SheetExport.Day11Report -> SheetRoute.Document("report-day11", MIME_PDF, "pdf")
     }
 }
 

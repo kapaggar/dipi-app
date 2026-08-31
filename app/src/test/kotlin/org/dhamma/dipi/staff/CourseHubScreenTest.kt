@@ -10,12 +10,18 @@ import org.dhamma.dipi.staff.course.CourseHubLive
 import org.dhamma.dipi.staff.course.CourseHubScreen
 import org.dhamma.dipi.staff.course.courseHubDeskTiles
 import org.dhamma.dipi.staff.course.courseHubTiles
+import org.dhamma.dipi.staff.course.hubSheetLabel
 import org.dhamma.dipi.staff.model.CentreId
 import org.dhamma.dipi.staff.model.Course
 import org.dhamma.dipi.staff.model.CourseId
+import org.dhamma.dipi.staff.model.SheetExport
+import org.dhamma.dipi.staff.network.SheetRoute
+import org.dhamma.dipi.staff.network.SheetRoutes
 import org.dhamma.dipi.staff.ui.theme.DipiTheme
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -153,5 +159,51 @@ class CourseHubScreenTest {
         rule.onNodeWithText("Course Summary Report").assertExists()
         rule.onNodeWithText("Add Application").performClick()
         assertEquals("Add Application" to "app/add/1/10", later)
+    }
+
+    @Test
+    fun hubSheetLabelsAreAllDocumentRoutes() {
+        // The phone has no SheetViewerPane, so a Page export routed here would
+        // fetch HTML nothing draws. Every mapping must be a Document.
+        val mapped = courseHubTiles(1, 10).mapNotNull { hubSheetLabel(it.title) }
+        assertEquals(
+            listOf("Male PDF", "Female PDF", "Laundry list", "Valuable list", "Course summary report"),
+            mapped,
+        )
+        mapped.forEach { label ->
+            val export = SheetExport.fromLabel(label)
+            assertNotNull("'$label' must be a Board export", export)
+            assertTrue(
+                "'$label' must resolve to a Document route",
+                SheetRoutes.of(export!!) is SheetRoute.Document,
+            )
+        }
+        listOf("Day 0 List", "Seating Plan", "Student Chit", "Checking Slip", "Teachers List")
+            .forEach { assertNull("$it is HTML — it must stay on the desk-site path", hubSheetLabel(it)) }
+        assertNull(hubSheetLabel("Add Application"))
+    }
+
+    @Test
+    fun courseSummaryReportOpensTheSheetInsteadOfThePlaceholder() {
+        var later: Pair<String, String>? = null
+        var sheet: String? = null
+        rule.setContent {
+            DipiTheme {
+                CourseHubScreen(
+                    course = course,
+                    centreName = "Dhamma Sudha",
+                    onBack = {},
+                    onApplications = {},
+                    onSummary = {},
+                    onPhotos = {},
+                    onSheet = { sheet = it },
+                    onLater = { title, route -> later = title to route },
+                )
+            }
+        }
+        rule.onNodeWithContentDescription("Desk site links").performClick()
+        rule.onNodeWithText("Course Summary Report").performScrollTo().performClick()
+        assertEquals("Course summary report", sheet)
+        assertNull("the Day 11 export must not fall through to openLater", later)
     }
 }

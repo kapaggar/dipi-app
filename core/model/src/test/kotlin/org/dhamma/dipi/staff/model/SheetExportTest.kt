@@ -5,7 +5,7 @@ import org.junit.Assert.assertNull
 import org.junit.Test
 
 /**
- * The 12 Board "Sheets & exports" labels are the seam between BoardPane and
+ * The Board "Sheets & exports" labels are the seam between BoardPane and
  * the transport: every label must resolve to exactly one enum entry and
  * round-trip through [SheetExport.fromLabel].
  */
@@ -24,12 +24,13 @@ class SheetExportTest {
         "Valuable list" to SheetExport.ValuableList,
         "Seating plan" to SheetExport.SeatingPlan,
         "Course report" to SheetExport.CourseReport,
+        "Course summary report" to SheetExport.Day11Report,
     )
 
     @Test
-    fun exactlyTwelveExports() {
-        assertEquals(12, SheetExport.entries.size)
-        assertEquals(12, expected.size)
+    fun exactlyThirteenExports() {
+        assertEquals(13, SheetExport.entries.size)
+        assertEquals(13, expected.size)
     }
 
     @Test
