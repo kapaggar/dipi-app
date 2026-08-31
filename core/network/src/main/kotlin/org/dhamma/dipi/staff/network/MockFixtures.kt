@@ -28,15 +28,15 @@ internal object MockFixtures {
     )
 
     val courses = listOf(
-        CourseDto(COURSE_10D, CENTRE_ID, "10-Day", "2026-08-20", "2026-08-31", "10d"),
-        CourseDto(11, CENTRE_ID, "Satipatthana", "2026-09-03", "2026-09-12", "stp"),
-        CourseDto(12, CENTRE_ID, "10-Day", "2026-09-16", "2026-09-27", "10d"),
+        CourseDto(COURSE_10D, CENTRE_ID, "10-Day", "2026-08-20", "2026-08-31"),
+        CourseDto(11, CENTRE_ID, "Satipatthana", "2026-09-03", "2026-09-12"),
+        CourseDto(12, CENTRE_ID, "10-Day", "2026-09-16", "2026-09-27"),
     )
 
     /** Courses that have already started — the Select Course older list. */
     val olderCourses = listOf(
-        CourseDto(8, CENTRE_ID, "Dhamma Sudha / 10 Day / 2026 / 6th-Aug to 17th-Aug", "2026-08-06", "2026-08-17", "10d"),
-        CourseDto(7, CENTRE_ID, "Dhamma Sudha / STP / 2026 / 23rd-Jul to 31st-Jul", "2026-07-23", "2026-07-31", "stp"),
+        CourseDto(8, CENTRE_ID, "Dhamma Sudha / 10 Day / 2026 / 6th-Aug to 17th-Aug", "2026-08-06", "2026-08-17"),
+        CourseDto(7, CENTRE_ID, "Dhamma Sudha / STP / 2026 / 23rd-Jul to 31st-Jul", "2026-07-23", "2026-07-31"),
     )
 
     /**

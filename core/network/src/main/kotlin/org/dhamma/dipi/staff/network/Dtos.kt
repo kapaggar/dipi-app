@@ -67,9 +67,8 @@ data class CourseDto(
     val name: String,
     val start: String,
     val end: String,
-    val typeKey: String = "",
 ) {
-    fun toModel() = Course(CourseId(id), CentreId(centreId), name, start, end, typeKey)
+    fun toModel() = Course(CourseId(id), CentreId(centreId), name, start, end)
 }
 
 @Serializable
@@ -79,9 +78,8 @@ data class CourseListDto(val items: List<CourseDto>)
 data class ApplicantListDto(
     val items: List<ApplicantDto>,
     val counts: Map<String, Int>,
-    val nextCursor: String? = null,
 ) {
-    fun toModel() = ApplicantListPage(items.map { it.toModel() }, counts, nextCursor)
+    fun toModel() = ApplicantListPage(items.map { it.toModel() }, counts)
 }
 
 @Serializable

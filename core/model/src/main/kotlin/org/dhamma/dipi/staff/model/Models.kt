@@ -93,7 +93,6 @@ data class Course(
     val name: String,
     val start: String,
     val end: String,
-    val typeKey: String = "",
     /** Null when the centre page shows no status table for this course. */
     val summary: CourseSummary? = null,
     /** The full centre-dashboard status matrix; null when the desk did not render the block. */
@@ -117,7 +116,6 @@ data class Session(
 data class ApplicantListPage(
     val items: List<ApplicantCard>,
     val counts: Map<String, Int>,
-    val nextCursor: String? = null,
 )
 
 data class StatusChangeResult(

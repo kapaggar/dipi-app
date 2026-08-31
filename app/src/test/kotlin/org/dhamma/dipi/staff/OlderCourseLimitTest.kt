@@ -153,11 +153,11 @@ class OlderCourseLimitTest {
         }
 
         private fun olderCoursesWithFiveItems() = listOf(
-            CourseDto(5, 1, "5th older", "2026-07-01", "2026-07-10", "10d"),
-            CourseDto(4, 1, "4th older", "2026-06-20", "2026-07-01", "stp"),
-            CourseDto(3, 1, "3rd older", "2026-06-10", "2026-06-20", "10d"),
-            CourseDto(2, 1, "2nd older", "2026-05-30", "2026-06-10", "stp"),
-            CourseDto(1, 1, "1st older", "2026-05-20", "2026-05-30", "10d"),
+            CourseDto(5, 1, "5th older", "2026-07-01", "2026-07-10"),
+            CourseDto(4, 1, "4th older", "2026-06-20", "2026-07-01"),
+            CourseDto(3, 1, "3rd older", "2026-06-10", "2026-06-20"),
+            CourseDto(2, 1, "2nd older", "2026-05-30", "2026-06-10"),
+            CourseDto(1, 1, "1st older", "2026-05-20", "2026-05-30"),
         )
 
         private fun ok(body: String) = MockResponse()
@@ -190,8 +190,8 @@ class OlderCourseLimitTest {
         }
 
         private fun olderCoursesWithTwoItems() = listOf(
-            CourseDto(2, 1, "2nd older", "2026-05-30", "2026-06-10", "stp"),
-            CourseDto(1, 1, "1st older", "2026-05-20", "2026-05-30", "10d"),
+            CourseDto(2, 1, "2nd older", "2026-05-30", "2026-06-10"),
+            CourseDto(1, 1, "1st older", "2026-05-20", "2026-05-30"),
         )
 
         private fun ok(body: String) = MockResponse()
