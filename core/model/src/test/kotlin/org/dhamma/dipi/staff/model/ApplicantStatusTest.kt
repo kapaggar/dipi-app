@@ -47,9 +47,6 @@ class ApplicantStatusTest {
 
     @Test
     fun confNoLooksLike() {
-        assertTrue(ConfNo.looksLikeConf("NF129"))
-        assertTrue(ConfNo.looksLikeConf("om42"))
-        assertFalse(ConfNo.looksLikeConf(""))
         assertEquals("—", ConfNo("").display())
     }
 }

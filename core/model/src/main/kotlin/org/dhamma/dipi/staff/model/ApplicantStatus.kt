@@ -37,8 +37,6 @@ data class ApplicantStatus(val value: String) {
         /** COMMON first (Custom last among common), then RARE. Never includes Approved. */
         val SHEET_CHOICES: List<String> = COMMON_CHOICES + RARE_CHOICES
 
-        fun fromServer(raw: String): ApplicantStatus = ApplicantStatus(raw)
-
         fun mergeChoices(server: List<String>): List<String> {
             val fromServer = server.filter { it.isNotBlank() && !it.equals("Approved", ignoreCase = true) }
             if (fromServer.isEmpty()) return SHEET_CHOICES

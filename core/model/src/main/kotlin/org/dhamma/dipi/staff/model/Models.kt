@@ -145,19 +145,6 @@ data class PhotoEdit(
     val uploaded: Boolean = false,
 )
 
-sealed class OutboxOp {
-    data class ChangeStatus(
-        val applicantId: ApplicantId,
-        val status: String,
-        val letterId: Int = 0,
-        val comment: String = "",
-        val state: OutboxState = OutboxState.Pending,
-        val message: String? = null,
-    ) : OutboxOp()
-}
-
-enum class OutboxState { Pending, Synced, Failed }
-
 /**
  * One arrival's Day 0 check-in, keyed by applicant id. Device-local truth;
  * everything on screen derives from these plus the roster — counts are
