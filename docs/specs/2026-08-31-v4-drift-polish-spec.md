@@ -24,6 +24,17 @@ Top-bar pad 26 vs 20; clock 11 vs 13; lotus 72 vs 54; `DeskStyle.cardFill`
 Industry lift; centre `cardRows` vs v4 frames; NEXT copy; Day-11 dashed
 marker; Board 100/58/40 densify; strip heights; skin photos.
 
+## Shipped beyond the six P-items
+
+I3 also shipped the design-file values for pad/clock/lotus (20 / 13sp / 54)
+plus the listed incidental type/geometry, beyond the original six P-items:
+roster name 15.5sp, roster meta 14sp / column 190dp, check-in headline 22sp,
+"to arrive" 13sp, progress bar 5dp + `RoundedCornerShape(3.dp)`, rooms-free
+"N / M", rail label 15.5sp / count 13sp, `Industry.surface` rail fills,
+`DipiMono` user/sync lines, `BoardTile`/`BoardAction` elevation 1dp. Those
+already shipped on 1.29.1 and match hard rule 9 (design file wins). Do not
+revert pad 20 / clock 13 / lotus 54.
+
 ## Tests this invalidates
 
 Only a `SyncBannersTest` assertion that the stack→row change breaks, if any.

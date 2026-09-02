@@ -193,7 +193,8 @@ data class DeskUiState(
  * them: it is session-scoped, so a conf number typed against one course must
  * never survive into the next one (the roster would open silently filtered).
  * The tablet's own gender/seniority filters describe the desk, not the course,
- * and are deliberately kept.
+ * and are deliberately kept. Applicant desk history is applicant-scoped and
+ * is retained across a course switch.
  */
 fun deskOpenCourse(state: DeskUiState, course: Course): DeskUiState = state.copy(
     course = course,
@@ -1348,7 +1349,7 @@ class DeskViewModel @Inject constructor(
         viewModelScope.launch {
             refreshWorklist(unfiltered = true)
             runCatching { repo.loadStatuses() }.onSuccess { list ->
-                _state.update { it.copy(statusChoices = ApplicantStatus.mergeChoices(list)) }
+                _state.update { it.copy(statusChoices = list) }
             }
             pullRooms(userInitiated = false)
         }

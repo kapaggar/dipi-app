@@ -294,7 +294,7 @@ class StaffRepository @Inject constructor(
             if (stillOnLogin(html) || (resp.code() == 403 && !html.contains("var dataset"))) {
                 throw ApiException("Access denied", unauthorized = true)
             }
-            val result = SearchPageParser.parse(html, cid, baseUrl)
+            val result = SearchPageParser.parse(html, cid)
             val rows = result.dataset
             // Unfiltered fetch = the worklist is being replaced → drop stale
             // sensitive entries; filtered fetches only refresh their subset.
@@ -306,7 +306,6 @@ class StaffRepository @Inject constructor(
             rows.groupingBy { it.status }.eachCount().forEach { (k, v) ->
                 if (k.isNotBlank()) counts[k] = v
             }
-            // was: if (counts.keys.size > 1) lastStatuses = counts.keys.filter { it != "All" }
             val derived = deriveStatuses(result.statuses, counts)
             if (derived.isNotEmpty()) lastStatuses = derived
             rows.map { it.toModel() } to counts

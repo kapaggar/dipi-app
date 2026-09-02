@@ -45,7 +45,7 @@ Do not re-propose:
 | Matrix cards | separate Confirmed and Expected rows | Fixed `cardRows` with `Confirmed + Expected` summed (§S3) |
 | Day-11 Board chip | dashed GAP row, "do not implement" | Solid fourth-line chip under the 3×4 shelves (T1, 2026-08-31) |
 | Status vocabulary | (undescribed) | Desk `edit-app-status` select, roster fallback (T3) |
-| v4 drift polish | (the six P-items in T7) | P1–P6 shipped: 0.2sp top-bar tracking, 190dp rail + 3dp accent bar, 296dp check-in sidebar, Board kicker split, queued last-try on the same row, radius ramp 8/6/5 |
+| v4 drift polish | (the six P-items in T7) | P1–P6 shipped: 0.2sp top-bar tracking, 190dp rail + 3dp accent bar, 296dp check-in sidebar, Board kicker split, queued last-try on the same row, radius ramp 8/6/5. Extra chrome (design-file values): pad 20, clock 13, lotus 54. |
 | Applicant desk history | dataset first/recent/counts only | Prior courses / Activity / Clarifications + clarification PDF (T6). Not server Advanced Search. |
 
 ---

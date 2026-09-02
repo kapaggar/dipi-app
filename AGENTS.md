@@ -6,7 +6,7 @@ Guidance for Claude Code, Cursor, Codex, Fable, Grok.
 
 Centre-staff Android client for the DIPI registrar desk. Package: `org.dhamma.dipi.staff`.
 
-**Shipped:** Vertical 2 desk on `feat/ui-gap-closure`, **1.30.1** (`versionCode` 47). `feat/vertical-1` is merged and deleted. The **Day-11 export** (`SheetExport.Day11Report` → `GET /report-day11/{cid}/{courseId}` PDF) is a solid fourth-line Board chip under the 3×4 shelves (T1, 2026-08-31); phone hub overflow still reaches it via `hubSheetLabel`.
+**Shipped:** Vertical 2 desk on `feat/ui-gap-closure`, **1.30.2** (`versionCode` 48). `feat/vertical-1` is merged and deleted. The **Day-11 export** (`SheetExport.Day11Report` → `GET /report-day11/{cid}/{courseId}` PDF) is a solid fourth-line Board chip under the 3×4 shelves (T1, 2026-08-31); phone hub overflow still reaches it via `hubSheetLabel`.
 
 `feat/desk-gap` still holds unmerged **1.19.0** work, but most of it is now dead: Manage Courses, Daily Activity, SMS Report and Letters were retired from the app surface by owner decision 2026-08-30 (`DeskTiles.kt`), and `CentreEditScreen` competes with main's `CentreOpsScreen`. Applicant desk history (`/app-courses`, `/app-activity`, `/app-clarifications` + clarification PDF) and the `HtmlForms`/`HtmlTables` scrapers shipped in T6. What is still live there and NOT ported: **server-side Advanced Search** (`DeskSearchFields`; note `POST /search-app` is on the do-not-assume list — verify against the HAR first). QA shots in `docs/qa-1.19.0/`. Live default is `https://dipi.vridhamma.org`. Backend PHP is **immutable** — do not add `/staff/*` or change `dipi-web`.
 

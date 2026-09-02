@@ -134,4 +134,21 @@ class ZeroDayScreenTest {
         rule.onNodeWithTag("zero-day-laundry").performClick()
         assertEquals(1, n)
     }
+
+    @Test
+    fun valuablesToggleFiresExactlyOnce() {
+        var n = 0
+        rule.setContent {
+            DipiTheme {
+                ZeroDayScreen(
+                    course = course,
+                    rows = listOf(card()),
+                    prefs = CentreOpsPrefs(laundry = true, valuables = true),
+                    onValuables = { n += 1 },
+                )
+            }
+        }
+        rule.onNodeWithTag("zero-day-valuables").performClick()
+        assertEquals(1, n)
+    }
 }

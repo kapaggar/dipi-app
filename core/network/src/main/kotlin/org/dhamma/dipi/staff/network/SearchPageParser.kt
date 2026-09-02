@@ -40,7 +40,7 @@ data class SearchPage(
 object SearchPageParser {
     private val json = Json { ignoreUnknownKeys = true; isLenient = true }
 
-    fun parse(html: String, pathCentreId: Int? = null, photoHost: String = ""): SearchPage {
+    fun parse(html: String, pathCentreId: Int? = null): SearchPage {
         val rows = datasetObjects(html)
         return SearchPage(
             tokens = tokens(html),

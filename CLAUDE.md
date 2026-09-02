@@ -2,7 +2,7 @@
 
 DIPI Staff Android (`org.dhamma.dipi.staff`).
 
-**Now shipping:** Vertical 2 desk **1.30.1** (`versionCode` 47) on `feat/ui-gap-closure` — `feat/vertical-1` is merged and gone. Day-11 (`SheetExport.Day11Report` → `report-day11`) is a solid fourth-line Board chip (T1); phone hub overflow still reaches it. `feat/desk-gap` still carries unmerged **1.19.0** server-side Advanced Search; applicant desk history and `HtmlForms`/`HtmlTables` shipped in T6. Default host is live `https://dipi.vridhamma.org`.
+**Now shipping:** Vertical 2 desk **1.30.2** (`versionCode` 48) on `feat/ui-gap-closure` — `feat/vertical-1` is merged and gone. Day-11 (`SheetExport.Day11Report` → `report-day11`) is a solid fourth-line Board chip (T1); phone hub overflow still reaches it. `feat/desk-gap` still carries unmerged **1.19.0** server-side Advanced Search; applicant desk history and `HtmlForms`/`HtmlTables` shipped in T6. Default host is live `https://dipi.vridhamma.org`.
 
 Governing product rules: `docs/DIPI-STAFF-IMPLEMENTATION-PROMPT-GROK-4.6.md` (no client ACL, no `Approved`, no attendance write).  
 **Transport (this file + `AGENTS.md` win):** the live desk is Drupal HTML, not Services login and not `/staff/*`. Backend PHP is immutable.
