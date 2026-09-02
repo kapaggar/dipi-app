@@ -1349,7 +1349,10 @@ class DeskViewModel @Inject constructor(
         viewModelScope.launch {
             refreshWorklist(unfiltered = true)
             runCatching { repo.loadStatuses() }.onSuccess { list ->
-                _state.update { it.copy(statusChoices = list) }
+                // Through mergeChoices so an offline cold start (empty list)
+                // keeps the SHEET_CHOICES default instead of wiping it, and
+                // the mock fixture path stays Approved-stripped.
+                _state.update { it.copy(statusChoices = ApplicantStatus.mergeChoices(list)) }
             }
             pullRooms(userInitiated = false)
         }

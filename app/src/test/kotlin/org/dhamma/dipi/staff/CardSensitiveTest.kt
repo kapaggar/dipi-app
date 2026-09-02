@@ -67,7 +67,7 @@ class CardSensitiveTest {
         )
         listOf("HEALTH · VERIFY WITH APPLICANT", "Medication", "Insulin, morning").forEach { label ->
             rule.onNodeWithText(label).assertIsDisplayed()
-            assertTrue(rule.onNodeWithText(label).getUnclippedBoundsInRoot().height.value > 0f)
+            assertTrue(rule.onNodeWithText(label).getUnclippedBoundsInRoot().height.value >= 10f)
         }
     }
 
