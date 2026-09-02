@@ -157,6 +157,22 @@ sentences in `AGENTS.md` assumption 13.
 6. **Release APK not cut**, so the twice-attached-APK release ritual in `AGENTS.md`
    hard rule 12 has not run.
 
+### Status update — 2026-09-02, post-merge verification pass
+
+- Item 1 **resolved**: the owner answered the hall geometry with screenshots the
+  same day; `docs/specs/2026-09-02-seating-r2-orientation-spec.md` was approved,
+  built as seating r2 (letters = columns, teacher at the bottom) and merged to
+  `main` — it supersedes frames `5h`/`5i`.
+- Item 4 **done**: debug APK 1.35.0 (57) installed and verified on the Pixel C
+  (`10.0.0.144:5555`).
+- Item 5 **done**: `feat/sheets-v5` merged to `main` (`56c6901`, then the
+  seating-r2 merge `bc31129`) and pushed with tag `v1.35.0`. The full suite was
+  re-executed from clean on the merged tree: 0 failures across
+  `:core:model`, `:core:audit`, `:core:network`, `:core:datastore`, `:app`
+  (debug variants), plus a clean `:app:assembleDebug`.
+- Items 2 and 3 **remain with the owner**: chit density / Contact Details on
+  print, and whether `?seating=1` stays allowlisted for the student chit.
+
 ---
 
 ## 5 · How to review
