@@ -73,8 +73,10 @@ import org.dhamma.dipi.staff.photos.PhotoReviewScreen
 import org.dhamma.dipi.staff.settings.PinDialog
 import org.dhamma.dipi.staff.settings.PinSetupDialog
 import org.dhamma.dipi.staff.settings.SettingsScreen
+import org.dhamma.dipi.staff.teacher.SeatingPlanScreen
 import org.dhamma.dipi.staff.teacher.StudentCardScreen
 import org.dhamma.dipi.staff.teacher.TeacherListScreen
+import org.dhamma.dipi.staff.teacher.TeacherView
 import org.dhamma.dipi.staff.summary.DaySummaryScreen
 import org.dhamma.dipi.staff.ui.theme.DipiCondensed
 import org.dhamma.dipi.staff.ui.theme.DipiTheme
@@ -195,6 +197,16 @@ fun DipiAppUi(vm: DeskViewModel) {
                                     loadPhoto = vm::loadPhoto,
                                 )
                             }
+                            roll != null && opsCourse != null &&
+                                state.teacherView == TeacherView.SEATING -> SeatingPlanScreen(
+                                roll = roll,
+                                hall = state.teacherHall,
+                                gridFor = { g -> state.centreOps.hallGridFor(g) },
+                                onView = vm::setTeacherView,
+                                onHall = vm::setTeacherHall,
+                                onOpen = vm::openTeacherCard,
+                                onSettings = vm::requestCourseOpsSettings,
+                            )
                             roll != null && opsCourse != null -> TeacherListScreen(
                                 roll = roll,
                                 courseLine = opsCourse.name,
@@ -389,6 +401,7 @@ private fun DeskBodyRouter(vm: DeskViewModel, state: DeskUiState, wide: Boolean,
             onOpenRooms = vm::openRoomsFromCentreOps,
             onBack = vm::back,
             onWhatsAppTemplate = vm::setWhatsAppTemplate,
+            onHallGrid = vm::setHallGrid,
         )
         DeskScreen.Settings -> SettingsPane(vm, state)
         else -> DeskBody(vm, state, wide)

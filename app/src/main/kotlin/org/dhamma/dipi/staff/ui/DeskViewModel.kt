@@ -52,6 +52,7 @@ import org.dhamma.dipi.staff.model.CentreOpsPrefs
 import org.dhamma.dipi.staff.model.Course
 import org.dhamma.dipi.staff.model.FlushSnack
 import org.dhamma.dipi.staff.model.Gender
+import org.dhamma.dipi.staff.model.HallGrid
 import org.dhamma.dipi.staff.model.PhotoEdit
 import org.dhamma.dipi.staff.model.PhotoReviewItem
 import org.dhamma.dipi.staff.model.RoomAllocSync
@@ -200,6 +201,8 @@ data class DeskUiState(
     val teacherRollError: String? = null,
     val teacherView: TeacherView = TeacherView.SENIORITY,
     val teacherGroupFilter: String? = null,
+    /** Seating-plan hall tab (spec 2c) — client-side over the one roll response. */
+    val teacherHall: Gender = Gender.M,
     /**
      * Prefetched application cards by applicant id — the in-memory mirror of
      * the encrypted course cache (spec 2d). Health answers live here for
@@ -1033,6 +1036,11 @@ class DeskViewModel @Inject constructor(
         _state.value.centreOps.let { it.copy(roomLayout = it.roomLayout.withColumns(gender, section, columns)) },
     )
 
+    /** Hall chart (spec 2c S1): the seating plan's grid shape per gender. Clamped on write. */
+    fun setHallGrid(gender: Gender, grid: HallGrid) = persistOps(
+        _state.value.centreOps.withHallGrid(gender, grid),
+    )
+
     /** Phone Zero Day edits the same records the tablet dialog writes. */
     private fun patchRecord(id: ApplicantId, patch: (CheckInRecord) -> CheckInRecord) {
         val cur = _state.value.checkIns[id] ?: CheckInRecord()
@@ -1474,6 +1482,9 @@ class DeskViewModel @Inject constructor(
     fun setTeacherView(view: TeacherView) = _state.update { it.copy(teacherView = view) }
 
     fun setTeacherGroupFilter(key: String?) = _state.update { it.copy(teacherGroupFilter = key) }
+
+    /** Hall tab on the seating plan — a pure state flip over the one fetched roll, never a refetch. */
+    fun setTeacherHall(hall: Gender) = _state.update { it.copy(teacherHall = hall) }
 
     /**
      * Row tap / seat tap → the student card (spec 2d S4). A row that

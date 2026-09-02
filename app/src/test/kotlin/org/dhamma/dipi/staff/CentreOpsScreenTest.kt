@@ -2,12 +2,15 @@ package org.dhamma.dipi.staff
 
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.centerRight
 import androidx.compose.ui.test.click
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -18,6 +21,7 @@ import org.dhamma.dipi.staff.course.CentreOpsScreen
 import org.dhamma.dipi.staff.model.AccoRoom
 import org.dhamma.dipi.staff.model.CentreOpsPrefs
 import org.dhamma.dipi.staff.model.Gender
+import org.dhamma.dipi.staff.model.HallGrid
 import org.dhamma.dipi.staff.ui.theme.DipiTheme
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -180,5 +184,98 @@ class CentreOpsScreenTest {
         // Reset hands back a blank template, which means the built-in default.
         rule.onNodeWithText("Reset to the default message").performScrollTo().performClick()
         assertEquals("", written)
+    }
+
+    // --- Hall chart (spec 2c S1) — same stage-then-SAVE flow as the room chart ---
+
+    @Test
+    fun hallChartSteppersStageLocallyWithoutPersisting() {
+        val captured = mutableListOf<Pair<Gender, HallGrid>>()
+        rule.setContent {
+            DipiTheme {
+                CentreOpsScreen(
+                    prefs = CentreOpsPrefs(),
+                    onToggleLaundry = {},
+                    onToggleValuables = {},
+                    onToggleGroups = {},
+                    onOpenRooms = {},
+                    onBack = {},
+                    onHallGrid = { g, grid -> captured.add(g to grid) },
+                )
+            }
+        }
+        rule.onNodeWithText("Male hall · 5 rows · 7 per row").performScrollTo().assertIsDisplayed()
+        rule.onNodeWithText("Female hall · 5 rows · 7 per row").performScrollTo().assertIsDisplayed()
+        rule.onNodeWithContentDescription("Increase rows · Male hall").performScrollTo().performClick()
+        rule.onNodeWithContentDescription("Decrease seats per row · Female hall").performScrollTo().performClick()
+        // The header lines reflow instantly — but nothing reached persistence.
+        rule.onNodeWithText("Male hall · 6 rows · 7 per row").performScrollTo().assertIsDisplayed()
+        rule.onNodeWithText("Female hall · 5 rows · 6 per row").performScrollTo().assertIsDisplayed()
+        assertEquals(0, captured.size)
+    }
+
+    @Test
+    fun hallChartSaveCommitsOnlyChangedGenders() {
+        val captured = mutableListOf<Pair<Gender, HallGrid>>()
+        rule.setContent {
+            DipiTheme {
+                CentreOpsScreen(
+                    prefs = CentreOpsPrefs(),
+                    onToggleLaundry = {},
+                    onToggleValuables = {},
+                    onToggleGroups = {},
+                    onOpenRooms = {},
+                    onBack = {},
+                    onHallGrid = { g, grid -> captured.add(g to grid) },
+                )
+            }
+        }
+        rule.onNodeWithContentDescription("Increase rows · Male hall").performScrollTo().performClick()
+        rule.onNodeWithContentDescription("Increase rows · Male hall").performScrollTo().performClick()
+        assertEquals(0, captured.size)
+        rule.onNodeWithText("SAVE HALL LAYOUT").performScrollTo().performClick()
+        // Only the touched hall persists, once, with the staged value.
+        assertEquals(listOf(Gender.M to HallGrid(rows = 7, seatsPerRow = 7)), captured)
+    }
+
+    @Test
+    fun hallChartSaveDisabledWhenCleanEnabledWhenDirty() {
+        rule.setContent {
+            DipiTheme {
+                CentreOpsScreen(
+                    prefs = CentreOpsPrefs(),
+                    onToggleLaundry = {},
+                    onToggleValuables = {},
+                    onToggleGroups = {},
+                    onOpenRooms = {},
+                    onBack = {},
+                )
+            }
+        }
+        rule.onNodeWithText("SAVE HALL LAYOUT").performScrollTo().assertIsNotEnabled()
+        rule.onNodeWithContentDescription("Increase seats per row · Male hall").performScrollTo().performClick()
+        rule.onNodeWithText("SAVE HALL LAYOUT").performScrollTo().assertIsEnabled()
+    }
+
+    @Test
+    fun hallChartSteppersDisableAtTheClampBounds() {
+        val stored = CentreOpsPrefs()
+            .withHallGrid(Gender.M, HallGrid(rows = HallGrid.MIN_ROWS, seatsPerRow = HallGrid.MAX_SEATS_PER_ROW))
+        rule.setContent {
+            DipiTheme {
+                CentreOpsScreen(
+                    prefs = stored,
+                    onToggleLaundry = {},
+                    onToggleValuables = {},
+                    onToggleGroups = {},
+                    onOpenRooms = {},
+                    onBack = {},
+                )
+            }
+        }
+        rule.onNodeWithContentDescription("Decrease rows · Male hall").performScrollTo().assertIsNotEnabled()
+        rule.onNodeWithContentDescription("Increase seats per row · Male hall").performScrollTo().assertIsNotEnabled()
+        rule.onNodeWithContentDescription("Increase rows · Male hall").performScrollTo().assertIsEnabled()
+        rule.onNodeWithContentDescription("Decrease seats per row · Male hall").performScrollTo().assertIsEnabled()
     }
 }

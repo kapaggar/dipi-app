@@ -214,7 +214,19 @@ data class CentreOpsPrefs(
      * for the tokens.
      */
     val whatsAppTemplate: String = "",
-)
+    /**
+     * Hall-grid shape per gender for the seating plan (spec 2c S1), keyed by
+     * [Gender.name]. Registrar-configured device-locally; wiped by Erase-all
+     * with the rest of centre_ops. Read via [hallGridFor], write via
+     * [withHallGrid] — both clamp (RoomLayout pattern).
+     */
+    val hallGrid: Map<String, HallGrid> = emptyMap(),
+) {
+    fun hallGridFor(gender: Gender): HallGrid = (hallGrid[gender.name] ?: HallGrid()).clamped()
+
+    fun withHallGrid(gender: Gender, grid: HallGrid): CentreOpsPrefs =
+        copy(hallGrid = hallGrid + (gender.name to grid.clamped()))
+}
 
 const val MAIN_DHAMMA_HALL = "Main Dhamma Hall"
 
