@@ -843,7 +843,7 @@ private fun DialogToggleRow(label: String, on: Boolean, onToggle: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(label, fontSize = 14.sp, color = Industry.text, modifier = Modifier.weight(1f))
-        DeskToggle(on, onToggle)
+        DeskToggle(on)
     }
 }
 

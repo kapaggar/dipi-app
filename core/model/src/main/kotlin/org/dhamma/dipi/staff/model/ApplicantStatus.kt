@@ -37,6 +37,22 @@ data class ApplicantStatus(val value: String) {
         /** COMMON first (Custom last among common), then RARE. Never includes Approved. */
         val SHEET_CHOICES: List<String> = COMMON_CHOICES + RARE_CHOICES
 
+        /** Hard rule 3 — Custom / row changer must not send this literal. */
+        fun isForbiddenWrite(status: String): Boolean =
+            status.trim().equals("Approved", ignoreCase = true)
+
+        /**
+         * Prefer the desk's parsed `#edit-app-status` select; fall back to
+         * roster labels. Always through [mergeChoices] so Approved cannot
+         * reach the sheet.
+         */
+        fun deriveStatuses(select: List<String>, roster: List<String>): List<String> {
+            val fromSelect = select.map { it.trim() }.filter { it.isNotEmpty() }
+            val fromRoster = roster.map { it.trim() }
+                .filter { it.isNotEmpty() && !it.equals("All", ignoreCase = true) }
+            return mergeChoices(fromSelect.ifEmpty { fromRoster })
+        }
+
         fun mergeChoices(server: List<String>): List<String> {
             val fromServer = server.filter { it.isNotBlank() && !it.equals("Approved", ignoreCase = true) }
             if (fromServer.isEmpty()) return SHEET_CHOICES

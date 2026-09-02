@@ -27,6 +27,7 @@ import org.dhamma.dipi.staff.desk.deskFindingCount
 import org.dhamma.dipi.staff.desk.deskOccupied
 import org.dhamma.dipi.staff.desk.deskRecord
 import org.dhamma.dipi.staff.desk.deskRoll
+import org.dhamma.dipi.staff.desk.deskHealthSnack
 import org.dhamma.dipi.staff.desk.deskSaveSnack
 import org.dhamma.dipi.staff.desk.stripHonorific
 import org.dhamma.dipi.staff.model.CallRecord
@@ -677,15 +678,10 @@ class DeskViewModel @Inject constructor(
     fun selectDeskApp(card: ApplicantCard) {
         _state.update { cur ->
             val hasHealth = cur.sensitiveById[card.id]?.health?.isNotEmpty() == true
-            val newSelection = cur.deskAppId != card.id
             cur.copy(
                 deskAppId = card.id,
                 card = card,
-                snack = if (hasHealth && newSelection) {
-                    FlushSnack("Health disclosures on file — review before confirming", error = false)
-                } else {
-                    cur.snack
-                },
+                snack = deskHealthSnack(cur.deskAppId, card.id, hasHealth) ?: cur.snack,
             )
         }
     }
@@ -1063,11 +1059,7 @@ class DeskViewModel @Inject constructor(
             cur.copy(
                 card = card,
                 screen = DeskScreen.Card,
-                snack = if (hasHealth) {
-                    FlushSnack("Health disclosures on file — review before confirming", error = false)
-                } else {
-                    cur.snack
-                },
+                snack = deskHealthSnack(cur.card?.id, card.id, hasHealth) ?: cur.snack,
             )
         }
         viewModelScope.launch {
@@ -1151,6 +1143,12 @@ class DeskViewModel @Inject constructor(
         val card = s.card ?: return
         val status = if (s.sheetPick.contains("Custom", true)) s.sheetCustom.trim() else s.sheetPick
         if (status.isBlank()) return
+        if (ApplicantStatus.isForbiddenWrite(status)) {
+            _state.update {
+                it.copy(sheetOpen = false, snack = FlushSnack("The app never sends Approved", error = true))
+            }
+            return
+        }
         viewModelScope.launch {
             _state.update { it.copy(sheetOpen = false) }
             runCatching {
@@ -1173,6 +1171,10 @@ class DeskViewModel @Inject constructor(
     fun changeStatusFor(card: ApplicantCard, status: String) {
         val value = status.trim()
         if (value.isBlank()) return
+        if (ApplicantStatus.isForbiddenWrite(value)) {
+            _state.update { it.copy(snack = FlushSnack("The app never sends Approved", error = true)) }
+            return
+        }
         viewModelScope.launch {
             runCatching { repo.changeStatus(card.id, value, "", _state.value.offline) }
                 .onSuccess { snack -> _state.update { it.copy(snack = snack) } }

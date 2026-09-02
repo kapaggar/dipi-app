@@ -149,7 +149,7 @@ private fun OfflineStrip() {
                 .fillMaxWidth()
                 .height(38.dp)
                 .background(offlineStripFill(c))
-                .padding(horizontal = 16.dp),
+                .padding(horizontal = 24.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(

@@ -1,6 +1,6 @@
-# Shipped delta — live 1.22.0 Pixel C vs version-3 prototype
+# Shipped delta — live 1.30.1 Pixel C vs version-3 prototype
 
-Compared: the Pixel C build **1.22.0** (`versionCode` 35, `sudha.user` / Dhamma Sudha, 2026-08-28) against `version-3/project/DIPI Staff.dc.html` and `version-3/DELTA.md`.
+Compared: the Pixel C build **1.30.1** (`versionCode` 47) against `version-3/project/DIPI Staff.dc.html` and `version-3/DELTA.md`. The 1.22.0 shot set next to this file remains the visual archive; use the tree, not that header date, as current truth.
 
 Screenshots live next to this file (`~/Downloads/dipi-ui-export/*.png`). Use these, not the v3 canvas, as ground truth.
 
@@ -31,6 +31,8 @@ The prototype still describes an earlier desk. Three owner rounds after v3 lande
 | Manage Courses | removed from the app on owner instruction; still reachable on the desk site |
 | Daily Activity | removed from the app on owner instruction; still reachable on the desk site |
 | SMS Report | removed from the app on owner instruction; still reachable on the desk site |
+| Letters | removed from the app on owner instruction; still reachable on the desk site |
+| CentreEditScreen | do not port the Drupal `GET /centre/{cid}/edit` scrape; centre settings are `CentreOpsScreen` |
 
 ### Post-v4 owner decisions (2026-08-30 / 2026-08-31)
 
@@ -43,7 +45,8 @@ Do not re-propose:
 | Matrix cards | separate Confirmed and Expected rows | Fixed `cardRows` with `Confirmed + Expected` summed (§S3) |
 | Day-11 Board chip | dashed GAP row, "do not implement" | Solid fourth-line chip under the 3×4 shelves (T1, 2026-08-31) |
 | Status vocabulary | (undescribed) | Desk `edit-app-status` select, roster fallback (T3) |
-| v4 drift polish | (the six P-items in T7) | P1–P6 all shipped: 0.2sp top-bar tracking, 190dp rail + 3dp accent bar, 296dp check-in sidebar, Board kicker split, queued last-try on the same row, radius ramp 8/6/6 |
+| v4 drift polish | (the six P-items in T7) | P1–P6 shipped: 0.2sp top-bar tracking, 190dp rail + 3dp accent bar, 296dp check-in sidebar, Board kicker split, queued last-try on the same row, radius ramp 8/6/5 |
+| Applicant desk history | dataset first/recent/counts only | Prior courses / Activity / Clarifications + clarification PDF (T6). Not server Advanced Search. |
 
 ---
 
@@ -124,8 +127,14 @@ App **1.22.0**, tablet 2560×1800, session `sudha.user` · Dhamma Sudha.
 - Dark mode is steel-only; a real dark-per-skin (or a stated “dark is steel” treatment) has room.
 - Check-in search persisting `NF24` across sessions (still visible in `16`).
 - Centre desk tiles below the fold on the 40% pane (only the top of the three tiles shows until scroll).
-- Board exports wrap tightly; Day-11 “Course summary report” is not on this 1.22.0 fold (that tile lived on unmerged desk-gap / later work — confirm before drawing it back).
+- Board fourth-row chip for Day-11 is **shipped** (solid row under the 3×4 shelves; dashed GAP badge is never drawn). Do not re-propose the gap marker or a 13th shelf cell.
 - Skin photographs: **do not bring them back** unless the owner asks. The app deleted them on purpose.
+
+### Parked (decision-gated — do not implement from a design pass)
+
+- **Server-side Advanced Search** (`POST /search-app`) — HAR + AGENTS assumption 5. Needs a re-verify and owner authorization.
+- **Real photo upload** — no live desk route; mock only.
+- **Centre-screen metric drift** — shipped `cardRows` is Received / Confirmed+Expected / Cancelled / Total. Changing the math needs an on-device look.
 
 ---
 

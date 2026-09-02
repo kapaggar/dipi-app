@@ -1,3 +1,8 @@
+# SUPERSEDED
+
+This file stopped at 1.22.0 and has no 08-30 / UI-gap-closure block.
+The living contract is [`version-4/uploads/dipi-ui-export/SHIPPED-DELTA.md`](../version-4/uploads/dipi-ui-export/SHIPPED-DELTA.md).
+
 # Shipped delta — live 1.22.0 Pixel C vs version-3 prototype
 
 Compared: the Pixel C build **1.22.0** (`versionCode` 35, `sudha.user` / Dhamma Sudha, 2026-08-28) against `version-3/project/DIPI Staff.dc.html` and `version-3/DELTA.md`.

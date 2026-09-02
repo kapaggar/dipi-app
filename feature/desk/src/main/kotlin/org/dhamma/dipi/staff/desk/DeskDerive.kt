@@ -8,6 +8,7 @@ import org.dhamma.dipi.staff.model.CallRecord
 import org.dhamma.dipi.staff.model.CheckInRecord
 import org.dhamma.dipi.staff.model.ConfPrefix
 import org.dhamma.dipi.staff.model.ConfSeniority
+import org.dhamma.dipi.staff.model.FlushSnack
 import org.dhamma.dipi.staff.model.Gender
 import org.dhamma.dipi.staff.model.StatusTone
 
@@ -384,6 +385,16 @@ fun deskWaNumber(raw: String?): String? {
 }
 
 /* ── Check-in save ─────────────────────────────────────────────────── */
+
+const val HEALTH_REMINDER = "Health disclosures on file — review before confirming"
+
+/** Once per newly selected applicant — a reminder, not a gate. */
+fun deskHealthSnack(
+    previousId: ApplicantId?,
+    opening: ApplicantId,
+    hasHealth: Boolean,
+): FlushSnack? =
+    if (hasHealth && previousId != opening) FlushSnack(HEALTH_REMINDER, error = false) else null
 
 /** Exactly one error case exists: no room chosen. Returns text + error flag. */
 fun deskSaveSnack(record: CheckInRecord, card: ApplicantCard): Pair<String, Boolean> {

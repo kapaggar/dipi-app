@@ -17,6 +17,7 @@ import org.dhamma.dipi.staff.model.ApplicantCard
 import org.dhamma.dipi.staff.model.ApplicantClarificationRow
 import org.dhamma.dipi.staff.model.ApplicantCourseRow
 import org.dhamma.dipi.staff.model.ApplicantId
+import org.dhamma.dipi.staff.model.ApplicantStatus
 import org.dhamma.dipi.staff.model.CentreCourses
 import org.dhamma.dipi.staff.model.CentreId
 import org.dhamma.dipi.staff.model.CheckInRecord
@@ -66,11 +67,11 @@ const val OLDER_COURSE_LIMIT = 3
  * The status vocabulary offered in the sheet: the desk's own select when the
  * page carried one, else whatever statuses the roster shows (the pre-1.28
  * behaviour, kept as the fallback for filtered fetches whose HTML fragment
- * has no form). Never invents entries; "Approved" is excluded downstream by
- * ApplicantStatus.mergeChoices, not here.
+ * has no form). Always through [ApplicantStatus.deriveStatuses], which
+ * strips Approved via mergeChoices.
  */
 internal fun deriveStatuses(parsed: List<String>, counts: Map<String, Int>): List<String> =
-    parsed.ifEmpty { counts.keys.filter { it != "All" } }
+    ApplicantStatus.deriveStatuses(parsed, counts.keys.toList())
 
 @Singleton
 class StaffRepository @Inject constructor(
@@ -347,6 +348,9 @@ class StaffRepository @Inject constructor(
         comment: String,
         offline: Boolean,
     ): FlushSnack {
+        if (ApplicantStatus.isForbiddenWrite(status)) {
+            return FlushSnack("The app never sends Approved", error = true)
+        }
         val params = StatusWrite.query(status, letterId = 0, comment = comment)
         echoLocal(applicantId, status, null)
         outbox.insert(

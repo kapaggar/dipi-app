@@ -27,7 +27,7 @@ object DeskStyle {
     val tileRadius: Dp = 6.dp
 
     /** Chips, buttons, inputs, toggles and segmented controls. */
-    val controlRadius: Dp = 6.dp
+    val controlRadius: Dp = 5.dp
 
     val cardShape = RoundedCornerShape(cardRadius)
     val tileShape = RoundedCornerShape(tileRadius)
