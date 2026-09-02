@@ -55,6 +55,9 @@ Server reference (read-only): `/Users/wizops/DIPI/dipi-web` module `dh_manageapp
     - **PATCH** (`1.0.x`) — bugfix, visual polish, test-only behaviour that still goes to the tablet.
     Always increment `versionCode` by 1. Do not leave two installs with the same `versionName`.
 12. **Install on the desk tablet after every MAJOR (and after MINOR if the registrar will tap it).** See below.
+    When cutting a GitHub release, attach the APK twice: versioned (`dipi-staff-<version>.apk`) **and** as the
+    stable name `dipi-staff.apk`, then mark the release latest — that keeps the permanent link
+    `https://github.com/kapaggar/dipi-app/releases/latest/download/dipi-staff.apk` pointing at the newest build.
 13. **Server messages verbatim.** Error snackbars show the server's text unmodified (e.g. `Please Edit application and choose Area teacher before approving!`).
 14. **Bridge rule:** letters, waitlist, LC review, SMS/WhatsApp dispatch are black boxes behind the desk's `_change_status`. Never reimplement them, never preview letter bodies.
 
