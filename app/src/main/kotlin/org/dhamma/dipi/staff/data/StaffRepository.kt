@@ -373,11 +373,27 @@ class StaffRepository @Inject constructor(
     suspend fun flushOutbox(): List<FlushSnack> {
         val snacks = mutableListOf<FlushSnack>()
         for (row in outbox.pending()) {
+            if (ApplicantStatus.isForbiddenWrite(row.status)) {
+                outbox.updateState(row.rowId, "Failed", "The app never sends Approved")
+                snacks += FlushSnack("The app never sends Approved", error = true)
+                continue
+            }
+            val params = StatusWrite.query(row.status, letterId = 0, comment = row.comment)
             val sent = runCatching {
                 if (useMock) {
-                    api.changeStatus(row.applicantId, row.status, 0, row.comment).toModel()
+                    api.changeStatus(
+                        row.applicantId,
+                        params.getValue("s"),
+                        0,
+                        params.getValue("c"),
+                    ).toModel()
                 } else {
-                    api.changeStatusGet(row.applicantId, row.status, 0, row.comment).toModel()
+                    api.changeStatusGet(
+                        row.applicantId,
+                        params.getValue("s"),
+                        0,
+                        params.getValue("c"),
+                    ).toModel()
                 }
             }
             if (sent.isFailure) {
