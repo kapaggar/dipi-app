@@ -3,7 +3,16 @@ package org.dhamma.dipi.staff.datastore
 import android.content.Context
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
+import org.dhamma.dipi.staff.model.ApplicantId
+import org.dhamma.dipi.staff.model.ApplicationCard
+import org.dhamma.dipi.staff.model.Gender
+import org.dhamma.dipi.staff.model.HealthRow
+import org.dhamma.dipi.staff.model.RollGroup
+import org.dhamma.dipi.staff.model.RollRow
+import org.dhamma.dipi.staff.model.RollSeniority
+import org.dhamma.dipi.staff.model.SeatKind
 import org.dhamma.dipi.staff.model.TabletMode
+import org.dhamma.dipi.staff.model.TeacherRoll
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -77,6 +86,111 @@ class CourseOpsStoreTest {
         assertFalse(store.isPinSet())
         assertNull(prefs().getString("pin_hash", null))
         assertNull(prefs().getString("pin_salt", null))
+    }
+
+    // ---- Course cache (spec 2d, owner amendment 2026-09-02)
+
+    private val healthText = "Insulin-dependent diabetes, takes olanzapine nightly"
+
+    private fun sampleCard() = ApplicationCard(
+        name = "Suresh Nair",
+        conf = "OM42",
+        statusLine = "Confirmed · 10 Day",
+        hasPhoto = true,
+        personal = listOf("Gender" to "Male", "Monk / Nun" to "No"),
+        historyCounts = ApplicationCard.HISTORY_ORDER.map { it to if (it == "10-Day") 11 else 0 },
+        firstCourse = "2015-1-15, Dhamma sota sohna",
+        lastCourse = "2025-12-12, Dhamma Sudha",
+        practiceDetails = "1 hr daily",
+        health = ApplicationCard.HEALTH_ORDER.map {
+            HealthRow(it, if (it == "Medication") healthText else "-")
+        },
+    )
+
+    private fun sampleRoll() = TeacherRoll(
+        listOf(
+            RollGroup(
+                at = "Trainee-A-M Teacher", code = "TAM", gender = Gender.M,
+                seniority = RollSeniority.OLD, group = "1", total = 1,
+                rows = listOf(
+                    RollRow(
+                        sn = 1, applicantId = ApplicantId(4), name = "Suresh Nair",
+                        roleTag = "Sevak", room = "Mbk-8", age = "51", city = "Kochi",
+                        courses = listOf("10D" to 11, "STP" to 3), cell = "",
+                        seat = "CW-A3", seatKind = SeatKind.CELL, backrest = true,
+                        occupation = "Retired Teacher", education = "B.Ed",
+                        languages = "Malayalam, English",
+                    ),
+                ),
+            ),
+        ),
+    )
+
+    @Test
+    fun rollAndCardRoundTripForTheStoredCourse() {
+        val store = store()
+        store.saveRoll(10, sampleRoll())
+        store.saveCard(10, 4, sampleCard())
+
+        assertEquals(sampleRoll(), store.loadRoll(10))
+        assertEquals(mapOf(4 to sampleCard()), store.loadCards(10))
+        // A different course reads nothing.
+        assertNull(store.loadRoll(11))
+        assertTrue(store.loadCards(11).isEmpty())
+    }
+
+    @Test
+    fun savingADifferentCourseWipesThePreviousOne() {
+        val store = store()
+        store.saveRoll(10, sampleRoll())
+        store.saveCard(10, 4, sampleCard())
+
+        store.saveRoll(11, sampleRoll())
+        // Course 10 is gone entirely — cards included.
+        assertNull(store.loadRoll(10))
+        assertTrue(store.loadCards(10).isEmpty())
+        assertTrue(prefs().all.keys.none { it == "card_4" })
+        assertEquals(sampleRoll(), store.loadRoll(11))
+    }
+
+    @Test
+    fun wipeCourseDropsTheCacheButKeepsThePin() {
+        val store = store()
+        store.setPin("4271")
+        store.saveRoll(10, sampleRoll())
+        store.saveCard(10, 4, sampleCard())
+
+        store.wipeCourse()
+        assertNull(store.loadRoll(10))
+        assertTrue(store.loadCards(10).isEmpty())
+        // Logout keeps the device PIN (spec 2a) — only Erase-all removes it.
+        assertTrue(store.isPinSet())
+        assertTrue(store.checkPin("4271"))
+    }
+
+    @Test
+    fun wipeAllDropsTheCourseCacheToo() {
+        val store = store()
+        store.saveRoll(10, sampleRoll())
+        store.saveCard(10, 4, sampleCard())
+        store.wipeAll()
+        assertNull(store.loadRoll(10))
+        assertTrue(store.loadCards(10).isEmpty())
+        assertTrue(prefs().all.isEmpty())
+    }
+
+    @Test
+    fun rawHealthTextNeverAppearsInAnyToString() {
+        val store = store()
+        store.saveCard(10, 4, sampleCard())
+        val loaded = store.loadCards(10)
+        // The map's toString goes through ApplicationCard/HealthRow toString —
+        // both redact; the answer text must never surface.
+        assertFalse(loaded.toString().contains(healthText))
+        assertFalse(loaded.getValue(4).toString().contains(healthText))
+        assertFalse(loaded.getValue(4).health.joinToString { it.toString() }.contains(healthText))
+        // But the answer itself is intact for on-screen display.
+        assertEquals(healthText, loaded.getValue(4).healthRow("Medication")?.answer)
     }
 
     // ---- SessionStore.tablet_mode (the skin pattern)

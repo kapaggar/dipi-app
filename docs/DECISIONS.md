@@ -53,6 +53,15 @@ are preserved because code comments cite them.
   dialog's own fields), bulk and user-initiated, IS allowed — the client still never
   sends a status, never `Approved`, never NPI; backend PHP stays immutable.
   `RoomAllocSyncTest.paramsNeverCarryAStatus` pins this; `l`/`v` are posted empty.
+- **2026-09-02 · Course-ops persistence amendment (owner decision), verbatim:**
+  Course-ops application data (roll + `/application-view` answers, health
+  included) MAY be persisted device-local so the hall reads offline across
+  restarts. Encrypted at rest in the course-ops store's own
+  EncryptedSharedPreferences file; keyed to the resolved running course id;
+  wiped when the resolved course changes, on Erase-all, and on logout of the
+  account. Never logged (redacting `toString()` on every model); never in Room;
+  never in plain DataStore. This amendment applies ONLY to the course-ops store
+  — the desk-mode `SensitiveInfo` rules are unchanged.
 - **08-13 · Letters are a black box.** `_change_status` may send one; the sheet shows
   "The server may send the applicant a letter for this change." No body preview,
   no letter admin UI.

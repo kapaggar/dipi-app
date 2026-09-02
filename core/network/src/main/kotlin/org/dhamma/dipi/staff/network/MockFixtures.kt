@@ -329,6 +329,146 @@ internal object MockFixtures {
             "<script>document.addEventListener(\"click\", function(e){});</script>"
     }
 
+    /**
+     * Realistic NPI decoys planted in `applicationViewHtml`'s SKIPPED
+     * sections (Identification, Contact, Emergency Contact, Background).
+     * `ApplicationViewParserTest`'s load-bearing negative asserts none of
+     * these strings appears anywhere in the parsed model.
+     */
+    const val AV_NPI_AADHAAR = "3841 9272 5560"
+    const val AV_NPI_PAN = "AAAPZ1234C"
+    const val AV_NPI_PASSPORT = "M8823456"
+    const val AV_NPI_VOTER = "TN/01/123/456789"
+    const val AV_NPI_MOBILE = "+91 94470 33218"
+    const val AV_NPI_EMERGENCY_NAME = "Radha Nair (wife)"
+    const val AV_NPI_EMERGENCY_NO = "+91 98220 00000"
+    const val AV_NPI_ADDRESS = "14 MG Road, Panampilly Nagar, Kochi 682001"
+
+    /** Health answers keyed by applicant id — display-only, never persisted plain. */
+    private fun avHealth(id: Int): Map<String, String> = when (id) {
+        MEERA_ID -> mapOf(
+            "Physical" to "Occasional migraines, takes Sumatriptan when acute",
+            "Pregnancy" to "Yes - 4 (months)",
+        )
+        RAKESH_ID -> mapOf(
+            "Other Techniques" to "Practised Art of Living Sudarshan Kriya for two years",
+        )
+        4 -> mapOf(
+            "Medication" to "Metformin 500mg twice daily",
+            "Intoxicants" to "Chewed tobacco, stopped in 2019",
+        )
+        else -> emptyMap()
+    }
+
+    /**
+     * `GET /application-view/{id}` as `dh_manageapp` renders it
+     * (inc/search.inc:1963-2198): a full themed Drupal page of `av-sec`
+     * sections (`<h3>` titles, `av-label`/`av-val` rows). The fixture keeps
+     * the live shape the client must survive: the header `<h2>{name}
+     * ({conf})</h2>` (conf absent for unconfirmed), the `av-status` line,
+     * the `show-photo/{id}` img (absent for Rakesh — the missing-photo
+     * case), all the NPI sections the parser must structurally skip, and
+     * the four lazy `Loading...` sections.
+     */
+    fun applicationViewHtml(id: Int): String {
+        val p = people.firstOrNull { it.id == id } ?: people.first()
+        fun row(label: String, value: String) =
+            "<div class=\"av-row\"><span class=\"av-label\">$label</span>" +
+                "<span class=\"av-val\">$value</span></div>"
+
+        fun sec(title: String, vararg rows: String) =
+            "<div class=\"av-sec\"><h3>$title</h3>${rows.joinToString("")}</div>"
+
+        fun lazySec(title: String) =
+            "<div class=\"av-sec av-lazy\"><h3>$title</h3><div class=\"av-loading\">Loading...</div></div>"
+
+        val health = avHealth(id)
+        val counts = when (id) {
+            MEERA_ID -> mapOf("10-Day" to 4, "STP" to 1, "Service" to 2)
+            4 -> mapOf("10-Day" to 11, "STP" to 3, "Special" to 1, "20-Day" to 1, "Service" to 9)
+            11 -> mapOf("10-Day" to 22, "45-Day" to 1, "TSC" to 3, "Service" to 18)
+            else -> emptyMap()
+        }
+        val header = if (p.confNo.isNullOrBlank()) "<h2>${p.givenName} ${p.familyName}</h2>"
+        else "<h2>${p.givenName} ${p.familyName} (${p.confNo})</h2>"
+        val photo = if (id == RAKESH_ID) ""
+        else "<img class=\"av-photo\" src=\"/show-photo/$id\" alt=\"photo\" />"
+        val genderWord = if (p.gender == "F") "Female" else "Male"
+
+        return "<html><head><title>Application | Dhamma.org</title></head>" +
+            "<body class=\"page-application-view\"><div id=\"application-view\">" +
+            "<div class=\"av-head\">$photo$header" +
+            "<div class=\"av-status\">${p.status} · Dhamma Sudha / 10 Day / 2026 / 19th-Aug to 30th-Aug</div></div>" +
+            sec(
+                "Personal",
+                row("Gender", genderWord),
+                row("Date of Birth", p.dob ?: "-"),
+                row("Age", p.age?.toString() ?: "-"),
+                row("Nationality", "Indian"),
+                row("Old / New", if (p.oldStudent) "Old" else "New"),
+                row("Monk / Nun", if (p.monk) "Yes" else "No"),
+                row("A-List", "-"),
+                row("Applied On", p.createdAt ?: "-"),
+            ) +
+            sec(
+                "Contact",
+                row("Mobile", AV_NPI_MOBILE),
+                row("Email", p.email ?: "-"),
+                row("Address", AV_NPI_ADDRESS),
+            ) +
+            sec(
+                "Identification",
+                row("Aadhaar", AV_NPI_AADHAAR),
+                row("PAN", AV_NPI_PAN),
+                row("Passport", AV_NPI_PASSPORT),
+                row("Voter ID", AV_NPI_VOTER),
+            ) +
+            sec(
+                "Background",
+                row("Occupation", "Retired Teacher"),
+                row("Education", "B.Ed"),
+            ) +
+            sec(
+                "Emergency Contact",
+                row("Name", AV_NPI_EMERGENCY_NAME),
+                row("Number", AV_NPI_EMERGENCY_NO),
+            ) +
+            sec(
+                "Course History",
+                *(listOf("10-Day", "Teen", "STP", "Special", "TSC", "20-Day", "30-Day", "45-Day", "60-Day", "Service")
+                    .map { row(it, (counts[it] ?: 0).toString()) }
+                    .toTypedArray()),
+                row("First Course", if (counts.isEmpty()) "-" else "2015-1-15, Dhamma sota sohna"),
+                row("Last Course", if (counts.isEmpty()) "-" else "2025-12-12, Dhamma Sudha"),
+                row("Practice Details", if (counts.isEmpty()) "-" else "1 hr daily, both sittings"),
+            ) +
+            sec(
+                "Health",
+                row("Physical", health["Physical"] ?: "-"),
+                row("Mental", health["Mental"] ?: "-"),
+                row("Medication", health["Medication"] ?: "-"),
+                row("Intoxicants", health["Intoxicants"] ?: "-"),
+                row("Other Techniques", health["Other Techniques"] ?: "-"),
+                row("Pregnancy", health["Pregnancy"] ?: if (p.gender == "F") "No" else "-"),
+            ) +
+            sec("Languages", row("Spoken", "Malayalam, English")) +
+            sec("Other", row("How did you hear", "Friend")) +
+            sec("Children/Teen", row("Guardian", "-")) +
+            sec("Long Course Details", row("LC Eligibility", "-")) +
+            lazySec("Previous Applications") +
+            lazySec("Correspondence") +
+            lazySec("Clarifications") +
+            lazySec("Activity Log") +
+            "</div></body></html>"
+    }
+
+    /** Drupal's wildcard-loader refusal: wrong centre/gender/bad id ⇒ plain 404. */
+    val notFoundHtml = """
+        <html><head><title>Page not found | Dhamma.org</title></head><body>
+        <h1>Page not found</h1><p>The requested page could not be found.</p>
+        </body></html>
+    """.trimIndent()
+
     /** Print-styled desk sheet page (day0-list, manager-list, …). */
     fun sheetHtml(slug: String, cid: Int, courseId: Int) = """
         <html><head>

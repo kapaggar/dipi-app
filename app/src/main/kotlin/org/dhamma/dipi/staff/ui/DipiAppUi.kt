@@ -73,6 +73,7 @@ import org.dhamma.dipi.staff.photos.PhotoReviewScreen
 import org.dhamma.dipi.staff.settings.PinDialog
 import org.dhamma.dipi.staff.settings.PinSetupDialog
 import org.dhamma.dipi.staff.settings.SettingsScreen
+import org.dhamma.dipi.staff.teacher.StudentCardScreen
 import org.dhamma.dipi.staff.teacher.TeacherListScreen
 import org.dhamma.dipi.staff.summary.DaySummaryScreen
 import org.dhamma.dipi.staff.ui.theme.DipiCondensed
@@ -171,8 +172,29 @@ fun DipiAppUi(vm: DeskViewModel) {
                     if (courseOps) {
                         val roll = state.teacherRoll
                         val opsCourse = state.course
+                        // Derived flags (spec 2d S3): whatever the prefetched
+                        // answers carry — empty until cards land.
+                        val flagsById = remember(roll, state.teacherCards) {
+                            teacherFlags(roll, state.teacherCards)
+                        }
+                        val openCard = teacherCardAt(roll, state.teacherCard)
                         when {
                             state.screen == DeskScreen.Settings -> SettingsPane(vm, state)
+                            state.screen == DeskScreen.TeacherCard && openCard != null -> {
+                                val (cardGroup, cardRow) = openCard
+                                StudentCardScreen(
+                                    row = cardRow,
+                                    group = cardGroup,
+                                    card = cardRow.applicantId?.let { state.teacherCards[it.value] },
+                                    offline = state.offline,
+                                    canPrev = teacherCardStep(roll, state.teacherCard, -1) != null,
+                                    canNext = teacherCardStep(roll, state.teacherCard, 1) != null,
+                                    onPrev = { vm.stepTeacherCard(-1) },
+                                    onNext = { vm.stepTeacherCard(1) },
+                                    onBack = vm::back,
+                                    loadPhoto = vm::loadPhoto,
+                                )
+                            }
                             roll != null && opsCourse != null -> TeacherListScreen(
                                 roll = roll,
                                 courseLine = opsCourse.name,
@@ -181,8 +203,10 @@ fun DipiAppUi(vm: DeskViewModel) {
                                 // The shell's SyncBannerStrips above already shows the
                                 // offline strip; the screen's local one stays off.
                                 offline = false,
+                                flagsFor = { row -> row.applicantId?.let { flagsById[it.value] }.orEmpty() },
                                 onView = vm::setTeacherView,
                                 onGroupFilter = vm::setTeacherGroupFilter,
+                                onOpen = vm::openTeacherCard,
                                 onSettings = vm::requestCourseOpsSettings,
                             )
                             else -> CourseOpsHost(
