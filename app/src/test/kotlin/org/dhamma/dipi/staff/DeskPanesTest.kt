@@ -908,7 +908,7 @@ class DeskPanesTest {
             }
         }
         rule.onNodeWithText("Rooms & seats").assertIsDisplayed()
-        rule.onNodeWithText("2 rooms · 1 free").assertIsDisplayed()
+        rule.onNodeWithText("1 occupied · 1 free of 2").assertIsDisplayed()
         rule.onNodeWithText("Priya Nair").assertIsDisplayed()
         rule.onNodeWithText("G IC").assertIsDisplayed()
         // No pending allocations → no sync button at all; pull is always shown.

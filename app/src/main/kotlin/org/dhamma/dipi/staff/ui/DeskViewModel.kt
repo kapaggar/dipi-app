@@ -62,6 +62,7 @@ import org.dhamma.dipi.staff.model.clearSyncedIfChanged
 import org.dhamma.dipi.staff.model.Session
 import org.dhamma.dipi.staff.model.SheetExport
 import org.dhamma.dipi.staff.model.SheetPayload
+import org.dhamma.dipi.staff.model.SheetSort
 import org.dhamma.dipi.staff.model.TabletMode
 import org.dhamma.dipi.staff.model.WorklistFilter
 import org.dhamma.dipi.staff.model.parseCourseWindow
@@ -87,6 +88,19 @@ data class SheetViewUi(
     val title: String,
     val loading: Boolean = true,
     val html: SheetPayload.Html? = null,
+    /**
+     * The Board export this viewer is showing, or null for the Applications
+     * edit page and clarification PDFs — those get the plain chrome with no
+     * sort or column controls.
+     */
+    val export: SheetExport? = null,
+    /** Second header line: the course identity, shown exactly once. */
+    val courseLine: String = "",
+    /**
+     * The active order. Only ever one of [SheetSort.optionsFor] for [export];
+     * changing it refetches, because the order is the server's to decide.
+     */
+    val sort: SheetSort = SheetSort.Default,
 )
 
 fun deskBack(screen: DeskScreen, returnTo: DeskScreen?): DeskScreen = when (screen) {
@@ -321,6 +335,17 @@ fun deskAdoptSearchCourse(state: DeskUiState, card: ApplicantCard): DeskUiState 
         ?: return state
     if (state.course?.id == course.id) return state
     return state.copy(course = course, deskScan = "")
+}
+
+/**
+ * The sheet viewer's second header line. The sheet's own `<div class="title">`
+ * is hidden by the injected stylesheet, so this is the single place the course
+ * identity appears — course name, then the roll count as a plain sentence.
+ */
+fun sheetCourseLine(courseName: String, rollSize: Int): String {
+    val name = courseName.trim()
+    val roll = if (rollSize == 1) "1 on the roll" else "$rollSize on the roll"
+    return if (name.isBlank()) roll else "$name · $roll"
 }
 
 /**
@@ -795,8 +820,8 @@ class DeskViewModel @Inject constructor(
      * Test seams over the frozen repository contract: unit tests swap these
      * for fakes; production always routes through [StaffRepository].
      */
-    internal var sheetFetch: suspend (SheetExport, Int, Int) -> SheetPayload =
-        { export, centreId, courseId -> repo.fetchSheet(export, centreId, courseId) }
+    internal var sheetFetch: suspend (SheetExport, Int, Int, SheetSort) -> SheetPayload =
+        { export, centreId, courseId, sort -> repo.fetchSheet(export, centreId, courseId, sort) }
     internal var editFetch: suspend (ApplicantId) -> SheetPayload =
         { id -> repo.fetchAppEditPage(id) }
     internal var clarFetch: suspend (ApplicantId, Int) -> SheetPayload =
@@ -808,13 +833,36 @@ class DeskViewModel @Inject constructor(
      * in the viewer, a document fires the one-shot [DeskUiState.openDoc],
      * a refusal closes the viewer and shows the server's message verbatim.
      */
-    fun openSheet(label: String) {
+    fun openSheet(label: String, sort: SheetSort = SheetSort.Default) {
         val export = SheetExport.fromLabel(label) ?: return
         val course = _state.value.course ?: return
-        _state.update { it.copy(sheetView = SheetViewUi(title = export.label)) }
-        viewModelScope.launch {
-            resolveSheet(export.label) { sheetFetch(export, course.centreId.value, course.id.value) }
+        _state.update {
+            it.copy(
+                sheetView = SheetViewUi(
+                    title = export.label,
+                    export = export,
+                    courseLine = sheetCourseLine(course.name, deskRoll(it.rows).size),
+                    sort = sort,
+                ),
+            )
         }
+        viewModelScope.launch {
+            resolveSheet(export.label) {
+                sheetFetch(export, course.centreId.value, course.id.value, sort)
+            }
+        }
+    }
+
+    /**
+     * The sort segments refetch: the desk decides the order, we only ask for
+     * it. A no-op tap is filtered in the pane, so reaching here always means
+     * a real change of order.
+     */
+    fun setSheetSort(sort: SheetSort) {
+        val current = _state.value.sheetView ?: return
+        val export = current.export ?: return
+        if (current.sort == sort) return
+        openSheet(export.label, sort)
     }
 
     /**
@@ -826,9 +874,11 @@ class DeskViewModel @Inject constructor(
     fun openCourseReport() {
         val cid = _state.value.session?.centres?.firstOrNull()?.id?.value ?: return
         val label = SheetExport.CourseReport.label
-        _state.update { it.copy(sheetView = SheetViewUi(title = label)) }
+        _state.update {
+            it.copy(sheetView = SheetViewUi(title = label, export = SheetExport.CourseReport))
+        }
         viewModelScope.launch {
-            resolveSheet(label) { sheetFetch(SheetExport.CourseReport, cid, 0) }
+            resolveSheet(label) { sheetFetch(SheetExport.CourseReport, cid, 0, SheetSort.Default) }
         }
     }
 

@@ -3,6 +3,7 @@ package org.dhamma.dipi.staff.network
 import okhttp3.ResponseBody
 import org.dhamma.dipi.staff.model.SheetExport
 import org.dhamma.dipi.staff.model.SheetPayload
+import org.dhamma.dipi.staff.model.SheetSort
 import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.Field
@@ -148,15 +149,24 @@ interface StaffApi {
      * Print-styled desk sheet HTML (day0-list, teacher-list, manager-list,
      * student-chit, checking-slip, seating, zero-day).
      *
-     * SAFETY: plain GET, no query params, ever — the seating/teacher-list/
-     * cell-list handlers run server-side BULK SEAT AUTO-ALLOCATION whenever
-     * an `r` param is merely present (inc/zero-day.inc:17-46).
+     * SAFETY: the seating/teacher-list/cell-list handlers run server-side
+     * BULK SEAT AUTO-ALLOCATION whenever an `r` param is merely present
+     * (inc/zero-day.inc:17-46). The only query parameters this method can
+     * carry are therefore the two named, nullable re-orderings below —
+     * declared one-per-parameter rather than as a `@QueryMap`, so widening
+     * the surface takes a code change that `SheetRouteSafetyTest` will fail.
+     * Both are null by default and Retrofit omits null queries entirely.
+     *
+     * @param conf `1` for `?conf=1` (day0-list, sort by confirmation number).
+     * @param seating `1` for `?seating=1` (teacher-list / student-chit order).
      */
     @GET("/{sheet}/{cid}/{courseId}")
     suspend fun sheetPage(
         @Path("sheet") sheet: String,
         @Path("cid") centreId: Int,
         @Path("courseId") courseId: Int,
+        @Query("conf") conf: Int? = null,
+        @Query("seating") seating: Int? = null,
     ): Response<ResponseBody>
 
     /** Streamed course-pdf-m/-f (application/pdf), laundry/valuable list (vnd.ms-excel). */
@@ -273,10 +283,15 @@ class SheetTransport(
     private val baseUrl: String,
     private val sheetsDir: () -> File,
 ) {
-    suspend fun fetch(export: SheetExport, centreId: Int, courseId: Int): SheetPayload = guarded(export.label) {
+    suspend fun fetch(
+        export: SheetExport,
+        centreId: Int,
+        courseId: Int,
+        sort: SheetSort = SheetSort.Default,
+    ): SheetPayload = guarded(export.label) {
         when (val route = SheetRoutes.of(export)) {
             is SheetRoute.Page ->
-                htmlPayload(export.label, api.sheetPage(route.slug, centreId, courseId))
+                htmlPayload(export.label, sheetPage(route.slug, centreId, courseId, export, sort))
             SheetRoute.DaySummary ->
                 daySummary(api.sheetPage("zero-day", centreId, courseId))
             is SheetRoute.Document ->
@@ -284,6 +299,29 @@ class SheetTransport(
             SheetRoute.ReportForm ->
                 courseReport(centreId)
         }
+    }
+
+    /**
+     * The one place a sort parameter is turned into a request. A [SheetSort]
+     * is only honoured when [SheetSort.optionsFor] lists it for this export,
+     * so a stale sort left over from another sheet degrades to the page's own
+     * default order rather than travelling onto a slug that never offered it.
+     */
+    private suspend fun sheetPage(
+        slug: String,
+        centreId: Int,
+        courseId: Int,
+        export: SheetExport,
+        sort: SheetSort,
+    ): Response<ResponseBody> {
+        val effective = if (sort in SheetSort.optionsFor(export)) sort else SheetSort.Default
+        return api.sheetPage(
+            sheet = slug,
+            centreId = centreId,
+            courseId = courseId,
+            conf = if (effective == SheetSort.ConfirmationNo) 1 else null,
+            seating = if (effective == SheetSort.SeatingOrder) 1 else null,
+        )
     }
 
     suspend fun appEditPage(id: Int): SheetPayload = guarded("Application $id") {

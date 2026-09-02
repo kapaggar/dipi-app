@@ -605,6 +605,10 @@ private fun DeskHost(
                 html = sheetView.html,
                 loading = sheetView.loading,
                 onClose = vm::closeSheet,
+                export = sheetView.export,
+                courseLine = sheetView.courseLine,
+                sort = sheetView.sort,
+                onSort = vm::setSheetSort,
             )
         }
 

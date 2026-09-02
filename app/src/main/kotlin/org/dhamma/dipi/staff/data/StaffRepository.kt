@@ -41,6 +41,7 @@ import org.dhamma.dipi.staff.model.SensitiveInfo
 import org.dhamma.dipi.staff.model.Session
 import org.dhamma.dipi.staff.model.SheetExport
 import org.dhamma.dipi.staff.model.SheetPayload
+import org.dhamma.dipi.staff.model.SheetSort
 import org.dhamma.dipi.staff.model.StatusWrite
 import org.dhamma.dipi.staff.model.TeacherRoll
 import org.dhamma.dipi.staff.model.UserCentreMap
@@ -677,8 +678,12 @@ class StaffRepository @Inject constructor(
      * export slice: HTML sheets return in-memory, PDF/Excel/CSV stream to
      * cacheDir/sheets only, refusals come back verbatim as [SheetPayload.NotAvailable].
      */
-    suspend fun fetchSheet(export: SheetExport, centreId: Int, courseId: Int): SheetPayload =
-        sheets.fetch(export, centreId, courseId)
+    suspend fun fetchSheet(
+        export: SheetExport,
+        centreId: Int,
+        courseId: Int,
+        sort: SheetSort = SheetSort.Default,
+    ): SheetPayload = sheets.fetch(export, centreId, courseId, sort)
 
     /**
      * Fetches the desk's own application edit page for display-only viewing

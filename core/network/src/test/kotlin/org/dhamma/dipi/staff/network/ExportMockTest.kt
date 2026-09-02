@@ -5,6 +5,7 @@ import okhttp3.OkHttpClient
 import okhttp3.mockwebserver.MockWebServer
 import org.dhamma.dipi.staff.model.SheetExport
 import org.dhamma.dipi.staff.model.SheetPayload
+import org.dhamma.dipi.staff.model.SheetSort
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -117,6 +118,64 @@ class ExportMockTest {
             val url = req.requestUrl!!
             assertTrue("query params on ${req.path}", url.querySize == 0)
             assertFalse("r param on ${req.path} would bulk auto-allocate seats", url.queryParameterNames.contains("r"))
+        }
+    }
+
+    /**
+     * v5 T1: `?conf=1` is Day 0 list's own alternate order and nothing
+     * else's. A sort left over from another sheet degrades to the page's
+     * default rather than travelling onto a slug that never offered it.
+     */
+    @Test
+    fun sheetPageSendsConfOnlyForDay0List() {
+        runBlocking { transport.fetch(SheetExport.Day0List, 3, 42, SheetSort.ConfirmationNo) }
+        runBlocking { transport.fetch(SheetExport.TeacherList, 3, 42, SheetSort.ConfirmationNo) }
+        runBlocking { transport.fetch(SheetExport.SeatingPlan, 3, 42, SheetSort.ConfirmationNo) }
+        val paths = recordedRequests().map { "${it.method} ${it.path}" }
+        assertEquals(
+            listOf(
+                "GET /day0-list/3/42?conf=1",
+                "GET /teacher-list/3/42",
+                "GET /seating/3/42",
+            ),
+            paths,
+        )
+    }
+
+    /** v5 T1: `?seating=1` is teacher-list and student-chit only (HAR-ROUTES §Query params). */
+    @Test
+    fun sheetPageSendsSeatingOnlyForTeacherListAndChit() {
+        runBlocking { transport.fetch(SheetExport.TeacherList, 3, 42, SheetSort.SeatingOrder) }
+        runBlocking { transport.fetch(SheetExport.StudentChit, 3, 42, SheetSort.SeatingOrder) }
+        runBlocking { transport.fetch(SheetExport.Day0List, 3, 42, SheetSort.SeatingOrder) }
+        runBlocking { transport.fetch(SheetExport.ManagerList, 3, 42, SheetSort.SeatingOrder) }
+        val paths = recordedRequests().map { "${it.method} ${it.path}" }
+        assertEquals(
+            listOf(
+                "GET /teacher-list/3/42?seating=1",
+                "GET /student-chit/3/42?seating=1",
+                "GET /day0-list/3/42",
+                "GET /manager-list/3/42",
+            ),
+            paths,
+        )
+    }
+
+    /** Whatever the sort, `r` is never reachable — that is the whole guard. */
+    @Test
+    fun noSortValueCanEverProduceAnRParam() {
+        SheetExport.entries.forEach { export ->
+            SheetSort.entries.forEach { sort ->
+                runBlocking { transport.fetch(export, 3, 42, sort) }
+            }
+        }
+        recordedRequests().forEach { req ->
+            val url = req.requestUrl!!
+            assertFalse("r param on ${req.path}", url.queryParameterNames.contains("r"))
+            assertTrue(
+                "unexpected query on ${req.path}: ${url.queryParameterNames}",
+                url.queryParameterNames.all { it in SheetSort.ALLOWED_QUERY_NAMES },
+            )
         }
     }
 
