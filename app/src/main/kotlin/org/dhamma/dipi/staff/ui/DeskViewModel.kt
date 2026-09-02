@@ -1610,9 +1610,13 @@ class DeskViewModel @Inject constructor(
         if (ids.isEmpty()) return
         viewModelScope.launch {
             runCatching {
-                repo.prefetchApplicationViews(courseId, ids) { id, card ->
-                    _state.update { it.copy(teacherCards = it.teacherCards + (id to card)) }
-                }
+                repo.prefetchApplicationViews(
+                    courseId,
+                    ids,
+                    onCard = { id, card ->
+                        _state.update { it.copy(teacherCards = it.teacherCards + (id to card)) }
+                    },
+                )
             }
         }
     }

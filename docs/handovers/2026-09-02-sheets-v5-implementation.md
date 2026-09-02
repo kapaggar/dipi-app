@@ -10,7 +10,7 @@ Paste this whole file to the next agent. It is written to be read cold.
 |---|---|
 | **Branch** | `feat/sheets-v5` |
 | **Tip** | `docs: v5 close-out — ship at 1.34.0, progress ledger, design delta, handover` |
-| **Version** | `versionName` **1.34.0**, `versionCode` **55** |
+| **Version** | `versionName` **1.34.1**, `versionCode` **56** |
 | **Base** | `main` at `5428052` — the course-ops merge. Sheets v5 sits **on top of** course-ops, not beside it. |
 | **Plan** | `docs/plans/2026-09-02-sheets-v5.md` — § 0.5 is the progress ledger |
 | **Design spec** | `version-5/README.md`; frames `5a`–`5t` in `DIPI Sheets v5.dc.html` |
@@ -249,7 +249,12 @@ Then check, in this order:
 - Manage Courses, Daily Activity, SMS Report, Letters — retired by owner decision
   2026-08-30.
 
-**SemVer for the next pass:** `1.35.0` / `56` for a feature, `1.34.1` / `56` for a
+**Follow-up (verify run):** tip `281f51e` did not compile. `prefetchApplicationViews`
+takes `onProgress` last, so a trailing lambda was typed as `(done, total)` and
+`teacherCards + (id to card)` failed. Named `onCard =` in `DeskViewModel` and
+`TeacherCardPrefetchTest`. Full suite re-run green in an isolated worktree.
+
+**SemVer for the next pass:** `1.35.0` / `57` for a feature, `1.34.2` / `57` for a
 fix. Bump both fields; never leave two installs on the same `versionName`.
 
 ---
