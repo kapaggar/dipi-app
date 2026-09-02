@@ -10,6 +10,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.height
+import androidx.compose.ui.unit.width
 import org.dhamma.dipi.staff.desk.BoardPane
 import org.dhamma.dipi.staff.desk.DeskSection
 import org.dhamma.dipi.staff.model.ApplicantCard
@@ -36,7 +37,7 @@ import org.robolectric.annotation.Config
  * v4 frame 1f: the Board lands on one fold. Stat cards are 100dp, NEXT rows
  * 58dp, and the twelve exports — same names, same callback — sit on three
  * labelled shelves of four 40dp chips. Day 11 · Course summary report ships
- * on the design's own fourth-line row (content-width, 40dp), not inside the
+ * on the design's own fourth-line row (full-width, 40dp), not inside the
  * 3×4 shelf grid. The dashed GAP badge is not drawn.
  */
 @RunWith(RobolectricTestRunner::class)
@@ -108,7 +109,7 @@ class BoardPaneTest {
         rule.onNodeWithText("SHEETS & EXPORTS").assertIsDisplayed()
         rule.onNodeWithText("RARELY URGENT").assertIsDisplayed()
         rule.onNodeWithText("SHEETS & EXPORTS · RARELY URGENT").assertDoesNotExist()
-        rule.onAllNodesWithTag("export-chip").assertCountEquals(13)
+        rule.onAllNodesWithTag("export-chip").assertCountEquals(12)
 
         shelves.forEach { (kicker, names) ->
             rule.onNodeWithText(kicker).assertIsDisplayed()
@@ -190,13 +191,19 @@ class BoardPaneTest {
         rule.onNodeWithText("GAP — NOT IN 1.22.0").assertDoesNotExist()
         rule.onNodeWithText("Review applications").assertDoesNotExist()
 
-        val chip = rule.onNodeWithText("Day 11 · Course summary report").getBoundsInRoot()
+        val chip = rule.onNodeWithTag("export-day11").getBoundsInRoot()
         val team = rule.onNodeWithTag("export-shelf-FOR THE TEAM").getBoundsInRoot()
         assertTrue(
             "Day 11 must sit below the FOR THE TEAM shelf",
             chip.top.value >= team.bottom.value - 0.5f,
         )
         assertEquals(40.dp.value, chip.height.value, 0.5f)
+        assertEquals(
+            "Day 11 is the design's full-width fourth line",
+            team.width.value,
+            chip.width.value,
+            0.5f,
+        )
 
         rule.onNodeWithText("Day 11 · Course summary report").performClick()
         assertEquals("Course summary report", exported)

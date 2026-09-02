@@ -33,8 +33,8 @@ import org.dhamma.dipi.staff.ui.theme.deskCard
  * The same twelve exports, on three shelves that say what each pile is for
  * (v4 frame 1f), plus Day 11 on the design's own fourth-line row
  * (`dc.html:579-582`). Names and the `onExport` labels are unchanged — only
- * the grouping is new. Day 11 is content-width, not a 13th flex chip, so the
- * 3x4 shelf grid stays intact.
+ * the grouping is new. Day 11 is its own full-width row, not a 13th flex
+ * chip, so the 3x4 shelf grid stays intact.
  */
 private val EXPORT_SHELVES = listOf(
     "ROLL SHEETS" to listOf("Day 0 list", "Day 0 summary", "Male PDF", "Female PDF"),
@@ -174,11 +174,12 @@ fun BoardPane(
         Row(
             Modifier
                 .padding(top = 12.dp)
+                .fillMaxWidth()
                 .height(40.dp)
                 .deskCard(shape = ChipShape, elevation = 0.dp)
                 .clickable { onExport("Course summary report") }
                 .padding(horizontal = 13.dp)
-                .testTag("export-chip"),
+                .testTag("export-day11"),
             horizontalArrangement = Arrangement.spacedBy(9.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {

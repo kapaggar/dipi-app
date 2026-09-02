@@ -1,6 +1,6 @@
-# Shipped delta — live 1.30.1 Pixel C vs version-3 prototype
+# Shipped delta — live 1.30.3 Pixel C vs version-3 prototype
 
-Compared: the Pixel C build **1.30.1** (`versionCode` 47) against `version-3/project/DIPI Staff.dc.html` and `version-3/DELTA.md`. The 1.22.0 shot set next to this file remains the visual archive; use the tree, not that header date, as current truth.
+Compared: the Pixel C build **1.30.3** (`versionCode` 49) against `version-3/project/DIPI Staff.dc.html` and `version-3/DELTA.md`. The 1.22.0 shot set next to this file remains the visual archive; use the tree, not that header date, as current truth.
 
 Screenshots live next to this file (`~/Downloads/dipi-ui-export/*.png`). Use these, not the v3 canvas, as ground truth.
 
@@ -43,7 +43,7 @@ Do not re-propose:
 | Centre lower pane | 416dp two-column (older \| desk) | Older courses on the upcoming grid; desk column stacked beneath (`centre-trim-spec.md` §S4) |
 | Upcoming ceiling | 460dp / 60% + independent pane scrolls | Fixed header + one below-header scroll (card-bloat fix, `4ba1b3b`) |
 | Matrix cards | separate Confirmed and Expected rows | Fixed `cardRows` with `Confirmed + Expected` summed (§S3) |
-| Day-11 Board chip | dashed GAP row, "do not implement" | Solid fourth-line chip under the 3×4 shelves (T1, 2026-08-31) |
+| Day-11 Board chip | dashed GAP row, "do not implement" | Solid full-width fourth-line chip under the 3×4 shelves (T1, 2026-08-31) |
 | Status vocabulary | (undescribed) | Desk `edit-app-status` select, roster fallback (T3) |
 | v4 drift polish | (the six P-items in T7) | P1–P6 shipped: 0.2sp top-bar tracking, 190dp rail + 3dp accent bar, 296dp check-in sidebar, Board kicker split, queued last-try on the same row, radius ramp 8/6/5. Extra chrome (design-file values): pad 20, clock 13, lotus 54. |
 | Applicant desk history | dataset first/recent/counts only | Prior courses / Activity / Clarifications + clarification PDF (T6). Not server Advanced Search. |
