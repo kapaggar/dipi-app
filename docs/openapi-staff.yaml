@@ -1,10 +1,14 @@
+# MOCK-ONLY CONTRACT — the /staff/* JSON layer exists only behind -Pdipi.useMock=true
+# (DipiMockDispatcher). It was never built server-side and never will be: backend PHP is
+# immutable. The live client scrapes the browser desk instead — see docs/LIVE-DESK.md.
+# Historical v0.2 contract kept because the mock dispatcher still implements it.
 openapi: 3.0.3
 info:
   title: DIPI Staff API (Vertical 1)
   version: 0.2.0
   description: |
     Contract for DIPI Staff Android. This file matches
-    docs/DIPI-STAFF-IMPLEMENTATION-PROMPT-GROK-4.6.md (2026-08-13).
+    the retired 2026-08-13 implementation prompt (git history).
 
     Status writes go to existing Drupal `/change-status/{id}` — no /staff façade.
     No attendance write in v1. Server URL is a build-time constant, not a path param.

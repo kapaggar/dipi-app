@@ -5,7 +5,7 @@ import androidx.compose.ui.graphics.Color
 
 /**
  * Industry design-system tokens, mirrored from
- * `version-3/project/_ds/industry-…/styles.css` `:root` plus the version-3
+ * the retired version-3 design bundle's `styles.css` `:root` (git history) plus its
  * skin blocks (`.sk-steel` … `.sk-still`).
  *
  * Usage discipline (non-negotiable): the accent is the only colour and it

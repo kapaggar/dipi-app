@@ -9,7 +9,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 /**
- * The v4 "Steel night" ramp (`version-4/README.md`, Design tokens) and the
+ * The v4 "Steel night" ramp (`docs/DESIGN.md`, Design tokens) and the
  * fixed severity pair (spec R6): dark mode is one night ladder for every skin,
  * and `hard` never follows the skin.
  */

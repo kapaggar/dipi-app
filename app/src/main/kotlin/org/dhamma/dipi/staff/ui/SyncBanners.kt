@@ -44,7 +44,7 @@ sealed interface SyncBanner {
 /**
  * Which strips the phone shell shows. Offline and queued are independent —
  * an online device with queued rows must never claim to be offline. See
- * docs/specs/2026-08-26-v3-conformance-spec.md S1.2.
+ * the 08-26 v3-conformance spec S1.2 (docs/DECISIONS.md, Design system).
  */
 fun syncBanners(offline: Boolean, queued: Int): List<SyncBanner> = buildList {
     if (offline) add(SyncBanner.Offline)
@@ -54,7 +54,7 @@ fun syncBanners(offline: Boolean, queued: Int): List<SyncBanner> = buildList {
 /**
  * "last try HH:MM" for the queued strip — 24-hour, device zone, mono. Null
  * until the first flush attempt of the process: a fresh process shows the
- * strip without a last-try line. See version-4/README.md frame 1g, spec R7.
+ * strip without a last-try line. See docs/DESIGN.md frame 1g, spec R7.
  */
 fun lastTryLabel(epochMs: Long?, zone: ZoneId = ZoneId.systemDefault()): String? =
     epochMs?.let {
@@ -89,7 +89,7 @@ private val NightAccentRule = IndustryPalette.Steel.accent700
 
 /**
  * Offline-strip body on the night ramp: `#C3C9D0` verbatim from
- * `version-4/README.md` frame 1e ("the offline strip was still Blossom pink —
+ * `docs/DESIGN.md` frame 1e ("the offline strip was still Blossom pink —
  * now `#22272C` / `#C3C9D0`"). It has no ramp token of its own; it sits
  * between night `muted` `#9BA1A8` and `foreground` `#E4E6E9`. 9.0:1 on
  * `#22272C`.

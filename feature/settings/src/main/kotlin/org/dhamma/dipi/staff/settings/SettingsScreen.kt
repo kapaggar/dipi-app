@@ -62,7 +62,7 @@ import org.dhamma.dipi.staff.ui.theme.chipGradientColors
 import org.dhamma.dipi.staff.ui.theme.deskCard
 
 /**
- * Settings, version-4 frames **1d** (light) and **1e** (dark).
+ * Settings, design frames **1d** (light) and **1e** (dark) — `docs/DESIGN.md`.
  *
  * Two columns at tablet width — appearance on the left, account and session on
  * the right (428dp) — stacking into the one scrolling page below 600dp. Same

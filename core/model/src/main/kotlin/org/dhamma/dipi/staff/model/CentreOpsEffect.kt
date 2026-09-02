@@ -4,7 +4,7 @@ package org.dhamma.dipi.staff.model
  * The centre-settings RESULT line: what check-in will ask for, given the three
  * switches. Room and seating are unconditional (CheckInPane renders ROOM and
  * SEATING always); the switches only append. See
- * docs/specs/2026-08-26-v3-conformance-spec.md S3.4.
+ * the 08-26 v3-conformance spec S3.4 (docs/DECISIONS.md, Design system).
  */
 fun centreOpsEffect(prefs: CentreOpsPrefs): String {
     val asks = buildList {

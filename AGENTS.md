@@ -12,8 +12,8 @@ The `feat/desk-gap` branch is **closed out and deleted** (close-out merge, 2026-
 
 **Layout:** `:app` (repository, `DeskViewModel`, `DipiAppUi`), `:core:{model,network,database,datastore,ui,audit}`, `:feature:{auth,course,desk,applicants,photos,summary,settings}`. Tests live in `:app`, `:core:model`, `:core:network`, `:core:datastore`, `:core:audit` only — feature modules have no test source set, so their Compose screens are covered by Robolectric tests in `:app`.
 
-**Read first:** this file, then `docs/LIVE-DESK-HAR.md`.  
-`docs/DIPI-STAFF-IMPLEMENTATION-PROMPT-GROK-4.6.md` still wins on product rules (no client ACL, no `Approved`, no attendance write) but is **wrong** on transport: there is no `/staff` JSON layer on the live host.
+**Read first:** this file, then `docs/LIVE-DESK.md` (transport, page inventory, server facts) and `docs/DESIGN.md` (design authority).  
+This file is the single source of truth for product rules — the 2026-08-13 implementation prompt that used to carry them is absorbed into the Hard rules below and deleted (its transport section was wrong anyway: there is no `/staff` JSON layer on the live host).
 
 Server reference (read-only): `/Users/wizops/DIPI/dipi-web` module `dh_manageapp`.
 
@@ -47,7 +47,7 @@ Server reference (read-only): `/Users/wizops/DIPI/dipi-web` module `dh_manageapp
 6. Never use APP API / `get-app-detail`. Parse desk HTML only as above; never store NPI.
 7. No NPI columns in Room or logs (`ae_*`, Aadhaar, PAN, passport, voter id).
 8. Server URL is `BuildConfig.BASE_URL` (`https://dipi.vridhamma.org`). See Current assumptions for the live paths.
-9. Design file `version-4/DIPI Staff v4.dc.html` wins every visual argument; use `version-4/README.md` for measurements.
+9. Design file `docs/design/DIPI-Staff.dc.html` wins every visual argument; use `docs/DESIGN.md` for measurements and the shipped-delta ledger.
 10. Do not commit `local.properties`, keystores, or real student data.
 11. **SemVer on every shippable change.** Bump `versionName` + `versionCode` in `app/build.gradle.kts` before assembling:
     - **MAJOR** (`x.0.0`) — new vertical, breaking API/UX, or a drop-in incompatible rewrite.
@@ -55,6 +55,8 @@ Server reference (read-only): `/Users/wizops/DIPI/dipi-web` module `dh_manageapp
     - **PATCH** (`1.0.x`) — bugfix, visual polish, test-only behaviour that still goes to the tablet.
     Always increment `versionCode` by 1. Do not leave two installs with the same `versionName`.
 12. **Install on the desk tablet after every MAJOR (and after MINOR if the registrar will tap it).** See below.
+13. **Server messages verbatim.** Error snackbars show the server's text unmodified (e.g. `Please Edit application and choose Area teacher before approving!`).
+14. **Bridge rule:** letters, waitlist, LC review, SMS/WhatsApp dispatch are black boxes behind the desk's `_change_status`. Never reimplement them, never preview letter bodies.
 
 ## Desk tablet (Wi-Fi ADB)
 

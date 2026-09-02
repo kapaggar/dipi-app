@@ -20,7 +20,7 @@ import org.robolectric.annotation.Config
 import kotlin.math.abs
 
 /**
- * S2/S3 of docs/specs/2026-08-30-room-layout-reach-spec.md: `RoomsPane` must
+ * S2/S3 of the 08-30 room-layout-reach spec (docs/DECISIONS.md, Room layout & sync): `RoomsPane` must
  * honour the stored `RoomLayout` per gender+section block, and stack the
  * blocks full-width instead of splitting them into two side-by-side columns.
  */

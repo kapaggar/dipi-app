@@ -24,7 +24,7 @@ import org.dhamma.dipi.staff.ui.theme.Industry
 /**
  * Name-bar widths as a fraction of the row. The design binds these to absent
  * data; fixed here so screenshot tests stay stable. See
- * docs/specs/2026-08-26-v3-conformance-spec.md S2.3.
+ * the 08-26 v3-conformance spec S2.3 (docs/DECISIONS.md, Design system).
  */
 private val SKELETON_WIDTHS = listOf(0.52f, 0.66f, 0.44f, 0.60f, 0.72f, 0.48f, 0.58f, 0.64f)
 

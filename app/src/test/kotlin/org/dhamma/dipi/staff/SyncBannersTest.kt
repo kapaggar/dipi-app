@@ -122,7 +122,7 @@ class SyncBannersTest {
     /**
      * The strips used to paint from `Industry` alone, which is skin-aware but
      * has no night branch — so at night a Blossom user got the light pink
-     * grounds that `version-4/README.md` frame 1e names as a fixed bug.
+     * grounds that `docs/DESIGN.md` frame 1e names as a fixed bug.
      */
     @Test
     fun stripColoursLeaveTheSkinRampForTheNightRampInDark() {

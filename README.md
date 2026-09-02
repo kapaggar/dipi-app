@@ -4,13 +4,13 @@ Native centre-staff client for the DIPI registrar desk (`dh_manageapp`). Package
 
 **Shipped:** **1.4.1** (`versionCode` 10), branch `feat/vertical-1`.
 
-**Start here:** [AGENTS.md](AGENTS.md) (current assumptions) and [docs/LIVE-DESK-HAR.md](docs/LIVE-DESK-HAR.md).
+**Start here:** [AGENTS.md](AGENTS.md) (current assumptions, hard rules) and [docs/LIVE-DESK.md](docs/LIVE-DESK.md).
 
-Product rules (no client ACL, no `/staff` status façade, no attendance write, fixed URL) still come from [docs/DIPI-STAFF-IMPLEMENTATION-PROMPT-GROK-4.6.md](docs/DIPI-STAFF-IMPLEMENTATION-PROMPT-GROK-4.6.md). That prompt’s **transport section is stale**: live Drupal does not implement `/staff/*` or Services login. The app scrapes the existing desk.
+Product rules (no client ACL, no `Approved`, no attendance write, server messages verbatim, fixed URL) are the Hard rules in [AGENTS.md](AGENTS.md). Live Drupal implements no `/staff/*` layer and no Services login — the app scrapes the existing desk.
 
-**Design:** [version-4/DIPI Staff v4.dc.html](version-4/DIPI%20Staff%20v4.dc.html) — visual source of truth (measurements in [version-4/README.md](version-4/README.md)).  
+**Design:** [docs/design/DIPI-Staff.dc.html](docs/design/DIPI-Staff.dc.html) — visual source of truth (measurements and shipped-delta ledger in [docs/DESIGN.md](docs/DESIGN.md)).  
 **Historical mock contract:** [docs/openapi-staff.yaml](docs/openapi-staff.yaml) (fixtures only).  
-**Live host is immutable:** do not add PHP; see [docs/TODO-SERVER.md](docs/TODO-SERVER.md).
+**Live host is immutable:** do not add PHP — no `/staff/*`, no `dipi-web` changes ([AGENTS.md](AGENTS.md); mock-only contract in [docs/openapi-staff.yaml](docs/openapi-staff.yaml)).
 
 ## Run
 

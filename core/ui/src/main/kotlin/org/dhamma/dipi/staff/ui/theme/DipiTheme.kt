@@ -66,7 +66,7 @@ val LightDipi = lightDipi(IndustryPalette.Steel)
 
 /**
  * The v4 "Steel night" ramp — one night ladder for every skin
- * (`version-4/README.md`, Design tokens; frame 1e states the rule on screen).
+ * (`docs/DESIGN.md`, Design tokens; frame 1e states the rule on screen).
  *
  * Ladder, ground → foreground:
  * `#14171A #1A1E22 #22272C #2E3339 #3A4046 #4A5157 #6B7278 #9BA1A8 #E4E6E9`.
