@@ -67,9 +67,16 @@ import org.dhamma.dipi.staff.desk.SheetViewerPane
 import org.dhamma.dipi.staff.desk.deskRoll
 import org.dhamma.dipi.staff.desk.deskWaNumber
 import org.dhamma.dipi.staff.model.SheetPayload
+import org.dhamma.dipi.staff.model.TabletMode
 import org.dhamma.dipi.staff.model.whatsAppMessage
 import org.dhamma.dipi.staff.photos.PhotoReviewScreen
+import org.dhamma.dipi.staff.settings.PinDialog
+import org.dhamma.dipi.staff.settings.PinSetupDialog
 import org.dhamma.dipi.staff.settings.SettingsScreen
+import org.dhamma.dipi.staff.teacher.SeatingPlanScreen
+import org.dhamma.dipi.staff.teacher.StudentCardScreen
+import org.dhamma.dipi.staff.teacher.TeacherListScreen
+import org.dhamma.dipi.staff.teacher.TeacherView
 import org.dhamma.dipi.staff.summary.DaySummaryScreen
 import org.dhamma.dipi.staff.ui.theme.DipiCondensed
 import org.dhamma.dipi.staff.ui.theme.DipiTheme
@@ -85,6 +92,11 @@ fun DipiAppUi(vm: DeskViewModel) {
     val deskWide = LocalConfiguration.current.screenWidthDp >= 1100
     val deskActive = deskWide && state.screen == DeskScreen.CourseHub &&
         state.session != null && state.course != null
+    // Course ops (spec 2a): once the mode is on and a session exists, the
+    // desk build is not composed at all — no rail, no queued strip, no
+    // Centre/CourseHub/desk destination. Settings is the one shared screen,
+    // reachable only through the device-PIN gate.
+    val courseOps = state.mode == TabletMode.COURSE_OPS && state.session != null
 
     // One-shot: a fetched PDF/Excel goes to the system viewer via FileProvider.
     val docContext = LocalContext.current
@@ -131,12 +143,23 @@ fun DipiAppUi(vm: DeskViewModel) {
                 }
                 SyncBannerStrips(
                     offline = state.offline,
-                    queued = state.queuedCount,
+                    // Nothing writes in course ops, so there is never an
+                    // outbox: only the offline strip may show (spec 2a).
+                    queued = if (courseOps) 0 else state.queuedCount,
                     lastTryAtMs = state.lastSyncAttemptAt,
                     onRetry = vm::retrySync,
                 )
                 Box(Modifier.weight(1f)) {
-                    val canBack = state.screen != DeskScreen.Login && state.screen != DeskScreen.Centre
+                    // TeacherRoll joins Login/Centre as an exit-dialog root;
+                    // in course ops every non-Settings screen renders the
+                    // teacher surface, so only Settings can go back.
+                    val canBack = if (courseOps) {
+                        state.screen == DeskScreen.Settings
+                    } else {
+                        state.screen != DeskScreen.Login &&
+                            state.screen != DeskScreen.Centre &&
+                            state.screen != DeskScreen.TeacherRoll
+                    }
                     val activity = LocalContext.current as? Activity
                     var confirmExit by remember { mutableStateOf(false) }
                     BackHandler {
@@ -148,143 +171,75 @@ fun DipiAppUi(vm: DeskViewModel) {
                             onExit = { activity?.finish() },
                         )
                     }
-                    when (state.screen) {
-                        DeskScreen.Login -> LoginScreen(
-                            username = state.username,
-                            password = state.password,
-                            error = state.loginError,
-                            loading = state.loginLoading,
-                            onUser = vm::onUser,
-                            onPass = vm::onPass,
-                            onSubmit = vm::signIn,
-                            remember = state.remember,
-                            onRemember = vm::onRemember,
-                            skin = state.skin,
-                            lotus = state.lotus,
-                        )
-                        DeskScreen.Centre -> {
-                            val session = state.session
-                            if (session != null) {
-                                CentreScreen(
-                                    session,
-                                    state.courses,
-                                    vm::pickCourse,
-                                    vm::pickCentre,
-                                    vm::openSettings,
-                                    vm::openLater,
-                                    onExport = { vm.openCourseReport() },
-                                    onCentreOps = vm::openCentreOps,
-                                    onAdvancedSearch = vm::openAdvancedSearch,
-                                    lotus = state.lotus,
-                                    olderCourses = state.olderCourses,
+                    if (courseOps) {
+                        val roll = state.teacherRoll
+                        val opsCourse = state.course
+                        // Derived flags (spec 2d S3): whatever the prefetched
+                        // answers carry — empty until cards land.
+                        val flagsById = remember(roll, state.teacherCards) {
+                            teacherFlags(roll, state.teacherCards)
+                        }
+                        val openCard = teacherCardAt(roll, state.teacherCard)
+                        when {
+                            state.screen == DeskScreen.Settings -> SettingsPane(vm, state)
+                            state.screen == DeskScreen.TeacherCard && openCard != null -> {
+                                val (cardGroup, cardRow) = openCard
+                                StudentCardScreen(
+                                    row = cardRow,
+                                    group = cardGroup,
+                                    card = cardRow.applicantId?.let { state.teacherCards[it.value] },
+                                    offline = state.offline,
+                                    canPrev = teacherCardStep(roll, state.teacherCard, -1) != null,
+                                    canNext = teacherCardStep(roll, state.teacherCard, 1) != null,
+                                    onPrev = { vm.stepTeacherCard(-1) },
+                                    onNext = { vm.stepTeacherCard(1) },
+                                    onBack = vm::back,
+                                    loadPhoto = vm::loadPhoto,
                                 )
                             }
-                        }
-                        DeskScreen.Search -> {
-                            val cid = state.session?.centres?.firstOrNull()?.id?.value ?: 0
-                            AdvancedSearchScreen(
-                                rows = state.searchRows,
-                                onOpen = vm::openSearchResult,
-                                onOpenDesk = { vm.openLater("Advanced Search", "search-app/$cid") },
-                                onBack = vm::back,
+                            roll != null && opsCourse != null &&
+                                state.teacherView == TeacherView.SEATING -> SeatingPlanScreen(
+                                roll = roll,
+                                hall = state.teacherHall,
+                                gridFor = { g -> state.centreOps.hallGridFor(g) },
+                                onView = vm::setTeacherView,
+                                onHall = vm::setTeacherHall,
+                                onOpen = vm::openTeacherCard,
+                                onSettings = vm::requestCourseOpsSettings,
                             )
-                        }
-                        DeskScreen.CourseHub -> {
-                            val session = state.session
-                            val course = state.course
-                            if (session != null && course != null && deskWide) {
-                                LaunchedEffect(course.id) { vm.ensureDesk() }
-                                DeskHost(vm, state, session, course)
-                            } else if (session != null && course != null) {
-                                // Silent worklist prefetch so the hub's count chips light up.
-                                LaunchedEffect(course.id) { vm.ensureDesk() }
-                                CourseHubScreen(
-                                    course = course,
-                                    centreName = session.centres.firstOrNull()?.name.orEmpty(),
-                                    counts = courseHubCounts(state),
-                                    onBack = vm::back,
-                                    onSettings = vm::openSettings,
-                                    onApplications = vm::openApplications,
-                                    onSummary = vm::openSummary,
-                                    onPhotos = vm::openPhotos,
-                                    onAudit = vm::openAudit,
-                                    onCalling = vm::openCalling,
-                                    onZeroDay = vm::openZeroDay,
-                                    onCentreOps = vm::openCentreOps,
-                                    onSheet = vm::openSheet,
-                                    onLater = vm::openLater,
-                                )
-                            }
-                        }
-                        DeskScreen.DeskAction -> {
-                            val action = state.deskAction
-                            if (action != null) {
-                                DeskActionScreen(action.title, action.route, vm::back)
-                            }
-                        }
-                        DeskScreen.ZeroDay -> {
-                            val course = state.course
-                            if (course != null) {
-                                ZeroDayScreen(
-                                    course = course,
-                                    rows = state.rows,
-                                    prefs = state.centreOps,
-                                    records = state.checkIns,
-                                    onSeat = vm::setZeroDaySeat,
-                                    onLaundry = vm::toggleZeroDayLaundry,
-                                    onValuables = vm::toggleZeroDayValuables,
-                                    onRoom = vm::openRoomsFromZeroDay,
-                                    onMarkAttended = vm::markAttended,
-                                    onOpen = vm::openCard,
-                                    onBack = vm::back,
-                                    pendingRoomSync = deskRoomSyncPending(state.checkIns),
-                                    roomSyncBusy = state.roomSyncBusy,
-                                    roomPullBusy = state.roomPullBusy,
-                                    onSyncRooms = vm::syncRooms,
-                                    onPullRooms = vm::pullRooms,
-                                )
-                            }
-                        }
-                        DeskScreen.Audit -> AuditScreen(
-                            rows = state.auditRows,
-                            onOpen = vm::openCard,
-                            onBack = vm::back,
-                        )
-                        DeskScreen.Calling -> {
-                            val context = LocalContext.current
-                            CallingScreen(
-                                rows = state.rows,
-                                callState = state.callState.mapValues { it.value.outcome },
-                                filter = state.callFilter,
-                                onFilter = vm::setCallFilter,
-                                onCallState = vm::setCallState,
-                                onDial = { number ->
-                                    val tel = number.filter { it.isDigit() || it == '+' }
-                                    context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:$tel")))
+                            roll != null && opsCourse != null -> TeacherListScreen(
+                                roll = roll,
+                                courseLine = opsCourse.name,
+                                view = state.teacherView,
+                                groupFilter = state.teacherGroupFilter,
+                                // The shell's SyncBannerStrips above already shows the
+                                // offline strip; the screen's local one stays off.
+                                offline = false,
+                                flagsFor = { row -> row.applicantId?.let { flagsById[it.value] }.orEmpty() },
+                                onView = vm::setTeacherView,
+                                onGroupFilter = vm::setTeacherGroupFilter,
+                                onOpen = vm::openTeacherCard,
+                                onSettings = vm::requestCourseOpsSettings,
+                            )
+                            else -> CourseOpsHost(
+                                course = state.course,
+                                onSettings = vm::requestCourseOpsSettings,
+                                content = {
+                                    state.teacherRollError?.let { CourseOpsRollError(it) }
+                                        ?: CourseOpsRollPending(hasCourse = state.course != null)
                                 },
-                                onOpen = vm::openCard,
-                                onBack = vm::back,
                             )
                         }
-                        DeskScreen.Rooms -> RoomsScreen(
-                            rooms = state.centreOps.rooms,
-                            genderFilter = state.roomsGender,
-                            layout = state.centreOps.roomLayout,
-                            onColumns = vm::setRoomColumns,
-                            onPick = vm::pickRoom,
-                            onBack = vm::back,
-                        )
-                        DeskScreen.CentreOps -> CentreOpsScreen(
-                            prefs = state.centreOps,
-                            onToggleLaundry = vm::toggleLaundry,
-                            onToggleValuables = vm::toggleValuables,
-                            onToggleGroups = vm::toggleGroups,
-                            onOpenRooms = vm::openRoomsFromCentreOps,
-                            onBack = vm::back,
-                            onWhatsAppTemplate = vm::setWhatsAppTemplate,
-                        )
-                        DeskScreen.Settings -> SettingsPane(vm, state)
-                        else -> DeskBody(vm, state, wide)
+                        if (state.pinPrompt) {
+                            PinDialog(
+                                title = "Enter the device PIN",
+                                onSubmit = vm::submitCourseOpsPin,
+                                onDismiss = vm::dismissPinPrompt,
+                                error = state.pinError,
+                            )
+                        }
+                    } else {
+                        DeskBodyRouter(vm, state, wide, deskWide)
                     }
                 }
             }
@@ -306,6 +261,150 @@ fun DipiAppUi(vm: DeskViewModel) {
                 )
             }
         }
+    }
+}
+
+/** The pre-2a desk routing, untouched — the desk build when the mode is off. */
+@Composable
+private fun DeskBodyRouter(vm: DeskViewModel, state: DeskUiState, wide: Boolean, deskWide: Boolean) {
+    when (state.screen) {
+        DeskScreen.Login -> LoginScreen(
+            username = state.username,
+            password = state.password,
+            error = state.loginError,
+            loading = state.loginLoading,
+            onUser = vm::onUser,
+            onPass = vm::onPass,
+            onSubmit = vm::signIn,
+            remember = state.remember,
+            onRemember = vm::onRemember,
+            skin = state.skin,
+            lotus = state.lotus,
+        )
+        DeskScreen.Centre -> {
+            val session = state.session
+            if (session != null) {
+                CentreScreen(
+                    session,
+                    state.courses,
+                    vm::pickCourse,
+                    vm::pickCentre,
+                    vm::openSettings,
+                    vm::openLater,
+                    onExport = { vm.openCourseReport() },
+                    onCentreOps = vm::openCentreOps,
+                    onAdvancedSearch = vm::openAdvancedSearch,
+                    lotus = state.lotus,
+                    olderCourses = state.olderCourses,
+                )
+            }
+        }
+        DeskScreen.Search -> {
+            val cid = state.session?.centres?.firstOrNull()?.id?.value ?: 0
+            AdvancedSearchScreen(
+                rows = state.searchRows,
+                onOpen = vm::openSearchResult,
+                onOpenDesk = { vm.openLater("Advanced Search", "search-app/$cid") },
+                onBack = vm::back,
+            )
+        }
+        DeskScreen.CourseHub -> {
+            val session = state.session
+            val course = state.course
+            if (session != null && course != null && deskWide) {
+                LaunchedEffect(course.id) { vm.ensureDesk() }
+                DeskHost(vm, state, session, course)
+            } else if (session != null && course != null) {
+                // Silent worklist prefetch so the hub's count chips light up.
+                LaunchedEffect(course.id) { vm.ensureDesk() }
+                CourseHubScreen(
+                    course = course,
+                    centreName = session.centres.firstOrNull()?.name.orEmpty(),
+                    counts = courseHubCounts(state),
+                    onBack = vm::back,
+                    onSettings = vm::openSettings,
+                    onApplications = vm::openApplications,
+                    onSummary = vm::openSummary,
+                    onPhotos = vm::openPhotos,
+                    onAudit = vm::openAudit,
+                    onCalling = vm::openCalling,
+                    onZeroDay = vm::openZeroDay,
+                    onCentreOps = vm::openCentreOps,
+                    onSheet = vm::openSheet,
+                    onLater = vm::openLater,
+                )
+            }
+        }
+        DeskScreen.DeskAction -> {
+            val action = state.deskAction
+            if (action != null) {
+                DeskActionScreen(action.title, action.route, vm::back)
+            }
+        }
+        DeskScreen.ZeroDay -> {
+            val course = state.course
+            if (course != null) {
+                ZeroDayScreen(
+                    course = course,
+                    rows = state.rows,
+                    prefs = state.centreOps,
+                    records = state.checkIns,
+                    onSeat = vm::setZeroDaySeat,
+                    onLaundry = vm::toggleZeroDayLaundry,
+                    onValuables = vm::toggleZeroDayValuables,
+                    onRoom = vm::openRoomsFromZeroDay,
+                    onMarkAttended = vm::markAttended,
+                    onOpen = vm::openCard,
+                    onBack = vm::back,
+                    pendingRoomSync = deskRoomSyncPending(state.checkIns),
+                    roomSyncBusy = state.roomSyncBusy,
+                    roomPullBusy = state.roomPullBusy,
+                    onSyncRooms = vm::syncRooms,
+                    onPullRooms = vm::pullRooms,
+                )
+            }
+        }
+        DeskScreen.Audit -> AuditScreen(
+            rows = state.auditRows,
+            onOpen = vm::openCard,
+            onBack = vm::back,
+        )
+        DeskScreen.Calling -> {
+            val context = LocalContext.current
+            CallingScreen(
+                rows = state.rows,
+                callState = state.callState.mapValues { it.value.outcome },
+                filter = state.callFilter,
+                onFilter = vm::setCallFilter,
+                onCallState = vm::setCallState,
+                onDial = { number ->
+                    val tel = number.filter { it.isDigit() || it == '+' }
+                    context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:$tel")))
+                },
+                onOpen = vm::openCard,
+                onBack = vm::back,
+            )
+        }
+        DeskScreen.Rooms -> RoomsScreen(
+            rooms = state.centreOps.rooms,
+            genderFilter = state.roomsGender,
+            layout = state.centreOps.roomLayout,
+            onColumns = vm::setRoomColumns,
+            onPick = vm::pickRoom,
+            onBack = vm::back,
+        )
+        DeskScreen.CentreOps -> CentreOpsScreen(
+            prefs = state.centreOps,
+            onToggleLaundry = vm::toggleLaundry,
+            onToggleValuables = vm::toggleValuables,
+            onToggleGroups = vm::toggleGroups,
+            onOpenRooms = vm::openRoomsFromCentreOps,
+            onBack = vm::back,
+            onWhatsAppTemplate = vm::setWhatsAppTemplate,
+            onHallGrid = vm::setHallGrid,
+        )
+        DeskScreen.Settings -> SettingsPane(vm, state)
+        else -> DeskBody(vm, state, wide)
     }
 }
 
@@ -641,6 +740,7 @@ private fun DeskBody(vm: DeskViewModel, state: DeskUiState, wide: Boolean) {
 
 @Composable
 private fun SettingsPane(vm: DeskViewModel, state: DeskUiState) {
+    val running = vm.runningCourseToday()
     SettingsScreen(
         session = state.session,
         dark = state.dark,
@@ -656,7 +756,19 @@ private fun SettingsPane(vm: DeskViewModel, state: DeskUiState) {
         lotus = state.lotus,
         onSkin = vm::setSkin,
         onToggleLotus = vm::toggleLotus,
+        mode = state.mode,
+        onMode = vm::setTabletMode,
+        runningCourseName = running?.name,
+        runningCourseDates = vm.runningCourseDatesLabel(),
     )
+    // Enabling course ops with no PIN on the device collects one first
+    // (set + confirm); the mode flips only after the PIN lands (spec 2a S3).
+    if (state.pinSetup) {
+        PinSetupDialog(
+            onSet = vm::completePinSetup,
+            onDismiss = vm::dismissPinSetup,
+        )
+    }
 }
 
 /**

@@ -176,6 +176,16 @@ interface StaffApi {
     @GET("/app/{id}/edit")
     suspend fun appEditPage(@Path("id") id: Int): Response<ResponseBody>
 
+    /**
+     * The application as the applicant wrote it (course-ops student card,
+     * spec 2d). Full themed Drupal page; the client parses ONLY the header,
+     * Personal, Course History and Health via [ApplicationViewParser] —
+     * everything else on the page is NPI and never read. Path param only:
+     * no query, ever (the no-`r` rule is structural).
+     */
+    @GET("/application-view/{id}")
+    suspend fun applicationView(@Path("id") id: Int): Response<ResponseBody>
+
     @GET("/app-courses/{id}")
     suspend fun appCourses(@Path("id") id: Int): Response<ResponseBody>
 

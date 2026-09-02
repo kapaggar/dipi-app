@@ -213,7 +213,267 @@ internal object MockFixtures {
             0xA1.toByte(), 0xB1.toByte(), 0x1A, 0xE1.toByte(),
         ) + "DIPI mock spreadsheet".toByteArray(Charsets.US_ASCII)
 
-    /** Print-styled desk sheet page (day0-list, teacher-list, …). */
+    /**
+     * Distinctive health free-text planted in the fixture's Comments cells.
+     * The teacher-list Comments column is unlabelled health text the client
+     * must NEVER parse or store — tests assert this string appears nowhere
+     * in any parsed output.
+     */
+    const val TEACHER_HEALTH_NOISE = "Insulin-dependent diabetes, takes olanzapine nightly"
+
+    /**
+     * `GET /teacher-list/{cid}/{courseId}` as `dh_generate_teacher_list`
+     * renders it (inc/zero-day.inc:877-1072): an UNTHEMED fragment starting
+     * `<style>`, a header + screen-only toolbar, then one
+     * `table-teacher-list` block per (gender, old/new, group) with the
+     * pipe-separated `tl-groupinfo` band and 12 cells per row. S/N restarts
+     * per block; langs/comments wrapped in `span.tlc`; the trailing
+     * column-toggle script is part of the live shape too.
+     */
+    fun teacherListHtml(cid: Int, courseId: Int): String {
+        fun row(
+            sn: Int,
+            student: String,
+            room: String,
+            age: String,
+            city: String,
+            courses: String,
+            cell: String,
+            seat: String,
+            occ: String,
+            edu: String,
+            langs: String,
+            comments: String,
+        ) = "<tr><td class=\"tl-sn\">$sn</td><td class=\"tl-student\">$student</td>" +
+            "<td class=\"tl-room\">$room</td><td class=\"tl-age\">$age</td>" +
+            "<td class=\"tl-city\">$city</td><td class=\"tl-courses\">$courses</td>" +
+            "<td class=\"tl-cell\">$cell</td><td class=\"tl-seat\">$seat</td>" +
+            "<td class=\"tl-occ\">$occ</td><td class=\"tl-edu\">$edu</td>" +
+            "<td class=\"tl-langs\"><span class=\"tlc\">$langs</span></td>" +
+            "<td class=\"tl-comments\"><span class=\"tlc\">$comments</span></td></tr>"
+
+        fun band(at: String, gender: String, type: String, group: Int, total: Int) =
+            "<tr><th class=\"tl-groupinfo\" colspan=\"12\">" +
+                "<span class=\"at\">AT: $at</span><span class=\"sep\">|</span>" +
+                "$gender<span class=\"sep\">|</span>$type<span class=\"sep\">|</span>" +
+                "Group $group<span class=\"sep\">|</span><span class=\"cnt\">$total total</span></th></tr>"
+
+        val headRow = "<tr><th class=\"tl-sn\">S/N</th><th class=\"tl-student\">Student</th>" +
+            "<th class=\"tl-room\">Room</th><th class=\"tl-age\">Age</th><th class=\"tl-city\">City</th>" +
+            "<th class=\"tl-courses\">Courses</th><th class=\"tl-cell\">Cell</th><th class=\"tl-seat\">Seat</th>" +
+            "<th class=\"tl-occ\">Occupation</th><th class=\"tl-edu\">Education</th>" +
+            "<th class=\"tl-langs\"><span class=\"tlc\">Languages</span></th>" +
+            "<th class=\"tl-comments\"><span class=\"tlc\">Comments</span></th></tr>"
+
+        val colgroup = "<colgroup><col class=\"tl-sn\"><col class=\"tl-student\"><col class=\"tl-room\">" +
+            "<col class=\"tl-age\"><col class=\"tl-city\"><col class=\"tl-courses\"><col class=\"tl-cell\">" +
+            "<col class=\"tl-seat\"><col class=\"tl-occ\"><col class=\"tl-edu\"><col class=\"tl-langs\">" +
+            "<col class=\"tl-comments\"></colgroup>"
+
+        fun block(brk: Boolean, bandRow: String, vararg rows: String) =
+            "<div class=\"tl-block${if (brk) " tl-break" else ""}\"><div class=\"tl-scroll\">" +
+                "<table class=\"table-teacher-list\">$colgroup<thead>$bandRow$headRow</thead>" +
+                "<tbody>${rows.joinToString("")}</tbody></table></div></div>"
+
+        return "<style>@import url(\"/sites/all/modules/dh_manageapp/css/teacher-list-v2.css\");</style>" +
+            "<div class=\"header-teacher\"><div class=\"title\">Teacher List</div>" +
+            "<div class=\"title-head\">Dhamma Sudha / 10 Day / 2026 / 19th-Aug to 30th-Aug</div></div>" +
+            "<div class=\"tl-toolbar no-print\"><span class=\"grp\"><b>Order:</b> " +
+            "<a class=\"active\" href=\"/teacher-list/$cid/$courseId\">Seniority</a> &middot; " +
+            "<a class=\"\" href=\"/teacher-list/$cid/$courseId?seating=1\">Seating plan</a></span>" +
+            "<span class=\"grp\"><b>Columns:</b> " +
+            "<button type=\"button\" class=\"col-toggle\" data-toggle-col=\"langs\">Languages</button> " +
+            "<button type=\"button\" class=\"col-toggle\" data-toggle-col=\"comments\">Comments</button></span></div>" +
+            block(
+                false,
+                band("Trainee-A-M Teacher [TAM]", "Male", "Old", 1, 3),
+                row(
+                    1, "Suresh Nair <b>(Sevak)</b>", "Mbk-8", "51", "Kochi",
+                    "<b>10D:</b>11 <b>STP:</b>3 <b>SPL:</b>1", "", "",
+                    "Retired Teacher", "B.Ed", "Malayalam, English", TEACHER_HEALTH_NOISE,
+                ),
+                row(
+                    2, "Vikram Joshi <b>(AT-2010)</b>", "Mbk-2", "46", "Indore",
+                    "<b>10D:</b>6 <b>TSC:</b>1", "C2 (2)",
+                    "CW-A3<span class=\"tl-br\" title=\"Backrest\">BR</span>",
+                    "Engineer", "B.E.", "Hindi, English", "",
+                ),
+                row(
+                    3, "Nikhil Rane", "Mbk-11", "35", "Nagpur",
+                    "<b>10D:</b>4", "", "A8",
+                    "Accountant", "M.Com", "Marathi, Hindi", "",
+                ),
+            ) +
+            block(
+                true,
+                band("(unassigned)", "Male", "New", 1, 2),
+                row(
+                    1, "Rakesh Iyer", "Mbk-14", "28", "Chennai",
+                    "", "", "CH-12<span class=\"tl-br\" title=\"Backrest\">BR</span>",
+                    "Software Developer", "B.Tech", "Tamil, English", TEACHER_HEALTH_NOISE,
+                ),
+                row(
+                    2, "Arjun Patel", "Mbk-15", "19", "Ahmedabad",
+                    "", "", "14", "—", "—", "Gujarati", "",
+                ),
+            ) +
+            block(
+                true,
+                band("Uma Rangan [URN]", "Female", "Old", 1, 1),
+                row(
+                    1, "Meera Deshpande <b>(SAT-2011)</b>", "Fbk-1", "34", "Pune",
+                    "<b>10D:</b>4 <b>STP:</b>1", "C5", "CW-B1",
+                    "Doctor", "MBBS", "Marathi, English, Hindi", "",
+                ),
+            ) +
+            "<script>document.addEventListener(\"click\", function(e){});</script>"
+    }
+
+    /**
+     * Realistic NPI decoys planted in `applicationViewHtml`'s SKIPPED
+     * sections (Identification, Contact, Emergency Contact, Background).
+     * `ApplicationViewParserTest`'s load-bearing negative asserts none of
+     * these strings appears anywhere in the parsed model.
+     */
+    const val AV_NPI_AADHAAR = "3841 9272 5560"
+    const val AV_NPI_PAN = "AAAPZ1234C"
+    const val AV_NPI_PASSPORT = "M8823456"
+    const val AV_NPI_VOTER = "TN/01/123/456789"
+    const val AV_NPI_MOBILE = "+91 94470 33218"
+    const val AV_NPI_EMERGENCY_NAME = "Radha Nair (wife)"
+    const val AV_NPI_EMERGENCY_NO = "+91 98220 00000"
+    const val AV_NPI_ADDRESS = "14 MG Road, Panampilly Nagar, Kochi 682001"
+    const val AV_NPI_FATHER_CONTACT = "father-9911223344"
+    const val AV_NPI_MOTHER_CONTACT = "mother-9955667788"
+    const val AV_NPI_SPOUSE_NAME = "Sunita Devi Spouse"
+    const val AV_NPI_TRAGEDY = "Yes - lost brother in 2019"
+
+    /** Health answers keyed by applicant id — display-only, never persisted plain. */
+    private fun avHealth(id: Int): Map<String, String> = when (id) {
+        MEERA_ID -> mapOf(
+            "Physical" to "Occasional migraines, takes Sumatriptan when acute",
+            "Pregnancy" to "Yes - 4 (months)",
+        )
+        RAKESH_ID -> mapOf(
+            "Other Techniques" to "Practised Art of Living Sudarshan Kriya for two years",
+        )
+        4 -> mapOf(
+            "Medication" to "Metformin 500mg twice daily",
+            "Intoxicants" to "Chewed tobacco, stopped in 2019",
+        )
+        else -> emptyMap()
+    }
+
+    /**
+     * `GET /application-view/{id}` as `dh_manageapp` renders it
+     * (inc/search.inc:1963-2198): a full themed Drupal page of `av-sec`
+     * sections (`<h3>` titles, `av-label`/`av-val` rows). The fixture keeps
+     * the live shape the client must survive: the header `<h2>{name}
+     * ({conf})</h2>` (conf absent for unconfirmed), the `av-status` line,
+     * the `show-photo/{id}` img (absent for Rakesh — the missing-photo
+     * case), all the NPI sections the parser must structurally skip, and
+     * the four lazy `Loading...` sections.
+     */
+    fun applicationViewHtml(id: Int): String {
+        val p = people.firstOrNull { it.id == id } ?: people.first()
+        fun row(label: String, value: String) =
+            "<div class=\"av-row\"><span class=\"av-label\">$label</span>" +
+                "<span class=\"av-val\">$value</span></div>"
+
+        fun sec(title: String, vararg rows: String) =
+            "<div class=\"av-sec\"><h3>$title</h3>${rows.joinToString("")}</div>"
+
+        fun lazySec(title: String) =
+            "<div class=\"av-sec av-lazy\"><h3>$title</h3><div class=\"av-loading\">Loading...</div></div>"
+
+        val health = avHealth(id)
+        val counts = when (id) {
+            MEERA_ID -> mapOf("10-Day" to 4, "STP" to 1, "Service" to 2)
+            4 -> mapOf("10-Day" to 11, "STP" to 3, "Special" to 1, "20-Day" to 1, "Service" to 9)
+            11 -> mapOf("10-Day" to 22, "45-Day" to 1, "TSC" to 3, "Service" to 18)
+            else -> emptyMap()
+        }
+        val header = if (p.confNo.isNullOrBlank()) "<h2>${p.givenName} ${p.familyName}</h2>"
+        else "<h2>${p.givenName} ${p.familyName} (${p.confNo})</h2>"
+        val photo = if (id == RAKESH_ID) ""
+        else "<img class=\"av-photo\" src=\"/show-photo/$id\" alt=\"photo\" />"
+        val genderWord = if (p.gender == "F") "Female" else "Male"
+
+        return "<html><head><title>Application | Dhamma.org</title></head>" +
+            "<body class=\"page-application-view\"><div id=\"application-view\">" +
+            "<div class=\"av-head\">$photo$header" +
+            "<div class=\"av-status\">${p.status} · Dhamma Sudha / 10 Day / 2026 / 19th-Aug to 30th-Aug</div></div>" +
+            sec(
+                "Personal",
+                row("Gender", genderWord),
+                row("Date of Birth", p.dob ?: "-"),
+                row("Age", p.age?.toString() ?: "-"),
+                row("Nationality", "Indian"),
+                row("Old / New", if (p.oldStudent) "Old" else "New"),
+                row("Monk / Nun", if (p.monk) "Yes" else "No"),
+                row("A-List", "-"),
+                row("Applied On", p.createdAt ?: "-"),
+            ) +
+            sec(
+                "Contact",
+                row("Mobile", AV_NPI_MOBILE),
+                row("Email", p.email ?: "-"),
+                row("Address", AV_NPI_ADDRESS),
+            ) +
+            sec(
+                "Identification",
+                row("Aadhaar", AV_NPI_AADHAAR),
+                row("PAN", AV_NPI_PAN),
+                row("Passport", AV_NPI_PASSPORT),
+                row("Voter ID", AV_NPI_VOTER),
+            ) +
+            sec(
+                "Background",
+                row("Occupation", "Retired Teacher"),
+                row("Education", "B.Ed"),
+            ) +
+            sec(
+                "Emergency Contact",
+                row("Name", AV_NPI_EMERGENCY_NAME),
+                row("Number", AV_NPI_EMERGENCY_NO),
+            ) +
+            sec(
+                "Course History",
+                *(listOf("10-Day", "Teen", "STP", "Special", "TSC", "20-Day", "30-Day", "45-Day", "60-Day", "Service")
+                    .map { row(it, (counts[it] ?: 0).toString()) }
+                    .toTypedArray()),
+                row("First Course", if (counts.isEmpty()) "-" else "2015-1-15, Dhamma sota sohna"),
+                row("Last Course", if (counts.isEmpty()) "-" else "2025-12-12, Dhamma Sudha"),
+                row("Practice Details", if (counts.isEmpty()) "-" else "1 hr daily, both sittings"),
+            ) +
+            sec(
+                "Health",
+                row("Physical", health["Physical"] ?: "-"),
+                row("Mental", health["Mental"] ?: "-"),
+                row("Medication", health["Medication"] ?: "-"),
+                row("Intoxicants", health["Intoxicants"] ?: "-"),
+                row("Other Techniques", health["Other Techniques"] ?: "-"),
+                row("Pregnancy", health["Pregnancy"] ?: if (p.gender == "F") "No" else "-"),
+            ) +
+            sec("Languages", row("Spoken", "Malayalam, English")) +
+            sec("Other", row("How did you hear", "Friend")) +
+            sec("Children/Teen", row("Father Contact", AV_NPI_FATHER_CONTACT) + row("Mother Contact", AV_NPI_MOTHER_CONTACT)) +
+            sec("Long Course Details", row("Spouse Name", AV_NPI_SPOUSE_NAME) + row("Personal tragedy", AV_NPI_TRAGEDY)) +
+            lazySec("Previous Applications") +
+            lazySec("Correspondence") +
+            lazySec("Clarifications") +
+            lazySec("Activity Log") +
+            "</div></body></html>"
+    }
+
+    /** Drupal's wildcard-loader refusal: wrong centre/gender/bad id ⇒ plain 404. */
+    val notFoundHtml = """
+        <html><head><title>Page not found | Dhamma.org</title></head><body>
+        <h1>Page not found</h1><p>The requested page could not be found.</p>
+        </body></html>
+    """.trimIndent()
+
+    /** Print-styled desk sheet page (day0-list, manager-list, …). */
     fun sheetHtml(slug: String, cid: Int, courseId: Int) = """
         <html><head>
         <style>@import url("/sites/all/modules/dh_manageapp/css/teacher-list.css");</style>

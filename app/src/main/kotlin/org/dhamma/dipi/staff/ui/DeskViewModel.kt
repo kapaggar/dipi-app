@@ -18,6 +18,7 @@ import org.dhamma.dipi.staff.data.ApiException
 import org.dhamma.dipi.staff.data.ConnectivityMonitor
 import org.dhamma.dipi.staff.data.PhotoEditStore
 import org.dhamma.dipi.staff.data.StaffRepository
+import org.dhamma.dipi.staff.datastore.CourseOpsStore
 import org.dhamma.dipi.staff.datastore.SessionStore
 import org.dhamma.dipi.staff.desk.DeskSection
 import org.dhamma.dipi.staff.desk.deskCallList
@@ -36,6 +37,10 @@ import org.dhamma.dipi.staff.model.AccoRoom
 import org.dhamma.dipi.staff.model.ApplicantCard
 import org.dhamma.dipi.staff.model.ApplicantDeskHistory
 import org.dhamma.dipi.staff.model.ApplicantId
+import org.dhamma.dipi.staff.model.ApplicationCard
+import org.dhamma.dipi.staff.model.RollGroup
+import org.dhamma.dipi.staff.model.RollRow
+import org.dhamma.dipi.staff.model.flagsFor
 import org.dhamma.dipi.staff.model.ApplicantStatus
 import org.dhamma.dipi.staff.model.HISTORY_ACTIVITY
 import org.dhamma.dipi.staff.model.HISTORY_CLARIFICATIONS
@@ -47,6 +52,7 @@ import org.dhamma.dipi.staff.model.CentreOpsPrefs
 import org.dhamma.dipi.staff.model.Course
 import org.dhamma.dipi.staff.model.FlushSnack
 import org.dhamma.dipi.staff.model.Gender
+import org.dhamma.dipi.staff.model.HallGrid
 import org.dhamma.dipi.staff.model.PhotoEdit
 import org.dhamma.dipi.staff.model.PhotoReviewItem
 import org.dhamma.dipi.staff.model.RoomAllocSync
@@ -56,13 +62,18 @@ import org.dhamma.dipi.staff.model.clearSyncedIfChanged
 import org.dhamma.dipi.staff.model.Session
 import org.dhamma.dipi.staff.model.SheetExport
 import org.dhamma.dipi.staff.model.SheetPayload
+import org.dhamma.dipi.staff.model.TabletMode
 import org.dhamma.dipi.staff.model.WorklistFilter
+import org.dhamma.dipi.staff.model.parseCourseWindow
+import org.dhamma.dipi.staff.model.TeacherRoll
+import org.dhamma.dipi.staff.model.runningCourse
+import org.dhamma.dipi.staff.teacher.TeacherView
 import org.dhamma.dipi.staff.network.PhotoLoader
 import org.dhamma.dipi.staff.ui.theme.DeskSkin
 import org.dhamma.dipi.staff.ui.theme.Industry
 import javax.inject.Inject
 
-enum class DeskScreen { Login, Centre, CourseHub, Today, Card, Photos, Summary, Settings, DeskAction, ZeroDay, Audit, Calling, Rooms, CentreOps, Search }
+enum class DeskScreen { Login, Centre, CourseHub, Today, Card, Photos, Summary, Settings, DeskAction, ZeroDay, Audit, Calling, Rooms, CentreOps, Search, TeacherRoll, SeatingPlan, TeacherCard }
 
 data class DeskActionDest(val title: String, val route: String)
 
@@ -96,7 +107,60 @@ fun deskBack(screen: DeskScreen, returnTo: DeskScreen?): DeskScreen = when (scre
     // The in-app Advanced Search opens from the Centre screen only.
     DeskScreen.Search -> DeskScreen.Centre
     DeskScreen.CourseHub -> DeskScreen.Centre
-    DeskScreen.Centre, DeskScreen.Login -> screen
+    // Course ops (spec 2a): the card backs to whichever teacher screen opened
+    // it; both teacher screens back to the roll; the roll is an exit-dialog
+    // root alongside Login and Centre.
+    DeskScreen.TeacherCard ->
+        returnTo.takeIf { it == DeskScreen.SeatingPlan || it == DeskScreen.TeacherRoll }
+            ?: DeskScreen.TeacherRoll
+    DeskScreen.SeatingPlan -> DeskScreen.TeacherRoll
+    DeskScreen.Centre, DeskScreen.Login, DeskScreen.TeacherRoll -> screen
+}
+
+/** The open student card (spec 2d): which roll group, which row in it. */
+data class TeacherCardRef(val groupKey: String, val index: Int)
+
+/**
+ * Derived FLAGS per applicant id (spec 2d S3) — gender comes from the row's
+ * own group band, the answers from the prefetched cards. Rows without a
+ * mapped id or a landed card simply have no entry (un-flagged, never
+ * invented).
+ */
+fun teacherFlags(roll: TeacherRoll?, cards: Map<Int, ApplicationCard>): Map<Int, List<String>> {
+    if (roll == null || cards.isEmpty()) return emptyMap()
+    val out = mutableMapOf<Int, List<String>>()
+    for (group in roll.groups) {
+        for (row in group.rows) {
+            val id = row.applicantId?.value ?: continue
+            val card = cards[id] ?: continue
+            out[id] = flagsFor(card, group.gender)
+        }
+    }
+    return out
+}
+
+/** The group + row a [TeacherCardRef] points at — null when the roll moved. */
+fun teacherCardAt(roll: TeacherRoll?, ref: TeacherCardRef?): Pair<RollGroup, RollRow>? {
+    if (roll == null || ref == null) return null
+    val group = roll.groups.firstOrNull { it.key == ref.groupKey } ?: return null
+    val row = group.rows.getOrNull(ref.index) ?: return null
+    return group to row
+}
+
+/**
+ * ‹ › walk (spec 2d S4): the CURRENT group in roll order, stopping at its
+ * ends — never wrapping into the next group. Rows without a mapped
+ * applicant id have no card, so the walk steps over them.
+ */
+fun teacherCardStep(roll: TeacherRoll?, ref: TeacherCardRef?, delta: Int): TeacherCardRef? {
+    if (roll == null || ref == null || delta == 0) return null
+    val group = roll.groups.firstOrNull { it.key == ref.groupKey } ?: return null
+    var i = ref.index + delta
+    while (i in group.rows.indices) {
+        if (group.rows[i].applicantId != null) return TeacherCardRef(ref.groupKey, i)
+        i += delta
+    }
+    return null
 }
 
 fun deskAfterLogin(): DeskScreen = DeskScreen.Centre
@@ -124,6 +188,29 @@ data class DeskUiState(
     val dark: Boolean = false,
     val skin: DeskSkin = DeskSkin.Steel,
     val lotus: Boolean = true,
+    /** Device mode (spec 2a): DESK is the registrar build, COURSE_OPS the teacher's. */
+    val mode: TabletMode = TabletMode.DESK,
+    /** First-enable PIN collection (set + confirm) is open over Settings. */
+    val pinSetup: Boolean = false,
+    /** The device-PIN gate before Settings opens from course ops. */
+    val pinPrompt: Boolean = false,
+    /** "Wrong PIN" while the gate dialog stays; null otherwise. Never the digits. */
+    val pinError: String? = null,
+    /** The one roll response feeding both teacher screens — fetched once per entry, never polled. */
+    val teacherRoll: TeacherRoll? = null,
+    val teacherRollError: String? = null,
+    val teacherView: TeacherView = TeacherView.SENIORITY,
+    val teacherGroupFilter: String? = null,
+    /** Seating-plan hall tab (spec 2c) — client-side over the one roll response. */
+    val teacherHall: Gender = Gender.M,
+    /**
+     * Prefetched application cards by applicant id — the in-memory mirror of
+     * the encrypted course cache (spec 2d). Health answers live here for
+     * display only; ApplicationCard's toString redacts them.
+     */
+    val teacherCards: Map<Int, ApplicationCard> = emptyMap(),
+    /** The open student card: group key + row index into the roll. */
+    val teacherCard: TeacherCardRef? = null,
     val offline: Boolean = false,
     val queuedById: Map<ApplicantId, String> = emptyMap(),
     val queuedCount: Int = 0,
@@ -309,10 +396,15 @@ fun deskSyncLine(lastSyncIso: String?, now: java.time.Instant, offline: Boolean,
 class DeskViewModel @Inject constructor(
     private val repo: StaffRepository,
     private val sessionStore: SessionStore,
+    private val courseOpsStore: CourseOpsStore,
     private val photoStore: PhotoEditStore,
     private val photoLoader: PhotoLoader,
     connectivity: ConnectivityMonitor,
 ) : ViewModel() {
+
+    /** Clock seam for the course lock — tests pin "today"; production is the device date. */
+    @androidx.annotation.VisibleForTesting
+    internal var todayProvider: () -> java.time.LocalDate = { java.time.LocalDate.now() }
 
     private val _state = MutableStateFlow(DeskUiState())
     val state: StateFlow<DeskUiState> = _state.asStateFlow()
@@ -351,6 +443,9 @@ class DeskViewModel @Inject constructor(
         }
         viewModelScope.launch {
             sessionStore.lotus.collect { on -> _state.update { it.copy(lotus = on) } }
+        }
+        viewModelScope.launch {
+            sessionStore.tabletMode.collect { mode -> _state.update { it.copy(mode = mode) } }
         }
         viewModelScope.launch {
             sessionStore.lastSync.collect { sync -> _state.update { it.copy(lastSync = sync) } }
@@ -941,6 +1036,11 @@ class DeskViewModel @Inject constructor(
         _state.value.centreOps.let { it.copy(roomLayout = it.roomLayout.withColumns(gender, section, columns)) },
     )
 
+    /** Hall chart (spec 2c S1): the seating plan's grid shape per gender. Clamped on write. */
+    fun setHallGrid(gender: Gender, grid: HallGrid) = persistOps(
+        _state.value.centreOps.withHallGrid(gender, grid),
+    )
+
     /** Phone Zero Day edits the same records the tablet dialog writes. */
     private fun patchRecord(id: ApplicantId, patch: (CheckInRecord) -> CheckInRecord) {
         val cur = _state.value.checkIns[id] ?: CheckInRecord()
@@ -1250,6 +1350,173 @@ class DeskViewModel @Inject constructor(
         viewModelScope.launch { sessionStore.setForceOffline(!_state.value.offline) }
     }
 
+    /* ── Course ops · mode + device PIN (spec 2a) ───────────────────── */
+
+    /** The course whose parsed window contains today — the course-ops lock. */
+    fun runningCourseToday(): Course? =
+        runningCourse(_state.value.courses + _state.value.olderCourses, todayProvider())
+
+    /** "2 Sep – 13 Sep 2026" for the settings card; null when nothing runs. */
+    fun runningCourseDatesLabel(): String? = runningCourseToday()
+        ?.let { parseCourseWindow(it.name, todayProvider())?.label() }
+
+    /**
+     * The settings radio cards. Enabling course ops with no PIN on the device
+     * first collects one (set + confirm) — the mode flips only after the PIN
+     * lands. Switching back to Desk ops needs no second prompt: entering
+     * Settings from course ops was already PIN-gated at the door.
+     */
+    fun setTabletMode(mode: TabletMode) {
+        if (mode == _state.value.mode) return
+        viewModelScope.launch {
+            if (mode == TabletMode.COURSE_OPS) {
+                val pinSet = runCatching { courseOpsStore.isPinSet() }.getOrDefault(false)
+                if (pinSet) enterCourseOps() else _state.update { it.copy(pinSetup = true) }
+            } else {
+                sessionStore.setTabletMode(TabletMode.DESK)
+                returnTo = DeskScreen.Centre
+                _state.update { it.copy(mode = TabletMode.DESK, course = null) }
+            }
+        }
+    }
+
+    /** The set+confirm dialog's result. The digits go to the store and nowhere else. */
+    fun completePinSetup(pin: String) {
+        viewModelScope.launch {
+            runCatching { courseOpsStore.setPin(pin) }
+            _state.update { it.copy(pinSetup = false) }
+            enterCourseOps()
+        }
+    }
+
+    fun dismissPinSetup() = _state.update { it.copy(pinSetup = false) }
+
+    /** The ⚙ affordance on the teacher header: Settings only through the PIN gate. */
+    fun requestCourseOpsSettings() = _state.update { it.copy(pinPrompt = true, pinError = null) }
+
+    fun submitCourseOpsPin(pin: String) {
+        viewModelScope.launch {
+            val ok = runCatching { courseOpsStore.checkPin(pin) }.getOrDefault(false)
+            if (ok) {
+                _state.update { it.copy(pinPrompt = false, pinError = null) }
+                openSettings()
+            } else {
+                // The dialog stays; the fixed-severity error line reads "Wrong PIN".
+                _state.update { it.copy(pinError = "Wrong PIN") }
+            }
+        }
+    }
+
+    fun dismissPinPrompt() = _state.update { it.copy(pinPrompt = false, pinError = null) }
+
+    /** Flip the mode key and lock to the running course (null → empty state). */
+    private suspend fun enterCourseOps() {
+        sessionStore.setTabletMode(TabletMode.COURSE_OPS)
+        val running = runningCourseToday()
+        returnTo = DeskScreen.TeacherRoll
+        _state.update { it.copy(mode = TabletMode.COURSE_OPS, course = running) }
+        fetchTeacherRoll()
+    }
+
+    /**
+     * One GET per entry to course ops — the endpoint mutates server data on
+     * every request (zeroize_new_course_data), so it is never polled and never
+     * refetched on view/filter changes.
+     *
+     * Spec 2d: a fetched roll is id-mapped against the cached worklist +
+     * zero-day merge, snapshotted to the encrypted course cache, and the
+     * whole roll's applications prefetch at ≤4 concurrent. A failed fetch
+     * (offline hall) falls back to the cached snapshot so the roll and every
+     * landed card still read — this is also the ONLY retry point for
+     * prefetch failures (never a hot loop).
+     */
+    private fun fetchTeacherRoll() {
+        val course = _state.value.course ?: return
+        _state.update {
+            it.copy(teacherRoll = null, teacherRollError = null, teacherCards = emptyMap(), teacherCard = null)
+        }
+        viewModelScope.launch {
+            runCatching { repo.loadTeacherRoll(course.centreId.value, course.id.value) }
+                .onSuccess { raw ->
+                    val roll = runCatching { repo.resolveTeacherRoll(course.id.value, raw) }.getOrDefault(raw)
+                    val cached = repo.cachedApplicationCards(course.id.value)
+                    _state.update { it.copy(teacherRoll = roll, teacherCards = cached) }
+                    prefetchTeacherCards(course.id.value, roll)
+                }
+                .onFailure { e ->
+                    handleAuth(e)
+                    // An expired session boots to sign-in; nothing to render here.
+                    if (e is ApiException && e.unauthorized) return@launch
+                    val cachedRoll = repo.cachedTeacherRoll(course.id.value)
+                    if (cachedRoll != null) {
+                        _state.update {
+                            it.copy(
+                                teacherRoll = cachedRoll,
+                                teacherCards = repo.cachedApplicationCards(course.id.value),
+                            )
+                        }
+                    } else {
+                        _state.update { it.copy(teacherRollError = e.message ?: "Teacher list unavailable") }
+                    }
+                }
+        }
+    }
+
+    /**
+     * Silent ≤4-concurrent prefetch of every mapped row's application.
+     * Flags appear on rows as answers land; failures stay un-flagged and
+     * retry only on the next course-ops entry (spec 2d S2).
+     */
+    private fun prefetchTeacherCards(courseId: Int, roll: TeacherRoll) {
+        val ids = roll.groups.flatMap { g -> g.rows.mapNotNull { it.applicantId?.value } }
+        if (ids.isEmpty()) return
+        viewModelScope.launch {
+            runCatching {
+                repo.prefetchApplicationViews(courseId, ids) { id, card ->
+                    _state.update { it.copy(teacherCards = it.teacherCards + (id to card)) }
+                }
+            }
+        }
+    }
+
+    fun setTeacherView(view: TeacherView) = _state.update { it.copy(teacherView = view) }
+
+    fun setTeacherGroupFilter(key: String?) = _state.update { it.copy(teacherGroupFilter = key) }
+
+    /** Hall tab on the seating plan — a pure state flip over the one fetched roll, never a refetch. */
+    fun setTeacherHall(hall: Gender) = _state.update { it.copy(teacherHall = hall) }
+
+    /**
+     * Row tap / seat tap → the student card (spec 2d S4). A row that
+     * resolved to no applicant id has no card: the row stays, the tap
+     * answers honestly — never an invented record.
+     */
+    fun openTeacherCard(row: RollRow) {
+        if (row.applicantId == null) {
+            _state.update { it.copy(snack = FlushSnack("Not on the worklist yet", error = false)) }
+            return
+        }
+        val roll = _state.value.teacherRoll ?: return
+        for (group in roll.groups) {
+            val i = group.rows.indexOf(row)
+            if (i >= 0) {
+                val cur = _state.value.screen
+                returnTo = cur.takeIf { it == DeskScreen.TeacherRoll || it == DeskScreen.SeatingPlan }
+                    ?: DeskScreen.TeacherRoll
+                _state.update {
+                    it.copy(screen = DeskScreen.TeacherCard, teacherCard = TeacherCardRef(group.key, i))
+                }
+                return
+            }
+        }
+    }
+
+    /** ‹ › in the card header: walk the current group, stop at its ends. */
+    fun stepTeacherCard(delta: Int) {
+        val next = teacherCardStep(_state.value.teacherRoll, _state.value.teacherCard, delta) ?: return
+        _state.update { it.copy(teacherCard = next) }
+    }
+
     fun logout() {
         viewModelScope.launch {
             keepAliveJob?.cancel()
@@ -1298,12 +1565,30 @@ class DeskViewModel @Inject constructor(
         if (centre != null) {
             runCatching { repo.loadCourses(centre.id) }
                 .onSuccess { lists ->
-                    _state.update {
-                        it.copy(
-                            courses = lists.upcoming,
-                            olderCourses = lists.older,
-                            screen = deskAfterLogin(),
-                        )
+                    // Course ops (spec 2a S5): the mode key decides the start
+                    // destination — the roll, locked to the running course.
+                    // DESK is byte-identical to the pre-2a flow: Centre.
+                    if (sessionStore.tabletModeOnce() == TabletMode.COURSE_OPS) {
+                        val running = runningCourse(lists.upcoming + lists.older, todayProvider())
+                        returnTo = DeskScreen.TeacherRoll
+                        _state.update {
+                            it.copy(
+                                courses = lists.upcoming,
+                                olderCourses = lists.older,
+                                course = running,
+                                screen = DeskScreen.TeacherRoll,
+                                mode = TabletMode.COURSE_OPS,
+                            )
+                        }
+                        fetchTeacherRoll()
+                    } else {
+                        _state.update {
+                            it.copy(
+                                courses = lists.upcoming,
+                                olderCourses = lists.older,
+                                screen = deskAfterLogin(),
+                            )
+                        }
                     }
                 }
                 .onFailure { e ->

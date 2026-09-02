@@ -24,8 +24,8 @@ android {
         applicationId = "org.dhamma.dipi.staff"
         minSdk = 26
         targetSdk = 35
-        versionCode = 51
-        versionName = "1.30.5"
+        versionCode = 54
+        versionName = "1.33.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "BASE_URL", "\"${overrideUrl.trimEnd('/')}\"")
         val useMock = ((findProperty("dipi.useMock") as String?)
@@ -78,6 +78,7 @@ dependencies {
     implementation(project(":feature:auth"))
     implementation(project(":feature:course"))
     implementation(project(":feature:desk"))
+    implementation(project(":feature:teacher"))
     implementation(project(":feature:applicants"))
     implementation(project(":feature:photos"))
     implementation(project(":feature:summary"))

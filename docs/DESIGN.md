@@ -341,3 +341,279 @@ App **1.22.0**, tablet 2560×1800, session `sudha.user` · Dhamma Sudha.
 ### Hard rules unchanged
 
 Live Drupal desk at `https://dipi.vridhamma.org`. No `/staff/*`. No client ACL. Never send `Approved`. Never persist/log NPI. Never send `?r=` on sheet GETs. Skin + lotus + room-layout columns are device-local DataStore, wiped by Erase-all.
+
+
+---
+
+## Course ops — assistant-teacher mode (turn 2, options 2a-2d, adopted 2026-09-02)
+
+After registration day the tablet is handed to the assistant teacher, who reads the
+roll. The design file's **turn 2** (top of `design/DIPI-Staff.dc.html`) specs a
+device mode with two destinations (Teacher list, Seating plan) and a read-only
+student card fed by two existing GETs: `/teacher-list/{cid}/{courseId}` and
+`/application-view/{applicantId}`. Owner decisions of 2026-09-02: device PIN gates
+the switch back; hall grid is registrar-configured device-locally; every
+application is prefetched on entry (≤4 concurrent) and **answers may persist
+on-device for the running course** (owner amendment — wiped on course change and
+Erase-all); course ops stays read-only (no attendance).
+
+### Ground-truth corrections (frames + server override the prose below)
+
+Verified against the drawn frames and the live PHP (`dh_manageapp`); where the
+turn-2 prose disagrees, these win:
+
+- **Band text is pipe-separated**: `AT: {name} [{code}] | Male | Old | Group {n} | {N} total`; AT name can be the literal `(unassigned)`.
+- **Twelve columns in server order**: S/N, Student, Room, Age, City, Courses, Cell, Seat, Occupation, Education, Languages, Comments — occupation/education/langs sit AFTER seat, not under the name; the client folds them per the frame regardless. S/N restarts per block. Old/New is derivable ONLY from the band.
+- **Courses cell** carries 8 keys at most, in order `10D STP SPL TSC 20D 30D 45D 60D` (bold key + count); `Teen`/`Service` never print here. The frame's `SRV` chip does not exist; `SPL` does.
+- **Seat strings**: `CW-` = chowky/cell, **`CH-` = chair (the design didn't know this prefix)**, optional `BR` backrest span; plain numbers at numeric-convention centres. Seat ids are data — row A can be `A1…A6, A8`.
+- **Unseated rows** are ordinary rows with an empty Seat cell; the only "reason" the page carries is the name suffix — `(Sevak)`, `(AT)`, `(SAT-2011)`, `(T…)`, `(BT…)`.
+- **The Comments column is an unlabelled concatenation of health text — the client never parses or stores it.** Flags derive from `/application-view` fields only: `HLTH` (Physical/Mental), `MED` (Medication), `INTOX` (Intoxicants), `TECH` (Other Techniques), `PREG` (Pregnancy = Yes), plus the frame's `MONK` (Personal · Monk/Nun = Yes). Pregnancy renders an `N/A` tag for male applicants (frame).
+- **`GET /teacher-list` mutates server data on every request** (`zeroize_new_course_data`) — fetch once per entry, never poll. `?seating=1` exists (same markup, seat ORDER BY) but is unnecessary: seat order derives from labels client-side; one fetch serves both views.
+- **`/application-view` is a full themed Drupal page**; the card parses ONLY the header, `Personal`, `Course History` (ten counts, server order `10-Day Teen STP Special TSC 20-Day 30-Day 45-Day 60-Day Service` — the frame's tile order was wrong) and `Health` (labels verbatim: `Physical, Mental, Medication, Intoxicants, Other Techniques, Pregnancy`; the frame's invented question texts are replaced by these per the spec's own verbatim rule). The parser NEVER touches `Identification`, `Emergency Contact`, `Contact`, `Background`, `Languages`, `Other`, `Children/Teen`, `Long Course Details`, or the four lazy-loaded sections.
+- Photo: `<img src="{base}/show-photo/{id}">` when present — reuse `PhotoLoader`.
+- Auth failures: wrong centre/gender/bad id ⇒ **404** (wildcard loaders); missing permission/expired session ⇒ themed 403/login HTML; teacher-list success is an **unthemed fragment** starting `<style>`.
+- Token fixes vs frames: old seat cells fill `accent100` on `accent300` (the prose described the legend swatches); flagged answer cards use `accent100` (the frame's `#F7FBFF` is off-ramp and not adopted); the turn-2 prose's `neutral600` often means `#5D5D60` = neutral700 — hexes win.
+- The drawn "Switching back asks for the centre PIN" switch is replaced by an always-on **device PIN** gate (owner decision — no PIN existed to reuse).
+
+### Screens / views
+
+Shared frame geometry for all three teacher screens: 1280×900dp window · status bar 24dp · nav bar 48dp · content band 828dp · horizontal padding 24dp · background `bg #F2F2F3`, text `#1D1F20`, body Roboto 400 14sp/1.35.
+
+**There is no desk rail in course ops.** The 190dp `DESK` rail from the desk build is not drawn — course ops has two destinations, and they are a segmented pair in the header instead.
+
+---
+
+#### 2a — App Settings gains the mode switch
+
+**Purpose:** the registrar flips the tablet from desk ops to course ops at the end of day 0, and flips it back at the end of the course.
+
+**Layout** — existing App Settings screen. Header band 56dp: 40dp back `‹` (`neutral600`) + "App Settings" Barlow Condensed 600 23sp / ls 0.2. Body is two columns, 20dp gap: left **660dp fixed**, right flexes with a 26dp top offset.
+
+**Left column**
+
+- Kicker `TABLET MODE` — IBM Plex Mono 500 9sp, ls 1.7, `neutral500`, margins 6dp top / 10dp bottom.
+- Two radio cards, 10dp gap, padding 16/18dp, radius 8dp, 14dp gap between radio and text.
+  - **Unselected:** fill `#FAFAFB`, 1dp `#DEDEE1`; radio 22dp circle, 2dp `neutral400` ring, empty.
+  - **Selected:** fill `#FFF`, **1.5dp `accent #5980A6`**, shadow `0 1 3 rgba(65,97,128,.14)`, plus a 3dp accent bar at `left 0`, `top/bottom 14dp`, radius `0 3 3 0`; radio ring 2dp `accent700 #416180` with an 11dp `accent700` dot; title followed by an `ON` chip — mono 500 9sp / ls 1.4 / `accent700` on `accent100 #EEF6FF`, radius 3dp, padding 4/6dp.
+  - Titles Barlow Condensed 600 19sp / ls 0.2. Descriptions Roboto 400 13.5sp/1.5 `neutral600`, 5dp above.
+  - Copy, verbatim: **"Desk ops · registration"** / "Board, applications, calling, check-in, rooms & seats, exports. What the registrar uses on day 0." — **"Course ops · teacher"** / "Teacher list and seating plan only, for the running course. Desk destinations are hidden until the mode is switched back."
+- Rule: 18dp margin, 13dp padding above a 1dp `#E0E0E3` border. Kicker `WHILE COURSE OPS IS ON` (same kicker style), 9dp below.
+- Consequence rows, 6dp gap: 48dp tall, `#FAFAFB` on 1dp `#E0E0E3`, radius 6dp, padding 0 14dp; 18dp centred index Roboto 14sp `accent400 #749DC4`; key Roboto 14sp `#424244`; value Roboto 13sp `neutral500` right. These state plainly what disappears and what remains.
+
+**Right column**
+
+- Dashed card: 1dp dashed `#D4D4D7`, radius 8dp, `#FFF`, padding 16/18dp. Title "Course being taught" Barlow Condensed 600 17sp; body Roboto 14sp/1.5 `#424244` = course line + dates; caption Roboto 12.5sp/1.5 `#7A7A7D`: "Locked to the course that is running. The teacher never picks a course; the roll follows the dates."
+- Below, 12dp gap: a 48dp row, 1dp `#D4D4D7`, radius 6dp, padding 0 14dp — "Switching back asks for the centre PIN" Roboto 14sp `#424244` + a 44×24dp Material switch, on-state `accent`, 18dp white thumb inset 3dp.
+
+**Rules**
+
+- The switch lives **inside the existing App Settings tile** — no new top-level destination, and the desk build is byte-identical when the mode is off.
+- Course ops is a **mode, not a login role**. One tablet, one account, one running course. No new ACL, no new user type, no server-side permission.
+- Entering course ops is a plain toggle; **leaving it prompts for the centre PIN** (existing PIN, existing prompt).
+- The course is **locked to the course whose dates contain today**. The teacher never gets a course picker.
+
+---
+
+#### 2b — Teacher list (course ops home)
+
+**Purpose:** the seniority roll. The teacher scans it standing at the front of the hall, and opens a card when a flag or a course history warrants it.
+
+**Header band 62dp** — left: "Teacher list" Barlow Condensed 600 23sp / ls 0.2, and beneath it (4dp) the course line "Dhamma Sudha / 10 Day / 2026 / 19th-Aug to 30th-Aug" Roboto 13sp `neutral600`. Right: the destination pair, 8dp gap, both **48dp** tall, padding 0 20dp, radius 6dp —
+- selected: `#FFF`, **1.5dp `accent`**, Roboto 500 14sp `accent800 #2C455D`;
+- unselected: transparent, 1dp `neutral300 #D4D4D7`, Roboto 400 14sp `neutral600`.
+
+**Group filter band 44dp**, 1dp bottom `#E0E0E3`, 8dp gap. Kicker `GROUP` (mono 500 9sp / ls 1.7 / `neutral500`, 4dp right margin), then one 30dp pill per group returned: radius 15dp, 1dp `#E0E0E3` on `#FAFAFB`, label Roboto 12.5sp `neutral600` + count IBM Plex Mono 500 11sp `neutral500`, 7dp gap, padding 0 12dp.
+
+**Group band (sticky), 34dp** — `accent100 #EEF6FF`, 1dp `accent300 #B5D9FD`, radius 6dp, padding 0 12dp, 10dp gap. Group title Barlow Condensed 600 15sp / ls 0.3 `accent800`; qualifier Roboto 12.5sp `accent500 #597EA3`; count right, mono 500 12sp `accent700`. Title text is the page's own band text, e.g. `AT: Trainee-A-M Teacher [TAM]` + `Male · Old · Group 1` + `16 TOTAL`.
+
+**Column header 28dp**, bottom-aligned, 1dp bottom `#E0E0E3`, padding 0 12dp, mono 500 9sp / ls 1.4 / `neutral500`:
+
+| Column | Width | Align |
+|---|---|---|
+| S/N | 34dp | left |
+| STUDENT | flex | left |
+| ROOM | 86dp | left |
+| AGE | 46dp | right |
+| CITY | 124dp (+16dp left pad) | left |
+| COURSES | 236dp (+16dp left pad) | left |
+| SEAT | 64dp | right |
+| FLAGS | 96dp | right |
+
+**Row 52dp**, padding 0 12dp, 1dp bottom `#EDEDF1`, whole row tappable → student card (`2d`).
+
+- S/N — IBM Plex Mono 400 13sp `neutral500`.
+- Student — name Roboto 500 15.5sp/1.15 `text`; under it (3dp) the folded line Roboto 400 11.5sp `neutral500` = occupation · qualification · languages, as the page sends them, joined with ` · `.
+- Room — IBM Plex Mono 400 13.5sp `neutral600`.
+- Age — IBM Plex Mono 400 14sp `#424244`.
+- City — Roboto 400 13.5sp `neutral600`.
+- **Courses** — chips, wrapping, 4dp gap: 20dp tall, radius 3dp, `#EDEDF1`, padding 0 6dp, key mono 500 11sp `#424244` + value mono 500 11sp `neutral600`, 4dp gap. Only non-zero types appear (`10D 6` · `STP 2` · `30D 2` · `SRV 2`). **Empty history renders nothing** — a blank cell is how a new student reads at a glance.
+- Seat — IBM Plex Mono **600** 14sp `text`.
+- **Flags** — right-aligned, 5dp gap: 22dp pills, radius 11dp, `#FFF` on 1dp `neutral300`, mono 500 10sp / ls 0.8 / `neutral600`, padding 0 7dp.
+
+**Next-group footer 40dp** at the bottom of the viewport: `#F5F5F8`, 1dp top `#E0E0E3`, padding 0 12dp — the next group's band text Barlow Condensed 600 15sp `neutral600`, its count mono 500 12sp `neutral600`, then `›` Roboto 15sp `neutral400`. It is a peek, not a control; scrolling continues normally.
+
+**Data rules**
+
+- **Grouping and order are the page's.** AT → gender → old/new → group, in the order the response lists them. The tablet **never re-sorts** and never merges groups; seniority order is meaning, not presentation.
+- The web table's twelve columns don't fit a hand-held read. The row keeps what the teacher scans for; **cell, languages, comments and the rest move to the card**.
+- **FLAGS are derived, never typed.** Emit a flag when the corresponding `/application-view` answer is non-empty:
+
+| Flag | Source field |
+|---|---|
+| `HLTH` | Health · Physical, or Health · Mental |
+| `MED` | Medication |
+| `INTOX` | Intoxicants |
+| `TECH` | Other Techniques |
+| `PREG` | Pregnancy = yes |
+
+  A flag says only "there is something written here" — it is never a summary or a severity. Fetching the card is what shows the words.
+- 52dp rows and 48dp buttons throughout: this screen is used standing up.
+
+---
+
+#### 2c — Seating plan
+
+**Purpose:** find a named student in the hall, or find out who a seat belongs to.
+
+**Header band 62dp** — same as `2b`; title "Seating plan", sub line = hall + orientation + old/new tally ("Male hall · facing the front · 16 old, 14 new"). Destination pair with *Seating plan* selected.
+
+**Hall + legend band 40dp** — hall tabs, 8dp gap: 32dp pills, padding 0 16dp, radius 16dp; selected `accent800 #2C455D` with white Roboto 500 13sp; unselected 1dp `neutral300`, Roboto 400 13sp `neutral600`. Right-aligned legend, 14dp gap between items, 6dp between swatch and label: 12dp swatches, radius 2dp — **Old** `accent300 #B5D9FD` on 1dp `accent400 #94BCE3` · **New** `#FAFAFB` on 1dp `neutral300` · **Empty** `#FFF` on **1dp dashed** `neutral400`. Labels Roboto 12sp `neutral600`.
+
+**Front marker 30dp** — `#E7E7EA`, radius 4dp, centred, margin 2dp top / 10dp bottom, text `FRONT · DHAMMA SEAT` mono 500 9sp / **ls 2.4** / `neutral600`. Drawn once, at the top, so the plan is never read upside-down.
+
+**Body** — two columns, 18dp gap: grid flexes, side column **280dp fixed**.
+
+**Seat grid** — one row per hall row, 8dp vertical gap. Row = 26dp centred row letter (Barlow Condensed 600 15sp `neutral500`) + a `repeat(7, 1fr)` grid, 8dp gap.
+
+**Seat cell 58dp** — radius 5dp, padding 6/8dp, column layout, `space-between`:
+- seat id top — mono 500 10sp / ls 0.8 / `accent500 #597EA3`;
+- name bottom — Roboto 500 12.5sp/1.15 `text`, clipped (never wrapped to a third line).
+- **Old** = `accent300` fill + 1dp `accent400`. **New** = `#FAFAFB` + 1dp `neutral300`. **Empty** = `#FFF` + 1dp dashed `neutral400`, no name.
+
+**Cell / pagoda column** — kicker `CELL / PAGODA`, then a 2-column grid, 8dp gap, of the same 58dp cells on `accent100` + 1dp `accent300`. `CW-` seats are not in the row grid on the web page either, so they get their own column rather than being force-fitted into row A–E.
+
+**Unseated** — 14dp margin, 11dp padding above a 1dp `#E0E0E3` rule; kicker `UNSEATED`, 9dp below; rows 34dp, 6dp gap, `#FAFAFB` on 1dp `#E0E0E3`, radius 5dp, padding 0 10dp — name Roboto 13sp `#424244` + reason tag mono 500 10sp / ls 0.8 / `neutral500` right. Sevaks come back with an empty seat cell; they land here **with their reason**, never dropped.
+
+**Rules**
+
+- A seat tap and a list-row tap open the **same** student card. Seat and name are two doors into one record.
+- The plan is **read-only**. No drag, no reseat, no editor — seating belongs to the registrar's desk build.
+- Hall switching is client-side over the one response.
+
+---
+
+#### 2d — Student card
+
+**Purpose:** the whole reason the teacher has the tablet. What in this student's past or present could affect his meditation, in the student's own words.
+
+**Header band 60dp** — 44dp back `‹`; then name Barlow Condensed 600 24sp / ls 0.2 with a status chip 10dp right (mono 500 10sp / ls 1.2 / `accent700` on `accent100`, radius 3dp, padding 5/7dp, e.g. `OLD · OM7`); under it (4dp) the placement line Roboto 12.5sp `neutral600` — `Mbk-37 · seat E1 · Group 1 · TAM`. Right: prev/next pair, 8dp gap, **48dp** tall, min-width 48dp, padding 0 16dp, 1dp `neutral300`, radius 6dp, glyph Roboto 20sp `neutral600`. They walk the **current group in seniority order**, so a teacher can read one group through without returning to the list.
+
+**Body** — two columns, 18dp gap: left **404dp fixed**, right flexes.
+
+**Left column — the facts, compressed**
+
+- Photo + personal, 14dp gap.
+  - **Photo 132×158dp**, radius 6dp, `#E7E7EA` on 1dp `neutral300`. Placeholder text mono 500 9sp/1.5 / ls 1 / `neutral500`, centred. Real source: the photo on the application. Never cropped to a circle; never enlarged past 132dp.
+  - **Personal table**, flexes: rows 22.5dp, 1dp bottom `#EDEDF1`; key Roboto 12sp `neutral500` left, value **IBM Plex Mono 12.5sp** `text` right. Keys, in order, exactly as `/application-view` labels them: Gender · Date of Birth · Age · Nationality · Old / New · Monk / Nun · A-List · Applied On. Missing values render the page's own `-`.
+- **COURSE HISTORY** kicker, 8dp below, then a `repeat(5, 1fr)` grid, 6dp gap, of 50dp count tiles: radius 5dp, 1dp border, centred column, 3dp gap — value IBM Plex Mono 600 18sp, key mono 500 8.5sp / ls 0.9 / `neutral500`. Ten tiles, in the page's order: `10-DAY TEEN STP SPECIAL TSC 20-DAY 30-DAY 45-DAY 60-DAY SERVICE`.
+  - **Non-zero** tile: `accent100 #EEF6FF` on 1dp `accent300`, value `accent700`.
+  - **Zero** tile: `#FAFAFB` on 1dp `#E7E7EA`, value `neutral400`. Zeros stay on screen — the shape of the history is the information.
+- **History meta** rows, 8dp below: min-height 26dp, 1dp bottom `#EDEDF1`, 10dp gap — key 104dp Roboto 12sp/1.3 `neutral500`, value Roboto 13sp/1.3 `text`, wrapping. Keys: First Course · Last Course · Practice Details. Values verbatim (`2025-1-15, Dhamma sota sohna`).
+
+**Right column — what the applicant wrote**
+
+- Kicker `WHAT THE APPLICANT WROTE` + a caption Roboto 11.5sp `neutral400`: "page 2 of the application · in his own words". 9dp below.
+- One card per question, 8dp gap, radius 7dp, padding 11/14/12dp, 1dp border.
+  - Head row, 12dp gap: 20dp question index mono 500 12sp/1.3 `neutral400`; the **question text** Roboto 13sp/1.4 `neutral600` (verbatim from the application — the teacher must see what was asked); then a tag chip 24dp, radius 12dp, padding 0 9dp, mono 600 10.5sp / ls 1.1.
+  - **Answered** card: `#FFF` on 1dp `#DEDEE1`, tag `YES` `accent700` on `accent100`.
+  - **Answered, flagged** (health / medication / intoxicants / other techniques / pregnancy): tinted `accent100` on 1dp `accent300`, same `YES` tag — the same flags that surfaced in `2b`.
+  - **Empty** card: `#FAFAFB` on 1dp `#E7E7EA`, tag `NO` `neutral500` on `#E7E7EA`, and no body. **The row still shows.** Absence is information; hiding it would make an unanswered question look like a clean one.
+  - **Answer body** — 9dp above, 32dp left indent, 12dp left padding, **2dp left rule** (`accent400` on flagged cards, `#DEDEE1` otherwise); text **Roboto 400 14.5sp/1.5 `text`, `text-wrap: pretty`**, never truncated, never behind a "more" affordance. This is the largest body type on any screen in the app, on purpose.
+- The column scrolls; the left column does not.
+
+**Rules**
+
+- **Read-only by design.** No edit, no note field, no export, no share. If the teacher needs something recorded it goes to the registrar on the desk tablet.
+- **Weighting is reversed against the desk build:** answers get the type, admin facts compress. That is the ordering the teacher asked for — history and answers first, personal info and photo alongside, admin last.
+- Never summarise, score, rank or colour-code a health answer. Quote it.
+
+---
+
+### Interactions & behaviour
+
+- **Mode switch:** toggling to course ops replaces the navigation graph's start destination with Teacher list and removes every desk destination; toggling back requires the centre PIN. The setting is device-local (see State).
+- **Teacher list ⇄ Seating plan:** the header pair is a two-way segmented control over one fetched response — switching does not refetch.
+- **Group pills** filter the list to one group; the sticky band and the footer peek follow the filtered set.
+- **Row tap / seat tap** → student card. `‹ ›` in the card header walk the group in seniority order and stop at its ends (no wrap into the next group).
+- **Offline:** both teacher screens use the existing offline strip (38dp, `#E7E7EA` on 1dp `#DEDEE1`, `◍` + "Offline — showing cached list", Roboto 14sp `neutral700`) and **push content down, never float**. The roll and all cards for the running course should be cached on entry to course ops so a hall with no signal still reads.
+- **No queued strip in course ops** — nothing here writes, so there is never an outbox.
+- Touch targets ≥ 48dp. Rows are 52dp; seat cells 58dp.
+
+### State
+
+New, device-local (DataStore, alongside skin and lotus, wiped by Erase-all):
+
+- `tabletMode: DESK | COURSE_OPS` — default `DESK`.
+- `courseOpsCourseId` — resolved from the running course's dates on entry, re-resolved on app start; never user-picked.
+
+Per-screen:
+
+- `rollResponse` (from `/teacher-list/…`) — the single source for both `2b` and `2c`, cached with a fetched-at stamp.
+- `groupFilter: String?`, `hall: MALE | FEMALE`, `view: SENIORITY | SEATING`.
+- `applicationView(applicantId)` cache — the card's data; prefetch the group so `‹ ›` is instant.
+- Derived, not stored: the FLAGS set per student, and the non-zero course-history chips.
+
+No new writes, no new endpoints, no new ACL. Course ops is `GET`-only.
+
+### Design tokens
+
+Course ops uses the shipped **Steel** ramp with no additions:
+
+| Token | Hex |
+|---|---|
+| bg | `#F2F2F3` |
+| text | `#1D1F20` |
+| neutral 100–900 | `#F5F5F8` `#E7E7EA` `#D4D4D7` `#B7B7BA` `#98989B` `#7A7A7D` `#5D5D60` `#424244` `#2B2B2D` |
+| accent | `#5980A6` |
+| accent 100–900 | `#EEF6FF` `#D6EBFF` `#B5D9FD` `#94BCE3` `#749DC4` `#597EA3` `#416180` `#2C455D` `#1D2D3D` |
+| row hairline | `#EDEDF1` |
+| card hairline | `#DEDEE1` · rules `#E0E0E3` |
+
+**Steel night (dark, all skins)** — `#14171A` `#1A1E22` `#22272C` `#2E3339` `#3A4046` `#4A5157` `#6B7278` `#9BA1A8` `#E4E6E9`; accent unchanged, tint `#1D2D3D`, accent text `#B5D9FD`. Course ops screens are not drawn in dark in this pass; they inherit the ramp mechanically. Ask for a dark frame if a hall is dark at 4am.
+
+**Accent discipline (unchanged):** accent means *old student, selected, or live*. On these screens that is exactly three things — the old-student seat tint, the selected destination/mode, and the answered-question tint. Everything else is a hairline on the neutral ramp.
+
+**Type** — Barlow Condensed (titles, group bands, row letters, buttons) · IBM Plex Mono (ids, ages, counts, kickers, seat ids, personal values) · Roboto (names, body, answers). Nothing below 8.5sp for kickers; no body text below 12sp; the answer body is the ceiling at 14.5sp.
+
+**Spacing** — 6 / 8 / 12 / 14 / 18 / 24dp. Radius 3dp (chips) · 5dp (seat cells, small rows) · 6dp (buttons, tiles) · 7dp (answer cards) · 8dp (setting cards) · 11–16dp pills.
+
+**Fixed severity (never follows the skin)** — danger `#A33A34` light / `#E0796F` dark. Note that **no health answer uses it**: severity is for destructive actions, not for students.
+
+### Assets
+
+- `assets/lotus.png` — the lotus **vector** mark, cropped from the app's own sign-in capture. A stand-in for the HTML only; use the app's existing drawable. Never a photograph.
+- Fonts load from Google Fonts in the HTML; the app already ships Barlow Condensed, IBM Plex Mono and Roboto.
+- The student photo in `2d` is a placeholder box; the real image comes from the application record.
+- No new icons are introduced. `‹ › ↓ ◍` are the existing glyph set.
+
+### Files
+
+| File | What it is |
+|---|---|
+| `PROMPT.md` | Paste-ready brief for Claude Code |
+| `README.md` | This spec — course ops (turn 2, options `2a`–`2d`) |
+| `README-v4-desk-pass.md` | Spec for the earlier desk pass (turn 1, options `1a`–`1i`) in the same HTML file |
+| `design/DIPI-Staff.dc.html` | The design reference — open in a browser |
+| `support.js` | Runtime the HTML needs; keep it beside the HTML |
+| `assets/lotus.png` | Lotus mark used by the frames |
+
+### Do not
+
+- Do not make course ops a **login role**, a second account, or a server-side permission. It is a device mode.
+- Do not give the teacher a **course picker**; the roll follows the running course's dates.
+- Do not **re-sort or re-group** the teacher list. Seniority order is the page's.
+- Do not add **write** affordances: no attendance marking (not asked for yet — flagged as an open question), no notes, no edit, no photo upload, no export, no share sheet.
+- Do not add a **seating editor** or drag-to-reseat.
+- Do not **truncate, summarise, score or colour-code** an applicant's answer, and do not hide unanswered questions.
+- Do not invent JSON contracts, `/staff/*` endpoints, or client-side ACL. Two existing `GET`s only.
+- Do not draw the desk rail, the queued-sync strip, or any desk destination while course ops is on.

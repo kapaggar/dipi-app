@@ -2,8 +2,14 @@ package org.dhamma.dipi.staff.data
 
 import android.content.Context
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import org.dhamma.dipi.staff.audit.ClientAudit
@@ -11,6 +17,7 @@ import org.dhamma.dipi.staff.database.ApplicantDao
 import org.dhamma.dipi.staff.database.ApplicantEntity
 import org.dhamma.dipi.staff.database.OutboxDao
 import org.dhamma.dipi.staff.database.OutboxEntity
+import org.dhamma.dipi.staff.datastore.CourseOpsStore
 import org.dhamma.dipi.staff.datastore.SessionStore
 import org.dhamma.dipi.staff.model.ApplicantActivityRow
 import org.dhamma.dipi.staff.model.ApplicantCard
@@ -35,9 +42,12 @@ import org.dhamma.dipi.staff.model.Session
 import org.dhamma.dipi.staff.model.SheetExport
 import org.dhamma.dipi.staff.model.SheetPayload
 import org.dhamma.dipi.staff.model.StatusWrite
+import org.dhamma.dipi.staff.model.TeacherRoll
 import org.dhamma.dipi.staff.model.UserCentreMap
+import org.dhamma.dipi.staff.model.ApplicationCard
 import org.dhamma.dipi.staff.network.AccoHandlerParser
 import org.dhamma.dipi.staff.network.ApplicantDto
+import org.dhamma.dipi.staff.network.ApplicationViewParser
 import org.dhamma.dipi.staff.network.ApplicantHistoryParser
 import org.dhamma.dipi.staff.network.AttendedTableParser
 import org.dhamma.dipi.staff.network.CentrePageParser
@@ -49,6 +59,7 @@ import org.dhamma.dipi.staff.network.SearchPageParser
 import org.dhamma.dipi.staff.network.SessionCookieJar
 import org.dhamma.dipi.staff.network.SheetTransport
 import org.dhamma.dipi.staff.network.StaffApi
+import org.dhamma.dipi.staff.network.TeacherListParser
 import org.dhamma.dipi.staff.network.TokenStore
 import org.dhamma.dipi.staff.network.html
 import java.io.File
@@ -73,12 +84,97 @@ const val OLDER_COURSE_LIMIT = 3
 internal fun deriveStatuses(parsed: List<String>, counts: Map<String, Int>): List<String> =
     ApplicantStatus.deriveStatuses(parsed, counts.keys.toList())
 
+/** Owner decision 3 (2026-09-02): every application prefetched at ≤4 concurrent. */
+internal const val PREFETCH_CONCURRENCY = 4
+
+/** Case/punctuation-insensitive name key: `"Suresh  NAIR"` == `"suresh nair"`. */
+internal fun rollNameKey(raw: String): String =
+    raw.lowercase().replace(Regex("[^\\p{L}\\p{N}]+"), " ").trim()
+
+/** Room key ignoring separators: `"Mbk-8"` == `"Mbk 8"` == `"mbk8"`. */
+internal fun rollRoomKey(raw: String): String =
+    raw.lowercase().replace(Regex("[^\\p{L}\\p{N}]+"), "")
+
+/**
+ * Applicant-id mapping RULING (spec 2d S2, evidence-based — Wave-1
+ * established the teacher-list markup carries NO id: zero-day.inc:1040-1048
+ * renders plain `<td>` text and the SELECT's `a_id` never reaches the page).
+ *
+ * The candidate join keys, from the data this app already fetches:
+ * - The worklist dataset (`/search-course` → Room cache) carries id + full
+ *   name + gender + age + city — but NO room and NO hall seat label.
+ * - The zero-day `#table-attending` merge carries id → room, group and
+ *   seating-AID flags only: `AttendedTableParser` reads the Chowky/Chair/
+ *   BackRest yes/no columns, so `CheckInRecord.seat` is one of
+ *   `SEAT_TYPES` ("Chowky"/"Chair"/"Backrest"/"None") — NOT a hall seat
+ *   label like `A1`/`CW-B3`.
+ * Hall seat labels therefore exist ONLY on the roll side; a seat-label join
+ * is impossible with existing data, so the join is:
+ *
+ * 1. PRIMARY — group-band gender + normalized full name, unique within the
+ *    course worklist ([rollNameKey]); the roll's Student cell prints the
+ *    same full name the worklist dataset carries.
+ * 2. Duplicate names disambiguate by room ([rollRoomKey] of the roll's Room
+ *    cell vs the zero-day merge's room for each candidate id), then by age.
+ * 3. Still ambiguous, or no candidate → NO id: the row stays on the roll,
+ *    has no card, and a tap answers "Not on the worklist yet" — honest,
+ *    never invented.
+ *
+ * Pure and deterministic; the roll's grouping and order are untouched.
+ */
+internal fun mapRollApplicantIds(
+    roll: TeacherRoll,
+    worklist: List<ApplicantCard>,
+    checkIns: Map<Int, CheckInRecord>,
+): TeacherRoll {
+    if (worklist.isEmpty()) return roll
+    val byName = worklist.groupBy { rollNameKey(it.displayName) }
+    return TeacherRoll(
+        roll.groups.map { group ->
+            group.copy(
+                rows = group.rows.map { row ->
+                    row.copy(applicantId = resolveRowId(row, group.gender, byName, checkIns))
+                },
+            )
+        },
+    )
+}
+
+private fun resolveRowId(
+    row: org.dhamma.dipi.staff.model.RollRow,
+    gender: org.dhamma.dipi.staff.model.Gender,
+    byName: Map<String, List<ApplicantCard>>,
+    checkIns: Map<Int, CheckInRecord>,
+): ApplicantId? {
+    val key = rollNameKey(row.name)
+    if (key.isEmpty()) return null
+    var candidates = byName[key].orEmpty().filter { it.gender == gender }
+    if (candidates.size > 1) {
+        val roomKey = rollRoomKey(row.room)
+        if (roomKey.isNotEmpty()) {
+            val byRoom = candidates.filter { c ->
+                checkIns[c.id.value]?.room?.let { rollRoomKey(it) } == roomKey
+            }
+            if (byRoom.isNotEmpty()) candidates = byRoom
+        }
+    }
+    if (candidates.size > 1) {
+        val age = row.age.trim()
+        if (age.isNotEmpty()) {
+            val byAge = candidates.filter { it.age?.toString() == age }
+            if (byAge.isNotEmpty()) candidates = byAge
+        }
+    }
+    return candidates.singleOrNull()?.id
+}
+
 @Singleton
 class StaffRepository @Inject constructor(
     private val auth: DrupalAuthApi,
     private val api: StaffApi,
     private val tokens: TokenStore,
     private val sessionStore: SessionStore,
+    private val courseOpsStore: CourseOpsStore,
     private val applicants: ApplicantDao,
     private val outbox: OutboxDao,
     private val json: Json,
@@ -480,6 +576,103 @@ class StaffRepository @Inject constructor(
     }
 
     /**
+     * The course-ops roll: `GET /teacher-list/{cid}/{courseId}` parsed once.
+     * Path-only params (the no-`r` rule is structural — [StaffApi.sheetPage]
+     * declares no query), and NEVER polled: the endpoint mutates server data
+     * on every GET (`zeroize_new_course_data`). Callers fetch on entry to
+     * course ops / process start only. Login HTML or 403 → unauthorized;
+     * any other refusal (404 from the wildcard loaders included) surfaces
+     * verbatim. Success is an unthemed fragment starting `<style>`.
+     */
+    suspend fun loadTeacherRoll(centreId: Int, courseId: Int): TeacherRoll {
+        return runCatching {
+            val resp = api.sheetPage("teacher-list", centreId, courseId)
+            val html = resp.html()
+            if (stillOnLogin(html) || resp.code() == 403) {
+                throw ApiException("Access denied", unauthorized = true)
+            }
+            if (!resp.isSuccessful) throw ApiException(html.ifBlank { "HTTP ${resp.code()}" })
+            TeacherListParser.parse(html)
+        }.getOrElse { throw it.toApi() }
+    }
+
+    /**
+     * The application as the applicant wrote it (spec 2d S1):
+     * `GET /application-view/{id}`, path param only, parsed down to the
+     * header + Personal + Course History + Health — the NPI sections are
+     * structurally skipped in [ApplicationViewParser]. Login HTML / 403 →
+     * unauthorized; any other refusal (the wildcard loaders' 404 included)
+     * surfaces verbatim. The page body stays in memory; only the parsed
+     * card ever reaches the encrypted course cache.
+     */
+    suspend fun loadApplicationView(id: Int): ApplicationCard {
+        return runCatching {
+            val resp = api.applicationView(id)
+            val html = resp.html()
+            if (stillOnLogin(html) || resp.code() == 403) {
+                throw ApiException("Access denied", unauthorized = true)
+            }
+            if (!resp.isSuccessful) throw ApiException(html.ifBlank { "HTTP ${resp.code()}" })
+            ApplicationViewParser.parse(html)
+        }.getOrElse { throw it.toApi() }
+    }
+
+    /**
+     * Applicant-id mapping + snapshot persistence for one fetched roll
+     * (spec 2d S2). Joins the id-less roll rows against the data this device
+     * already fetched — the Room worklist cache (ids + names) and the
+     * zero-day `#table-attending` merge (id → room) — via
+     * [mapRollApplicantIds], then persists the mapped roll to the encrypted
+     * course cache so the hall reads offline across restarts. No network.
+     */
+    suspend fun resolveTeacherRoll(courseId: Int, roll: TeacherRoll): TeacherRoll {
+        val worklist = applicants.list(courseId).map {
+            json.decodeFromString(ApplicantDto.serializer(), it.payload).toModel()
+        }
+        val checkIns = sessionStore.checkInsOnce()
+        val mapped = mapRollApplicantIds(roll, worklist, checkIns)
+        runCatching { courseOpsStore.saveRoll(courseId, mapped) }
+        return mapped
+    }
+
+    /** The encrypted course cache's roll snapshot — offline entry to course ops. */
+    fun cachedTeacherRoll(courseId: Int): TeacherRoll? =
+        runCatching { courseOpsStore.loadRoll(courseId) }.getOrNull()
+
+    /** Every cached application card for the course, by applicant id. */
+    fun cachedApplicationCards(courseId: Int): Map<Int, ApplicationCard> =
+        runCatching { courseOpsStore.loadCards(courseId) }.getOrDefault(emptyMap())
+
+    /**
+     * Prefetch the whole roll's applications at ≤4 concurrent (owner
+     * decision 3, 2026-09-02). Already-cached ids are skipped; each landed
+     * card is written behind to the encrypted course cache and echoed to
+     * [onCard] so flags appear on rows as answers land. Failures are SILENT
+     * and stay un-flagged — they retry only on the next course-ops entry
+     * (spec 2d S2: never a hot loop).
+     */
+    suspend fun prefetchApplicationViews(
+        courseId: Int,
+        ids: List<Int>,
+        onCard: suspend (Int, ApplicationCard) -> Unit = { _, _ -> },
+    ) = withContext(Dispatchers.IO) {
+        val cached = runCatching { courseOpsStore.loadCards(courseId).keys }.getOrDefault(emptySet())
+        val gate = Semaphore(PREFETCH_CONCURRENCY)
+        coroutineScope {
+            ids.distinct().filter { it !in cached }.forEach { id ->
+                launch {
+                    gate.withPermit {
+                        runCatching { loadApplicationView(id) }.onSuccess { card ->
+                            runCatching { courseOpsStore.saveCard(courseId, id, card) }
+                            onCard(id, card)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /**
      * Fetches one Board sheet from the live desk. Seam contract for the
      * export slice: HTML sheets return in-memory, PDF/Excel/CSV stream to
      * cacheDir/sheets only, refusals come back verbatim as [SheetPayload.NotAvailable].
@@ -555,6 +748,9 @@ class StaffRepository @Inject constructor(
         cookies.clear()
         applicants.clear()
         outbox.clear()
+        // Course-ops amendment (2026-09-02): the encrypted roll + application
+        // cache dies with the account; the device PIN deliberately survives.
+        runCatching { courseOpsStore.wipeCourse() }
         sessionStore.clear()
         sensitive.clear()
         sheets.wipe()
@@ -583,6 +779,9 @@ class StaffRepository @Inject constructor(
         applicants.clear()
         outbox.clear()
         sessionStore.wipeAll()
+        // Erase-all is the one thing that removes the course-ops device PIN
+        // (spec 2a S3); logout deliberately leaves it in place.
+        courseOpsStore.wipeAll()
         sensitive.clear()
         sheets.wipe()
         lastCentreId = null
