@@ -213,7 +213,123 @@ internal object MockFixtures {
             0xA1.toByte(), 0xB1.toByte(), 0x1A, 0xE1.toByte(),
         ) + "DIPI mock spreadsheet".toByteArray(Charsets.US_ASCII)
 
-    /** Print-styled desk sheet page (day0-list, teacher-list, …). */
+    /**
+     * Distinctive health free-text planted in the fixture's Comments cells.
+     * The teacher-list Comments column is unlabelled health text the client
+     * must NEVER parse or store — tests assert this string appears nowhere
+     * in any parsed output.
+     */
+    const val TEACHER_HEALTH_NOISE = "Insulin-dependent diabetes, takes olanzapine nightly"
+
+    /**
+     * `GET /teacher-list/{cid}/{courseId}` as `dh_generate_teacher_list`
+     * renders it (inc/zero-day.inc:877-1072): an UNTHEMED fragment starting
+     * `<style>`, a header + screen-only toolbar, then one
+     * `table-teacher-list` block per (gender, old/new, group) with the
+     * pipe-separated `tl-groupinfo` band and 12 cells per row. S/N restarts
+     * per block; langs/comments wrapped in `span.tlc`; the trailing
+     * column-toggle script is part of the live shape too.
+     */
+    fun teacherListHtml(cid: Int, courseId: Int): String {
+        fun row(
+            sn: Int,
+            student: String,
+            room: String,
+            age: String,
+            city: String,
+            courses: String,
+            cell: String,
+            seat: String,
+            occ: String,
+            edu: String,
+            langs: String,
+            comments: String,
+        ) = "<tr><td class=\"tl-sn\">$sn</td><td class=\"tl-student\">$student</td>" +
+            "<td class=\"tl-room\">$room</td><td class=\"tl-age\">$age</td>" +
+            "<td class=\"tl-city\">$city</td><td class=\"tl-courses\">$courses</td>" +
+            "<td class=\"tl-cell\">$cell</td><td class=\"tl-seat\">$seat</td>" +
+            "<td class=\"tl-occ\">$occ</td><td class=\"tl-edu\">$edu</td>" +
+            "<td class=\"tl-langs\"><span class=\"tlc\">$langs</span></td>" +
+            "<td class=\"tl-comments\"><span class=\"tlc\">$comments</span></td></tr>"
+
+        fun band(at: String, gender: String, type: String, group: Int, total: Int) =
+            "<tr><th class=\"tl-groupinfo\" colspan=\"12\">" +
+                "<span class=\"at\">AT: $at</span><span class=\"sep\">|</span>" +
+                "$gender<span class=\"sep\">|</span>$type<span class=\"sep\">|</span>" +
+                "Group $group<span class=\"sep\">|</span><span class=\"cnt\">$total total</span></th></tr>"
+
+        val headRow = "<tr><th class=\"tl-sn\">S/N</th><th class=\"tl-student\">Student</th>" +
+            "<th class=\"tl-room\">Room</th><th class=\"tl-age\">Age</th><th class=\"tl-city\">City</th>" +
+            "<th class=\"tl-courses\">Courses</th><th class=\"tl-cell\">Cell</th><th class=\"tl-seat\">Seat</th>" +
+            "<th class=\"tl-occ\">Occupation</th><th class=\"tl-edu\">Education</th>" +
+            "<th class=\"tl-langs\"><span class=\"tlc\">Languages</span></th>" +
+            "<th class=\"tl-comments\"><span class=\"tlc\">Comments</span></th></tr>"
+
+        val colgroup = "<colgroup><col class=\"tl-sn\"><col class=\"tl-student\"><col class=\"tl-room\">" +
+            "<col class=\"tl-age\"><col class=\"tl-city\"><col class=\"tl-courses\"><col class=\"tl-cell\">" +
+            "<col class=\"tl-seat\"><col class=\"tl-occ\"><col class=\"tl-edu\"><col class=\"tl-langs\">" +
+            "<col class=\"tl-comments\"></colgroup>"
+
+        fun block(brk: Boolean, bandRow: String, vararg rows: String) =
+            "<div class=\"tl-block${if (brk) " tl-break" else ""}\"><div class=\"tl-scroll\">" +
+                "<table class=\"table-teacher-list\">$colgroup<thead>$bandRow$headRow</thead>" +
+                "<tbody>${rows.joinToString("")}</tbody></table></div></div>"
+
+        return "<style>@import url(\"/sites/all/modules/dh_manageapp/css/teacher-list-v2.css\");</style>" +
+            "<div class=\"header-teacher\"><div class=\"title\">Teacher List</div>" +
+            "<div class=\"title-head\">Dhamma Sudha / 10 Day / 2026 / 19th-Aug to 30th-Aug</div></div>" +
+            "<div class=\"tl-toolbar no-print\"><span class=\"grp\"><b>Order:</b> " +
+            "<a class=\"active\" href=\"/teacher-list/$cid/$courseId\">Seniority</a> &middot; " +
+            "<a class=\"\" href=\"/teacher-list/$cid/$courseId?seating=1\">Seating plan</a></span>" +
+            "<span class=\"grp\"><b>Columns:</b> " +
+            "<button type=\"button\" class=\"col-toggle\" data-toggle-col=\"langs\">Languages</button> " +
+            "<button type=\"button\" class=\"col-toggle\" data-toggle-col=\"comments\">Comments</button></span></div>" +
+            block(
+                false,
+                band("Trainee-A-M Teacher [TAM]", "Male", "Old", 1, 3),
+                row(
+                    1, "Suresh Nair <b>(Sevak)</b>", "Mbk-8", "51", "Kochi",
+                    "<b>10D:</b>11 <b>STP:</b>3 <b>SPL:</b>1", "", "",
+                    "Retired Teacher", "B.Ed", "Malayalam, English", TEACHER_HEALTH_NOISE,
+                ),
+                row(
+                    2, "Vikram Joshi <b>(AT-2010)</b>", "Mbk-2", "46", "Indore",
+                    "<b>10D:</b>6 <b>TSC:</b>1", "C2 (2)",
+                    "CW-A3<span class=\"tl-br\" title=\"Backrest\">BR</span>",
+                    "Engineer", "B.E.", "Hindi, English", "",
+                ),
+                row(
+                    3, "Nikhil Rane", "Mbk-11", "35", "Nagpur",
+                    "<b>10D:</b>4", "", "A8",
+                    "Accountant", "M.Com", "Marathi, Hindi", "",
+                ),
+            ) +
+            block(
+                true,
+                band("(unassigned)", "Male", "New", 1, 2),
+                row(
+                    1, "Rakesh Iyer", "Mbk-14", "28", "Chennai",
+                    "", "", "CH-12<span class=\"tl-br\" title=\"Backrest\">BR</span>",
+                    "Software Developer", "B.Tech", "Tamil, English", TEACHER_HEALTH_NOISE,
+                ),
+                row(
+                    2, "Arjun Patel", "Mbk-15", "19", "Ahmedabad",
+                    "", "", "14", "—", "—", "Gujarati", "",
+                ),
+            ) +
+            block(
+                true,
+                band("Uma Rangan [URN]", "Female", "Old", 1, 1),
+                row(
+                    1, "Meera Deshpande <b>(SAT-2011)</b>", "Fbk-1", "34", "Pune",
+                    "<b>10D:</b>4 <b>STP:</b>1", "C5", "CW-B1",
+                    "Doctor", "MBBS", "Marathi, English, Hindi", "",
+                ),
+            ) +
+            "<script>document.addEventListener(\"click\", function(e){});</script>"
+    }
+
+    /** Print-styled desk sheet page (day0-list, manager-list, …). */
     fun sheetHtml(slug: String, cid: Int, courseId: Int) = """
         <html><head>
         <style>@import url("/sites/all/modules/dh_manageapp/css/teacher-list.css");</style>
