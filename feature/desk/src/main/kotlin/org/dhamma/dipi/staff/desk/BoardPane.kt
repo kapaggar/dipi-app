@@ -32,13 +32,6 @@ import org.dhamma.dipi.staff.ui.theme.Industry
 import org.dhamma.dipi.staff.ui.theme.deskCard
 
 /**
- * The same twelve exports, on three shelves that say what each pile is for
- * (v4 frame 1f), plus Day 11 on the design's own fourth-line row
- * (`dc.html:579-582`). Names and the `onExport` labels are unchanged — only
- * the grouping is new. Day 11 is its own full-width row, not a 13th flex
- * chip, so the 3x4 shelf grid stays intact.
- */
-/**
  * Three semantic shelves of four columns. Shelf 3 carries **three** chips
  * since v5 T4 moved Course report to the centre dashboard — the fourth cell
  * stays empty rather than letting three chips stretch across four columns
