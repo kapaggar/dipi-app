@@ -4,6 +4,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -15,6 +16,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -30,17 +32,28 @@ import org.dhamma.dipi.staff.ui.theme.Industry
 import org.dhamma.dipi.staff.ui.theme.deskCard
 
 /**
- * The same twelve exports, on three shelves that say what each pile is for
- * (v4 frame 1f), plus Day 11 on the design's own fourth-line row
- * (`dc.html:579-582`). Names and the `onExport` labels are unchanged — only
- * the grouping is new. Day 11 is its own full-width row, not a 13th flex
- * chip, so the 3x4 shelf grid stays intact.
+ * Three semantic shelves of four columns. Shelf 3 carries **three** chips
+ * since v5 T4 moved Course report to the centre dashboard — the fourth cell
+ * stays empty rather than letting three chips stretch across four columns
+ * and read as more important than the eight above. The hole is honest.
  */
 private val EXPORT_SHELVES = listOf(
-    "ROLL SHEETS" to listOf("Day 0 list", "Day 0 summary", "Male PDF", "Female PDF"),
-    "DESK SLIPS" to listOf("Student chit", "Checking slip", "Seating plan", "Laundry list"),
-    "FOR THE TEAM" to listOf("Teacher list", "Manager list", "Valuable list", "Course report"),
+    Shelf("ROLL SHEETS", "day 0", listOf("Day 0 list", "Day 0 summary", "Male PDF", "Female PDF")),
+    Shelf(
+        "DESK SLIPS",
+        "printed and cut",
+        listOf("Student chit", "Checking slip", "Seating plan", "Laundry list"),
+    ),
+    Shelf(
+        "FOR THE TEAM",
+        "teachers and managers",
+        listOf("Teacher list", "Manager list", "Valuable list"),
+    ),
 )
+
+private const val SHELF_COLUMNS = 4
+
+private data class Shelf(val kicker: String, val qualifier: String, val labels: List<String>)
 
 private val CardShape = RoundedCornerShape(8.dp)
 private val ChipShape = RoundedCornerShape(6.dp)
@@ -141,30 +154,33 @@ fun BoardPane(
                 color = Industry.neutral400,
             )
         }
-        EXPORT_SHELVES.forEach { (shelf, labels) ->
+        EXPORT_SHELVES.forEach { shelf ->
             Column(
                 Modifier
                     .fillMaxWidth()
                     .padding(top = 12.dp)
-                    .testTag("export-shelf-$shelf"),
+                    .testTag("export-shelf-${shelf.kicker}"),
             ) {
-                DeskKicker(shelf, Industry.neutral500, Modifier.padding(bottom = 7.dp))
+                Row(
+                    Modifier.padding(bottom = 7.dp),
+                    horizontalArrangement = Arrangement.spacedBy(7.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    DeskKicker(shelf.kicker, Industry.neutral500)
+                    Text(
+                        shelf.qualifier,
+                        fontSize = 11.sp,
+                        color = Industry.neutral400,
+                    )
+                }
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    labels.forEach { label ->
-                        Row(
-                            Modifier
-                                .weight(1f)
-                                .height(40.dp)
-                                .deskCard(shape = ChipShape, elevation = 0.dp)
-                                .clickable { onExport(label) }
-                                .padding(horizontal = 13.dp)
-                                .testTag("export-chip"),
-                            horizontalArrangement = Arrangement.spacedBy(9.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            DeskIcon(DeskIconKind.Download, 13.dp, Industry.accent400)
-                            Text(label, fontSize = 13.5.sp, maxLines = 1, color = Industry.neutral800)
-                        }
+                    shelf.labels.forEach { label ->
+                        ExportChip(label, Modifier.weight(1f), onExport)
+                    }
+                    // The empty fourth cell: shelves are semantic, so the
+                    // column rhythm holds even when a shelf loses a chip.
+                    repeat(SHELF_COLUMNS - shelf.labels.size) {
+                        Spacer(Modifier.weight(1f).testTag("export-shelf-gap"))
                     }
                 }
             }
@@ -189,10 +205,51 @@ fun BoardPane(
                 fontSize = 13.5.sp,
                 maxLines = 1,
                 color = Industry.neutral800,
+                modifier = Modifier.weight(1f),
+            )
+            // Why it is not on a shelf: it is the only export that belongs
+            // after the course has ended.
+            Text(
+                "END OF COURSE",
+                fontFamily = DipiMono,
+                fontWeight = FontWeight.Medium,
+                fontSize = 9.sp,
+                letterSpacing = 1.2.sp,
+                color = Industry.neutral400,
             )
         }
     }
 }
+
+/**
+ * v5 T4 de-emphasises the exports rather than adding to them: paler border
+ * and fill, 38dp instead of 40, `neutral600` label, `accent300` glyph. The
+ * reading order on the Board is numbers → next actions → exports.
+ */
+@Composable
+private fun ExportChip(label: String, modifier: Modifier, onExport: (String) -> Unit) {
+    Row(
+        modifier
+            .height(38.dp)
+            .deskCard(
+                shape = ChipShape,
+                fill = ChipFill,
+                border = ChipBorder,
+                elevation = 0.dp,
+            )
+            .clickable { onExport(label) }
+            .padding(horizontal = 13.dp)
+            .testTag("export-chip"),
+        horizontalArrangement = Arrangement.spacedBy(9.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        DeskIcon(DeskIconKind.Download, 13.dp, Industry.accent300)
+        Text(label, fontSize = 13.sp, maxLines = 1, color = Industry.neutral600)
+    }
+}
+
+private val ChipFill = Color(0xFFFCFCFD)
+private val ChipBorder = Color(0xFFE7E7EA)
 
 @Composable
 private fun BoardTile(
@@ -230,14 +287,27 @@ private fun BoardTile(
             maxLines = 1,
             modifier = Modifier.padding(top = 9.dp),
         )
-        Text(
-            note,
-            fontSize = 12.5.sp,
-            lineHeight = 12.5.sp,
-            color = Industry.neutral500,
-            maxLines = 1,
-            modifier = Modifier.padding(top = 7.dp),
-        )
+        // v5 T4: one quiet arrow is all the affordance a stat card needs to
+        // read as navigation. No button, no border change.
+        Row(
+            Modifier.fillMaxWidth().padding(top = 7.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                note,
+                fontSize = 12.5.sp,
+                lineHeight = 12.5.sp,
+                color = Industry.neutral500,
+                maxLines = 1,
+                modifier = Modifier.weight(1f),
+            )
+            Text(
+                "→",
+                fontSize = 14.sp,
+                color = Industry.accent300,
+                modifier = Modifier.testTag("board-stat-arrow"),
+            )
+        }
     }
 }
 

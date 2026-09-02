@@ -41,6 +41,7 @@ import org.dhamma.dipi.staff.model.SensitiveInfo
 import org.dhamma.dipi.staff.model.Session
 import org.dhamma.dipi.staff.model.SheetExport
 import org.dhamma.dipi.staff.model.SheetPayload
+import org.dhamma.dipi.staff.model.SheetSort
 import org.dhamma.dipi.staff.model.StatusWrite
 import org.dhamma.dipi.staff.model.TeacherRoll
 import org.dhamma.dipi.staff.model.UserCentreMap
@@ -635,6 +636,19 @@ class StaffRepository @Inject constructor(
         return mapped
     }
 
+    /**
+     * Course ops buffers its own worklist (owner feedback 2026-09-02): the id
+     * mapping needs the worklist, and in course ops nobody visits the desk to
+     * fetch it. On entry, an empty (or other-course) cache is filled with one
+     * unfiltered worklist fetch — the same read the desk uses. Offline or
+     * refused → silent; the cached roll path still renders.
+     */
+    suspend fun ensureCourseOpsWorklist(course: Course) {
+        val have = runCatching { applicants.list(course.id.value) }.getOrDefault(emptyList())
+        if (have.isNotEmpty()) return
+        runCatching { refreshApplicants(course.id, centreId = course.centreId) }
+    }
+
     /** The encrypted course cache's roll snapshot — offline entry to course ops. */
     fun cachedTeacherRoll(courseId: Int): TeacherRoll? =
         runCatching { courseOpsStore.loadRoll(courseId) }.getOrNull()
@@ -654,18 +668,26 @@ class StaffRepository @Inject constructor(
     suspend fun prefetchApplicationViews(
         courseId: Int,
         ids: List<Int>,
+        onProgress: suspend (done: Int, total: Int) -> Unit = { _, _ -> },
+        // Last so existing trailing-lambda call sites keep meaning onCard.
         onCard: suspend (Int, ApplicationCard) -> Unit = { _, _ -> },
     ) = withContext(Dispatchers.IO) {
         val cached = runCatching { courseOpsStore.loadCards(courseId).keys }.getOrDefault(emptySet())
+        val toFetch = ids.distinct().filter { it !in cached }
+        if (toFetch.isEmpty()) return@withContext
         val gate = Semaphore(PREFETCH_CONCURRENCY)
+        val done = java.util.concurrent.atomic.AtomicInteger(0)
+        onProgress(0, toFetch.size)
         coroutineScope {
-            ids.distinct().filter { it !in cached }.forEach { id ->
+            toFetch.forEach { id ->
                 launch {
                     gate.withPermit {
                         runCatching { loadApplicationView(id) }.onSuccess { card ->
                             runCatching { courseOpsStore.saveCard(courseId, id, card) }
                             onCard(id, card)
                         }
+                        // Attempted, success or not — the bar must reach the end.
+                        onProgress(done.incrementAndGet(), toFetch.size)
                     }
                 }
             }
@@ -677,8 +699,20 @@ class StaffRepository @Inject constructor(
      * export slice: HTML sheets return in-memory, PDF/Excel/CSV stream to
      * cacheDir/sheets only, refusals come back verbatim as [SheetPayload.NotAvailable].
      */
-    suspend fun fetchSheet(export: SheetExport, centreId: Int, courseId: Int): SheetPayload =
-        sheets.fetch(export, centreId, courseId)
+    suspend fun fetchSheet(
+        export: SheetExport,
+        centreId: Int,
+        courseId: Int,
+        sort: SheetSort = SheetSort.Default,
+    ): SheetPayload = sheets.fetch(export, centreId, courseId, sort)
+
+    /**
+     * The centre course report over an explicit date range (v5 T3). Same
+     * scrape-then-POST transport as the Board export, parsed for the native
+     * surface; the CSV still lands in cacheDir/sheets for `Share CSV`.
+     */
+    suspend fun fetchCourseReport(centreId: Int, from: String, to: String): SheetPayload =
+        sheets.courseReport(centreId, from, to)
 
     /**
      * Fetches the desk's own application edit page for display-only viewing

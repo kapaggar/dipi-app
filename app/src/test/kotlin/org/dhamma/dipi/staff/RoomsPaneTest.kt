@@ -1,13 +1,25 @@
 package org.dhamma.dipi.staff
 
+import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.semantics.getOrNull
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithTag
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.unit.Dp
 import org.dhamma.dipi.staff.desk.RoomsPane
 import org.dhamma.dipi.staff.model.AccoRoom
+import org.dhamma.dipi.staff.model.ApplicantCard
+import org.dhamma.dipi.staff.model.ApplicantId
+import org.dhamma.dipi.staff.model.ApplicantStatus
+import org.dhamma.dipi.staff.model.ApplicantType
+import org.dhamma.dipi.staff.model.CentreId
+import org.dhamma.dipi.staff.model.CheckInRecord
+import org.dhamma.dipi.staff.model.CourseId
 import org.dhamma.dipi.staff.model.Gender
 import org.dhamma.dipi.staff.model.RoomLayout
 import org.dhamma.dipi.staff.ui.theme.DipiTheme
@@ -42,7 +54,7 @@ class RoomsPaneTest {
             }
         }
         rule.onNodeWithText("Male · Mbk").assertIsDisplayed()
-        rule.onNodeWithText("14 rooms · 14 free").assertIsDisplayed()
+        rule.onNodeWithText("0 occupied · 14 free of 14").assertIsDisplayed()
         // Positional proof, not just presence: at 7 columns, room 1 and room 7
         // sit in the same row (equal top) while room 8 has wrapped to row two
         // (a different top). Scroll to the last node used in the comparison
@@ -114,6 +126,129 @@ class RoomsPaneTest {
         rule.onNodeWithText("Male · Guest").performScrollTo().assertIsDisplayed()
         rule.onNodeWithText("Female · Fbk").assertIsDisplayed()
     }
+
+    /* ── v5 T5 · Rooms visual rebalance ───────────────────────────────── */
+
+    /**
+     * The `( View )` remnant is stripped in `SearchPageParser.mapRow`, so by
+     * the time a name reaches this pane it is clean. Pinned here as well as
+     * in the parser test because the pane is where the registrar saw it.
+     */
+    @Test
+    fun noViewRemnantRendersAnywhere() {
+        rule.setContent {
+            DipiTheme {
+                RoomsPane(
+                    roll = listOf(occupantCard(1, "Meera", "Deshpande")),
+                    checkIns = mapOf(ApplicantId(1) to CheckInRecord(checkedIn = true, room = "Mbk 01")),
+                    rooms = listOf(AccoRoom("Mbk 01", Gender.M, "Mbk"), AccoRoom("Mbk 02", Gender.M, "Mbk")),
+                )
+            }
+        }
+        rule.onNodeWithText("( View )", substring = true).assertDoesNotExist()
+        rule.onNodeWithText("View", substring = true).assertDoesNotExist()
+    }
+
+    /** Emptiness reads as absence of ink: no word, no accent, no occupant line. */
+    @Test
+    fun freeCellCarriesNoWordAndNoAccent() {
+        rule.setContent {
+            DipiTheme {
+                RoomsPane(
+                    roll = emptyList(),
+                    checkIns = emptyMap(),
+                    rooms = listOf(AccoRoom("Mbk 01", Gender.M, "Mbk")),
+                )
+            }
+        }
+        rule.onNodeWithText("free", substring = false).assertDoesNotExist()
+        rule.onAllNodesWithTag("room-cell-free").assertCountEquals(1)
+        rule.onAllNodesWithTag("room-cell-occupied").assertCountEquals(0)
+    }
+
+    /** The ratio the registrar opened the pane for, at Board-stat weight. */
+    @Test
+    fun blockHeaderShowsTheOccupiedRatioAt21sp() {
+        rule.setContent {
+            DipiTheme {
+                RoomsPane(
+                    roll = listOf(occupantCard(1, "Meera", "Deshpande")),
+                    checkIns = mapOf(ApplicantId(1) to CheckInRecord(checkedIn = true, room = "Mbk 01")),
+                    rooms = (1..3).map { AccoRoom("Mbk %02d".format(it), Gender.M, "Mbk") },
+                )
+            }
+        }
+        rule.onNodeWithText("1 occupied · 2 free of 3").assertIsDisplayed()
+        rule.onNodeWithTag("room-occupancy-bar").assertExists()
+    }
+
+    @Test
+    fun amenityLegendSitsInThePaneHeader() {
+        rule.setContent {
+            DipiTheme {
+                RoomsPane(
+                    roll = emptyList(),
+                    checkIns = emptyMap(),
+                    rooms = listOf(AccoRoom("Mbk 01", Gender.M, "Mbk")),
+                )
+            }
+        }
+        rule.onNodeWithTag("room-amenity-legend").assertIsDisplayed()
+        rule.onNodeWithText("geyser").assertIsDisplayed()
+        rule.onNodeWithText("Indian toilet").assertIsDisplayed()
+        rule.onNodeWithText("western").assertIsDisplayed()
+    }
+
+    /** v5 adds no write protocol: a room cell is never clickable. */
+    @Test
+    fun noWriteAffordanceExists() {
+        rule.setContent {
+            DipiTheme {
+                RoomsPane(
+                    roll = listOf(occupantCard(1, "Meera", "Deshpande")),
+                    checkIns = mapOf(ApplicantId(1) to CheckInRecord(checkedIn = true, room = "Mbk 01")),
+                    rooms = (1..3).map { AccoRoom("Mbk %02d".format(it), Gender.M, "Mbk") },
+                )
+            }
+        }
+        listOf("room-cell-free", "room-cell-occupied").forEach { tag ->
+            rule.onAllNodesWithTag(tag).fetchSemanticsNodes().forEach { node ->
+                assertTrue(
+                    "$tag must carry no click action",
+                    node.config.getOrNull(SemanticsActions.OnClick) == null,
+                )
+            }
+        }
+    }
+
+    @Test
+    fun syncButtonIsHiddenAtZero() {
+        rule.setContent {
+            DipiTheme {
+                RoomsPane(
+                    roll = emptyList(),
+                    checkIns = emptyMap(),
+                    rooms = listOf(AccoRoom("Mbk 01", Gender.M, "Mbk")),
+                    pendingSync = 0,
+                )
+            }
+        }
+        rule.onNodeWithText("SYNC", substring = true).assertDoesNotExist()
+        rule.onNodeWithText("PULL FROM SERVER").assertIsDisplayed()
+    }
+
+    private fun occupantCard(id: Int, given: String, family: String) = ApplicantCard(
+        id = ApplicantId(id),
+        centreId = CentreId(1),
+        courseId = CourseId(10),
+        givenName = given,
+        familyName = family,
+        gender = Gender.M,
+        status = ApplicantStatus("Confirmed"),
+        type = ApplicantType.Student,
+        oldStudent = false,
+        attended = false,
+    )
 
     /** Same row: tops within rounding noise (sub-pixel/sub-dp), not literally equal. */
     private fun assertSameRow(a: Dp, b: Dp) {

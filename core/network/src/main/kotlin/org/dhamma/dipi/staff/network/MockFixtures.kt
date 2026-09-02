@@ -485,10 +485,34 @@ internal object MockFixtures {
         </body></html>
     """.trimIndent()
 
+    /**
+     * The real `#day-summary` shape from `version-5/HAR-ROUTES.md` §
+     * `zero-day`: three fixed tables, and the `Total` cells carrying the
+     * desk's **unclosed `<b>`**. The malformation is reproduced on purpose —
+     * a fixture that closes the tag would let a fragile parser pass here and
+     * fail on the live desk.
+     */
     private fun daySummaryBlock() = """
-        <div id="day-summary"><table id="table-conf"><tr><th>Conf</th></tr><tr><td>72</td></tr></table>
-        <table id="table-totals"><tr><th>M</th><th>F</th></tr><tr><td><b>6</b></td><td><b>6</b></td></tr></table>
-        <table id="table-special"><tr><th>Teen</th></tr><tr><td>0</td></tr></table></div><br />
+        <div id="day-summary">
+        <table id="table-conf">
+        <tr><th></th><th>Old</th><th>New</th><th>Total</th><th>Server</th></tr>
+        <tr><td>Confirmed Male</td><td>18</td><td>27</td><td><b>45</td><td>3</td></tr>
+        <tr><td>Confirmed Female</td><td>14</td><td>22</td><td><b>36</td><td>2</td></tr>
+        <tr><td>Total</td><td>32</td><td>49</td><td><b>81</td><td>5</td></tr>
+        </table>
+        <table id="table-totals">
+        <tr><th></th><th>Old</th><th>New</th><th>Total</th><th>Server</th></tr>
+        <tr><td>Attended Male</td><td>1</td><td>0</td><td><b>1</td><td>0</td></tr>
+        <tr><td>Attended Female</td><td>0</td><td>0</td><td><b>0</td><td>0</td></tr>
+        <tr><td>Total</td><td>1</td><td>0</td><td><b>1</td><td>0</td></tr>
+        </table>
+        <table id="table-special">
+        <tr><th></th><th>Chowky</th><th>Chair</th><th>Backrest</th></tr>
+        <tr><td>Male</td><td>1 (O) + 1 (N)</td><td>0 (O) + 2 (N)</td><td>3 (O) + 0 (N)</td></tr>
+        <tr><td>Female</td><td>0 (O) + 0 (N)</td><td>1 (O) + 0 (N)</td><td>0 (O) + 1 (N)</td></tr>
+        <tr><td>Total</td><td>1 (O) + 1 (N)</td><td>1 (O) + 2 (N)</td><td>3 (O) + 1 (N)</td></tr>
+        </table>
+        </div><br />
     """.trimIndent()
 
     private fun attendingRow(

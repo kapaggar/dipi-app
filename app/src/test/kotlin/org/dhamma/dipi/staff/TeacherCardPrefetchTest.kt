@@ -15,6 +15,9 @@ import org.dhamma.dipi.staff.database.ApplicantEntity
 import org.dhamma.dipi.staff.database.OutboxDao
 import org.dhamma.dipi.staff.database.OutboxEntity
 import org.dhamma.dipi.staff.datastore.SessionStore
+import org.dhamma.dipi.staff.model.CentreId
+import org.dhamma.dipi.staff.model.Course
+import org.dhamma.dipi.staff.model.CourseId
 import org.dhamma.dipi.staff.model.ApplicantId
 import org.dhamma.dipi.staff.model.Gender
 import org.dhamma.dipi.staff.model.RollRow
@@ -99,7 +102,21 @@ class TeacherCardPrefetchTest {
         override suspend fun clear() = Unit
     }
 
-    private fun buildRepo(pinPrefs: String): Pair<StaffRepository, org.dhamma.dipi.staff.datastore.CourseOpsStore> {
+    /** Starts empty and keeps what refreshApplicants persists — the buffer-on-entry case. */
+    private class RecordingApplicants : ApplicantDao {
+        val stored = mutableListOf<ApplicantEntity>()
+        override fun observe(courseId: Int): Flow<List<ApplicantEntity>> = flowOf(stored)
+        override suspend fun list(courseId: Int) = stored.filter { it.courseId == courseId }
+        override suspend fun listAll() = stored.toList()
+        override suspend fun get(id: Int) = stored.firstOrNull { it.id == id }
+        override suspend fun upsert(rows: List<ApplicantEntity>) { stored += rows }
+        override suspend fun clear() { stored.clear() }
+    }
+
+    private fun buildRepo(
+        pinPrefs: String,
+        dao: ApplicantDao = SeededApplicants(),
+    ): Pair<StaffRepository, org.dhamma.dipi.staff.datastore.CourseOpsStore> {
         val app = RuntimeEnvironment.getApplication()
         val tokens = TestTokens().apply { cookie = "SESS=deadbeef" }
         val base = "http://127.0.0.1:${server.port}/"
@@ -115,7 +132,7 @@ class TeacherCardPrefetchTest {
             tokens = tokens,
             sessionStore = SessionStore(app),
             courseOpsStore = courseOpsStore,
-            applicants = SeededApplicants(),
+            applicants = dao,
             outbox = EmptyOutbox(),
             json = json,
             cookies = SessionCookieJar(tokens),
@@ -141,7 +158,7 @@ class TeacherCardPrefetchTest {
         // Prefetch all (> PREFETCH_CONCURRENCY of them) — silent, complete.
         assertEquals(4, PREFETCH_CONCURRENCY)
         val landed = mutableListOf<Int>()
-        repo.prefetchApplicationViews(10, ids) { id, _ -> synchronized(landed) { landed += id } }
+        repo.prefetchApplicationViews(10, ids, onCard = { id, _ -> synchronized(landed) { landed += id } })
         assertEquals(ids.toSet(), landed.toSet())
         val cards = repo.cachedApplicationCards(10)
         assertEquals(ids.toSet(), cards.keys)
@@ -154,7 +171,7 @@ class TeacherCardPrefetchTest {
 
         // Already-cached ids are skipped on the next entry's prefetch.
         var again = 0
-        repo.prefetchApplicationViews(10, ids) { _, _ -> again++ }
+        repo.prefetchApplicationViews(10, ids, onCard = { _, _ -> again++ })
         assertEquals(0, again)
     }
 
@@ -164,7 +181,7 @@ class TeacherCardPrefetchTest {
         val landed = mutableListOf<Int>()
         // 99 refuses (403 stand-in), 9999 is the wildcard-loader 404: both
         // silent, neither cached; the good id still lands.
-        repo.prefetchApplicationViews(10, listOf(99, 9999, 4)) { id, _ -> landed += id }
+        repo.prefetchApplicationViews(10, listOf(99, 9999, 4), onCard = { id, _ -> landed += id })
         assertEquals(listOf(4), landed)
         assertEquals(setOf(4), repo.cachedApplicationCards(10).keys)
     }
@@ -228,5 +245,49 @@ class TeacherCardPrefetchTest {
         assertEquals(0, t.vm.state.value.teacherCard?.index)
         t.vm.stepTeacherCard(-1)
         assertEquals(0, t.vm.state.value.teacherCard?.index)
+    }
+
+    /**
+     * Owner feedback 2026-09-02: course ops buffers its own worklist on entry —
+     * without it the id mapping starves and every tap says "Not on the
+     * worklist yet".
+     */
+    @Test
+    fun emptyWorklistCacheIsBufferedOnCourseOpsEntry() = runBlocking {
+        val dao = RecordingApplicants()
+        val (repo, _) = buildRepo("buffer_on_entry", dao)
+        val course = Course(CourseId(10), CentreId(1), "Dhamma Sudha / 10 Day / 2026 / 2nd-Sep to 13th-Sep", "", "")
+
+        // Fresh entry: nothing cached, so the roll maps no ids.
+        val starved = repo.resolveTeacherRoll(10, repo.loadTeacherRoll(1, 10))
+        assertEquals(emptyList<Int>(), starved.groups.flatMap { g -> g.rows.mapNotNull { it.applicantId?.value } })
+
+        // The entry hook pulls the worklist once, then the mapping works.
+        repo.ensureCourseOpsWorklist(course)
+        assertTrue(dao.stored.isNotEmpty())
+        val roll = repo.resolveTeacherRoll(10, repo.loadTeacherRoll(1, 10))
+        val ids = roll.groups.flatMap { g -> g.rows.mapNotNull { it.applicantId?.value } }
+        assertTrue(ids.isNotEmpty())
+
+        // A second entry with a warm cache does not refetch the worklist.
+        val before = dao.stored.size
+        repo.ensureCourseOpsWorklist(course)
+        assertEquals(before, dao.stored.size)
+    }
+
+    /** The progress bar tracks ATTEMPTS so failures still walk it to the end. */
+    @Test
+    fun prefetchReportsAttemptLevelProgress() = runBlocking {
+        val (repo, _) = buildRepo("prefetch_progress")
+        val seen = mutableListOf<Pair<Int, Int>>()
+        // One good id, one 403 stand-in, one 404 — all three count as attempts.
+        repo.prefetchApplicationViews(
+            10,
+            listOf(4, 99, 9999),
+            onProgress = { done, total -> synchronized(seen) { seen += done to total } },
+        )
+        assertEquals(0 to 3, seen.first())
+        assertEquals(3, seen.last().first)
+        assertEquals(3, seen.last().second)
     }
 }

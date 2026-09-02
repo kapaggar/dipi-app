@@ -5,6 +5,7 @@ import okhttp3.OkHttpClient
 import okhttp3.mockwebserver.MockWebServer
 import org.dhamma.dipi.staff.model.SheetExport
 import org.dhamma.dipi.staff.model.SheetPayload
+import org.dhamma.dipi.staff.model.SheetSort
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -120,6 +121,64 @@ class ExportMockTest {
         }
     }
 
+    /**
+     * v5 T1: `?conf=1` is Day 0 list's own alternate order and nothing
+     * else's. A sort left over from another sheet degrades to the page's
+     * default rather than travelling onto a slug that never offered it.
+     */
+    @Test
+    fun sheetPageSendsConfOnlyForDay0List() {
+        runBlocking { transport.fetch(SheetExport.Day0List, 3, 42, SheetSort.ConfirmationNo) }
+        runBlocking { transport.fetch(SheetExport.TeacherList, 3, 42, SheetSort.ConfirmationNo) }
+        runBlocking { transport.fetch(SheetExport.SeatingPlan, 3, 42, SheetSort.ConfirmationNo) }
+        val paths = recordedRequests().map { "${it.method} ${it.path}" }
+        assertEquals(
+            listOf(
+                "GET /day0-list/3/42?conf=1",
+                "GET /teacher-list/3/42",
+                "GET /seating/3/42",
+            ),
+            paths,
+        )
+    }
+
+    /** v5 T1: `?seating=1` is teacher-list and student-chit only (HAR-ROUTES §Query params). */
+    @Test
+    fun sheetPageSendsSeatingOnlyForTeacherListAndChit() {
+        runBlocking { transport.fetch(SheetExport.TeacherList, 3, 42, SheetSort.SeatingOrder) }
+        runBlocking { transport.fetch(SheetExport.StudentChit, 3, 42, SheetSort.SeatingOrder) }
+        runBlocking { transport.fetch(SheetExport.Day0List, 3, 42, SheetSort.SeatingOrder) }
+        runBlocking { transport.fetch(SheetExport.ManagerList, 3, 42, SheetSort.SeatingOrder) }
+        val paths = recordedRequests().map { "${it.method} ${it.path}" }
+        assertEquals(
+            listOf(
+                "GET /teacher-list/3/42?seating=1",
+                "GET /student-chit/3/42?seating=1",
+                "GET /day0-list/3/42",
+                "GET /manager-list/3/42",
+            ),
+            paths,
+        )
+    }
+
+    /** Whatever the sort, `r` is never reachable — that is the whole guard. */
+    @Test
+    fun noSortValueCanEverProduceAnRParam() {
+        SheetExport.entries.forEach { export ->
+            SheetSort.entries.forEach { sort ->
+                runBlocking { transport.fetch(export, 3, 42, sort) }
+            }
+        }
+        recordedRequests().forEach { req ->
+            val url = req.requestUrl!!
+            assertFalse("r param on ${req.path}", url.queryParameterNames.contains("r"))
+            assertTrue(
+                "unexpected query on ${req.path}: ${url.queryParameterNames}",
+                url.queryParameterNames.all { it in SheetSort.ALLOWED_QUERY_NAMES },
+            )
+        }
+    }
+
     @Test
     fun pdfExportsStreamToCacheFilesWithPdfMime() {
         listOf(
@@ -165,16 +224,24 @@ class ExportMockTest {
         assertFalse("HTML sheets must never touch the cache dir", sheetsDir.exists())
     }
 
+    /**
+     * v5 T2: the `#day-summary` fragment is parsed into counts rather than
+     * handed to the WebView. It arrives with no stylesheet, so as HTML it can
+     * only render browser-default.
+     */
     @Test
-    fun daySummaryIsTheExtractedBlockFromTheZeroDayPage() {
+    fun daySummaryIsParsedFromTheZeroDayPageIntoCounts() {
         val payload = fetch(SheetExport.Day0Summary)
-        assertTrue(payload is SheetPayload.Html)
-        payload as SheetPayload.Html
-        assertTrue(payload.html.startsWith("<div id=\"day-summary\">"))
-        assertTrue(payload.html.endsWith("</div>"))
-        assertTrue("summary tables kept verbatim", payload.html.contains("table-totals"))
-        assertTrue(payload.html.contains("<td><b>6</b></td>"))
-        assertFalse("rest of the zero-day page must be dropped", payload.html.contains("Attended Applicants"))
+        assertTrue("expected a parsed summary, got $payload", payload is SheetPayload.Summary)
+        payload as SheetPayload.Summary
+        assertEquals("Day 0 summary", payload.title)
+        assertEquals(81, payload.summary.confirmed.total.total)
+        assertEquals(1, payload.summary.attended.total.total)
+        assertEquals(80, payload.summary.stillToArrive)
+        // The desk's unclosed <b> in the Total cells must not eat the row.
+        assertEquals(5, payload.summary.confirmed.total.server)
+        assertEquals(1, payload.summary.specialSeating.total.chowky.old)
+        assertFalse("HTML sheets must never touch the cache dir", sheetsDir.exists())
     }
 
     @Test

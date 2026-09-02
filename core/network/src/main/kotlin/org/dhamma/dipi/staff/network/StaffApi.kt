@@ -3,6 +3,7 @@ package org.dhamma.dipi.staff.network
 import okhttp3.ResponseBody
 import org.dhamma.dipi.staff.model.SheetExport
 import org.dhamma.dipi.staff.model.SheetPayload
+import org.dhamma.dipi.staff.model.SheetSort
 import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.Field
@@ -148,15 +149,24 @@ interface StaffApi {
      * Print-styled desk sheet HTML (day0-list, teacher-list, manager-list,
      * student-chit, checking-slip, seating, zero-day).
      *
-     * SAFETY: plain GET, no query params, ever — the seating/teacher-list/
-     * cell-list handlers run server-side BULK SEAT AUTO-ALLOCATION whenever
-     * an `r` param is merely present (inc/zero-day.inc:17-46).
+     * SAFETY: the seating/teacher-list/cell-list handlers run server-side
+     * BULK SEAT AUTO-ALLOCATION whenever an `r` param is merely present
+     * (inc/zero-day.inc:17-46). The only query parameters this method can
+     * carry are therefore the two named, nullable re-orderings below —
+     * declared one-per-parameter rather than as a `@QueryMap`, so widening
+     * the surface takes a code change that `SheetRouteSafetyTest` will fail.
+     * Both are null by default and Retrofit omits null queries entirely.
+     *
+     * @param conf `1` for `?conf=1` (day0-list, sort by confirmation number).
+     * @param seating `1` for `?seating=1` (teacher-list / student-chit order).
      */
     @GET("/{sheet}/{cid}/{courseId}")
     suspend fun sheetPage(
         @Path("sheet") sheet: String,
         @Path("cid") centreId: Int,
         @Path("courseId") courseId: Int,
+        @Query("conf") conf: Int? = null,
+        @Query("seating") seating: Int? = null,
     ): Response<ResponseBody>
 
     /** Streamed course-pdf-m/-f (application/pdf), laundry/valuable list (vnd.ms-excel). */
@@ -273,10 +283,15 @@ class SheetTransport(
     private val baseUrl: String,
     private val sheetsDir: () -> File,
 ) {
-    suspend fun fetch(export: SheetExport, centreId: Int, courseId: Int): SheetPayload = guarded(export.label) {
+    suspend fun fetch(
+        export: SheetExport,
+        centreId: Int,
+        courseId: Int,
+        sort: SheetSort = SheetSort.Default,
+    ): SheetPayload = guarded(export.label) {
         when (val route = SheetRoutes.of(export)) {
             is SheetRoute.Page ->
-                htmlPayload(export.label, api.sheetPage(route.slug, centreId, courseId))
+                htmlPayload(export.label, sheetPage(route.slug, centreId, courseId, export, sort))
             SheetRoute.DaySummary ->
                 daySummary(api.sheetPage("zero-day", centreId, courseId))
             is SheetRoute.Document ->
@@ -284,6 +299,29 @@ class SheetTransport(
             SheetRoute.ReportForm ->
                 courseReport(centreId)
         }
+    }
+
+    /**
+     * The one place a sort parameter is turned into a request. A [SheetSort]
+     * is only honoured when [SheetSort.optionsFor] lists it for this export,
+     * so a stale sort left over from another sheet degrades to the page's own
+     * default order rather than travelling onto a slug that never offered it.
+     */
+    private suspend fun sheetPage(
+        slug: String,
+        centreId: Int,
+        courseId: Int,
+        export: SheetExport,
+        sort: SheetSort,
+    ): Response<ResponseBody> {
+        val effective = if (sort in SheetSort.optionsFor(export)) sort else SheetSort.Default
+        return api.sheetPage(
+            sheet = slug,
+            centreId = centreId,
+            courseId = courseId,
+            conf = if (effective == SheetSort.ConfirmationNo) 1 else null,
+            seating = if (effective == SheetSort.SeatingOrder) 1 else null,
+        )
     }
 
     suspend fun appEditPage(id: Int): SheetPayload = guarded("Application $id") {
@@ -319,12 +357,18 @@ class SheetTransport(
         return SheetPayload.Html(title, html, baseUrl)
     }
 
+    /**
+     * v5 T2: the `#day-summary` fragment is parsed into counts instead of
+     * being handed to the WebView. It arrives with no stylesheet, so as HTML
+     * it can only ever render browser-default; the numbers are what the desk
+     * actually reads off it.
+     */
     private fun daySummary(resp: Response<ResponseBody>): SheetPayload {
         val html = resp.html()
         if (!resp.isSuccessful) return refusal(resp.code(), html)
         val block = extractElementById(html, "day-summary")
             ?: return SheetPayload.NotAvailable("The zero-day page has no #day-summary block")
-        return SheetPayload.Html(SheetExport.Day0Summary.label, block, baseUrl)
+        return SheetPayload.Summary(SheetExport.Day0Summary.label, DaySummaryParser.parse(block))
     }
 
     private suspend fun document(
@@ -353,6 +397,50 @@ class SheetTransport(
             fallbackMime = SheetRoutes.MIME_CSV,
             resp = api.submitCourseReportForm(form.action, form.fields),
         )
+    }
+
+    /**
+     * v5 T3: the same scrape-then-POST as [courseReport], with the desk's own
+     * two date fields overridden by the range the registrar typed, and the
+     * CSV parsed for the native surface instead of handed straight to a
+     * system viewer.
+     *
+     * **The range is the only input.** The form offers no course picker, no
+     * status filter and no sort, so the app offers none either. The CSV is
+     * still written to `cacheDir/sheets` so `Share CSV` keeps working.
+     */
+    suspend fun courseReport(
+        centreId: Int,
+        from: String,
+        to: String,
+    ): SheetPayload = guarded(SheetExport.CourseReport.label) {
+        val formResp = api.courseReportForm(centreId)
+        val formHtml = formResp.html()
+        if (!formResp.isSuccessful) return@guarded refusal(formResp.code(), formHtml)
+        val form = CourseReportFormParser.parse(formHtml)
+            ?: return@guarded SheetPayload.NotAvailable(
+                "Could not read the Course report form — open /centre/$centreId/course-report in a desk browser",
+            )
+        val fields = form.fields.toMutableMap().apply {
+            if (from.isNotBlank()) put("report_from_date[date]", from)
+            if (to.isNotBlank()) put("report_to_date[date]", to)
+        }
+        val saved = save(
+            title = SheetExport.CourseReport.label,
+            fileName = "course-report-$centreId.csv",
+            fallbackMime = SheetRoutes.MIME_CSV,
+            resp = api.submitCourseReportForm(form.action, fields),
+        )
+        when (saved) {
+            is SheetPayload.Document -> SheetPayload.Report(
+                title = saved.title,
+                report = CourseReportCsvParser
+                    .parse(saved.file.readText(), from = from, to = to)
+                    .copy(csv = saved.file),
+            )
+            // A refusal renders verbatim — no rewording, no client-side gate.
+            else -> saved
+        }
     }
 
     private fun save(

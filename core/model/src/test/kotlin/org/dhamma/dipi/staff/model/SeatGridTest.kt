@@ -1,15 +1,19 @@
 package org.dhamma.dipi.staff.model
 
+import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Spec 2c S2 — the pure seat-placement pass: alphanumeric and numeric-flow
- * placement, AA rows, non-contiguous ids, CW-/CH- exclusion to the
- * cell/pagoda column, blank → unseated with the roleTag reason, grid
- * extension past the config, and the old/new tally the sub-line shows.
+ * The pure seat-placement pass on the r2 orientation (letters are COLUMNS,
+ * numbers are DEPTH, seat 1 nearest the teacher — the live web page is the
+ * authority): alphanumeric and numeric-flow placement, AA columns,
+ * CW-/CH- exclusion to the chowky/chair rail in trailing-number-descending
+ * order, blank → unseated with the roleTag reason, the sevak filter that
+ * never touches the tally, grid extension past the config on both axes with
+ * the 2× cap, and the old/new tally the sub-line shows.
  */
 class SeatGridTest {
 
@@ -42,26 +46,27 @@ class SeatGridTest {
     // --- seatPlacement ---
 
     @Test
-    fun alphanumericLabelsPlaceLetterRowNumberColumn() {
-        assertEquals(SeatCell("A1", 0, 0), seatPlacement("A1"))
-        assertEquals(SeatCell("B7", 1, 6), seatPlacement("B7"))
-        assertEquals(SeatCell("E4", 4, 3), seatPlacement("E4"))
+    fun alphanumericLabelsPlaceLetterColumnNumberDepth() {
+        assertEquals(SeatCell("A1", 0, 1), seatPlacement("A1"))
+        assertEquals(SeatCell("B7", 1, 7), seatPlacement("B7"))
+        // "E4" → column E (index 4), depth 4 — the r2 flip.
+        assertEquals(SeatCell("E4", 4, 4), seatPlacement("E4"))
     }
 
     @Test
-    fun aaRowPlacesAtIndexTwentySix() {
-        assertEquals(SeatCell("AA3", 26, 2), seatPlacement("AA3"))
-        assertEquals(SeatCell("Z1", 25, 0), seatPlacement("Z1"))
+    fun aaColumnPlacesAtIndexTwentySix() {
+        assertEquals(SeatCell("AA3", 26, 3), seatPlacement("AA3"))
+        assertEquals(SeatCell("Z1", 25, 1), seatPlacement("Z1"))
     }
 
     @Test
-    fun numericLabelsFlowBySeatsPerRow() {
-        assertEquals(SeatCell("1", 0, 0), seatPlacement("1", 7))
-        assertEquals(SeatCell("7", 0, 6), seatPlacement("7", 7))
-        assertEquals(SeatCell("8", 1, 0), seatPlacement("8", 7))
-        assertEquals(SeatCell("12", 1, 4), seatPlacement("12", 7))
-        // A different width reflows the same label: row C holds 11-15.
-        assertEquals(SeatCell("12", 2, 1), seatPlacement("12", 5))
+    fun numericLabelsFlowAcrossColumns() {
+        assertEquals(SeatCell("1", 0, 1), seatPlacement("1", 7))
+        assertEquals(SeatCell("7", 6, 1), seatPlacement("7", 7))
+        assertEquals(SeatCell("8", 0, 2), seatPlacement("8", 7))
+        assertEquals(SeatCell("12", 4, 2), seatPlacement("12", 7))
+        // A different width reflows the same label: depth 3 holds 11-15.
+        assertEquals(SeatCell("12", 1, 3), seatPlacement("12", 5))
     }
 
     @Test
@@ -78,63 +83,64 @@ class SeatGridTest {
     // --- hallLayout ---
 
     @Test
-    fun a8LandsInColumnEightWithA7Empty() {
-        // Seat ids are data — row A can be A1…A6, A8 (ground truth). The 7-wide
-        // config EXTENDS to 8 columns; A7 stays an empty dashed cell.
+    fun a8ExtendsDepthWithA7Empty() {
+        // A8 = column A, depth 8: the 5-deep config EXTENDS to 8 rows; A7
+        // stays an empty dashed cell. cells[0] is depth 1, nearest the teacher.
         val plan = hallLayout(
             listOf(group(listOf(row(1, "Suresh Nair", "A1"), row(2, "Vikram Joshi", "A8")))),
-            HallGrid(rows = 5, seatsPerRow = 7),
+            HallGrid(columns = 7, depth = 5),
         )
-        assertEquals(8, plan.cols)
-        assertEquals(5, plan.rows)
+        assertEquals(7, plan.columns)
+        assertEquals(8, plan.depth)
         assertEquals("Suresh Nair", plan.cells[0][0].seated?.row?.name)
-        assertNull(plan.cells[0][6].seated)
-        assertEquals("A7", plan.cells[0][6].id)
-        assertEquals("Vikram Joshi", plan.cells[0][7].seated?.row?.name)
-        assertEquals("A8", plan.cells[0][7].id)
+        assertNull(plan.cells[6][0].seated)
+        assertEquals("A7", plan.cells[6][0].id)
+        assertEquals("Vikram Joshi", plan.cells[7][0].seated?.row?.name)
+        assertEquals("A8", plan.cells[7][0].id)
     }
 
     @Test
     fun numericConventionFlowsAndSynthesizesFlowingEmptyIds() {
         val plan = hallLayout(
             listOf(group(listOf(row(1, "Suresh Nair", "1"), row(2, "Vikram Joshi", "9")))),
-            HallGrid(rows = 2, seatsPerRow = 7),
+            HallGrid(columns = 7, depth = 2),
         )
-        assertEquals(7, plan.cols)
-        assertEquals(2, plan.rows)
+        assertEquals(7, plan.columns)
+        assertEquals(2, plan.depth)
         assertEquals("Suresh Nair", plan.cells[0][0].seated?.row?.name)
         assertEquals("Vikram Joshi", plan.cells[1][1].seated?.row?.name)
         // Empty ids keep the hall's own numeric convention, flowing by width.
         assertEquals("2", plan.cells[0][1].id)
         assertEquals("8", plan.cells[1][0].id)
-        // Row letters still synthesize for the 26dp gutter.
-        assertEquals(listOf("A", "B"), plan.rowLetters)
+        // Column letters still synthesize for the bottom axis row.
+        assertEquals(listOf("A", "B", "C", "D", "E", "F", "G"), plan.columnLetters)
     }
 
     @Test
-    fun aaRowExtendsThePlanToTwentySevenRows() {
+    fun aaColumnExtendsThePlanToTwentySevenColumns() {
         val plan = hallLayout(
             listOf(group(listOf(row(1, "Suresh Nair", "AA3")))),
-            HallGrid(rows = 5, seatsPerRow = 7),
+            HallGrid(columns = 7, depth = 5),
         )
-        assertEquals(27, plan.rows)
-        assertEquals("AA", plan.rowLetters[26])
-        assertEquals("Suresh Nair", plan.cells[26][2].seated?.row?.name)
+        assertEquals(27, plan.columns)
+        assertEquals("AA", plan.columnLetters[26])
+        assertEquals("Suresh Nair", plan.cells[2][26].seated?.row?.name)
     }
 
     @Test
-    fun rowLabelsBeyondConfigExtendAndNeverDropASeatedStudent() {
+    fun columnLabelsBeyondConfigExtendAndNeverDropASeatedStudent() {
+        // H2 = column index 7 on a 7-column config: extends to 8 columns.
         val plan = hallLayout(
-            listOf(group(listOf(row(1, "Suresh Nair", "F2")))),
-            HallGrid(rows = 5, seatsPerRow = 7),
+            listOf(group(listOf(row(1, "Suresh Nair", "H2")))),
+            HallGrid(columns = 7, depth = 5),
         )
-        assertEquals(6, plan.rows)
-        assertEquals("Suresh Nair", plan.cells[5][1].seated?.row?.name)
+        assertEquals(8, plan.columns)
+        assertEquals("Suresh Nair", plan.cells[1][7].seated?.row?.name)
         assertTrue(plan.unseated.isEmpty())
     }
 
     @Test
-    fun cwAndChSeatsGoToTheCellColumnInLabelOrder() {
+    fun cwAndChSeatsGoToTheRailTrailingNumberDescending() {
         val plan = hallLayout(
             listOf(
                 group(
@@ -143,7 +149,8 @@ class SeatGridTest {
                         row(2, "Rakesh Iyer", "CH-12"),
                         row(3, "Meera Deshpande", "CW-A3"),
                         row(4, "Nikhil Rane", "CH-2"),
-                        row(5, "Suresh Nair", "A1"),
+                        row(5, "Kavya Kulkarni", "CW-A6"),
+                        row(6, "Suresh Nair", "A1"),
                     ),
                 ),
             ),
@@ -151,10 +158,11 @@ class SeatGridTest {
         )
         // Not force-fitted into the hall rows.
         assertEquals(1, plan.cells.flatten().count { it.seated != null })
-        // Label order, digit runs numeric: CH-2 before CH-12, CW-A3 before CW-B1.
+        // Prefix ascending, then trailing number DESCENDING — …-1 ends
+        // nearest the teacher, matching the grid's bottom-up read.
         assertEquals(
-            listOf("CH-2", "CH-12", "CW-A3", "CW-B1"),
-            plan.cellColumn.map { it.row.seat },
+            listOf("CH-12", "CH-2", "CW-A6", "CW-A3", "CW-B1"),
+            plan.chowkyChair.map { it.row.seat },
         )
     }
 
@@ -179,6 +187,42 @@ class SeatGridTest {
     }
 
     @Test
+    fun sevaksHideFromTheVisibleUnseatedButStayInTheTally() {
+        val plan = hallLayout(
+            listOf(
+                group(
+                    listOf(
+                        row(1, "Suresh Nair", "A1"),
+                        row(2, "Karan Velu", "", roleTag = "Sevak"),
+                        row(3, "Ganesh Bhat", "", roleTag = "sevak"),
+                        row(4, "Tara Singh", "", roleTag = "SAT-2011"),
+                        row(5, "Anup Datta", ""),
+                    ),
+                ),
+            ),
+            HallGrid(),
+        )
+        // Case-insensitive: both sevaks hide; other reasons keep showing.
+        assertEquals(listOf("Tara Singh", "Anup Datta"), plan.unseatedVisible.map { it.row.name })
+        // The raw list is intact and the tally counts everyone — sevaks sit
+        // on cushions in the hall.
+        assertEquals(4, plan.unseated.size)
+        assertEquals(5, plan.oldCount)
+        assertEquals(0, plan.newCount)
+    }
+
+    @Test
+    fun visibleUnseatedEmptiesWhenOnlySevaksAreUnseated() {
+        val plan = hallLayout(
+            listOf(group(listOf(row(1, "Suresh Nair", "A1"), row(2, "Karan Velu", "", roleTag = "Sevak")))),
+            HallGrid(),
+        )
+        assertTrue(plan.unseatedVisible.isEmpty())
+        assertEquals(1, plan.unseated.size)
+        assertEquals(2, plan.oldCount)
+    }
+
+    @Test
     fun oldNewTallyComesFromGroupSeniorityAndMatchesTheSubLine() {
         val plan = hallLayout(
             listOf(
@@ -194,13 +238,13 @@ class SeatGridTest {
             ),
             HallGrid(),
         )
-        // Every row counts — seated, cell column and unseated alike.
+        // Every row counts — seated, rail and unseated (sevaks included).
         assertEquals(2, plan.oldCount)
         assertEquals(3, plan.newCount)
-        // Old/new rides each placed seat from its band.
+        // Old/new rides each placed seat from its band. B2 = column B depth 2.
         assertEquals(true, plan.cells[0][0].seated?.old)
         assertEquals(false, plan.cells[1][1].seated?.old)
-        assertEquals(true, plan.cellColumn.single().old)
+        assertEquals(true, plan.chowkyChair.single().old)
     }
 
     @Test
@@ -216,26 +260,68 @@ class SeatGridTest {
     @Test
     fun hallGridClampsOnReadAndWrite() {
         assertEquals(HallGrid(1, 1), HallGrid(0, -3).clamped())
-        assertEquals(HallGrid(26, 20), HallGrid(400, 99).clamped())
-        val prefs = CentreOpsPrefs().withHallGrid(Gender.M, HallGrid(rows = 99, seatsPerRow = 0))
+        assertEquals(HallGrid(26, 40), HallGrid(400, 99).clamped())
+        val prefs = CentreOpsPrefs().withHallGrid(Gender.M, HallGrid(columns = 99, depth = 0))
         assertEquals(HallGrid(26, 1), prefs.hallGridFor(Gender.M))
         // Read-side clamp too, in case a stale blob carries out-of-range values.
         assertEquals(
-            HallGrid(1, 20),
+            HallGrid(1, 40),
             CentreOpsPrefs(hallGrid = mapOf("F" to HallGrid(0, 50))).hallGridFor(Gender.F),
         )
-        // Unset gender falls back to the 5×7 default.
-        assertEquals(HallGrid(5, 7), CentreOpsPrefs().hallGridFor(Gender.F))
+        // Unset gender falls back to the 7-column, 5-deep default.
+        assertEquals(HallGrid(7, 5), CentreOpsPrefs().hallGridFor(Gender.F))
+    }
+
+    @Test
+    fun oldFieldNamesInPersistedJsonDecodeToTheDefaults() {
+        // The 2c blob carried rows/seatsPerRow; the r2 rename drops them.
+        // ignoreUnknownKeys (the SessionStore config) lands on the defaults —
+        // recorded, acceptable: the registrar re-saves.
+        val json = Json { ignoreUnknownKeys = true; encodeDefaults = true }
+        val decoded = json.decodeFromString(HallGrid.serializer(), """{"rows":9,"seatsPerRow":11}""")
+        assertEquals(HallGrid(columns = 7, depth = 5), decoded)
     }
 
     @Test
     fun garbageLabelsFallToUnseatedRatherThanStretchingThePlan() {
+        // "9999" flows to depth 1429 — past the 2× cap on the depth axis.
         val plan = hallLayout(
             listOf(group(listOf(row(1, "Suresh Nair", "9999"), row(2, "Vikram Joshi", "A1")))),
-            HallGrid(rows = 5, seatsPerRow = 7),
+            HallGrid(columns = 7, depth = 5),
         )
-        assertEquals(5, plan.rows)
+        assertEquals(5, plan.depth)
         assertEquals(listOf("Suresh Nair"), plan.unseated.map { it.row.name })
         assertEquals("Vikram Joshi", plan.cells[0][0].seated?.row?.name)
+    }
+
+    @Test
+    fun labelsPastTheTwoTimesCapOnEitherAxisFallToUnseated() {
+        // Column cap: "BA1" is index 52 == MAX_PLAN_COLUMNS — rejected below.
+        val plan = hallLayout(
+            listOf(
+                group(
+                    listOf(
+                        row(1, "Suresh Nair", "A81"),
+                        row(2, "Vikram Joshi", "A80"),
+                    ),
+                ),
+            ),
+            HallGrid(columns = 7, depth = 5),
+        )
+        assertEquals(listOf("Suresh Nair"), plan.unseated.map { it.row.name })
+        assertEquals("Vikram Joshi", plan.cells[79][0].seated?.row?.name)
+        assertEquals(80, plan.depth)
+    }
+
+    /** Gate review r2 F2: the COLUMN cap has its own rejection path. */
+    @Test
+    fun aLabelAtTheColumnCapFallsToUnseatedNotAStretchedPlan() {
+        val groups = listOf(
+            group(listOf(row(1, "Ram Sharma", "A1"), row(2, "Shyam Verma", "BA1"))),
+        )
+        val plan = hallLayout(groups, HallGrid(columns = 7, depth = 5))
+        // BA = column index 52 = MAX_PLAN_COLUMNS — visible in UNSEATED, never dropped.
+        assertEquals(listOf("Shyam Verma"), plan.unseatedVisible.map { it.row.name })
+        assertTrue(plan.cells.all { r -> r.all { it.seated == null || it.seated?.row?.name == "Ram Sharma" } })
     }
 }

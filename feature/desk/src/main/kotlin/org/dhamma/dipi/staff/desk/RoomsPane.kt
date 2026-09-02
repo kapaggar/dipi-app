@@ -5,11 +5,16 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -17,6 +22,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -67,7 +73,8 @@ fun RoomsPane(
         ) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 DeskH2("Rooms & seats")
-                DeskSub("Filled cells are occupied tonight. Amenity marks: G geyser · IC Indian · W Western.")
+                DeskSub("Filled cells are occupied tonight.")
+                AmenityLegend()
                 if (syncFailures.isNotEmpty()) {
                     SyncRefusals(roll, syncFailures)
                 }
@@ -128,12 +135,13 @@ private fun RoomBlock(
 ) {
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         val free = block.count { it.code !in occupantByRoom }
-        Row(
+        val occupied = block.size - free
+        Column(
             Modifier
                 .fillMaxWidth()
                 .bottomHairline(Industry.neutral400)
                 .padding(bottom = 7.dp),
-            verticalAlignment = Alignment.Bottom,
+            verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             Text(
                 if (section.isBlank()) label else "$label · $section",
@@ -142,15 +150,19 @@ private fun RoomBlock(
                 fontSize = 22.sp,
                 lineHeight = 22.sp,
                 color = Industry.text,
-                modifier = Modifier.weight(1f),
             )
+            // The ratio is why the registrar opened this pane, so it leads at
+            // the same weight as a Board stat — not as a 12sp grey sub-line.
             Text(
-                "${block.size} rooms · $free free",
+                "$occupied occupied · $free free of ${block.size}",
                 fontFamily = DipiMono,
-                fontWeight = FontWeight.Medium,
-                fontSize = 11.5.sp,
-                color = Industry.neutral600,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 21.sp,
+                lineHeight = 22.sp,
+                color = Industry.text,
+                modifier = Modifier.testTag("room-block-ratio"),
             )
+            OccupancyBar(occupied, block.size)
         }
         // Chart bands like the paper ROOM CHART: `columns` cells a row (from the
         // Centre Settings room-chart layout), alternate rows on a soft rounded
@@ -269,45 +281,119 @@ private fun SyncRefusals(roll: List<ApplicantCard>, failures: List<RoomSyncFailu
     }
 }
 
+/**
+ * A free room is the absence of ink: near-white fill, a hairline you have to
+ * look for, the number in `neutral400`. The word "free" is gone — 68 grey
+ * repetitions of it were the loudest thing on a pane whose whole job is to
+ * show where the occupied cells are. Occupancy survives greyscale on border
+ * weight and number contrast; the accent tint is a bonus, not the carrier.
+ */
 @Composable
 private fun RoomCell(room: AccoRoom, occupant: String?, modifier: Modifier = Modifier) {
     val taken = occupant != null
     Column(
         modifier
+            .height(64.dp)
             .deskCard(
                 shape = DeskStyle.tileShape,
-                fill = if (taken) Industry.accent100 else DeskStyle.cardFill,
-                border = if (taken) Industry.accent else DeskStyle.cardBorder,
+                fill = if (taken) Industry.accent100 else FreeCellFill,
+                border = if (taken) Industry.accent400 else FreeCellHairline,
                 elevation = 0.dp,
             )
-            .padding(horizontal = 11.dp, vertical = 10.dp),
-        verticalArrangement = Arrangement.spacedBy(3.dp),
+            .padding(horizontal = 11.dp, vertical = 8.dp)
+            .testTag(if (taken) "room-cell-occupied" else "room-cell-free"),
+        verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
             Text(
                 room.displayNo,
                 fontFamily = DipiCondensed,
                 fontWeight = FontWeight.Bold,
                 fontSize = 19.sp,
-                lineHeight = 19.sp,
-                color = if (taken) Industry.accent800 else Industry.neutral500,
+                lineHeight = 20.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                color = if (taken) Industry.accent800 else Industry.neutral400,
+                modifier = Modifier.weight(1f),
             )
+            // Top-right, out of the number's line, so the two never collide.
             Text(
                 room.amenityMark,
                 fontFamily = DipiMono,
                 fontWeight = FontWeight.Medium,
                 fontSize = 9.5.sp,
+                lineHeight = 12.sp,
                 letterSpacing = 0.1.em,
-                color = Industry.neutral500,
+                color = if (taken) Industry.accent500 else Industry.neutral300,
             )
         }
-        Text(
-            occupant ?: "free",
-            fontSize = 11.5.sp,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            color = Industry.neutral600,
-        )
+        if (taken) {
+            Text(
+                occupant.orEmpty(),
+                fontSize = 13.sp,
+                lineHeight = 15.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                color = Industry.neutral700,
+            )
+        }
+    }
+}
+
+/** Near-white ground for a free cell — emptiness reads as absence of ink. */
+private val FreeCellFill = Color(0xFFFAFAFB)
+
+/** The nearly-invisible hairline a free cell carries instead of a card border. */
+private val FreeCellHairline = Color(0xFFEDEDF1)
+
+/**
+ * The block's occupancy as a 6dp bar, capped at 280dp so a 60-room block and
+ * a 12-room block read at the same scale.
+ */
+@Composable
+private fun OccupancyBar(occupied: Int, total: Int) {
+    if (total <= 0) return
+    val fraction = (occupied.toFloat() / total).coerceIn(0f, 1f)
+    Box(
+        Modifier
+            .width(280.dp)
+            .height(6.dp)
+            .clip(RoundedCornerShape(3.dp))
+            .background(Industry.neutral200)
+            .testTag("room-occupancy-bar"),
+    ) {
+        if (fraction > 0f) {
+            Box(
+                Modifier
+                    .fillMaxHeight()
+                    .fillMaxWidth(fraction)
+                    .background(Industry.accent400),
+            )
+        }
+    }
+}
+
+/** `G` geyser · `IC` Indian · `W` western — the marks the cells now carry alone. */
+@Composable
+private fun AmenityLegend() {
+    Row(
+        Modifier.padding(top = 2.dp).testTag("room-amenity-legend"),
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        listOf("G" to "geyser", "IC" to "Indian toilet", "W" to "western").forEach { (mark, meaning) ->
+            Row(horizontalArrangement = Arrangement.spacedBy(5.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    mark,
+                    fontFamily = DipiMono,
+                    fontWeight = FontWeight.Medium,
+                    fontSize = 9.5.sp,
+                    letterSpacing = 0.1.em,
+                    color = Industry.accent500,
+                )
+                Text(meaning, fontSize = 11.5.sp, color = Industry.neutral500)
+            }
+        }
     }
 }
 

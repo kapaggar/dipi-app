@@ -192,7 +192,7 @@ class CentreScreenWideTest {
         rule.onNodeWithText("Older courses").assertIsDisplayed()
         rule.onNodeWithText("Centre desk").assertIsDisplayed()
         rule.onNodeWithText("MORE ON THE DESK SITE").assertWhollyOnScreen()
-        rule.onNodeWithText("Course Report").assertWhollyOnScreen()
+        rule.onNodeWithText("Course report").assertWhollyOnScreen()
         rule.onNodeWithText("Bulk Mail").assertWhollyOnScreen()
     }
 

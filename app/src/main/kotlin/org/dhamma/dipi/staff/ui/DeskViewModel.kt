@@ -57,11 +57,14 @@ import org.dhamma.dipi.staff.model.PhotoEdit
 import org.dhamma.dipi.staff.model.PhotoReviewItem
 import org.dhamma.dipi.staff.model.RoomAllocSync
 import org.dhamma.dipi.staff.model.RoomSyncResult
+import org.dhamma.dipi.staff.model.DaySummary
 import org.dhamma.dipi.staff.model.SensitiveInfo
 import org.dhamma.dipi.staff.model.clearSyncedIfChanged
 import org.dhamma.dipi.staff.model.Session
 import org.dhamma.dipi.staff.model.SheetExport
+import org.dhamma.dipi.staff.course.CourseReportUi
 import org.dhamma.dipi.staff.model.SheetPayload
+import org.dhamma.dipi.staff.model.SheetSort
 import org.dhamma.dipi.staff.model.TabletMode
 import org.dhamma.dipi.staff.model.WorklistFilter
 import org.dhamma.dipi.staff.model.parseCourseWindow
@@ -71,9 +74,11 @@ import org.dhamma.dipi.staff.teacher.TeacherView
 import org.dhamma.dipi.staff.network.PhotoLoader
 import org.dhamma.dipi.staff.ui.theme.DeskSkin
 import org.dhamma.dipi.staff.ui.theme.Industry
+import java.time.LocalDate
+import java.time.LocalTime
 import javax.inject.Inject
 
-enum class DeskScreen { Login, Centre, CourseHub, Today, Card, Photos, Summary, Settings, DeskAction, ZeroDay, Audit, Calling, Rooms, CentreOps, Search, TeacherRoll, SeatingPlan, TeacherCard }
+enum class DeskScreen { Login, Centre, CourseHub, Today, Card, Photos, Summary, Settings, DeskAction, ZeroDay, Audit, Calling, Rooms, CentreOps, Search, TeacherRoll, SeatingPlan, TeacherCard, CourseReport }
 
 data class DeskActionDest(val title: String, val route: String)
 
@@ -87,6 +92,24 @@ data class SheetViewUi(
     val title: String,
     val loading: Boolean = true,
     val html: SheetPayload.Html? = null,
+    /**
+     * The Board export this viewer is showing, or null for the Applications
+     * edit page and clarification PDFs — those get the plain chrome with no
+     * sort or column controls.
+     */
+    val export: SheetExport? = null,
+    /** Second header line: the course identity, shown exactly once. */
+    val courseLine: String = "",
+    /**
+     * The active order. Only ever one of [SheetSort.optionsFor] for [export];
+     * changing it refetches, because the order is the server's to decide.
+     */
+    val sort: SheetSort = SheetSort.Default,
+    /**
+     * Day 0 summary only (v5 T2): the parsed counts, drawn natively instead
+     * of being handed to the WebView as an unstyled fragment.
+     */
+    val summary: DaySummary? = null,
 )
 
 fun deskBack(screen: DeskScreen, returnTo: DeskScreen?): DeskScreen = when (screen) {
@@ -104,8 +127,9 @@ fun deskBack(screen: DeskScreen, returnTo: DeskScreen?): DeskScreen = when (scre
     DeskScreen.Card -> returnTo.takeIf { it == DeskScreen.Search } ?: DeskScreen.Today
     DeskScreen.Photos, DeskScreen.Summary -> DeskScreen.Today
     DeskScreen.Today -> DeskScreen.CourseHub
-    // The in-app Advanced Search opens from the Centre screen only.
-    DeskScreen.Search -> DeskScreen.Centre
+    // The in-app Advanced Search and the native course report open from the
+    // Centre dashboard only.
+    DeskScreen.Search, DeskScreen.CourseReport -> DeskScreen.Centre
     DeskScreen.CourseHub -> DeskScreen.Centre
     // Course ops (spec 2a): the card backs to whichever teacher screen opened
     // it; both teacher screens back to the roll; the roll is an exit-dialog
@@ -209,6 +233,8 @@ data class DeskUiState(
      * display only; ApplicationCard's toString redacts them.
      */
     val teacherCards: Map<Int, ApplicationCard> = emptyMap(),
+    /** Application pull on course-ops entry: attempted/total, null when idle or done. */
+    val teacherPrefetch: Pair<Int, Int>? = null,
     /** The open student card: group key + row index into the roll. */
     val teacherCard: TeacherCardRef? = null,
     val offline: Boolean = false,
@@ -275,6 +301,8 @@ data class DeskUiState(
     val sheetView: SheetViewUi? = null,
     /** One-shot: a streamed PDF/Excel to hand to the system viewer (consumed like [snack]). */
     val openDoc: SheetPayload.Document? = null,
+    /** The native centre course report (v5 T3). Range + last run, session-only. */
+    val courseReport: CourseReportUi = CourseReportUi(),
 )
 
 /**
@@ -321,6 +349,17 @@ fun deskAdoptSearchCourse(state: DeskUiState, card: ApplicantCard): DeskUiState 
         ?: return state
     if (state.course?.id == course.id) return state
     return state.copy(course = course, deskScan = "")
+}
+
+/**
+ * The sheet viewer's second header line. The sheet's own `<div class="title">`
+ * is hidden by the injected stylesheet, so this is the single place the course
+ * identity appears — course name, then the roll count as a plain sentence.
+ */
+fun sheetCourseLine(courseName: String, rollSize: Int): String {
+    val name = courseName.trim()
+    val roll = if (rollSize == 1) "1 on the roll" else "$rollSize on the roll"
+    return if (name.isBlank()) roll else "$name · $roll"
 }
 
 /**
@@ -795,8 +834,8 @@ class DeskViewModel @Inject constructor(
      * Test seams over the frozen repository contract: unit tests swap these
      * for fakes; production always routes through [StaffRepository].
      */
-    internal var sheetFetch: suspend (SheetExport, Int, Int) -> SheetPayload =
-        { export, centreId, courseId -> repo.fetchSheet(export, centreId, courseId) }
+    internal var sheetFetch: suspend (SheetExport, Int, Int, SheetSort) -> SheetPayload =
+        { export, centreId, courseId, sort -> repo.fetchSheet(export, centreId, courseId, sort) }
     internal var editFetch: suspend (ApplicantId) -> SheetPayload =
         { id -> repo.fetchAppEditPage(id) }
     internal var clarFetch: suspend (ApplicantId, Int) -> SheetPayload =
@@ -808,27 +847,123 @@ class DeskViewModel @Inject constructor(
      * in the viewer, a document fires the one-shot [DeskUiState.openDoc],
      * a refusal closes the viewer and shows the server's message verbatim.
      */
-    fun openSheet(label: String) {
+    fun openSheet(label: String, sort: SheetSort = SheetSort.Default) {
         val export = SheetExport.fromLabel(label) ?: return
         val course = _state.value.course ?: return
-        _state.update { it.copy(sheetView = SheetViewUi(title = export.label)) }
+        _state.update {
+            it.copy(
+                sheetView = SheetViewUi(
+                    title = export.label,
+                    export = export,
+                    courseLine = sheetCourseLine(course.name, deskRoll(it.rows).size),
+                    sort = sort,
+                ),
+            )
+        }
         viewModelScope.launch {
-            resolveSheet(export.label) { sheetFetch(export, course.centreId.value, course.id.value) }
+            resolveSheet(export.label) {
+                sheetFetch(export, course.centreId.value, course.id.value, sort)
+            }
         }
     }
 
     /**
-     * The Centre screen's Course report chip. The export is centre-scoped —
-     * `SheetRoute.ReportForm` never reads the courseId — so it works with no
-     * course open; 0 is a deliberate dummy. Document payloads land in
-     * `openDoc`, collected above the width gate, so this works on both sizes.
+     * The sort segments refetch: the desk decides the order, we only ask for
+     * it. A no-op tap is filtered in the pane, so reaching here always means
+     * a real change of order.
+     */
+    fun setSheetSort(sort: SheetSort) {
+        val current = _state.value.sheetView ?: return
+        val export = current.export ?: return
+        if (current.sort == sort) return
+        openSheet(export.label, sort)
+    }
+
+    /**
+     * The Centre dashboard's Course report tile (v5 T3). The export is
+     * centre-scoped — `SheetRoute.ReportForm` never reads a courseId — so it
+     * opens with no course selected. **Nothing is fetched on open:** the desk
+     * rebuilds this report from scratch each time, so RUN is a deliberate act.
      */
     fun openCourseReport() {
+        val year = LocalDate.now().year
+        _state.update {
+            it.copy(
+                screen = DeskScreen.CourseReport,
+                courseReport = it.courseReport.takeIf { r -> r.ran } ?: CourseReportUi(
+                    from = "$year-01-01",
+                    to = "$year-12-31",
+                ),
+            )
+        }
+    }
+
+    fun setReportFrom(value: String) =
+        _state.update { it.copy(courseReport = it.courseReport.copy(from = value)) }
+
+    fun setReportTo(value: String) =
+        _state.update { it.copy(courseReport = it.courseReport.copy(to = value)) }
+
+    /**
+     * Scrape-then-POST the desk's own form with the typed range. A refusal
+     * lands in [CourseReportUi.refusal] and prints verbatim; the range stays
+     * editable throughout so a slow wide run can be narrowed without waiting.
+     */
+    fun runCourseReport() {
         val cid = _state.value.session?.centres?.firstOrNull()?.id?.value ?: return
-        val label = SheetExport.CourseReport.label
-        _state.update { it.copy(sheetView = SheetViewUi(title = label)) }
+        val range = _state.value.courseReport
+        if (range.running) return
+        _state.update {
+            it.copy(
+                courseReport = it.courseReport.copy(
+                    ran = true,
+                    running = true,
+                    refusal = null,
+                    refusalContext = "",
+                ),
+            )
+        }
         viewModelScope.launch {
-            resolveSheet(label) { sheetFetch(SheetExport.CourseReport, cid, 0) }
+            val payload = runCatching { repo.fetchCourseReport(cid, range.from, range.to) }
+                .getOrElse { e -> SheetPayload.NotAvailable(e.message ?: "Course report failed") }
+            _state.update {
+                val cur = it.courseReport.copy(running = false)
+                it.copy(
+                    courseReport = when (payload) {
+                        is SheetPayload.Report -> cur.copy(report = payload.report, refusal = null)
+                        is SheetPayload.NotAvailable -> cur.copy(
+                            report = null,
+                            refusal = payload.message,
+                            refusalContext = reportContext(cid),
+                        )
+                        else -> cur.copy(
+                            report = null,
+                            refusal = "Course report came back in a shape the app does not read.",
+                            refusalContext = reportContext(cid),
+                        )
+                    },
+                )
+            }
+        }
+    }
+
+    /** `POST /centre/{cid}/course-report · hh:mm` — the request, not a verdict. */
+    private fun reportContext(cid: Int): String {
+        val now = LocalTime.now()
+        return "POST /centre/$cid/course-report · %02d:%02d".format(now.hour, now.minute)
+    }
+
+    /** Hand the streamed CSV to the system viewer — the file the desk wrote. */
+    fun shareCourseReportCsv() {
+        val file = _state.value.courseReport.report?.csv ?: return
+        _state.update {
+            it.copy(
+                openDoc = SheetPayload.Document(
+                    title = SheetExport.CourseReport.label,
+                    file = file,
+                    mimeType = "text/csv",
+                ),
+            )
         }
     }
 
@@ -922,8 +1057,13 @@ class DeskViewModel @Inject constructor(
             when (payload) {
                 is SheetPayload.Html ->
                     cur.copy(sheetView = cur.sheetView.copy(loading = false, html = payload))
+                is SheetPayload.Summary ->
+                    cur.copy(sheetView = cur.sheetView.copy(loading = false, summary = payload.summary))
                 is SheetPayload.Document ->
                     cur.copy(sheetView = null, openDoc = payload)
+                // The parsed course report has its own destination (v5 T3) and
+                // never reaches the overlay viewer.
+                is SheetPayload.Report -> cur.copy(sheetView = null)
                 is SheetPayload.NotAvailable ->
                     cur.copy(sheetView = null, snack = FlushSnack(payload.message, error = true))
             }
@@ -1438,6 +1578,9 @@ class DeskViewModel @Inject constructor(
         viewModelScope.launch {
             runCatching { repo.loadTeacherRoll(course.centreId.value, course.id.value) }
                 .onSuccess { raw ->
+                    // Course ops buffers its own worklist: the id mapping is
+                    // starved without it (owner feedback 2026-09-02).
+                    runCatching { repo.ensureCourseOpsWorklist(course) }
                     val roll = runCatching { repo.resolveTeacherRoll(course.id.value, raw) }.getOrDefault(raw)
                     val cached = repo.cachedApplicationCards(course.id.value)
                     _state.update { it.copy(teacherRoll = roll, teacherCards = cached) }
@@ -1472,9 +1615,29 @@ class DeskViewModel @Inject constructor(
         if (ids.isEmpty()) return
         viewModelScope.launch {
             runCatching {
-                repo.prefetchApplicationViews(courseId, ids) { id, card ->
-                    _state.update { it.copy(teacherCards = it.teacherCards + (id to card)) }
-                }
+                repo.prefetchApplicationViews(
+                    courseId,
+                    ids,
+                    onCard = { id, card ->
+                        _state.update { it.copy(teacherCards = it.teacherCards + (id to card)) }
+                    },
+                    onProgress = { done, total ->
+                        _state.update {
+                            it.copy(teacherPrefetch = if (done >= total) null else done to total)
+                        }
+                    },
+                )
+            }
+            _state.update { cur ->
+                val missing = ids.distinct().count { it !in cur.teacherCards }
+                cur.copy(
+                    teacherPrefetch = null,
+                    snack = if (missing > 0) {
+                        FlushSnack("$missing application(s) not fetched — will retry on the next entry", error = false)
+                    } else {
+                        cur.snack
+                    },
+                )
             }
         }
     }

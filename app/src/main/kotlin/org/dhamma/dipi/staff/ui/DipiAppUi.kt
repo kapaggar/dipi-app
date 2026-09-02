@@ -29,9 +29,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -49,6 +51,7 @@ import org.dhamma.dipi.staff.course.CentreOpsScreen
 import org.dhamma.dipi.staff.course.CentreScreen
 import org.dhamma.dipi.staff.course.CourseHubLive
 import org.dhamma.dipi.staff.course.CourseHubScreen
+import org.dhamma.dipi.staff.course.CourseReportScreen
 import org.dhamma.dipi.staff.course.DeskActionScreen
 import org.dhamma.dipi.staff.course.RoomsScreen
 import org.dhamma.dipi.staff.desk.ApplicationsPane
@@ -220,6 +223,7 @@ fun DipiAppUi(vm: DeskViewModel) {
                                 onGroupFilter = vm::setTeacherGroupFilter,
                                 onOpen = vm::openTeacherCard,
                                 onSettings = vm::requestCourseOpsSettings,
+                                prefetch = state.teacherPrefetch,
                             )
                             else -> CourseOpsHost(
                                 course = state.course,
@@ -294,10 +298,23 @@ private fun DeskBodyRouter(vm: DeskViewModel, state: DeskUiState, wide: Boolean,
                     onExport = { vm.openCourseReport() },
                     onCentreOps = vm::openCentreOps,
                     onAdvancedSearch = vm::openAdvancedSearch,
+                    onCourseReport = vm::openCourseReport,
                     lotus = state.lotus,
                     olderCourses = state.olderCourses,
                 )
             }
+        }
+        DeskScreen.CourseReport -> {
+            val clipboard = LocalClipboardManager.current
+            CourseReportScreen(
+                state = state.courseReport,
+                onFrom = vm::setReportFrom,
+                onTo = vm::setReportTo,
+                onRun = vm::runCourseReport,
+                onShareCsv = vm::shareCourseReportCsv,
+                onCopyMessage = { clipboard.setText(AnnotatedString(it)) },
+                onBack = vm::back,
+            )
         }
         DeskScreen.Search -> {
             val cid = state.session?.centres?.firstOrNull()?.id?.value ?: 0
@@ -605,6 +622,11 @@ private fun DeskHost(
                 html = sheetView.html,
                 loading = sheetView.loading,
                 onClose = vm::closeSheet,
+                export = sheetView.export,
+                courseLine = sheetView.courseLine,
+                sort = sheetView.sort,
+                onSort = vm::setSheetSort,
+                summary = sheetView.summary,
             )
         }
 
