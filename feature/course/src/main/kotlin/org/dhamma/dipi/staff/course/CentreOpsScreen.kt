@@ -249,8 +249,10 @@ private fun WhatsAppTemplateCard(template: String, onTemplate: (String) -> Unit)
 }
 
 /**
- * Hall chart (spec 2c S1) — the seating plan's grid shape per gender, beside
- * the Room chart. Same stage-then-SAVE flow as the room chart: stepper taps
+ * Hall chart (spec 2c S1, axes flipped by the r2 orientation spec: letters
+ * are COLUMNS, numbers are rows DEEP, 1 nearest the teacher) — the seating
+ * plan's grid shape per gender, beside the Room chart. Same stage-then-SAVE
+ * flow as the room chart: stepper taps
  * mutate `staged` (a live preview of the header line), nothing reaches
  * [onHallGrid] until SAVE; `committed` re-syncs from the incoming props on a
  * real external change (Erase-all, fresh DataStore read) and locally right
@@ -276,7 +278,7 @@ private fun HallChartCard(
     ) {
         Text("Hall chart", fontFamily = DipiCondensed, fontSize = 18.sp, color = c.foreground)
         Text(
-            "Rows and seats per row for the seating plan, per hall. " +
+            "Columns and rows deep for the seating plan, per hall. " +
                 "Seat labels beyond the grid extend it.",
             color = c.muted,
             fontSize = 12.sp,
@@ -284,26 +286,26 @@ private fun HallChartCard(
         listOf(Gender.M to "Male hall", Gender.F to "Female hall").forEach { (g, label) ->
             val grid = staged.getValue(g)
             Text(
-                "$label · ${grid.rows} rows · ${grid.seatsPerRow} per row",
+                "$label · ${grid.columns} columns · ${grid.depth} deep",
                 fontFamily = DipiCondensed,
                 fontSize = 16.sp,
                 color = c.foreground,
                 modifier = Modifier.padding(top = 8.dp),
             )
             HallStepperRow(
-                label = "Rows",
-                value = grid.rows,
-                min = HallGrid.MIN_ROWS,
-                max = HallGrid.MAX_ROWS,
-                contentLabel = "rows · $label",
-            ) { n -> staged = staged + (g to grid.copy(rows = n)) }
+                label = "Columns (A, B, C…)",
+                value = grid.columns,
+                min = HallGrid.MIN_COLUMNS,
+                max = HallGrid.MAX_COLUMNS,
+                contentLabel = "columns · $label",
+            ) { n -> staged = staged + (g to grid.copy(columns = n)) }
             HallStepperRow(
-                label = "Seats per row",
-                value = grid.seatsPerRow,
-                min = HallGrid.MIN_SEATS_PER_ROW,
-                max = HallGrid.MAX_SEATS_PER_ROW,
-                contentLabel = "seats per row · $label",
-            ) { n -> staged = staged + (g to grid.copy(seatsPerRow = n)) }
+                label = "Rows deep (1 sits nearest the teacher)",
+                value = grid.depth,
+                min = HallGrid.MIN_DEPTH,
+                max = HallGrid.MAX_DEPTH,
+                contentLabel = "rows deep · $label",
+            ) { n -> staged = staged + (g to grid.copy(depth = n)) }
         }
         Button(
             onClick = {
