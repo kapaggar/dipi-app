@@ -241,9 +241,13 @@ private fun ColumnStepper(
     }
 }
 
-/** A single stepper tap target, always at least 48dp regardless of enabled state. */
+/**
+ * A single stepper tap target, always at least 48dp regardless of enabled
+ * state. Internal so the Centre-settings hall chart (spec 2c S1) reuses the
+ * exact control the room chart draws.
+ */
 @Composable
-private fun StepperButton(
+internal fun StepperButton(
     symbol: String,
     enabled: Boolean,
     contentDescription: String,
