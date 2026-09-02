@@ -343,6 +343,10 @@ internal object MockFixtures {
     const val AV_NPI_EMERGENCY_NAME = "Radha Nair (wife)"
     const val AV_NPI_EMERGENCY_NO = "+91 98220 00000"
     const val AV_NPI_ADDRESS = "14 MG Road, Panampilly Nagar, Kochi 682001"
+    const val AV_NPI_FATHER_CONTACT = "father-9911223344"
+    const val AV_NPI_MOTHER_CONTACT = "mother-9955667788"
+    const val AV_NPI_SPOUSE_NAME = "Sunita Devi Spouse"
+    const val AV_NPI_TRAGEDY = "Yes - lost brother in 2019"
 
     /** Health answers keyed by applicant id — display-only, never persisted plain. */
     private fun avHealth(id: Int): Map<String, String> = when (id) {
@@ -453,8 +457,8 @@ internal object MockFixtures {
             ) +
             sec("Languages", row("Spoken", "Malayalam, English")) +
             sec("Other", row("How did you hear", "Friend")) +
-            sec("Children/Teen", row("Guardian", "-")) +
-            sec("Long Course Details", row("LC Eligibility", "-")) +
+            sec("Children/Teen", row("Father Contact", AV_NPI_FATHER_CONTACT) + row("Mother Contact", AV_NPI_MOTHER_CONTACT)) +
+            sec("Long Course Details", row("Spouse Name", AV_NPI_SPOUSE_NAME) + row("Personal tragedy", AV_NPI_TRAGEDY)) +
             lazySec("Previous Applications") +
             lazySec("Correspondence") +
             lazySec("Clarifications") +

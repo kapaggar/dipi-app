@@ -59,7 +59,14 @@ object ApplicationViewParser {
         val conf = nameConf?.groupValues?.get(2)?.trim()
 
         val sections = splitSections(html)
-        val personal = sections["personal"]?.let { rows(it) } ?: emptyList()
+        val personal = (sections["personal"]?.let { rows(it) } ?: emptyList())
+            // Label allowlist: if a following section's wrapper ever loses its
+            // av-sec class, its rows would merge into this slice — Contact is
+            // the live page's next section, so unfiltered rows could carry
+            // Mobile/Address. Drop anything not one of the eight (2d F1).
+            .filter { (label, _) ->
+                ApplicationCard.PERSONAL_ALLOWLIST.any { it.equals(label, ignoreCase = true) }
+            }
         val historyRows = sections["course history"]?.let { rows(it) } ?: emptyList()
         val healthRows = sections["health"]?.let { rows(it) } ?: emptyList()
 

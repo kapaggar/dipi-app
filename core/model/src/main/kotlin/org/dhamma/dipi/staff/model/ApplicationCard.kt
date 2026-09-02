@@ -63,6 +63,16 @@ data class ApplicationCard(
             "Physical", "Mental", "Medication", "Intoxicants",
             "Other Techniques", "Pregnancy",
         )
+
+        /**
+         * The only Personal labels the parser may keep (search.inc:2079-2083).
+         * A row outside this set means the page's section markup shifted — it
+         * is dropped, never merged in (NPI hardening, gate review 2d F1).
+         */
+        val PERSONAL_ALLOWLIST = listOf(
+            "Gender", "Date of Birth", "Age", "Nationality",
+            "Old / New", "Monk / Nun", "A-List", "Applied On",
+        )
     }
 }
 

@@ -1,6 +1,7 @@
 package org.dhamma.dipi.staff.network
 
 import org.dhamma.dipi.staff.model.ApplicationCard
+import org.dhamma.dipi.staff.model.HealthRow
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -16,16 +17,32 @@ import org.junit.Test
 class ApplicationViewParserTest {
 
     /** Every string field of the model, flattened — the grep surface. */
-    private fun flatten(card: ApplicationCard): String = buildString {
-        append(card.name).append('\n')
-        append(card.conf.orEmpty()).append('\n')
-        append(card.statusLine).append('\n')
-        card.personal.forEach { (k, v) -> append(k).append('=').append(v).append('\n') }
-        card.historyCounts.forEach { (k, n) -> append(k).append('=').append(n).append('\n') }
-        append(card.firstCourse).append('\n')
-        append(card.lastCourse).append('\n')
-        append(card.practiceDetails).append('\n')
-        card.health.forEach { append(it.label).append('=').append(it.answer).append('\n') }
+    /**
+     * Every property of the model by reflection, so a future field addition is
+     * swept automatically (gate review 2d F2). The count pin fails the build
+     * when the data class grows, forcing this sweep to be re-checked.
+     */
+    private fun flatten(card: ApplicationCard): String {
+        val props = ApplicationCard::class.java.declaredFields
+            .filter { !java.lang.reflect.Modifier.isStatic(it.modifiers) }
+            .onEach { it.isAccessible = true }
+            .sortedBy { it.name }
+        assertEquals("ApplicationCard grew — re-verify the NPI sweep", 10, props.size)
+        return buildString {
+            props.forEach { p ->
+                when (val v = p.get(card)) {
+                    is List<*> -> v.forEach { item ->
+                        when (item) {
+                            is Pair<*, *> -> append(item.first).append('=').append(item.second)
+                            is HealthRow -> append(item.label).append('=').append(item.answer)
+                            else -> append(item)
+                        }
+                        append('\n')
+                    }
+                    else -> append(v).append('\n')
+                }
+            }
+        }
     }
 
     @Test
@@ -42,6 +59,10 @@ class ApplicationViewParserTest {
             MockFixtures.AV_NPI_EMERGENCY_NAME,
             MockFixtures.AV_NPI_EMERGENCY_NO,
             MockFixtures.AV_NPI_ADDRESS,
+            MockFixtures.AV_NPI_FATHER_CONTACT,
+            MockFixtures.AV_NPI_MOTHER_CONTACT,
+            MockFixtures.AV_NPI_SPOUSE_NAME,
+            MockFixtures.AV_NPI_TRAGEDY,
         ).forEach { npi ->
             assertFalse("NPI string \"$npi\" leaked into the parsed model:\n$flat", flat.contains(npi))
         }
