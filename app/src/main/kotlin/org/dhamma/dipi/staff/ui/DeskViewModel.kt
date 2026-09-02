@@ -1437,6 +1437,8 @@ class DeskViewModel @Inject constructor(
                 }
                 .onFailure { e ->
                     handleAuth(e)
+                    // An expired session boots to sign-in; nothing to render here.
+                    if (e is ApiException && e.unauthorized) return@launch
                     val cachedRoll = repo.cachedTeacherRoll(course.id.value)
                     if (cachedRoll != null) {
                         _state.update {
