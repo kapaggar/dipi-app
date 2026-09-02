@@ -35,6 +35,7 @@ fun ApplicantHistorySections(
             title = "Prior courses",
             key = HISTORY_COURSES,
             loaded = history.courses != null,
+            open = HISTORY_COURSES in history.expanded,
             loading = HISTORY_COURSES in history.loading,
             error = history.errors[HISTORY_COURSES],
             onExpand = onExpand,
@@ -57,6 +58,7 @@ fun ApplicantHistorySections(
             title = "Activity",
             key = HISTORY_ACTIVITY,
             loaded = history.activity != null,
+            open = HISTORY_ACTIVITY in history.expanded,
             loading = HISTORY_ACTIVITY in history.loading,
             error = history.errors[HISTORY_ACTIVITY],
             onExpand = onExpand,
@@ -82,6 +84,7 @@ fun ApplicantHistorySections(
             title = "Clarifications",
             key = HISTORY_CLARIFICATIONS,
             loaded = history.clarifications != null,
+            open = HISTORY_CLARIFICATIONS in history.expanded,
             loading = HISTORY_CLARIFICATIONS in history.loading,
             error = history.errors[HISTORY_CLARIFICATIONS],
             onExpand = onExpand,
@@ -120,6 +123,7 @@ private fun HistoryBlock(
     title: String,
     key: String,
     loaded: Boolean,
+    open: Boolean,
     loading: Boolean,
     error: String?,
     onExpand: (String) -> Unit,
@@ -128,7 +132,7 @@ private fun HistoryBlock(
     val c = LocalDipi.current
     Column(Modifier.fillMaxWidth()) {
         Text(
-            if (loaded) "▾ $title" else "▸ $title",
+            if (open) "▾ $title" else "▸ $title",
             fontFamily = DipiCondensed,
             fontSize = 16.sp,
             color = c.accent,
@@ -136,10 +140,11 @@ private fun HistoryBlock(
                 .fillMaxWidth()
                 .heightIn(min = 48.dp)
                 .clickable { onExpand(key) }
-                .semantics { contentDescription = "Expand $title" }
+                .semantics { contentDescription = if (open) "Collapse $title" else "Expand $title" }
                 .padding(vertical = 6.dp),
         )
         when {
+            !open -> Unit
             loading -> Text("Loading…", color = c.muted, fontSize = 13.sp)
             error != null -> Text(error, color = c.foreground, fontSize = 13.sp)
             loaded -> content()

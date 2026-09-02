@@ -20,6 +20,8 @@ import org.dhamma.dipi.staff.model.ApplicantType
 import org.dhamma.dipi.staff.model.CentreId
 import org.dhamma.dipi.staff.model.CourseId
 import org.dhamma.dipi.staff.model.Gender
+import org.dhamma.dipi.staff.model.HISTORY_CLARIFICATIONS
+import org.dhamma.dipi.staff.model.HISTORY_COURSES
 import org.dhamma.dipi.staff.ui.theme.DipiTheme
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -63,14 +65,15 @@ class ApplicantHistoryScreenTest {
                         clarifications = listOf(
                             ApplicantClarificationRow("2026-08-12", "Please confirm travel date", "View", 3),
                         ),
+                        expanded = setOf(HISTORY_COURSES, HISTORY_CLARIFICATIONS),
                     ),
                     onExpandHistory = { expanded = it },
                     onOpenClarification = { clar = it },
                 )
             }
         }
-        rule.onNodeWithContentDescription("Expand Prior courses").performScrollTo().assertIsDisplayed()
-        val header = rule.onNodeWithContentDescription("Expand Prior courses").getBoundsInRoot()
+        rule.onNodeWithContentDescription("Collapse Prior courses").performScrollTo().assertIsDisplayed()
+        val header = rule.onNodeWithContentDescription("Collapse Prior courses").getBoundsInRoot()
         assertTrue(header.height.value >= 48.dp.value)
         rule.onNodeWithText("10-Day · Aug 2026 · Student · Confirmed · False · Pune")
             .performScrollTo()
@@ -84,4 +87,33 @@ class ApplicantHistoryScreenTest {
         rule.onNodeWithText("Open PDF").performScrollTo().performClick()
         assertEquals(3, clar)
     }
+
+    /** Owner report 2026-09-01: an opened section could never be shut again. */
+    @Test
+    fun aClosedSectionHidesItsRowsAndAsksToExpand() {
+        var toggled: String? = null
+        val loadedButClosed = ApplicantDeskHistory(
+            courses = listOf(ApplicantCourseRow("10-Day · Aug 2026", "Student", "Confirmed", "False", "Pune")),
+            expanded = emptySet(),
+        )
+        rule.setContent {
+            DipiTheme {
+                CardScreen(
+                    card = card,
+                    photoNote = "◎ Photo looks fine",
+                    dark = false,
+                    onChangeStatus = {},
+                    onPhoto = {},
+                    history = loadedButClosed,
+                    onExpandHistory = { toggled = it },
+                )
+            }
+        }
+        // Fetched rows are cached but not drawn, and the header offers to open.
+        rule.onNodeWithText("10-Day · Aug 2026 · Student · Confirmed · False · Pune").assertDoesNotExist()
+        rule.onNodeWithContentDescription("Collapse Prior courses").assertDoesNotExist()
+        rule.onNodeWithContentDescription("Expand Prior courses").performScrollTo().performClick()
+        assertEquals(HISTORY_COURSES, toggled)
+    }
 }
+

@@ -38,7 +38,6 @@ import org.dhamma.dipi.staff.model.ApplicantClarificationRow
 import org.dhamma.dipi.staff.model.ApplicantDeskHistory
 import org.dhamma.dipi.staff.model.ApplicantHistory
 import org.dhamma.dipi.staff.model.ApplicantId
-import org.dhamma.dipi.staff.model.HISTORY_COURSES
 import org.dhamma.dipi.staff.model.ApplicantStatus
 import org.dhamma.dipi.staff.model.ApplicantType
 import org.dhamma.dipi.staff.model.AuditFlag
@@ -51,6 +50,8 @@ import org.dhamma.dipi.staff.model.Course
 import org.dhamma.dipi.staff.model.CourseCount
 import org.dhamma.dipi.staff.model.CourseId
 import org.dhamma.dipi.staff.model.Gender
+import org.dhamma.dipi.staff.model.HISTORY_CLARIFICATIONS
+import org.dhamma.dipi.staff.model.HISTORY_COURSES
 import org.dhamma.dipi.staff.model.RoomFeature
 import org.dhamma.dipi.staff.model.RoomSyncFailure
 import org.dhamma.dipi.staff.model.SensitiveInfo
@@ -1055,6 +1056,7 @@ class DeskPanesTest {
             clarifications = listOf(
                 ApplicantClarificationRow(at = "2026-08-01", message = "Seat query", fileLabel = "reply.pdf", clarId = 77),
             ),
+            expanded = setOf(HISTORY_CLARIFICATIONS),
         )
         rule.setContent {
             DipiTheme {

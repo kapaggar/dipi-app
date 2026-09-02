@@ -40,6 +40,8 @@ import org.dhamma.dipi.staff.model.ApplicantStatus
 import org.dhamma.dipi.staff.model.HISTORY_ACTIVITY
 import org.dhamma.dipi.staff.model.HISTORY_CLARIFICATIONS
 import org.dhamma.dipi.staff.model.HISTORY_COURSES
+import org.dhamma.dipi.staff.model.tapNeedsFetch
+import org.dhamma.dipi.staff.model.toggled
 import org.dhamma.dipi.staff.model.Centre
 import org.dhamma.dipi.staff.model.CentreOpsPrefs
 import org.dhamma.dipi.staff.model.Course
@@ -744,16 +746,20 @@ class DeskViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Toggle one history section. Closing keeps the fetched rows, so the desk
+     * can collapse a long activity log and reopen it without a second request;
+     * only a section that has never loaded (or previously failed) fetches.
+     */
     fun expandHistory(id: ApplicantId, key: String) {
         val cur = _state.value.history[id] ?: ApplicantDeskHistory()
-        val already = when (key) {
-            HISTORY_COURSES -> cur.courses != null
-            HISTORY_ACTIVITY -> cur.activity != null
-            HISTORY_CLARIFICATIONS -> cur.clarifications != null
-            else -> true
-        }
-        if (already) return
-        patchHistory(id, cur.copy(loading = cur.loading + key, errors = cur.errors - key))
+        val fetch = cur.tapNeedsFetch(key)
+        val next = cur.toggled(key)
+        patchHistory(
+            id,
+            if (fetch) next.copy(loading = next.loading + key, errors = next.errors - key) else next,
+        )
+        if (!fetch) return
         viewModelScope.launch {
             runCatching {
                 when (key) {
