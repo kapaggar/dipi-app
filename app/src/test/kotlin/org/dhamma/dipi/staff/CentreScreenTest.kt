@@ -13,6 +13,7 @@ import androidx.compose.ui.unit.height
 import org.dhamma.dipi.staff.course.CentreScreen
 import org.dhamma.dipi.staff.course.DeskTileAction
 import org.dhamma.dipi.staff.course.centreDeskTiles
+import org.dhamma.dipi.staff.course.deskTileSubLine
 import org.dhamma.dipi.staff.course.courseCountsLine
 import org.dhamma.dipi.staff.model.Centre
 import org.dhamma.dipi.staff.model.CentreId
@@ -84,17 +85,35 @@ class CentreScreenTest {
     @Test
     fun catalogueRetiresManageCoursesDailyActivityAndSmsReport() {
         // S1 (owner decision 2026-08-30): three desk destinations leave the
-        // app's surface entirely. Five remain — three native, two chips.
+        // app's surface entirely. v5 T3 turns Course report native, so five
+        // remain — four native, one chip.
         val tiles = centreDeskTiles(1)
         assertEquals(
-            listOf("Centre Settings", "Advanced Search", "App Settings", "Course Report", "Bulk Mail"),
+            listOf("Centre Settings", "Course report", "Advanced Search", "App Settings", "Bulk Mail"),
             tiles.map { it.title },
         )
         listOf("Manage Courses", "Daily Activity", "SMS Report").forEach { gone ->
             assertFalse(tiles.any { it.title == gone })
         }
-        assertEquals(3, tiles.count { it.action != null })
-        assertEquals(2, tiles.count { it.action == null })
+        assertEquals(4, tiles.count { it.action != null })
+        assertEquals(1, tiles.count { it.action == null })
+    }
+
+    /**
+     * v5 T3: Course report is a native destination now, not a desk-site chip
+     * and not a Board export. It carries a one-release NEW tag.
+     */
+    @Test
+    fun courseReportIsANativeTileWithASubLine() {
+        val tile = centreDeskTiles(1).first { it.title == "Course report" }
+        assertEquals(DeskTileAction.CourseReport, tile.action)
+        assertTrue(tile.isNew)
+        assertEquals("Roll counts over a date range", deskTileSubLine(tile.action))
+        assertEquals(
+            "Only the tile that just moved wears NEW",
+            1,
+            centreDeskTiles(1).count { it.isNew },
+        )
     }
 
     @Test
@@ -119,7 +138,7 @@ class CentreScreenTest {
             }
         }
         listOf(
-            "Centre Settings", "Advanced Search", "App Settings", "Course Report", "Bulk Mail",
+            "Centre Settings", "Advanced Search", "App Settings", "Course report", "Bulk Mail",
         ).forEach { rule.onNodeWithText(it).performScrollTo().assertIsDisplayed() }
 
         rule.onNodeWithText("Centre Settings").performScrollTo().performClick()
@@ -131,19 +150,20 @@ class CentreScreenTest {
         // The three native tiles never reach the desk-site path.
         assertTrue(fired.isEmpty())
 
-        rule.onNodeWithText("Course Report").performScrollTo().performClick()
         rule.onNodeWithText("Bulk Mail").performScrollTo().performClick()
-        assertEquals("Course report", exported)
+        assertNull("The Board export path is gone from this screen", exported)
         assertEquals(
             listOf("Bulk Mail" to "centre/1/bulk-mail-schedule"),
             fired,
         )
     }
 
+    /** The tile opens the native screen — never the desk site, never an export. */
     @Test
-    fun courseReportChipFiresExport() {
+    fun courseReportTileOpensTheNativeScreen() {
         var exported: String? = null
         var later: Pair<String, String>? = null
+        var opened = false
         rule.setContent {
             DipiTheme {
                 CentreScreen(
@@ -152,12 +172,15 @@ class CentreScreenTest {
                     onPick = {},
                     onLater = { title, route -> later = title to route },
                     onExport = { exported = it },
+                    onCourseReport = { opened = true },
                 )
             }
         }
-        rule.onNodeWithText("Course Report").performScrollTo().performClick()
-        assertEquals("Course report", exported)
+        rule.onNodeWithText("Course report").performScrollTo().performClick()
+        assertTrue(opened)
+        assertNull(exported)
         assertNull(later)
+        rule.onNodeWithText("Roll counts over a date range").assertIsDisplayed()
     }
 
     @Test
@@ -244,7 +267,7 @@ class CentreScreenTest {
         rule.onNodeWithText("Manage Courses").assertDoesNotExist()
         rule.onNodeWithText("Daily Activity").assertDoesNotExist()
         rule.onNodeWithText("SMS Report").assertDoesNotExist()
-        rule.onNodeWithText("Course Report").performScrollTo().assertIsDisplayed()
+        rule.onNodeWithText("Course report").performScrollTo().assertIsDisplayed()
         rule.onNodeWithText("Bulk Mail").performScrollTo().assertIsDisplayed()
         rule.onNodeWithText("App Settings").performScrollTo().assertIsDisplayed()
         rule.onNodeWithText("Manage Letters").assertDoesNotExist()

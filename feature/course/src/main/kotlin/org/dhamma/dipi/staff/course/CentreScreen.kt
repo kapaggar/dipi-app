@@ -22,6 +22,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
@@ -82,6 +83,7 @@ fun CentreScreen(
     onExport: (String) -> Unit = {},
     onCentreOps: () -> Unit = {},
     onAdvancedSearch: () -> Unit = {},
+    onCourseReport: () -> Unit = {},
     lotus: Boolean = true,
     olderCourses: List<Course> = emptyList(),
 ) {
@@ -160,6 +162,7 @@ fun CentreScreen(
                             onExport = onExport,
                             onCentreOps = onCentreOps,
                             onAdvancedSearch = onAdvancedSearch,
+                            onCourseReport = onCourseReport,
                             onSettings = onSettings,
                         )
                     }
@@ -182,6 +185,7 @@ fun CentreScreen(
                     onExport = onExport,
                     onCentreOps = onCentreOps,
                     onAdvancedSearch = onAdvancedSearch,
+                    onCourseReport = onCourseReport,
                     onSettings = onSettings,
                 )
             }
@@ -292,18 +296,23 @@ private fun WideLowerPane(
     onExport: (String) -> Unit,
     onCentreOps: () -> Unit,
     onAdvancedSearch: () -> Unit,
+    onCourseReport: () -> Unit,
     onSettings: () -> Unit,
 ) {
     val c = LocalDipi.current
     if (olderCourses.isEmpty()) {
         CentreDeskColumn(
             cid = cid,
-            tilesPerRow = 3,
-            tileHeight = 52.dp,
+            // v5 T3: four native tiles now, so the wide branch is a 2 x 2
+            // grid in the same 416dp column. The extra 14dp of height is
+            // what buys each tile its sub-line.
+            tilesPerRow = 2,
+            tileHeight = 66.dp,
             onLater = onLater,
             onExport = onExport,
             onCentreOps = onCentreOps,
             onAdvancedSearch = onAdvancedSearch,
+            onCourseReport = onCourseReport,
             onSettings = onSettings,
         )
         return
@@ -324,12 +333,16 @@ private fun WideLowerPane(
         Spacer(Modifier.height(14.dp))
         CentreDeskColumn(
             cid = cid,
-            tilesPerRow = 3,
-            tileHeight = 52.dp,
+            // v5 T3: four native tiles now, so the wide branch is a 2 x 2
+            // grid in the same 416dp column. The extra 14dp of height is
+            // what buys each tile its sub-line.
+            tilesPerRow = 2,
+            tileHeight = 66.dp,
             onLater = onLater,
             onExport = onExport,
             onCentreOps = onCentreOps,
             onAdvancedSearch = onAdvancedSearch,
+            onCourseReport = onCourseReport,
             onSettings = onSettings,
         )
     }
@@ -349,6 +362,7 @@ private fun NarrowLowerPane(
     onExport: (String) -> Unit,
     onCentreOps: () -> Unit,
     onAdvancedSearch: () -> Unit,
+    onCourseReport: () -> Unit,
     onSettings: () -> Unit,
 ) {
     val c = LocalDipi.current
@@ -366,11 +380,12 @@ private fun NarrowLowerPane(
     CentreDeskColumn(
         cid = cid,
         tilesPerRow = 1,
-        tileHeight = 48.dp,
+        tileHeight = 66.dp,
         onLater = onLater,
         onExport = onExport,
         onCentreOps = onCentreOps,
         onAdvancedSearch = onAdvancedSearch,
+        onCourseReport = onCourseReport,
         onSettings = onSettings,
     )
 }
@@ -435,6 +450,7 @@ private fun CentreDeskColumn(
     onExport: (String) -> Unit,
     onCentreOps: () -> Unit,
     onAdvancedSearch: () -> Unit,
+    onCourseReport: () -> Unit,
     onSettings: () -> Unit,
 ) {
     val c = LocalDipi.current
@@ -448,11 +464,18 @@ private fun CentreDeskColumn(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     row.forEach { tile ->
-                        DeskTile(tile.title, tileHeight, Modifier.weight(1f)) {
+                        DeskTile(
+                            title = tile.title,
+                            height = tileHeight,
+                            modifier = Modifier.weight(1f),
+                            subLine = deskTileSubLine(tile.action),
+                            isNew = tile.isNew,
+                        ) {
                             when (tile.action) {
                                 DeskTileAction.CentreOps -> onCentreOps()
                                 DeskTileAction.AdvancedSearch -> onAdvancedSearch()
                                 DeskTileAction.AppSettings -> onSettings()
+                                DeskTileAction.CourseReport -> onCourseReport()
                                 null -> onLater(tile.title, tile.route)
                             }
                         }
@@ -486,9 +509,20 @@ private fun CentreDeskColumn(
     }
 }
 
-/** An in-app desk tile: transparent fill, hairline border, zero elevation. */
+/**
+ * An in-app desk tile: transparent fill, hairline border, zero elevation —
+ * the treatment is unchanged from frame 1a. v5 T3 gives it a second line,
+ * which is what the extra height in the 2 × 2 grid buys.
+ */
 @Composable
-private fun DeskTile(title: String, height: Dp, modifier: Modifier, onClick: () -> Unit) {
+private fun DeskTile(
+    title: String,
+    height: Dp,
+    modifier: Modifier,
+    subLine: String = "",
+    isNew: Boolean = false,
+    onClick: () -> Unit,
+) {
     val c = LocalDipi.current
     Row(
         modifier
@@ -504,16 +538,43 @@ private fun DeskTile(title: String, height: Dp, modifier: Modifier, onClick: () 
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Text(
-            title,
-            color = c.foreground,
-            fontFamily = DipiCondensed,
-            fontSize = 16.sp,
-            letterSpacing = 0.3.sp,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f),
-        )
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(7.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    title,
+                    color = c.foreground,
+                    fontFamily = DipiCondensed,
+                    fontSize = 16.sp,
+                    letterSpacing = 0.3.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                if (isNew) {
+                    Text(
+                        "NEW",
+                        fontFamily = DipiMono,
+                        fontWeight = FontWeight.Medium,
+                        fontSize = 8.5.sp,
+                        letterSpacing = 1.2.sp,
+                        color = c.accent,
+                        modifier = Modifier.testTag("desk-tile-new"),
+                    )
+                }
+            }
+            if (subLine.isNotBlank() && height >= 60.dp) {
+                Text(
+                    subLine,
+                    color = c.muted,
+                    fontSize = 11.5.sp,
+                    lineHeight = 13.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
         Text("›", color = c.muted, fontSize = 15.sp)
     }
 }

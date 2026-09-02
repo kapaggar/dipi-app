@@ -399,6 +399,50 @@ class SheetTransport(
         )
     }
 
+    /**
+     * v5 T3: the same scrape-then-POST as [courseReport], with the desk's own
+     * two date fields overridden by the range the registrar typed, and the
+     * CSV parsed for the native surface instead of handed straight to a
+     * system viewer.
+     *
+     * **The range is the only input.** The form offers no course picker, no
+     * status filter and no sort, so the app offers none either. The CSV is
+     * still written to `cacheDir/sheets` so `Share CSV` keeps working.
+     */
+    suspend fun courseReport(
+        centreId: Int,
+        from: String,
+        to: String,
+    ): SheetPayload = guarded(SheetExport.CourseReport.label) {
+        val formResp = api.courseReportForm(centreId)
+        val formHtml = formResp.html()
+        if (!formResp.isSuccessful) return@guarded refusal(formResp.code(), formHtml)
+        val form = CourseReportFormParser.parse(formHtml)
+            ?: return@guarded SheetPayload.NotAvailable(
+                "Could not read the Course report form — open /centre/$centreId/course-report in a desk browser",
+            )
+        val fields = form.fields.toMutableMap().apply {
+            if (from.isNotBlank()) put("report_from_date[date]", from)
+            if (to.isNotBlank()) put("report_to_date[date]", to)
+        }
+        val saved = save(
+            title = SheetExport.CourseReport.label,
+            fileName = "course-report-$centreId.csv",
+            fallbackMime = SheetRoutes.MIME_CSV,
+            resp = api.submitCourseReportForm(form.action, fields),
+        )
+        when (saved) {
+            is SheetPayload.Document -> SheetPayload.Report(
+                title = saved.title,
+                report = CourseReportCsvParser
+                    .parse(saved.file.readText(), from = from, to = to)
+                    .copy(csv = saved.file),
+            )
+            // A refusal renders verbatim — no rewording, no client-side gate.
+            else -> saved
+        }
+    }
+
     private fun save(
         title: String,
         fileName: String,
