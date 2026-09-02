@@ -671,7 +671,6 @@ class StaffRepository @Inject constructor(
         onProgress: suspend (done: Int, total: Int) -> Unit = { _, _ -> },
         // Last so existing trailing-lambda call sites keep meaning onCard.
         onCard: suspend (Int, ApplicationCard) -> Unit = { _, _ -> },
-        onProgress: suspend (done: Int, total: Int) -> Unit = { _, _ -> },
     ) = withContext(Dispatchers.IO) {
         val cached = runCatching { courseOpsStore.loadCards(courseId).keys }.getOrDefault(emptySet())
         val toFetch = ids.distinct().filter { it !in cached }

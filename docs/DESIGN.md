@@ -374,6 +374,16 @@ turn-2 prose disagrees, these win:
 - Auth failures: wrong centre/gender/bad id ⇒ **404** (wildcard loaders); missing permission/expired session ⇒ themed 403/login HTML; teacher-list success is an **unthemed fragment** starting `<style>`.
 - Token fixes vs frames: old seat cells fill `accent100` on `accent300` (the prose described the legend swatches); flagged answer cards use `accent100` (the frame's `#F7FBFF` is off-ramp and not adopted); the turn-2 prose's `neutral600` often means `#5D5D60` = neutral700 — hexes win.
 - The drawn "Switching back asks for the centre PIN" switch is replaced by an always-on **device PIN** gate (owner decision — no PIN existed to reuse).
+- **Seating r2 (owner feedback 2026-09-02, live web page overrides frame 2c):** the
+  hall renders with **letters as columns** and seat numbers receding from the
+  **teacher at the BOTTOM** (`TEACHER · DHAMMA SEAT` marker + column-letter axis
+  both below the grid; A1/B1/C1 face the dhamma seat). The side rail is
+  **CHOWKY / CHAIR** (`CW-` chowky, `CH-` chair) — real pagoda cells are a
+  separate building and a future feature. Seat cells are 66dp with two-line
+  ellipsized names (frame's 58dp clipped). Unseated sevaks are hidden (they sit
+  on cushions the plan does not draw); the tally still counts them. Below
+  1000dp the rail stacks full-width under the grid. HallGrid config =
+  columns (1..26) × rows-deep (1..40).
 
 ### Screens / views
 

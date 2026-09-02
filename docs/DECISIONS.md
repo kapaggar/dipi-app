@@ -222,6 +222,23 @@ are preserved because code comments cite them.
 - `docs/LIVE-DESK.md` (the merged HAR + page inventory + server memory map)
   documents the live server, which still serves retired routes — it stays accurate.
 
+- **2026-09-02 (r2, owner feedback with screenshots):** hall orientation follows
+  the live web page, not frame 2c — teacher at the bottom, letters as columns,
+  numbers ascending away from the dhamma seat. `CELL / PAGODA` renamed
+  **CHOWKY / CHAIR** (pagoda cells = separate building, future feature).
+  Unseated sevaks hidden from the list (cushion seating), tally unchanged.
+  66dp cells, two-line ellipsized names. Portrait (<1000dp) stacks the rail
+  below the grid.
+- **2026-09-02 · Course ops buffers its own data (owner directive):** on entry
+  the app fetches the locked course's worklist itself (the id mapping starves
+  without it), then pulls every allocated application at ≤4 concurrent into
+  the encrypted course store, with a visible attempt-level progress strip;
+  misses snack and retry on the next entry. This adds the pre-existing
+  worklist GET to course ops' allowed reads (owner-directed amendment of the
+  design's two-GET wording).
+- **2026-09-02 · `( View )` / `( PDF )` link remnants** are stripped from names
+  at parse time (`LINK_REMNANT`, v5 T5) — every worklist-fed surface at once.
+
 ## Parked / decision-gated items
 
 1. **Server-side Advanced Search (`POST /search-app`)** — gated on HAR

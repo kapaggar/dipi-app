@@ -2,7 +2,7 @@
 
 DIPI Staff Android (`org.dhamma.dipi.staff`).
 
-**Now shipping:** **1.34.1** (`versionCode` 56) on `feat/sheets-v5` — Vertical 2 desk, **Sheets v5** (injected sheet stylesheet, native Day 0 summary, native centre Course report, eleven-chip Board, rebalanced Rooms; see `docs/plans/2026-09-02-sheets-v5.md`) and **Course ops**, the assistant-teacher device mode (Teacher list / Seating plan / read-only student card; device-PIN gated; two GETs, zero writes; see `docs/DECISIONS.md` § Course ops). Day-11 (`SheetExport.Day11Report` → `report-day11`) is a solid full-width fourth-line Board chip (T1); phone hub overflow still reaches it. Server-side Advanced Search stays parked (needs HAR verification); applicant desk history and `HtmlForms`/`HtmlTables` shipped in T6. Default host is live `https://dipi.vridhamma.org`.
+**Now shipping:** **1.35.0** (`versionCode` 57) on `main` — Vertical 2 desk, **Sheets v5** (injected sheet stylesheet, native Day 0 summary, native centre Course report, eleven-chip Board, rebalanced Rooms) and **Course ops** (Teacher list / Seating plan with the teacher at the bottom / read-only student card; device-PIN gated; worklist + applications buffered on entry). See `docs/DECISIONS.md`.
 
 Governing product rules live in `AGENTS.md` Hard rules (no client ACL, no `Approved`, no attendance write, server messages verbatim, bridge rule).  
 **Transport (this file + `AGENTS.md` win):** the live desk is Drupal HTML, not Services login and not `/staff/*`. Backend PHP is immutable.
