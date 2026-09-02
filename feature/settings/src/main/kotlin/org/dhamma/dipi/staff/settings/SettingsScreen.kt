@@ -139,8 +139,13 @@ fun SettingsScreen(
         }
         if (wide) {
             Row(horizontalArrangement = Arrangement.spacedBy(18.dp), verticalAlignment = Alignment.Top) {
+                // First card, its own column: the appearance/testing column and
+                // the 428dp account column keep their pre-2a fold positions.
+                TabletModeCard(
+                    mode, onMode, runningCourseName, runningCourseDates,
+                    modifier = Modifier.weight(1f),
+                )
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                    TabletModeCard(mode, onMode, runningCourseName, runningCourseDates, wide = true)
                     AppearanceCard(dark, skin, lotus, onToggleTheme, onSkin, onToggleLotus)
                     TestingCard(offline, onToggleOffline)
                 }
@@ -157,7 +162,7 @@ fun SettingsScreen(
             }
         } else {
             Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                TabletModeCard(mode, onMode, runningCourseName, runningCourseDates, wide = false)
+                TabletModeCard(mode, onMode, runningCourseName, runningCourseDates, compact = true)
                 AppearanceCard(dark, skin, lotus, onToggleTheme, onSkin, onToggleLotus)
                 TestingCard(offline, onToggleOffline)
                 AccountCard(
@@ -217,29 +222,34 @@ private fun TabletModeCard(
     onMode: (TabletMode) -> Unit,
     runningCourseName: String?,
     runningCourseDates: String?,
-    wide: Boolean,
+    modifier: Modifier = Modifier,
+    compact: Boolean = false,
 ) {
-    SettingsCard(Modifier.testTag("card-tablet-mode")) {
-        if (wide) {
-            Row(horizontalArrangement = Arrangement.spacedBy(20.dp), verticalAlignment = Alignment.Top) {
-                Column(Modifier.weight(1f)) { ModeChoiceColumn(mode, onMode) }
-                Column(Modifier.width(280.dp).padding(top = 26.dp)) {
-                    CourseBeingTaughtCard(runningCourseName, runningCourseDates)
-                    PinGateRow(Modifier.padding(top = 12.dp))
-                }
-            }
-        } else {
-            ModeChoiceColumn(mode, onMode)
-            CourseBeingTaughtCard(runningCourseName, runningCourseDates, Modifier.padding(top = 18.dp))
-            PinGateRow(Modifier.padding(top = 12.dp))
-        }
+    SettingsCard(modifier.testTag("card-tablet-mode")) {
+        ModeChoiceColumn(mode, onMode, compact)
+        CourseBeingTaughtCard(
+            runningCourseName,
+            runningCourseDates,
+            compact,
+            Modifier.padding(top = if (compact) 12.dp else 18.dp),
+        )
+        PinGateRow(Modifier.padding(top = if (compact) 8.dp else 12.dp))
     }
 }
 
+/**
+ * [compact] is the stacked (<800dp) branch: the frame's paddings tighten a
+ * step so the card's fold cost on a phone stays close to one screen — the
+ * content itself is identical.
+ */
 @Composable
-private fun ModeChoiceColumn(mode: TabletMode, onMode: (TabletMode) -> Unit) {
+private fun ModeChoiceColumn(mode: TabletMode, onMode: (TabletMode) -> Unit, compact: Boolean) {
     val c = LocalDipi.current
-    DeskKicker("TABLET MODE", c.muted, Modifier.padding(top = 6.dp, bottom = 10.dp))
+    DeskKicker(
+        "TABLET MODE",
+        c.muted,
+        Modifier.padding(top = if (compact) 0.dp else 6.dp, bottom = if (compact) 8.dp else 10.dp),
+    )
     ModeRadioCard(
         title = "Desk ops · registration",
         description = "Board, applications, calling, check-in, rooms & seats, exports. " +
@@ -247,6 +257,7 @@ private fun ModeChoiceColumn(mode: TabletMode, onMode: (TabletMode) -> Unit) {
         selected = mode == TabletMode.DESK,
         onSelect = { onMode(TabletMode.DESK) },
         testTag = "mode-desk",
+        compact = compact,
     )
     ModeRadioCard(
         title = "Course ops · teacher",
@@ -255,16 +266,21 @@ private fun ModeChoiceColumn(mode: TabletMode, onMode: (TabletMode) -> Unit) {
         selected = mode == TabletMode.COURSE_OPS,
         onSelect = { onMode(TabletMode.COURSE_OPS) },
         testTag = "mode-course-ops",
-        modifier = Modifier.padding(top = 10.dp),
+        compact = compact,
+        modifier = Modifier.padding(top = if (compact) 8.dp else 10.dp),
     )
     Box(
         Modifier
             .fillMaxWidth()
-            .padding(top = 18.dp)
+            .padding(top = if (compact) 12.dp else 18.dp)
             .height(1.dp)
             .background(ModeRule),
     )
-    DeskKicker("WHILE COURSE OPS IS ON", c.muted, Modifier.padding(top = 13.dp, bottom = 9.dp))
+    DeskKicker(
+        "WHILE COURSE OPS IS ON",
+        c.muted,
+        Modifier.padding(top = if (compact) 9.dp else 13.dp, bottom = if (compact) 7.dp else 9.dp),
+    )
     ConsequenceRow("✓", "Teacher list", "seniority + seating plan")
     ConsequenceRow("✓", "Student card", "application, read-only", Modifier.padding(top = 6.dp))
     ConsequenceRow("—", "Board, applications, calling, check-in", "hidden", Modifier.padding(top = 6.dp))
@@ -284,6 +300,7 @@ private fun ModeRadioCard(
     selected: Boolean,
     onSelect: () -> Unit,
     testTag: String,
+    compact: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     val industry = LocalIndustry.current
@@ -323,7 +340,7 @@ private fun ModeRadioCard(
             }
         }
         Row(
-            Modifier.padding(horizontal = 18.dp, vertical = 16.dp),
+            Modifier.padding(horizontal = 18.dp, vertical = if (compact) 12.dp else 16.dp),
             horizontalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             // 22dp ring; 11dp dot when selected.
@@ -416,6 +433,7 @@ private fun ConsequenceRow(index: String, key: String, value: String, modifier: 
 private fun CourseBeingTaughtCard(
     courseName: String?,
     courseDates: String?,
+    compact: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -432,7 +450,7 @@ private fun CourseBeingTaughtCard(
                     cornerRadius = CornerRadius(8.dp.toPx()),
                 )
             }
-            .padding(horizontal = 18.dp, vertical = 16.dp)
+            .padding(horizontal = 18.dp, vertical = if (compact) 12.dp else 16.dp)
             .testTag("course-being-taught"),
     ) {
         Text(
