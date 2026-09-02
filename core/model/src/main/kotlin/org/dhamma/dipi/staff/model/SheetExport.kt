@@ -101,6 +101,14 @@ sealed interface SheetPayload {
      */
     data class Summary(val title: String, val summary: DaySummary) : SheetPayload
 
+    /**
+     * The centre course report, parsed for the native surface (v5 T3). The
+     * streamed CSV still lands in `cacheDir/sheets` and travels on
+     * [CourseReport.csv] so `Share CSV` keeps working — the raw text is never
+     * the default path.
+     */
+    data class Report(val title: String, val report: CourseReport) : SheetPayload
+
     /** Server refusal (403 page, form-only report, offline) rendered verbatim. */
     data class NotAvailable(val message: String) : SheetPayload
 }

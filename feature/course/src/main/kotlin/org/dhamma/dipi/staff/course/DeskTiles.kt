@@ -1,7 +1,7 @@
 package org.dhamma.dipi.staff.course
 
 /** Native-screen dispatch for a desk tile, in place of the fragile title-string match. */
-enum class DeskTileAction { CentreOps, AppSettings, AdvancedSearch }
+enum class DeskTileAction { CentreOps, AppSettings, AdvancedSearch, CourseReport }
 
 data class DeskTileSpec(
     val title: String,
@@ -9,6 +9,12 @@ data class DeskTileSpec(
     val action: DeskTileAction? = null,
     /** SheetExport label when the chip fetches a real export instead of the placeholder. */
     val sheet: String? = null,
+    /**
+     * A one-release affordance on a tile that just moved (v5 T3 moved Course
+     * report off the Board). It comes off in the next MINOR — do not leave it
+     * on a tile the desk has had for a while.
+     */
+    val isNew: Boolean = false,
 )
 
 enum class CourseHubLive { Applications, Summary, Photos, Audit, Calling, ZeroDay, CentreOps }
@@ -30,14 +36,33 @@ data class CourseHubTile(
  * Manage Courses, Daily Activity and SMS Report were retired from the app's
  * surface by owner decision 2026-08-30 — the routes still exist on the live
  * Drupal desk, they simply are not offered here. Do not re-propose them.
+ *
+ * v5 T3 moved **Course report** here from the Board's export shelf. It is a
+ * centre-scoped date-range report, not a per-course sheet, and it was the one
+ * cell on a twelve-cell shelf that asked a different question. Four native
+ * tiles now, one desk-site chip.
  */
 fun centreDeskTiles(centreId: Int): List<DeskTileSpec> = listOf(
     DeskTileSpec("Centre Settings", "centre/$centreId/edit", DeskTileAction.CentreOps),
+    DeskTileSpec(
+        "Course report",
+        "centre/$centreId/course-report",
+        DeskTileAction.CourseReport,
+        isNew = true,
+    ),
     DeskTileSpec("Advanced Search", "search-app/$centreId", DeskTileAction.AdvancedSearch),
     DeskTileSpec("App Settings", "", DeskTileAction.AppSettings),
-    DeskTileSpec("Course Report", "centre/$centreId/course-report", sheet = "Course report"),
     DeskTileSpec("Bulk Mail", "centre/$centreId/bulk-mail-schedule"),
 )
+
+/** The sub-line each native tile carries now that the grid buys it the height. */
+fun deskTileSubLine(action: DeskTileAction?): String = when (action) {
+    DeskTileAction.CentreOps -> "Rooms, hall and course defaults"
+    DeskTileAction.CourseReport -> "Roll counts over a date range"
+    DeskTileAction.AdvancedSearch -> "Find an applicant across courses"
+    DeskTileAction.AppSettings -> "This device, sign-in and local data"
+    null -> ""
+}
 
 /**
  * The phone course-hub catalogue (owner feedback 2026-08-16): native flows

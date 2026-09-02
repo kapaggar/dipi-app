@@ -274,32 +274,33 @@ class SheetViewerTest {
         rule.onNodeWithText("RARELY URGENT").assertIsDisplayed()
     }
 
+    /**
+     * v5 T3: Course report is a native destination on the centre dashboard,
+     * not a sheet in this overlay. Opening it must not touch `sheetFetch`
+     * and must not need a course.
+     */
     @Test
-    fun openCourseReportFetchesWithoutAnOpenCourse() {
+    fun openCourseReportLeavesTheSheetViewerAloneAndNeedsNoCourse() {
         val vm = buildVm()
-        val gate = CompletableDeferred<SheetPayload>()
-        var exportArg: SheetExport? = null
-        var cidArg = -1
-        var courseArg = -1
-        vm.sheetFetch = { export, cid, courseId, _ ->
-            exportArg = export
-            cidArg = cid
-            courseArg = courseId
-            gate.await()
+        var fetched = false
+        vm.sheetFetch = { _, _, _, _ ->
+            fetched = true
+            SheetPayload.NotAvailable("never")
         }
         vm.seedForTest(deskState().copy(course = null))
         rule.setContent { DipiAppUi(vm) }
 
         rule.runOnIdle { vm.openCourseReport() }
-        rule.runOnIdle {
-            assertEquals("Course report", vm.state.value.sheetView?.title)
-            assertNull(vm.state.value.course)
-            assertEquals(SheetExport.CourseReport, exportArg)
-            assertEquals(12, cidArg)
-            assertEquals(0, courseArg)
-        }
-        gate.complete(SheetPayload.NotAvailable("Course report is not available until Day 10"))
         rule.waitForIdle()
+        rule.runOnIdle {
+            assertNull(vm.state.value.sheetView)
+            assertNull(vm.state.value.course)
+            assertEquals(DeskScreen.CourseReport, vm.state.value.screen)
+            // Nothing is asked for until RUN.
+            assertFalse(fetched)
+            assertFalse(vm.state.value.courseReport.ran)
+        }
+        rule.onNodeWithTag("course-report-screen").assertExists()
     }
 
     @Test
