@@ -22,8 +22,8 @@ enum class SheetExport(val label: String) {
     CourseReport("Course report"),
 
     /**
-     * Day 11 end-of-course summary. Reachable from the phone hub overflow;
-     * the Board chip for it is a separate v4 layout decision (3x4 shelves).
+     * Day 11 end-of-course summary. Phone hub overflow (`hubSheetLabel`) and
+     * the Board's fourth-line chip (2026-08-31) both send this label.
      */
     Day11Report("Course summary report"),
     ;

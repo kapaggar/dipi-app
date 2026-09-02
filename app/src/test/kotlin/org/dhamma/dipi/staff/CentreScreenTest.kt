@@ -103,6 +103,7 @@ class CentreScreenTest {
         var advanced = false
         var settingsOpened = false
         val fired = mutableListOf<Pair<String, String>>()
+        var exported: String? = null
         rule.setContent {
             DipiTheme {
                 CentreScreen(
@@ -110,6 +111,7 @@ class CentreScreenTest {
                     courses = listOf(course),
                     onPick = {},
                     onLater = { title, route -> fired += title to route },
+                    onExport = { exported = it },
                     onCentreOps = { ops = true },
                     onAdvancedSearch = { advanced = true },
                     onSettings = { settingsOpened = true },
@@ -131,13 +133,51 @@ class CentreScreenTest {
 
         rule.onNodeWithText("Course Report").performScrollTo().performClick()
         rule.onNodeWithText("Bulk Mail").performScrollTo().performClick()
+        assertEquals("Course report", exported)
         assertEquals(
-            listOf(
-                "Course Report" to "centre/1/course-report",
-                "Bulk Mail" to "centre/1/bulk-mail-schedule",
-            ),
+            listOf("Bulk Mail" to "centre/1/bulk-mail-schedule"),
             fired,
         )
+    }
+
+    @Test
+    fun courseReportChipFiresExport() {
+        var exported: String? = null
+        var later: Pair<String, String>? = null
+        rule.setContent {
+            DipiTheme {
+                CentreScreen(
+                    session = session,
+                    courses = listOf(course),
+                    onPick = {},
+                    onLater = { title, route -> later = title to route },
+                    onExport = { exported = it },
+                )
+            }
+        }
+        rule.onNodeWithText("Course Report").performScrollTo().performClick()
+        assertEquals("Course report", exported)
+        assertNull(later)
+    }
+
+    @Test
+    fun bulkMailChipStillRoutesToPlaceholder() {
+        var exported: String? = null
+        var later: Pair<String, String>? = null
+        rule.setContent {
+            DipiTheme {
+                CentreScreen(
+                    session = session,
+                    courses = listOf(course),
+                    onPick = {},
+                    onLater = { title, route -> later = title to route },
+                    onExport = { exported = it },
+                )
+            }
+        }
+        rule.onNodeWithText("Bulk Mail").performScrollTo().performClick()
+        assertEquals("Bulk Mail" to "centre/1/bulk-mail-schedule", later)
+        assertNull(exported)
     }
 
     @Test
@@ -460,9 +500,8 @@ class CentreScreenTest {
 
     @Test
     fun deskSiteChipsStillFireOnLaterWithTheSameTitleAndRoute() {
-        // The five `action == null` entries render as pill chips under
-        // MORE ON THE DESK SITE; each still hands `onLater` exactly the
-        // (title, route) pair `centreDeskTiles` publishes.
+        // Placeholder chips (no sheet) still hand `onLater` the catalogue's
+        // (title, route) pair. Sheet-bearing chips fetch a real export.
         val deskSite = centreDeskTiles(1).filter { it.action == null }
         val fired = mutableListOf<Pair<String, String>>()
         rule.setContent {
@@ -477,7 +516,7 @@ class CentreScreenTest {
         }
         rule.onNodeWithText("MORE ON THE DESK SITE").performScrollTo().assertIsDisplayed()
         deskSite.forEach { rule.onNodeWithText(it.title).performScrollTo().performClick() }
-        assertEquals(deskSite.map { it.title to it.route }, fired)
+        assertEquals(deskSite.filter { it.sheet == null }.map { it.title to it.route }, fired)
     }
 
     @Test

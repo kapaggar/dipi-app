@@ -45,7 +45,6 @@ data class ApplicantCard(
     val age: Int? = null,
     val monk: Boolean = false,
     val createdAt: String? = null,
-    val photoUrl: String? = null,
     val emergencyPresent: Boolean? = null,
     /** Any ID document field (Aadhaar/PAN/passport/voter ID) non-empty — presence only, never the value. */
     val idPresent: Boolean? = null,
@@ -93,7 +92,6 @@ data class Course(
     val name: String,
     val start: String,
     val end: String,
-    val typeKey: String = "",
     /** Null when the centre page shows no status table for this course. */
     val summary: CourseSummary? = null,
     /** The full centre-dashboard status matrix; null when the desk did not render the block. */
@@ -117,7 +115,6 @@ data class Session(
 data class ApplicantListPage(
     val items: List<ApplicantCard>,
     val counts: Map<String, Int>,
-    val nextCursor: String? = null,
 )
 
 data class StatusChangeResult(
@@ -144,19 +141,6 @@ data class PhotoEdit(
     val done: Boolean = false,
     val uploaded: Boolean = false,
 )
-
-sealed class OutboxOp {
-    data class ChangeStatus(
-        val applicantId: ApplicantId,
-        val status: String,
-        val letterId: Int = 0,
-        val comment: String = "",
-        val state: OutboxState = OutboxState.Pending,
-        val message: String? = null,
-    ) : OutboxOp()
-}
-
-enum class OutboxState { Pending, Synced, Failed }
 
 /**
  * One arrival's Day 0 check-in, keyed by applicant id. Device-local truth;

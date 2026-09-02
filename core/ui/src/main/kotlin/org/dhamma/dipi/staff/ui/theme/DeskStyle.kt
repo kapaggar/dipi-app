@@ -21,13 +21,13 @@ import androidx.compose.ui.unit.dp
  */
 object DeskStyle {
     /** Cards, action rows and dialog panels. */
-    val cardRadius: Dp = 12.dp
+    val cardRadius: Dp = 8.dp
 
     /** Grid cells and small tiles (room chart, room picker, roll table). */
-    val tileRadius: Dp = 10.dp
+    val tileRadius: Dp = 6.dp
 
     /** Chips, buttons, inputs, toggles and segmented controls. */
-    val controlRadius: Dp = 8.dp
+    val controlRadius: Dp = 5.dp
 
     val cardShape = RoundedCornerShape(cardRadius)
     val tileShape = RoundedCornerShape(tileRadius)

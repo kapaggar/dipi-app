@@ -373,8 +373,8 @@ class CentreScreenWideTest {
     @Test
     fun deskSiteChipsStillFireOnLaterWithTheSameTitleAndRoute() {
         // The 3/2 split is a rendering change only: the `action == null`
-        // entries become pill chips, and each still hands `onLater` exactly
-        // the (title, route) pair `centreDeskTiles` publishes.
+        // entries become pill chips. Placeholder chips still hand `onLater`
+        // the catalogue pair; sheet-bearing chips fetch a real export.
         val fired = mutableListOf<Pair<String, String>>()
         rule.setContent {
             DipiTheme {
@@ -387,7 +387,7 @@ class CentreScreenWideTest {
             }
         }
         deskSiteTiles.forEach { rule.onNodeWithText(it.title).performClick() }
-        assertEquals(deskSiteTiles.map { it.title to it.route }, fired)
+        assertEquals(deskSiteTiles.filter { it.sheet == null }.map { it.title to it.route }, fired)
     }
 
     @Test

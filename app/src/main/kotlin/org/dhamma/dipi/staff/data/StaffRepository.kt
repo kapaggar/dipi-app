@@ -12,8 +12,12 @@ import org.dhamma.dipi.staff.database.ApplicantEntity
 import org.dhamma.dipi.staff.database.OutboxDao
 import org.dhamma.dipi.staff.database.OutboxEntity
 import org.dhamma.dipi.staff.datastore.SessionStore
+import org.dhamma.dipi.staff.model.ApplicantActivityRow
 import org.dhamma.dipi.staff.model.ApplicantCard
+import org.dhamma.dipi.staff.model.ApplicantClarificationRow
+import org.dhamma.dipi.staff.model.ApplicantCourseRow
 import org.dhamma.dipi.staff.model.ApplicantId
+import org.dhamma.dipi.staff.model.ApplicantStatus
 import org.dhamma.dipi.staff.model.CentreCourses
 import org.dhamma.dipi.staff.model.CentreId
 import org.dhamma.dipi.staff.model.CheckInRecord
@@ -34,6 +38,7 @@ import org.dhamma.dipi.staff.model.StatusWrite
 import org.dhamma.dipi.staff.model.UserCentreMap
 import org.dhamma.dipi.staff.network.AccoHandlerParser
 import org.dhamma.dipi.staff.network.ApplicantDto
+import org.dhamma.dipi.staff.network.ApplicantHistoryParser
 import org.dhamma.dipi.staff.network.AttendedTableParser
 import org.dhamma.dipi.staff.network.CentrePageParser
 import org.dhamma.dipi.staff.network.CropDto
@@ -57,6 +62,16 @@ import javax.inject.Singleton
  * registrar only ever reaches for the last few (owner feedback 2026-08-27).
  */
 const val OLDER_COURSE_LIMIT = 3
+
+/**
+ * The status vocabulary offered in the sheet: the desk's own select when the
+ * page carried one, else whatever statuses the roster shows (the pre-1.28
+ * behaviour, kept as the fallback for filtered fetches whose HTML fragment
+ * has no form). Always through [ApplicantStatus.deriveStatuses], which
+ * strips Approved via mergeChoices.
+ */
+internal fun deriveStatuses(parsed: List<String>, counts: Map<String, Int>): List<String> =
+    ApplicantStatus.deriveStatuses(parsed, counts.keys.toList())
 
 @Singleton
 class StaffRepository @Inject constructor(
@@ -279,7 +294,7 @@ class StaffRepository @Inject constructor(
             if (stillOnLogin(html) || (resp.code() == 403 && !html.contains("var dataset"))) {
                 throw ApiException("Access denied", unauthorized = true)
             }
-            val result = SearchPageParser.parse(html, cid, baseUrl)
+            val result = SearchPageParser.parse(html, cid)
             val rows = result.dataset
             // Unfiltered fetch = the worklist is being replaced → drop stale
             // sensitive entries; filtered fetches only refresh their subset.
@@ -291,7 +306,8 @@ class StaffRepository @Inject constructor(
             rows.groupingBy { it.status }.eachCount().forEach { (k, v) ->
                 if (k.isNotBlank()) counts[k] = v
             }
-            if (counts.keys.size > 1) lastStatuses = counts.keys.filter { it != "All" }
+            val derived = deriveStatuses(result.statuses, counts)
+            if (derived.isNotEmpty()) lastStatuses = derived
             rows.map { it.toModel() } to counts
         }.getOrElse { throw it.toApi() }
     }
@@ -331,6 +347,9 @@ class StaffRepository @Inject constructor(
         comment: String,
         offline: Boolean,
     ): FlushSnack {
+        if (ApplicantStatus.isForbiddenWrite(status)) {
+            return FlushSnack("The app never sends Approved", error = true)
+        }
         val params = StatusWrite.query(status, letterId = 0, comment = comment)
         echoLocal(applicantId, status, null)
         outbox.insert(
@@ -353,11 +372,27 @@ class StaffRepository @Inject constructor(
     suspend fun flushOutbox(): List<FlushSnack> {
         val snacks = mutableListOf<FlushSnack>()
         for (row in outbox.pending()) {
+            if (ApplicantStatus.isForbiddenWrite(row.status)) {
+                outbox.updateState(row.rowId, "Failed", "The app never sends Approved")
+                snacks += FlushSnack("The app never sends Approved", error = true)
+                continue
+            }
+            val params = StatusWrite.query(row.status, letterId = 0, comment = row.comment)
             val sent = runCatching {
                 if (useMock) {
-                    api.changeStatus(row.applicantId, row.status, 0, row.comment).toModel()
+                    api.changeStatus(
+                        row.applicantId,
+                        params.getValue("s"),
+                        0,
+                        params.getValue("c"),
+                    ).toModel()
                 } else {
-                    api.changeStatusGet(row.applicantId, row.status, 0, row.comment).toModel()
+                    api.changeStatusGet(
+                        row.applicantId,
+                        params.getValue("s"),
+                        0,
+                        params.getValue("c"),
+                    ).toModel()
                 }
             }
             if (sent.isFailure) {
@@ -459,6 +494,29 @@ class StaffRepository @Inject constructor(
      */
     suspend fun fetchAppEditPage(id: ApplicantId): SheetPayload =
         sheets.appEditPage(id.value)
+
+    suspend fun fetchClarification(appId: ApplicantId, clarId: Int): SheetPayload =
+        sheets.clarificationPdf(appId.value, clarId)
+
+    suspend fun loadAppCourses(id: ApplicantId): List<ApplicantCourseRow> =
+        fetchFragment(id) { api.appCourses(it) }.let { ApplicantHistoryParser.courses(it) }
+
+    suspend fun loadAppActivity(id: ApplicantId): List<ApplicantActivityRow> =
+        fetchFragment(id) { api.appActivity(it) }.let { ApplicantHistoryParser.activity(it) }
+
+    suspend fun loadAppClarifications(id: ApplicantId): List<ApplicantClarificationRow> =
+        fetchFragment(id) { api.appClarifications(it) }.let { ApplicantHistoryParser.clarifications(it) }
+
+    private suspend fun fetchFragment(
+        id: ApplicantId,
+        call: suspend (Int) -> retrofit2.Response<okhttp3.ResponseBody>,
+    ): String = runCatching {
+        val resp = call(id.value)
+        val html = resp.html()
+        if (stillOnLogin(html)) throw ApiException("Access denied", unauthorized = true)
+        if (!resp.isSuccessful) throw ApiException(html.ifBlank { "HTTP ${resp.code()}" })
+        html
+    }.getOrElse { throw it.toApi() }
 
     private suspend fun markRoomSynced(id: ApplicantId, sent: CheckInRecord) {
         val all = sessionStore.checkInsOnce()

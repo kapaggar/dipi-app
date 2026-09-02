@@ -37,12 +37,17 @@ survives closing one course and opening another, which is exactly the reported
 README's optional "state 3" (restored-query strip) is NOT built: once the buffer
 is session-scoped there is nothing to restore.
 
-**R2 — The Day 11 open item has a known answer.** PROMPT.md asks whether
-"Day 11 · Course summary report" is dropped, deferred, or on an unmerged branch.
-It lives on unmerged `feat/desk-gap` (1.19.0, "unsigned desk-gap reads and Day-11
-export"). Per the handover it is NOT implemented in this pass, and no dashed
-placeholder is drawn in the app — the dashed row is design-canvas annotation, not
-UI. The path to closing the gap is merging `feat/desk-gap`, a separate decision.
+**R2 — The Day 11 open item has a known answer.** Transport shipped on `main`
+at 1.27.0 (`SheetExport.Day11Report` → `GET /report-day11/{cid}/{courseId}`).
+The Board chip shipped in UI-gap-closure T1 as the design file's **fourth-line
+row** (`dc.html:579`) — not a 13th 3×4 shelf cell, and the dashed GAP badge
+is never drawn. This v4 pass still does not place that row; T1 does.
+
+**R2 correction (2026-08-31):** the stated reason ("lives on unmerged
+`feat/desk-gap`") went stale when `0ce3342` cherry-picked the export. The Board
+chip now ships on the design file's own fourth-line row
+(`docs/specs/2026-08-31-day11-board-chip-spec.md`). The 3×4 shelf grid is
+untouched.
 
 **R3 — Applications/Rooms stay out of NEXT.** Deferred by the handover itself
 ("counts are inventory, not a queue"); nothing to build.

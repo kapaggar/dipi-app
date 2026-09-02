@@ -12,41 +12,39 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.dhamma.dipi.staff.model.ApplicantCard
 import org.dhamma.dipi.staff.model.ApplicantId
 import org.dhamma.dipi.staff.model.CentreOpsPrefs
+import org.dhamma.dipi.staff.model.CheckInRecord
 import org.dhamma.dipi.staff.model.Course
 import org.dhamma.dipi.staff.model.MAIN_DHAMMA_HALL
 import org.dhamma.dipi.staff.ui.theme.DeskStyle
 import org.dhamma.dipi.staff.ui.theme.DipiCondensed
 import org.dhamma.dipi.staff.ui.theme.LocalDipi
 
-data class ZeroDayDraft(
-    val seating: String = "None",
-    val laundry: String = "",
-    val valuables: String = "",
-    val roomCode: String? = null,
-)
-
 @Composable
 fun ZeroDayScreen(
     course: Course,
     rows: List<ApplicantCard>,
     prefs: CentreOpsPrefs,
-    drafts: Map<ApplicantId, ZeroDayDraft> = emptyMap(),
-    onSeating: (ApplicantCard, String) -> Unit = { _, _ -> },
-    onLaundry: (ApplicantCard, String) -> Unit = { _, _ -> },
-    onValuables: (ApplicantCard, String) -> Unit = { _, _ -> },
+    records: Map<ApplicantId, CheckInRecord> = emptyMap(),
+    onSeat: (ApplicantCard, String) -> Unit = { _, _ -> },
+    onLaundry: (ApplicantCard) -> Unit = {},
+    onValuables: (ApplicantCard) -> Unit = {},
     onRoom: (ApplicantCard) -> Unit = {},
     onMarkAttended: (ApplicantCard) -> Unit = {},
     onOpen: (ApplicantCard) -> Unit = {},
@@ -107,7 +105,7 @@ fun ZeroDayScreen(
             Text("Everyone on this list is marked attended.", color = c.muted, fontSize = 13.sp)
         }
         unattended.forEach { card ->
-            val draft = drafts[card.id] ?: ZeroDayDraft()
+            val record = records[card.id] ?: CheckInRecord()
             Column(Modifier.fillMaxWidth().padding(bottom = 16.dp)) {
                 Text(
                     card.displayName,
@@ -122,14 +120,14 @@ fun ZeroDayScreen(
                     modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
                 ) {
                     listOf("Chowky", "Chair", "Backrest", "None").forEach { seat ->
-                        val sel = draft.seating == seat
+                        val sel = record.seat == seat
                         Box(
                             modifier = Modifier
                                 .weight(1f)
                                 .heightIn(min = 48.dp)
                                 .border(1.dp, c.accent, DeskStyle.controlShape)
                                 .background(if (sel) c.accent else Color.Transparent, DeskStyle.controlShape)
-                                .clickable { onSeating(card, seat) }
+                                .clickable { onSeat(card, seat) }
                                 .padding(horizontal = 4.dp, vertical = 8.dp),
                             contentAlignment = Alignment.Center,
                         ) {
@@ -143,23 +141,23 @@ fun ZeroDayScreen(
                     }
                 }
                 if (prefs.laundry) {
-                    OutlinedTextField(
-                        draft.laundry,
-                        { onLaundry(card, it) },
-                        label = { Text("Laundry") },
-                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                    ZeroDayToggleRow(
+                        title = "Laundry",
+                        on = record.laundry,
+                        onClick = { onLaundry(card) },
+                        testTag = "zero-day-laundry",
                     )
                 }
                 if (prefs.valuables) {
-                    OutlinedTextField(
-                        draft.valuables,
-                        { onValuables(card, it) },
-                        label = { Text("Valuables") },
-                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                    ZeroDayToggleRow(
+                        title = "Valuables",
+                        on = record.valuables,
+                        onClick = { onValuables(card) },
+                        testTag = "zero-day-valuables",
                     )
                 }
                 TextButton(onClick = { onRoom(card) }) {
-                    Text(if (draft.roomCode.isNullOrBlank()) "Room" else "Room  ${draft.roomCode}")
+                    Text(if (record.room.isBlank()) "Room" else "Room  ${record.room}")
                 }
                 TextButton(onClick = { onMarkAttended(card) }) { Text("Mark attended") }
             }
@@ -179,5 +177,29 @@ fun ZeroDayScreen(
                 Text("${card.status.value}  ${card.gender.name}", color = c.muted, fontSize = 12.sp)
             }
         }
+    }
+}
+
+@Composable
+private fun ZeroDayToggleRow(title: String, on: Boolean, onClick: () -> Unit, testTag: String) {
+    val c = LocalDipi.current
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .heightIn(min = 48.dp)
+            .toggleable(value = on, onValueChange = { onClick() }, role = Role.Switch)
+            .testTag(testTag),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(title, color = c.foreground, fontSize = 15.sp, modifier = Modifier.weight(1f))
+        Switch(
+            checked = on,
+            onCheckedChange = null,
+            colors = SwitchDefaults.colors(
+                uncheckedThumbColor = c.muted,
+                uncheckedTrackColor = c.field,
+                uncheckedBorderColor = c.hairlineStrong,
+            ),
+        )
     }
 }

@@ -71,6 +71,17 @@ class DipiMockDispatcher : Dispatcher() {
                 val id = path.split("/")[2].toInt()
                 html(MockFixtures.appEditHtml(id))
             }
+            method == "GET" && path.matches(Regex("/app-courses/\\d+(\\?.*)?")) ->
+                html(MockFixtures.appCoursesHtml(path.split("/")[2].toInt()))
+            method == "GET" && path.matches(Regex("/app-activity/\\d+(\\?.*)?")) ->
+                html(MockFixtures.appActivityHtml(path.split("/")[2].toInt()))
+            method == "GET" && path.matches(Regex("/app-clarifications/\\d+(\\?.*)?")) ->
+                html(MockFixtures.appClarificationsHtml(path.split("/")[2].toInt()))
+            method == "GET" && path.matches(Regex("/show-clarification/\\d+/\\d+(\\?.*)?")) -> {
+                val parts = path.substringBefore("?").trim('/').split("/")
+                if (parts[1].toInt() == MockFixtures.FORBIDDEN_CENTRE) forbidden()
+                else binary(MockFixtures.pdfBytes, "application/pdf")
+            }
             else -> MockResponse().setResponseCode(404).setBody("""{"msg":"not mocked $path"}""")
         }
     }

@@ -15,11 +15,14 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.height
 import androidx.compose.ui.unit.width
 import org.dhamma.dipi.staff.desk.ApplicationsPane
 import org.dhamma.dipi.staff.desk.AuditPane
@@ -31,8 +34,11 @@ import org.dhamma.dipi.staff.desk.DeskSection
 import org.dhamma.dipi.staff.desk.RoomsPane
 import org.dhamma.dipi.staff.model.AccoRoom
 import org.dhamma.dipi.staff.model.ApplicantCard
+import org.dhamma.dipi.staff.model.ApplicantClarificationRow
+import org.dhamma.dipi.staff.model.ApplicantDeskHistory
 import org.dhamma.dipi.staff.model.ApplicantHistory
 import org.dhamma.dipi.staff.model.ApplicantId
+import org.dhamma.dipi.staff.model.HISTORY_COURSES
 import org.dhamma.dipi.staff.model.ApplicantStatus
 import org.dhamma.dipi.staff.model.ApplicantType
 import org.dhamma.dipi.staff.model.AuditFlag
@@ -156,6 +162,29 @@ class DeskPanesTest {
         }
         rule.onNodeWithText("Priya Nair").performClick()
         assertEquals(1, opened?.id?.value)
+    }
+
+    @Test
+    fun markAttendedChromeIsOneHundredThirtyTwoByThirtySix() {
+        val roll = listOf(card(1, given = "Priya", family = "Nair"))
+        rule.setContent {
+            DipiTheme {
+                CheckInPane(
+                    roll = roll,
+                    checkIns = emptyMap(),
+                    rooms = rooms,
+                    scan = "",
+                    filter = "To arrive",
+                    flaggedIds = emptySet(),
+                    onScan = {},
+                    onFilter = {},
+                    onOpen = {},
+                )
+            }
+        }
+        val b = rule.onNodeWithTag("checkin-mark", useUnmergedTree = true).getUnclippedBoundsInRoot()
+        assertEquals(132.dp.value, b.width.value, 0.5f)
+        assertEquals(36.dp.value, b.height.value, 0.5f)
     }
 
     @Test
@@ -1014,6 +1043,41 @@ class DeskPanesTest {
         assertEquals(1, statusFor?.id?.value)
         rule.onNodeWithText("CALL").performClick()
         assertEquals("9876543210", dialed)
+    }
+
+    /** T6 gate gap: the tablet detail must thread history exactly like the phone card. */
+    @Test
+    fun applicationsDetailExpandsHistoryAndOpensClarificationPdf() {
+        var expanded: Pair<ApplicantId, String>? = null
+        var opened: Pair<ApplicantId, Int>? = null
+        val rows = listOf(card(1, given = "Priya", family = "Nair"))
+        val history = ApplicantDeskHistory(
+            clarifications = listOf(
+                ApplicantClarificationRow(at = "2026-08-01", message = "Seat query", fileLabel = "reply.pdf", clarId = 77),
+            ),
+        )
+        rule.setContent {
+            DipiTheme {
+                ApplicationsPane(
+                    rows = rows,
+                    flagsById = emptyMap(),
+                    selectedId = ApplicantId(1),
+                    onSelect = {},
+                    onChangeStatus = {},
+                    onDial = {},
+                    onEdit = {},
+                    historyById = mapOf(ApplicantId(1) to history),
+                    onExpandHistory = { id, key -> expanded = id to key },
+                    onOpenClarification = { id, clar -> opened = id to clar },
+                )
+            }
+        }
+        rule.onNodeWithContentDescription("Expand Prior courses").performScrollTo().performClick()
+        assertEquals(ApplicantId(1) to HISTORY_COURSES, expanded)
+        // Clarifications arrived pre-loaded, so its row and PDF affordance are live.
+        rule.onNodeWithText("Seat query").performScrollTo().assertIsDisplayed()
+        rule.onNodeWithContentDescription("Open clarification PDF").performScrollTo().performClick()
+        assertEquals(ApplicantId(1) to 77, opened)
     }
 
     @Test

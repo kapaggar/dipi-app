@@ -11,9 +11,5 @@ package org.dhamma.dipi.staff.model
             if (t.isEmpty()) return null
             return ConfNo(t)
         }
-
-        /** Display-only check: {N|O|S}{M|F} + digits */
-        fun looksLikeConf(raw: String): Boolean =
-            raw.matches(Regex("^[NOS][MF]\\d+$", RegexOption.IGNORE_CASE))
     }
 }

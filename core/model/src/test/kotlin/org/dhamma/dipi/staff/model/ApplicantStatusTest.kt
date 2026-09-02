@@ -46,10 +46,41 @@ class ApplicantStatusTest {
     }
 
     @Test
-    fun confNoLooksLike() {
-        assertTrue(ConfNo.looksLikeConf("NF129"))
-        assertTrue(ConfNo.looksLikeConf("om42"))
-        assertFalse(ConfNo.looksLikeConf(""))
+    fun confNoDisplayShowsDashWhenEmpty() {
         assertEquals("—", ConfNo("").display())
+    }
+
+    @Test
+    fun deriveStatusesPrefersSelectOverRoster() {
+        val out = ApplicantStatus.deriveStatuses(
+            select = listOf("Received", "Confirmed", "Waiting List"),
+            roster = listOf("All", "WaitList"),
+        )
+        assertTrue(out.contains("Received"))
+        assertTrue(out.contains("Confirmed"))
+        assertTrue(out.contains("Waiting List"))
+        assertFalse(out.contains("WaitList"))
+    }
+
+    @Test
+    fun deriveStatusesFallsBackToRosterWhenSelectEmpty() {
+        val out = ApplicantStatus.deriveStatuses(
+            select = emptyList(),
+            roster = listOf("All", "Received", "Cancelled"),
+        )
+        assertTrue(out.contains("Received"))
+        assertTrue(out.contains("Cancelled"))
+    }
+
+    @Test
+    fun deriveStatusesNeverIncludesApproved() {
+        val out = ApplicantStatus.deriveStatuses(
+            listOf("Received", "Approved", "Confirmed"),
+            listOf("Approved"),
+        )
+        assertFalse(out.any { it.equals("Approved", ignoreCase = true) })
+        assertTrue(ApplicantStatus.isForbiddenWrite("Approved"))
+        assertTrue(ApplicantStatus.isForbiddenWrite(" approved "))
+        assertFalse(ApplicantStatus.isForbiddenWrite("Confirmed"))
     }
 }

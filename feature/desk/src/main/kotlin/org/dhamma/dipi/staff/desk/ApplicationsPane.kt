@@ -39,10 +39,12 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.dhamma.dipi.staff.model.ApplicantCard
+import org.dhamma.dipi.staff.model.ApplicantDeskHistory
 import org.dhamma.dipi.staff.model.ApplicantId
 import org.dhamma.dipi.staff.model.AuditFlag
 import org.dhamma.dipi.staff.model.AuditSeverity
 import org.dhamma.dipi.staff.model.SensitiveInfo
+import org.dhamma.dipi.staff.ui.ApplicantHistorySections
 import org.dhamma.dipi.staff.ui.theme.DeskKicker
 import org.dhamma.dipi.staff.ui.theme.DeskStyle
 import org.dhamma.dipi.staff.ui.theme.DipiCondensed
@@ -77,6 +79,9 @@ fun ApplicationsPane(
     seniority: String = "Both",
     onGender: (String) -> Unit = {},
     onSeniority: (String) -> Unit = {},
+    historyById: Map<ApplicantId, ApplicantDeskHistory> = emptyMap(),
+    onExpandHistory: (ApplicantId, String) -> Unit = { _, _ -> },
+    onOpenClarification: (ApplicantId, Int) -> Unit = { _, _ -> },
 ) {
     val scoped = deskScoped(rows, deskGenderScope(gender), deskSeniorityScope(seniority))
     val selected = scoped.firstOrNull { it.id == selectedId } ?: scoped.firstOrNull()
@@ -124,6 +129,9 @@ fun ApplicationsPane(
                 onDial = { selected.mobile?.let(onDial) },
                 onEdit = { onEdit(selected) },
                 loadPhoto = loadPhoto,
+                historyById = historyById,
+                onExpandHistory = onExpandHistory,
+                onOpenClarification = onOpenClarification,
                 modifier = Modifier.weight(1f),
             )
         } else {
@@ -295,101 +303,119 @@ private fun AppDetail(
     onDial: () -> Unit,
     onEdit: () -> Unit,
     loadPhoto: suspend (ApplicantId) -> ImageBitmap?,
+    historyById: Map<ApplicantId, ApplicantDeskHistory> = emptyMap(),
+    onExpandHistory: (ApplicantId, String) -> Unit = { _, _ -> },
+    onOpenClarification: (ApplicantId, Int) -> Unit = { _, _ -> },
     modifier: Modifier = Modifier,
 ) {
-    Column(
-        modifier
-            .fillMaxHeight()
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 26.dp, vertical = 24.dp),
-        verticalArrangement = Arrangement.spacedBy(20.dp),
-    ) {
-        Row(horizontalArrangement = Arrangement.spacedBy(18.dp)) {
-            DetailPhoto(card, loadPhoto)
-            Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                Text(
-                    card.displayName,
-                    fontFamily = DipiCondensed,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 32.sp,
-                    lineHeight = 33.sp,
-                    color = Industry.text,
-                )
-                Text(
-                    listOfNotNull(
-                        listOfNotNull(card.age?.toString(), card.gender.name).joinToString(" "),
-                        listOfNotNull(card.city, card.state, card.country)
-                            .filter { it.isNotBlank() }
-                            .joinToString(", ")
-                            .ifBlank { null },
-                    ).joinToString(" · "),
-                    fontSize = 14.sp,
-                    color = Industry.neutral700,
-                )
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    StatusPill(card, fontSize = 11.5f)
+    Column(modifier.fillMaxHeight()) {
+        Column(
+            Modifier
+                .weight(1f)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 26.dp)
+                .padding(top = 24.dp, bottom = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(20.dp),
+        ) {
+            Row(horizontalArrangement = Arrangement.spacedBy(18.dp)) {
+                DetailPhoto(card, loadPhoto)
+                Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
                     Text(
-                        card.confNo?.display() ?: "no conf number",
-                        fontFamily = DipiMono,
-                        fontWeight = FontWeight.Medium,
+                        card.displayName,
+                        fontFamily = DipiCondensed,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 32.sp,
+                        lineHeight = 33.sp,
+                        color = Industry.text,
+                    )
+                    Text(
+                        listOfNotNull(
+                            listOfNotNull(card.age?.toString(), card.gender.name).joinToString(" "),
+                            listOfNotNull(card.city, card.state, card.country)
+                                .filter { it.isNotBlank() }
+                                .joinToString(", ")
+                                .ifBlank { null },
+                        ).joinToString(" · "),
+                        fontSize = 14.sp,
+                        color = Industry.neutral700,
+                    )
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        StatusPill(card, fontSize = 11.5f)
+                        Text(
+                            card.confNo?.display() ?: "no conf number",
+                            fontFamily = DipiMono,
+                            fontWeight = FontWeight.Medium,
+                            fontSize = 12.sp,
+                            color = Industry.neutral600,
+                        )
+                    }
+                    Text(
+                        courseCountsLine(card) ?: historyLine(card),
                         fontSize = 12.sp,
                         color = Industry.neutral600,
                     )
                 }
-                Text(
-                    courseCountsLine(card) ?: historyLine(card),
-                    fontSize = 12.sp,
-                    color = Industry.neutral600,
-                )
             }
-        }
 
-        IdVerificationBlock(sensitive)
+            IdVerificationBlock(sensitive)
 
-        val health = sensitive?.health.orEmpty()
-        if (health.isNotEmpty()) {
-            HealthPanel(health)
-        }
+            val health = sensitive?.health.orEmpty()
+            if (health.isNotEmpty()) {
+                HealthPanel(health)
+            }
 
-        Column(
-            Modifier
-                .fillMaxWidth()
-                .deskCard(border = Industry.accent, elevation = 0.dp)
-                .padding(horizontal = 15.dp, vertical = 13.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            DeskKicker(
-                if (flags.isEmpty()) "AUDIT CLEAN · NOTHING TO FIX"
-                else "NEEDS ATTENTION · ${flags.size}",
-                Industry.accent700,
-            )
-            flags.forEach { flag ->
-                Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
-                    Text(
-                        flag.label,
-                        fontSize = 13.5.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = Industry.text,
-                    )
-                    Text(
-                        flag.detail,
-                        fontFamily = DipiMono,
-                        fontWeight = FontWeight.Medium,
-                        fontSize = 11.sp,
-                        color = Industry.neutral600,
-                    )
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .deskCard(border = Industry.accent, elevation = 0.dp)
+                    .padding(horizontal = 15.dp, vertical = 13.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                DeskKicker(
+                    if (flags.isEmpty()) "AUDIT CLEAN · NOTHING TO FIX"
+                    else "NEEDS ATTENTION · ${flags.size}",
+                    Industry.accent700,
+                )
+                flags.forEach { flag ->
+                    Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                        Text(
+                            flag.label,
+                            fontSize = 13.5.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Industry.text,
+                        )
+                        Text(
+                            flag.detail,
+                            fontFamily = DipiMono,
+                            fontWeight = FontWeight.Medium,
+                            fontSize = 11.sp,
+                            color = Industry.neutral600,
+                        )
+                    }
                 }
             }
+
+            Column(Modifier.fillMaxWidth().topHairline(Industry.neutral300)) {
+                FactRow("Mobile", card.mobile ?: "—")
+                FactRow("Email", card.email ?: "—")
+                FactRow("Date of birth", card.dob ?: "—")
+                FactRow("Applied", card.createdAt ?: "—")
+            }
+
+            ApplicantHistorySections(
+                history = historyById[card.id] ?: ApplicantDeskHistory(),
+                onExpand = { key -> onExpandHistory(card.id, key) },
+                onOpenClarification = { clarId -> onOpenClarification(card.id, clarId) },
+            )
         }
 
-        Column(Modifier.fillMaxWidth().topHairline(Industry.neutral300)) {
-            FactRow("Mobile", card.mobile ?: "—")
-            FactRow("Email", card.email ?: "—")
-            FactRow("Date of birth", card.dob ?: "—")
-            FactRow("Applied", card.createdAt ?: "—")
-        }
-
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .topHairline(Industry.neutral300)
+                .padding(horizontal = 26.dp, vertical = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
             DeskPrimaryButton("Change status", onChangeStatus)
             DeskOutlineButton("Call", onDial)
             DeskOutlineButton("Edit", onEdit)

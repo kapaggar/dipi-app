@@ -13,7 +13,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import org.dhamma.dipi.staff.applicants.ZeroDayDraft
 import org.dhamma.dipi.staff.audit.ClientAudit
 import org.dhamma.dipi.staff.data.ApiException
 import org.dhamma.dipi.staff.data.ConnectivityMonitor
@@ -28,14 +27,19 @@ import org.dhamma.dipi.staff.desk.deskFindingCount
 import org.dhamma.dipi.staff.desk.deskOccupied
 import org.dhamma.dipi.staff.desk.deskRecord
 import org.dhamma.dipi.staff.desk.deskRoll
+import org.dhamma.dipi.staff.desk.deskHealthSnack
 import org.dhamma.dipi.staff.desk.deskSaveSnack
 import org.dhamma.dipi.staff.desk.stripHonorific
 import org.dhamma.dipi.staff.model.CallRecord
 import org.dhamma.dipi.staff.model.CheckInRecord
 import org.dhamma.dipi.staff.model.AccoRoom
 import org.dhamma.dipi.staff.model.ApplicantCard
+import org.dhamma.dipi.staff.model.ApplicantDeskHistory
 import org.dhamma.dipi.staff.model.ApplicantId
 import org.dhamma.dipi.staff.model.ApplicantStatus
+import org.dhamma.dipi.staff.model.HISTORY_ACTIVITY
+import org.dhamma.dipi.staff.model.HISTORY_CLARIFICATIONS
+import org.dhamma.dipi.staff.model.HISTORY_COURSES
 import org.dhamma.dipi.staff.model.Centre
 import org.dhamma.dipi.staff.model.CentreOpsPrefs
 import org.dhamma.dipi.staff.model.Course
@@ -140,7 +144,6 @@ data class DeskUiState(
     val deskAction: DeskActionDest? = null,
     val centreOps: CentreOpsPrefs = CentreOpsPrefs(),
     val auditRows: List<ApplicantCard> = emptyList(),
-    val zeroDayDrafts: Map<ApplicantId, ZeroDayDraft> = emptyMap(),
     val callState: Map<ApplicantId, CallRecord> = emptyMap(),
     val callFilter: String = "To call",
     /** Call-round name box. Session-only — a search is never worth restoring. */
@@ -166,6 +169,11 @@ data class DeskUiState(
      * repository's session-scoped in-memory map. Never persisted or logged.
      */
     val sensitiveById: Map<ApplicantId, SensitiveInfo> = emptyMap(),
+    /**
+     * Lazy desk-history fragments by applicant. Null list = not fetched yet.
+     * In-memory only — never Room, never DataStore, never NPI.
+     */
+    val history: Map<ApplicantId, ApplicantDeskHistory> = emptyMap(),
     /** Bulk room-allocation sync in flight (owner amendment 2026-08-16). */
     val roomSyncBusy: Boolean = false,
     /** Zero-day attended-table pull in flight. */
@@ -185,7 +193,8 @@ data class DeskUiState(
  * them: it is session-scoped, so a conf number typed against one course must
  * never survive into the next one (the roster would open silently filtered).
  * The tablet's own gender/seniority filters describe the desk, not the course,
- * and are deliberately kept.
+ * and are deliberately kept. Applicant desk history is applicant-scoped and
+ * is retained across a course switch.
  */
 fun deskOpenCourse(state: DeskUiState, course: Course): DeskUiState = state.copy(
     course = course,
@@ -670,15 +679,10 @@ class DeskViewModel @Inject constructor(
     fun selectDeskApp(card: ApplicantCard) {
         _state.update { cur ->
             val hasHealth = cur.sensitiveById[card.id]?.health?.isNotEmpty() == true
-            val newSelection = cur.deskAppId != card.id
             cur.copy(
                 deskAppId = card.id,
                 card = card,
-                snack = if (hasHealth && newSelection) {
-                    FlushSnack("Health disclosures on file — review before confirming", error = false)
-                } else {
-                    cur.snack
-                },
+                snack = deskHealthSnack(cur.deskAppId, card.id, hasHealth) ?: cur.snack,
             )
         }
     }
@@ -698,6 +702,8 @@ class DeskViewModel @Inject constructor(
         { export, centreId, courseId -> repo.fetchSheet(export, centreId, courseId) }
     internal var editFetch: suspend (ApplicantId) -> SheetPayload =
         { id -> repo.fetchAppEditPage(id) }
+    internal var clarFetch: suspend (ApplicantId, Int) -> SheetPayload =
+        { appId, clarId -> repo.fetchClarification(appId, clarId) }
 
     /**
      * A Board export cell: open the viewer shell immediately (its progress
@@ -714,6 +720,21 @@ class DeskViewModel @Inject constructor(
         }
     }
 
+    /**
+     * The Centre screen's Course report chip. The export is centre-scoped —
+     * `SheetRoute.ReportForm` never reads the courseId — so it works with no
+     * course open; 0 is a deliberate dummy. Document payloads land in
+     * `openDoc`, collected above the width gate, so this works on both sizes.
+     */
+    fun openCourseReport() {
+        val cid = _state.value.session?.centres?.firstOrNull()?.id?.value ?: return
+        val label = SheetExport.CourseReport.label
+        _state.update { it.copy(sheetView = SheetViewUi(title = label)) }
+        viewModelScope.launch {
+            resolveSheet(label) { sheetFetch(SheetExport.CourseReport, cid, 0) }
+        }
+    }
+
     /** Applications "Edit": the desk's own edit page, display-only, in the same viewer. */
     fun openAppEdit(card: ApplicantCard) {
         val title = "Edit · ${card.displayName}"
@@ -721,6 +742,64 @@ class DeskViewModel @Inject constructor(
         viewModelScope.launch {
             resolveSheet(title) { editFetch(card.id) }
         }
+    }
+
+    fun expandHistory(id: ApplicantId, key: String) {
+        val cur = _state.value.history[id] ?: ApplicantDeskHistory()
+        val already = when (key) {
+            HISTORY_COURSES -> cur.courses != null
+            HISTORY_ACTIVITY -> cur.activity != null
+            HISTORY_CLARIFICATIONS -> cur.clarifications != null
+            else -> true
+        }
+        if (already) return
+        patchHistory(id, cur.copy(loading = cur.loading + key, errors = cur.errors - key))
+        viewModelScope.launch {
+            runCatching {
+                when (key) {
+                    HISTORY_COURSES -> {
+                        val courses = repo.loadAppCourses(id)
+                        val now = _state.value.history[id] ?: cur
+                        patchHistory(id, now.copy(courses = courses, loading = now.loading - key))
+                    }
+                    HISTORY_ACTIVITY -> {
+                        val activity = repo.loadAppActivity(id)
+                        val now = _state.value.history[id] ?: cur
+                        patchHistory(id, now.copy(activity = activity, loading = now.loading - key))
+                    }
+                    HISTORY_CLARIFICATIONS -> {
+                        val clarifications = repo.loadAppClarifications(id)
+                        val now = _state.value.history[id] ?: cur
+                        patchHistory(
+                            id,
+                            now.copy(clarifications = clarifications, loading = now.loading - key),
+                        )
+                    }
+                }
+            }.onFailure { e ->
+                handleAuth(e)
+                val now = _state.value.history[id] ?: cur
+                patchHistory(
+                    id,
+                    now.copy(
+                        loading = now.loading - key,
+                        errors = now.errors + (key to (e.message ?: "Unavailable")),
+                    ),
+                )
+            }
+        }
+    }
+
+    fun openClarification(appId: ApplicantId, clarId: Int) {
+        val title = "Clarification $clarId"
+        _state.update { it.copy(sheetView = SheetViewUi(title = title)) }
+        viewModelScope.launch {
+            resolveSheet(title) { clarFetch(appId, clarId) }
+        }
+    }
+
+    private fun patchHistory(id: ApplicantId, next: ApplicantDeskHistory) {
+        _state.update { it.copy(history = it.history + (id to next)) }
     }
 
     fun closeSheet() = _state.update { it.copy(sheetView = null) }
@@ -835,13 +914,7 @@ class DeskViewModel @Inject constructor(
     }
 
     fun pickRoom(room: AccoRoom) {
-        val id = _state.value.roomsApplicantId
-        if (id != null) {
-            _state.update { cur ->
-                val draft = cur.zeroDayDrafts[id] ?: ZeroDayDraft()
-                cur.copy(zeroDayDrafts = cur.zeroDayDrafts + (id to draft.copy(roomCode = room.code)))
-            }
-        }
+        _state.value.roomsApplicantId?.let { id -> patchRecord(id) { it.copy(room = room.code) } }
         back()
     }
 
@@ -862,22 +935,39 @@ class DeskViewModel @Inject constructor(
         _state.value.centreOps.let { it.copy(roomLayout = it.roomLayout.withColumns(gender, section, columns)) },
     )
 
-    fun setZeroDaySeating(card: ApplicantCard, seating: String) {
-        patchDraft(card.id) { it.copy(seating = seating) }
+    /** Phone Zero Day edits the same records the tablet dialog writes. */
+    private fun patchRecord(id: ApplicantId, patch: (CheckInRecord) -> CheckInRecord) {
+        val cur = _state.value.checkIns[id] ?: CheckInRecord()
+        persistCheckIns(_state.value.checkIns + (id to patch(cur).clearSyncedIfChanged(cur)))
     }
 
-    fun setZeroDayLaundry(card: ApplicantCard, value: String) {
-        patchDraft(card.id) { it.copy(laundry = value) }
-    }
+    fun setZeroDaySeat(card: ApplicantCard, seat: String) =
+        patchRecord(card.id) { it.copy(seat = seat) }
 
-    fun setZeroDayValuables(card: ApplicantCard, value: String) {
-        patchDraft(card.id) { it.copy(valuables = value) }
-    }
+    fun toggleZeroDayLaundry(card: ApplicantCard) =
+        patchRecord(card.id) { it.copy(laundry = !it.laundry) }
+
+    fun toggleZeroDayValuables(card: ApplicantCard) =
+        patchRecord(card.id) { it.copy(valuables = !it.valuables) }
 
     fun markAttended(card: ApplicantCard) {
+        val record = _state.value.checkIns[card.id] ?: CheckInRecord()
+        val (text, err) = deskSaveSnack(record, card)
+        if (err) {
+            _state.update { it.copy(snack = FlushSnack(text, error = true)) }
+            return
+        }
+        persistCheckIns(
+            _state.value.checkIns + (card.id to record.copy(checkedIn = true).clearSyncedIfChanged(record)),
+        )
         _state.update { cur ->
             val rows = cur.rows.map { if (it.id == card.id) it.copy(attended = true) else it }
-            cur.copy(rows = rows, visible = WorklistFilter.visible(rows, cur.selected, cur.query), auditRows = flagAudit(rows))
+            cur.copy(
+                rows = rows,
+                visible = WorklistFilter.visible(rows, cur.selected, cur.query),
+                auditRows = flagAudit(rows),
+                snack = FlushSnack(text, error = false),
+            )
         }
         viewModelScope.launch { repo.markAttendedLocal(card.id) }
     }
@@ -923,13 +1013,6 @@ class DeskViewModel @Inject constructor(
         }
     }
 
-    private fun patchDraft(id: ApplicantId, block: (ZeroDayDraft) -> ZeroDayDraft) {
-        _state.update { cur ->
-            val draft = block(cur.zeroDayDrafts[id] ?: ZeroDayDraft())
-            cur.copy(zeroDayDrafts = cur.zeroDayDrafts + (id to draft))
-        }
-    }
-
     private fun persistOps(prefs: CentreOpsPrefs) {
         _state.update { it.copy(centreOps = prefs) }
         viewModelScope.launch { sessionStore.setCentreOps(prefs) }
@@ -969,7 +1052,14 @@ class DeskViewModel @Inject constructor(
         // Back from the card returns to the Advanced Search results only when
         // the card was opened from there; any other origin backs to Today.
         returnTo = DeskScreen.Search.takeIf { _state.value.screen == DeskScreen.Search }
-        _state.update { it.copy(card = card, screen = DeskScreen.Card) }
+        _state.update { cur ->
+            val hasHealth = cur.sensitiveById[card.id]?.health?.isNotEmpty() == true
+            cur.copy(
+                card = card,
+                screen = DeskScreen.Card,
+                snack = deskHealthSnack(cur.card?.id, card.id, hasHealth) ?: cur.snack,
+            )
+        }
         viewModelScope.launch {
             val fresh = runCatching { repo.loadCard(card.id) }.getOrElse { e ->
                 handleAuth(e)
@@ -1051,6 +1141,12 @@ class DeskViewModel @Inject constructor(
         val card = s.card ?: return
         val status = if (s.sheetPick.contains("Custom", true)) s.sheetCustom.trim() else s.sheetPick
         if (status.isBlank()) return
+        if (ApplicantStatus.isForbiddenWrite(status)) {
+            _state.update {
+                it.copy(sheetOpen = false, snack = FlushSnack("The app never sends Approved", error = true))
+            }
+            return
+        }
         viewModelScope.launch {
             _state.update { it.copy(sheetOpen = false) }
             runCatching {
@@ -1073,6 +1169,10 @@ class DeskViewModel @Inject constructor(
     fun changeStatusFor(card: ApplicantCard, status: String) {
         val value = status.trim()
         if (value.isBlank()) return
+        if (ApplicantStatus.isForbiddenWrite(value)) {
+            _state.update { it.copy(snack = FlushSnack("The app never sends Approved", error = true)) }
+            return
+        }
         viewModelScope.launch {
             runCatching { repo.changeStatus(card.id, value, "", _state.value.offline) }
                 .onSuccess { snack -> _state.update { it.copy(snack = snack) } }
@@ -1249,6 +1349,9 @@ class DeskViewModel @Inject constructor(
         viewModelScope.launch {
             refreshWorklist(unfiltered = true)
             runCatching { repo.loadStatuses() }.onSuccess { list ->
+                // Through mergeChoices so an offline cold start (empty list)
+                // keeps the SHEET_CHOICES default instead of wiping it, and
+                // the mock fixture path stays Approved-stripped.
                 _state.update { it.copy(statusChoices = ApplicantStatus.mergeChoices(list)) }
             }
             pullRooms(userInitiated = false)

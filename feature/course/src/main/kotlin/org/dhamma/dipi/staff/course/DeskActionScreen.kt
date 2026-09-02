@@ -49,10 +49,3 @@ fun DeskActionScreen(
         }
     }
 }
-
-@Composable
-fun ComingScreen(
-    title: String,
-    route: String,
-    onBack: () -> Unit = {},
-) = DeskActionScreen(title, route, onBack)

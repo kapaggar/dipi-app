@@ -55,6 +55,11 @@ internal fun Modifier.rightHairline(color: Color): Modifier = drawBehind {
     drawLine(color, Offset(x, 0f), Offset(x, size.height), 1.dp.toPx())
 }
 
+internal fun Modifier.leftHairline(color: Color): Modifier = drawBehind {
+    val x = 0.5.dp.toPx()
+    drawLine(color, Offset(x, 0f), Offset(x, size.height), 1.dp.toPx())
+}
+
 internal fun Modifier.topHairline(color: Color): Modifier = drawBehind {
     val y = 0.5.dp.toPx()
     drawLine(color, Offset(0f, y), Offset(size.width, y), 1.dp.toPx())
@@ -136,7 +141,7 @@ private fun Modifier.rightHairlineStart(): Modifier = drawBehind {
 @Composable
 fun DeskToggle(
     on: Boolean,
-    onToggle: () -> Unit,
+    onToggle: (() -> Unit)? = null,
     trackWidth: Dp = 40.dp,
     trackHeight: Dp = 20.dp,
     knob: Dp = 16.dp,
@@ -151,7 +156,7 @@ fun DeskToggle(
             .size(trackWidth, trackHeight)
             .clip(DeskStyle.pillShape)
             .background(if (on) Industry.accent else Industry.neutral300)
-            .clickable(onClick = onToggle),
+            .then(if (onToggle != null) Modifier.clickable(onClick = onToggle) else Modifier),
     ) {
         Box(
             Modifier

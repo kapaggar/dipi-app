@@ -102,6 +102,8 @@ Tile grid, this exact set and order:
 
 **Do not draw Group seating / Group-wise Seating.**
 
+Tablet Board (v4, shipped 2026-08-31): twelve exports sit on a 3×4 shelf grid. Day-11 "Course summary report" is a **solid fourth-line chip** under those shelves, not a 13th flex cell and not a dashed GAP row. Desk rail is **190dp** with a 3dp left accent bar on the selected row. Check-in sidebar is **296dp**. Do not re-propose 212dp rail, 266dp sidebar, or stuffing Day-11 into the 3×4 grid.
+
 ### 3. Worklist (View Applications) + applicant card
 
 Keep the existing Today list: search, status chips, rows with name / status /

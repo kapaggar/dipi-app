@@ -7,6 +7,8 @@ data class DeskTileSpec(
     val title: String,
     val route: String,
     val action: DeskTileAction? = null,
+    /** SheetExport label when the chip fetches a real export instead of the placeholder. */
+    val sheet: String? = null,
 )
 
 enum class CourseHubLive { Applications, Summary, Photos, Audit, Calling, ZeroDay, CentreOps }
@@ -33,7 +35,7 @@ fun centreDeskTiles(centreId: Int): List<DeskTileSpec> = listOf(
     DeskTileSpec("Centre Settings", "centre/$centreId/edit", DeskTileAction.CentreOps),
     DeskTileSpec("Advanced Search", "search-app/$centreId", DeskTileAction.AdvancedSearch),
     DeskTileSpec("App Settings", "", DeskTileAction.AppSettings),
-    DeskTileSpec("Course Report", "centre/$centreId/course-report"),
+    DeskTileSpec("Course Report", "centre/$centreId/course-report", sheet = "Course report"),
     DeskTileSpec("Bulk Mail", "centre/$centreId/bulk-mail-schedule"),
 )
 

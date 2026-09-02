@@ -28,15 +28,15 @@ internal object MockFixtures {
     )
 
     val courses = listOf(
-        CourseDto(COURSE_10D, CENTRE_ID, "10-Day", "2026-08-20", "2026-08-31", "10d"),
-        CourseDto(11, CENTRE_ID, "Satipatthana", "2026-09-03", "2026-09-12", "stp"),
-        CourseDto(12, CENTRE_ID, "10-Day", "2026-09-16", "2026-09-27", "10d"),
+        CourseDto(COURSE_10D, CENTRE_ID, "10-Day", "2026-08-20", "2026-08-31"),
+        CourseDto(11, CENTRE_ID, "Satipatthana", "2026-09-03", "2026-09-12"),
+        CourseDto(12, CENTRE_ID, "10-Day", "2026-09-16", "2026-09-27"),
     )
 
     /** Courses that have already started — the Select Course older list. */
     val olderCourses = listOf(
-        CourseDto(8, CENTRE_ID, "Dhamma Sudha / 10 Day / 2026 / 6th-Aug to 17th-Aug", "2026-08-06", "2026-08-17", "10d"),
-        CourseDto(7, CENTRE_ID, "Dhamma Sudha / STP / 2026 / 23rd-Jul to 31st-Jul", "2026-07-23", "2026-07-31", "stp"),
+        CourseDto(8, CENTRE_ID, "Dhamma Sudha / 10 Day / 2026 / 6th-Aug to 17th-Aug", "2026-08-06", "2026-08-17"),
+        CourseDto(7, CENTRE_ID, "Dhamma Sudha / STP / 2026 / 23rd-Jul to 31st-Jul", "2026-07-23", "2026-07-31"),
     )
 
     /**
@@ -74,7 +74,6 @@ internal object MockFixtures {
             old = true, city = "Pune", state = "Maharashtra", age = 34,
             mobile = "+91 98220 41783", email = "meera.deshpande@gmail.com",
             home = "+91 20 2567 1120", dob = "11 Mar 1992", applied = "2 Jul 2026",
-            photo = "good",
             history = HistoryDto(
                 "10 Jul 2018 · Dhamma Sudha · Pundalik Ahire",
                 "1 Apr 2026 · Dhamma Pattana · Bhumidhar",
@@ -85,7 +84,7 @@ internal object MockFixtures {
             RAKESH_ID, "Rakesh", "Iyer", "M", "Pending", null,
             city = "Chennai", state = "Tamil Nadu", age = 28,
             mobile = "+91 50031 55402", email = "r.iyer@outlook.com",
-            dob = "5 Sep 1997", applied = "28 Jul 2026", photo = "rot90",
+            dob = "5 Sep 1997", applied = "28 Jul 2026",
             emergency = false,
             flags = listOf(
                 FlagDto("HARD", "Mobile number cannot be an Indian number", "phone_prefix_invalid · +91 50031 55402", "phone_prefix_invalid"),
@@ -97,7 +96,7 @@ internal object MockFixtures {
             3, "Ananya", "Bhosale", "F", "Received", "NF131",
             city = "Nashik", state = "Maharashtra", age = 22,
             mobile = "+91 88888 20114", email = "ananya.b@gmail.com",
-            dob = "19 Jan 2004", applied = "21 Jul 2026", photo = "crop",
+            dob = "19 Jan 2004", applied = "21 Jul 2026",
             flags = listOf(FlagDto("HARD", "Aadhar number is masked", "aadhar_masked · XXXX XXXX 4417", "aadhar_masked")),
         ),
         person(
@@ -134,7 +133,7 @@ internal object MockFixtures {
             7, "Fatima", "Sheikh", "F", "Confirmed", "NF133",
             city = "Hyderabad", state = "Telangana", age = 31,
             mobile = "+91 70930 55811", email = "fatima.sheikh@gmail.com",
-            dob = "24 Apr 1995", applied = "19 Jul 2026", photo = "noface",
+            dob = "24 Apr 1995", applied = "19 Jul 2026",
             flags = listOf(
                 FlagDto(
                     "HARD",
@@ -155,7 +154,7 @@ internal object MockFixtures {
             9, "Lakshmi", "Menon", "F", "Received", "NF136",
             old = true, city = "Thrissur", state = "Kerala", age = 58,
             mobile = "+91 97440 21008", email = "lakshmi.menon@gmail.com",
-            home = "+91 487 2331 004", dob = "9 May 1968", applied = "25 Jul 2026", photo = "rot180",
+            home = "+91 487 2331 004", dob = "9 May 1968", applied = "25 Jul 2026",
             history = HistoryDto(
                 "14 Jan 1999 · Dhamma Ketana · S. Ramanathan",
                 "20 Jun 2025 · Dhamma Ketana · Uma Rangan",
@@ -315,6 +314,35 @@ internal object MockFixtures {
         </form></body></html>
     """.trimIndent()
 
+    fun appCoursesHtml(id: Int) = """
+        <h4>Applicant Courses</h4>
+        <table>
+        <thead><tr><th>Course</th><th>Type</th><th>Status</th><th>Attended</th><th>Address</th></tr></thead>
+        <tbody>
+        <tr><td>10-Day · Aug 2026</td><td>Student</td><td>Confirmed</td><td>False</td><td>Pune</td></tr>
+        <tr><td>Satipatthana · Apr 2026</td><td>Student</td><td>Attended</td><td>True</td><td>Pune</td></tr>
+        </tbody></table>
+    """.trimIndent()
+
+    fun appActivityHtml(id: Int) = """
+        <h4>Activity Log</h4>
+        <table>
+        <thead><tr><th>DateTime</th><th>Activity</th><th>User</th></tr></thead>
+        <tbody>
+        <tr><td>2026-08-16 10:22:00</td><td>Status Change · Confirmed</td><td>sudha.user</td></tr>
+        <tr><td>2026-08-10 08:00:00</td><td>Letter · Received</td><td>System</td></tr>
+        </tbody></table>
+    """.trimIndent()
+
+    fun appClarificationsHtml(id: Int) = """
+        <table>
+        <thead><tr><th>DateTime</th><th>Message</th><th>File</th></tr></thead>
+        <tbody>
+        <tr><td>2026-08-12 11:00:00</td><td>Please confirm travel date</td><td><a href="/show-clarification/$id/3">View</a></td></tr>
+        <tr><td>2026-08-08 09:30:00</td><td>Need a doctor's note</td><td>No Upload</td></tr>
+        </tbody></table>
+    """.trimIndent()
+
     fun person(
         id: Int,
         given: String,
@@ -332,7 +360,6 @@ internal object MockFixtures {
         home: String? = null,
         dob: String,
         applied: String,
-        photo: String = "good",
         monk: Boolean = false,
         emergency: Boolean? = true,
         history: HistoryDto? = null,
@@ -359,7 +386,6 @@ internal object MockFixtures {
         age = age,
         monk = monk,
         createdAt = applied,
-        photoUrl = photo,
         emergencyPresent = emergency,
         history = history,
         flags = flags,

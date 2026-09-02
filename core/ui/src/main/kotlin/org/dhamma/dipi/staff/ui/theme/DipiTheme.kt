@@ -32,18 +32,14 @@ data class DipiColors(
     val soft: Color,
     val flagHard: Color,
     val flagSoft: Color,
-    val photoFixed: Color,
-    val photoAuto: Color,
-    val photoSuggest: Color,
-    val photoNone: Color,
 )
 
 /**
  * The version-3 light theme reads the active skin's token block
  * (`THEME.light` var-ified in the design): background/text/hairlines follow
  * the neutrals, `muted` is neutral-600, `field` neutral-100, `tint`
- * accent-100. Hard/safety severities and the photo badges stay fixed hexes —
- * they carry meaning, not mood.
+ * accent-100. Hard/safety severities stay fixed hexes — they carry meaning,
+ * not mood.
  */
 fun lightDipi(palette: IndustryPalette): DipiColors = DipiColors(
     background = palette.bg,
@@ -63,10 +59,6 @@ fun lightDipi(palette: IndustryPalette): DipiColors = DipiColors(
     soft = palette.neutral600,
     flagHard = Color(0xFFA15C5C),
     flagSoft = Color(0xFF8A7645),
-    photoFixed = Color(0xFF3D6B52),
-    photoAuto = Color(0xFF5A63A8),
-    photoSuggest = Color(0xFF8A6A35),
-    photoNone = Color(0xFF6C7075),
 )
 
 /** Steel's light block — the wireframe as drawn. */
@@ -109,10 +101,6 @@ val DarkDipi = DipiColors(
     soft = Color(0xFF7A7A7D),
     flagHard = Color(0xFFA15C5C),
     flagSoft = Color(0xFF8A7645),
-    photoFixed = Color(0xFF3D6B52),
-    photoAuto = Color(0xFF5A63A8),
-    photoSuggest = Color(0xFF8A6A35),
-    photoNone = Color(0xFF6C7075),
 )
 
 val LocalDipi = staticCompositionLocalOf { LightDipi }

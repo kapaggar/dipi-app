@@ -2,6 +2,7 @@ package org.dhamma.dipi.staff
 
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithText
@@ -165,6 +166,19 @@ class SyncBannersTest {
         rule.onNodeWithText("changes waiting to sync").assertIsDisplayed()
         rule.onNodeWithText(lastTryLabel(at, ZoneId.systemDefault())!!).assertIsDisplayed()
         rule.onNodeWithText("RETRY").assertIsDisplayed()
+    }
+
+    @Test
+    fun lastTrySitsOnTheSameRowAsTheWaitingCopy() {
+        val at = Instant.parse("2026-08-28T10:29:00Z").toEpochMilli()
+        rule.setContent {
+            DipiTheme {
+                SyncBannerStrips(offline = false, queued = 1, lastTryAtMs = at, onRetry = {})
+            }
+        }
+        val copy = rule.onNodeWithText("change waiting to sync").getUnclippedBoundsInRoot()
+        val last = rule.onNodeWithText("last try", substring = true).getUnclippedBoundsInRoot()
+        assertEquals(copy.top.value, last.top.value, 1f)
     }
 
     @Test

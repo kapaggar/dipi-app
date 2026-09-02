@@ -79,6 +79,7 @@ fun CentreScreen(
     onPickCentre: (Centre) -> Unit = {},
     onSettings: () -> Unit = {},
     onLater: (String, String) -> Unit = { _, _ -> },
+    onExport: (String) -> Unit = {},
     onCentreOps: () -> Unit = {},
     onAdvancedSearch: () -> Unit = {},
     lotus: Boolean = true,
@@ -156,6 +157,7 @@ fun CentreScreen(
                             cid = cid,
                             onPick = onPick,
                             onLater = onLater,
+                            onExport = onExport,
                             onCentreOps = onCentreOps,
                             onAdvancedSearch = onAdvancedSearch,
                             onSettings = onSettings,
@@ -177,6 +179,7 @@ fun CentreScreen(
                     cid = cid,
                     onPick = onPick,
                     onLater = onLater,
+                    onExport = onExport,
                     onCentreOps = onCentreOps,
                     onAdvancedSearch = onAdvancedSearch,
                     onSettings = onSettings,
@@ -286,6 +289,7 @@ private fun WideLowerPane(
     cid: Int,
     onPick: (Course) -> Unit,
     onLater: (String, String) -> Unit,
+    onExport: (String) -> Unit,
     onCentreOps: () -> Unit,
     onAdvancedSearch: () -> Unit,
     onSettings: () -> Unit,
@@ -297,6 +301,7 @@ private fun WideLowerPane(
             tilesPerRow = 3,
             tileHeight = 52.dp,
             onLater = onLater,
+            onExport = onExport,
             onCentreOps = onCentreOps,
             onAdvancedSearch = onAdvancedSearch,
             onSettings = onSettings,
@@ -322,6 +327,7 @@ private fun WideLowerPane(
             tilesPerRow = 3,
             tileHeight = 52.dp,
             onLater = onLater,
+            onExport = onExport,
             onCentreOps = onCentreOps,
             onAdvancedSearch = onAdvancedSearch,
             onSettings = onSettings,
@@ -340,6 +346,7 @@ private fun NarrowLowerPane(
     cid: Int,
     onPick: (Course) -> Unit,
     onLater: (String, String) -> Unit,
+    onExport: (String) -> Unit,
     onCentreOps: () -> Unit,
     onAdvancedSearch: () -> Unit,
     onSettings: () -> Unit,
@@ -361,6 +368,7 @@ private fun NarrowLowerPane(
         tilesPerRow = 1,
         tileHeight = 48.dp,
         onLater = onLater,
+        onExport = onExport,
         onCentreOps = onCentreOps,
         onAdvancedSearch = onAdvancedSearch,
         onSettings = onSettings,
@@ -413,9 +421,9 @@ private fun OlderCourseRow(
  * [DeskTileSpec.action]'s own: the three in-app destinations (Centre Settings,
  * Advanced Search, App Settings) are the transparent, zero-elevation tiles;
  * the remaining desk-site links (two, after the S1 trim) become pill chips
- * with a trailing `↗` under a `MORE ON THE DESK SITE` kicker. Every callback
- * fires exactly as before — chips still hand `onLater` the catalogue's own
- * (title, route) pair.
+ * with a trailing `↗` under a `MORE ON THE DESK SITE` kicker. A chip with a
+ * [DeskTileSpec.sheet] fetches that export; the rest still hand `onLater`
+ * the catalogue's own (title, route) pair.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -424,6 +432,7 @@ private fun CentreDeskColumn(
     tilesPerRow: Int,
     tileHeight: Dp,
     onLater: (String, String) -> Unit,
+    onExport: (String) -> Unit,
     onCentreOps: () -> Unit,
     onAdvancedSearch: () -> Unit,
     onSettings: () -> Unit,
@@ -469,7 +478,9 @@ private fun CentreDeskColumn(
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             tiles.filter { it.action == null }.forEach { tile ->
-                DeskSiteChip(tile.title) { onLater(tile.title, tile.route) }
+                DeskSiteChip(tile.title) {
+                    tile.sheet?.let(onExport) ?: onLater(tile.title, tile.route)
+                }
             }
         }
     }
@@ -809,12 +820,3 @@ private fun MatrixDataRow(label: String, row: MatrixRow, cell: Dp, emphasise: Bo
             }
     }
 }
-
-@Composable
-fun CoursesScreen(
-    session: Session,
-    courses: List<Course>,
-    onPick: (Course) -> Unit,
-    onPickCentre: (Centre) -> Unit = {},
-    onSettings: () -> Unit = {},
-) = CentreScreen(session, courses, onPick, onPickCentre, onSettings)

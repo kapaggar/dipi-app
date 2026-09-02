@@ -40,7 +40,7 @@ data class SearchPage(
 object SearchPageParser {
     private val json = Json { ignoreUnknownKeys = true; isLenient = true }
 
-    fun parse(html: String, pathCentreId: Int? = null, photoHost: String = ""): SearchPage {
+    fun parse(html: String, pathCentreId: Int? = null): SearchPage {
         val rows = datasetObjects(html)
         return SearchPage(
             tokens = tokens(html),
@@ -49,7 +49,7 @@ object SearchPageParser {
             statuses = selectOptionsRaw(html, "edit-app-status")
                 .map { it.second }
                 .filter { it.isNotBlank() && !it.equals("Choose", true) },
-            dataset = rows.mapNotNull { mapRow(it, photoHost) },
+            dataset = rows.mapNotNull { mapRow(it) },
             pathCentreId = pathCentreId,
             sensitive = sensitiveMap(rows),
         )
@@ -186,9 +186,6 @@ object SearchPageParser {
         return null
     }
 
-    fun dataset(html: String, photoHost: String): List<ApplicantDto> =
-        datasetObjects(html).mapNotNull { mapRow(it, photoHost) }
-
     private fun datasetObjects(html: String): List<JsonObject> {
         val raw = extractJsonArray(html, "dataset") ?: return emptyList()
         val arr = json.parseToJsonElement(raw) as? JsonArray ?: return emptyList()
@@ -250,7 +247,7 @@ object SearchPageParser {
         return SensitiveInfo(idLabel = id?.first, idNumber = id?.second, health = health)
     }
 
-    fun mapRow(o: JsonObject, photoHost: String): ApplicantDto? {
+    fun mapRow(o: JsonObject): ApplicantDto? {
         val id = o.int("aid") ?: return null
         val display = stripTags(o.str("name").orEmpty())
             .replace(PDF_SUFFIX, "")
@@ -287,14 +284,6 @@ object SearchPageParser {
         val ownDigits = phoneKey(o.str("contact_mobile"))
         val emerDigits = phoneKey(o.str("emergency_num"))
         val emergencyEqSelf = ownDigits != null && ownDigits == emerDigits
-        val photo = o.str("photo")?.let { p ->
-            when {
-                p.startsWith("http") -> p
-                p.startsWith("/") && photoHost.isNotBlank() -> photoHost.trimEnd('/') + p
-                p.isNotBlank() && photoHost.isNotBlank() -> photoHost.trimEnd('/') + "/" + p.trimStart('/')
-                else -> p
-            }
-        }
         return ApplicantDto(
             id = id,
             centreId = o.int("centreid") ?: 0,
@@ -317,7 +306,6 @@ object SearchPageParser {
             age = o.int("age"),
             monk = o.str("monk") in listOf("1", "true", "Yes") || o.int("monk") == 1,
             createdAt = o.str("app_created"),
-            photoUrl = photo,
             emergencyPresent = !o.str("emergency_num").isNullOrBlank(),
             idPresent = idPresent,
             emergencyNamePresent = !o.str("emergency_name").isNullOrBlank(),

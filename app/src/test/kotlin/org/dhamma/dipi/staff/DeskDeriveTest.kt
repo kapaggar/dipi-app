@@ -19,6 +19,8 @@ import org.dhamma.dipi.staff.desk.deskRoll
 import org.dhamma.dipi.staff.desk.deskRollCell
 import org.dhamma.dipi.staff.desk.deskRosterRows
 import org.dhamma.dipi.staff.desk.deskScoped
+import org.dhamma.dipi.staff.desk.HEALTH_REMINDER
+import org.dhamma.dipi.staff.desk.deskHealthSnack
 import org.dhamma.dipi.staff.desk.deskSaveSnack
 import org.dhamma.dipi.staff.desk.deskSeatCount
 import org.dhamma.dipi.staff.desk.stripHonorific
@@ -380,5 +382,16 @@ class DeskDeriveTest {
         val (okText, err) = deskSaveSnack(CheckInRecord(room = "F21", seat = "Chowky"), priya)
         assertFalse(err)
         assertEquals("✓ Priya Nair checked in · F21 · Chowky", okText)
+    }
+
+    @Test
+    fun healthSnackFiresOncePerNewSelection() {
+        val a = ApplicantId(1)
+        val b = ApplicantId(2)
+        val first = deskHealthSnack(null, a, hasHealth = true)
+        assertEquals(HEALTH_REMINDER, first?.text)
+        assertEquals(null, deskHealthSnack(a, a, hasHealth = true))
+        assertEquals(HEALTH_REMINDER, deskHealthSnack(a, b, hasHealth = true)?.text)
+        assertEquals(null, deskHealthSnack(null, a, hasHealth = false))
     }
 }

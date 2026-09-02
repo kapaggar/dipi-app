@@ -25,7 +25,7 @@ class AccoHandlerParserTest {
 
     @Test
     fun expandsRangesIntoSectionSpaceNumberCodes() {
-        val rooms = AccoHandlerParser.rooms(payload(row(1, "M", "Mbk", "1:3"), row(2, "F", "Fbk", "1:2")))
+        val rooms = AccoHandlerParser.roomsOrNull(payload(row(1, "M", "Mbk", "1:3"), row(2, "F", "Fbk", "1:2"))).orEmpty()
         assertEquals(listOf("Mbk 1", "Mbk 2", "Mbk 3", "Fbk 1", "Fbk 2"), rooms.map { it.code })
         assertEquals(listOf("1", "2", "3", "1", "2"), rooms.map { it.number })
         assertEquals(Gender.M, rooms.first { it.code == "Mbk 2" }.gender)
@@ -36,13 +36,13 @@ class AccoHandlerParserTest {
     @Test
     fun literalTokensAndWhitespaceMatchTheServerSplit() {
         // The server explodes on "," and trims — "1:2, 7 , 12A" is rooms 1, 2, 7, 12A.
-        val rooms = AccoHandlerParser.rooms(payload(row(1, "M", "Mbk", "1:2, 7 , 12A")))
+        val rooms = AccoHandlerParser.roomsOrNull(payload(row(1, "M", "Mbk", "1:2, 7 , 12A"))).orEmpty()
         assertEquals(listOf("Mbk 1", "Mbk 2", "Mbk 7", "Mbk 12A"), rooms.map { it.code })
     }
 
     @Test
     fun amenityMarksMapToRoomFeatures() {
-        val rooms = AccoHandlerParser.rooms(payload(row(1, "M", "Mbk", "1:2W, 3IC, 4G, 5")))
+        val rooms = AccoHandlerParser.roomsOrNull(payload(row(1, "M", "Mbk", "1:2W, 3IC, 4G, 5"))).orEmpty()
         assertEquals(listOf("Mbk 1", "Mbk 2", "Mbk 3", "Mbk 4", "Mbk 5"), rooms.map { it.code })
         // Range mark applies to the whole band, like the chart's W rows.
         assertTrue(rooms.first { it.code == "Mbk 1" }.features.westernToilet)
@@ -58,35 +58,35 @@ class AccoHandlerParserTest {
 
     @Test
     fun deletedRowsAndBlankTokensAreSkipped() {
-        val rooms = AccoHandlerParser.rooms(
+        val rooms = AccoHandlerParser.roomsOrNull(
             payload(row(1, "F", "Old", "1:5", deleted = "1"), row(2, "F", "Fbk", "1,,2, ")),
-        )
+        ).orEmpty()
         assertEquals(listOf("Fbk 1", "Fbk 2"), rooms.map { it.code })
     }
 
     @Test
     fun genderFallsBackToTheSectionPrefixWhenBlank() {
-        val rooms = AccoHandlerParser.rooms(payload(row(1, "", "Fbk", "1"), row(2, "", "Mbk", "1")))
+        val rooms = AccoHandlerParser.roomsOrNull(payload(row(1, "", "Fbk", "1"), row(2, "", "Mbk", "1"))).orEmpty()
         assertEquals(Gender.F, rooms.first { it.code == "Fbk 1" }.gender)
         assertEquals(Gender.M, rooms.first { it.code == "Mbk 1" }.gender)
     }
 
     @Test
     fun duplicateCodesKeepTheFirstRowAndBadRangesDrop() {
-        val rooms = AccoHandlerParser.rooms(payload(row(1, "M", "Mbk", "1:2, 2, 9:5")))
+        val rooms = AccoHandlerParser.roomsOrNull(payload(row(1, "M", "Mbk", "1:2, 2, 9:5"))).orEmpty()
         assertEquals(listOf("Mbk 1", "Mbk 2"), rooms.map { it.code })
     }
 
     @Test
     fun nonJsonAndLoginHtmlYieldNoRooms() {
-        assertEquals(emptyList<Any>(), AccoHandlerParser.rooms("<html><body>Access denied</body></html>"))
-        assertEquals(emptyList<Any>(), AccoHandlerParser.rooms("""{"msg":"not here"}"""))
-        assertEquals(emptyList<Any>(), AccoHandlerParser.rooms(""))
+        assertEquals(emptyList<Any>(), AccoHandlerParser.roomsOrNull("<html><body>Access denied</body></html>").orEmpty())
+        assertEquals(emptyList<Any>(), AccoHandlerParser.roomsOrNull("""{"msg":"not here"}""").orEmpty())
+        assertEquals(emptyList<Any>(), AccoHandlerParser.roomsOrNull("").orEmpty())
     }
 
     @Test
     fun mockFixtureParsesLikeTheLiveShape() {
-        val rooms = AccoHandlerParser.rooms(MockFixtures.accoHandlerJson)
+        val rooms = AccoHandlerParser.roomsOrNull(MockFixtures.accoHandlerJson).orEmpty()
         assertEquals(6, rooms.count { it.gender == Gender.F })
         assertEquals(10, rooms.count { it.gender == Gender.M })
         assertTrue(rooms.first { it.code == "Fbk 3" }.features.westernToilet)
