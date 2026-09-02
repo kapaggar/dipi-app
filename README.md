@@ -8,7 +8,7 @@ Native centre-staff client for the DIPI registrar desk (`dh_manageapp`). Package
 
 Product rules (no client ACL, no `/staff` status façade, no attendance write, fixed URL) still come from [docs/DIPI-STAFF-IMPLEMENTATION-PROMPT-GROK-4.6.md](docs/DIPI-STAFF-IMPLEMENTATION-PROMPT-GROK-4.6.md). That prompt’s **transport section is stale**: live Drupal does not implement `/staff/*` or Services login. The app scrapes the existing desk.
 
-**Design:** [docs/DIPI Staff.dc.html](docs/DIPI%20Staff.dc.html) — visual source of truth.  
+**Design:** [version-4/DIPI Staff v4.dc.html](version-4/DIPI%20Staff%20v4.dc.html) — visual source of truth (measurements in [version-4/README.md](version-4/README.md)).  
 **Historical mock contract:** [docs/openapi-staff.yaml](docs/openapi-staff.yaml) (fixtures only).  
 **Live host is immutable:** do not add PHP; see [docs/TODO-SERVER.md](docs/TODO-SERVER.md).
 

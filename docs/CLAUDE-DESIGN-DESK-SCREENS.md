@@ -3,9 +3,8 @@
 **Date:** 2026-08-16
 **For:** Claude Design (paste everything below the line)
 **App (already at 1.4.3):** `/Users/wizops/DIPI/dipi-app`
-**Visual tokens already in Compose:** `docs/DIPI Staff.dc.html` and `core/ui/.../DipiTheme.kt`
+**Visual tokens already in Compose:** `version-4/DIPI Staff v4.dc.html` and `core/ui/.../DipiTheme.kt`
 **Older Vertical 1 prompt (superseded for these screens):** `docs/plans/2026-08-13-claude-design-prompt.md`
-**Approved sketches (open in a browser):** `docs/sketches/index.html` (12 PNGs in the same folder)
 
 The Compose app already has working screens for this set. Use this brief to produce
 high-fidelity tablet (and phone) mockups that match the locked product rules, so
