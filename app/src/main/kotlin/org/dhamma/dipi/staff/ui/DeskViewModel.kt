@@ -233,6 +233,8 @@ data class DeskUiState(
      * display only; ApplicationCard's toString redacts them.
      */
     val teacherCards: Map<Int, ApplicationCard> = emptyMap(),
+    /** Application pull on course-ops entry: attempted/total, null when idle or done. */
+    val teacherPrefetch: Pair<Int, Int>? = null,
     /** The open student card: group key + row index into the roll. */
     val teacherCard: TeacherCardRef? = null,
     val offline: Boolean = false,
@@ -1576,6 +1578,9 @@ class DeskViewModel @Inject constructor(
         viewModelScope.launch {
             runCatching { repo.loadTeacherRoll(course.centreId.value, course.id.value) }
                 .onSuccess { raw ->
+                    // Course ops buffers its own worklist: the id mapping is
+                    // starved without it (owner feedback 2026-09-02).
+                    runCatching { repo.ensureCourseOpsWorklist(course) }
                     val roll = runCatching { repo.resolveTeacherRoll(course.id.value, raw) }.getOrDefault(raw)
                     val cached = repo.cachedApplicationCards(course.id.value)
                     _state.update { it.copy(teacherRoll = roll, teacherCards = cached) }
@@ -1610,9 +1615,29 @@ class DeskViewModel @Inject constructor(
         if (ids.isEmpty()) return
         viewModelScope.launch {
             runCatching {
-                repo.prefetchApplicationViews(courseId, ids) { id, card ->
-                    _state.update { it.copy(teacherCards = it.teacherCards + (id to card)) }
-                }
+                repo.prefetchApplicationViews(
+                    courseId,
+                    ids,
+                    onCard = { id, card ->
+                        _state.update { it.copy(teacherCards = it.teacherCards + (id to card)) }
+                    },
+                    onProgress = { done, total ->
+                        _state.update {
+                            it.copy(teacherPrefetch = if (done >= total) null else done to total)
+                        }
+                    },
+                )
+            }
+            _state.update { cur ->
+                val missing = ids.distinct().count { it !in cur.teacherCards }
+                cur.copy(
+                    teacherPrefetch = null,
+                    snack = if (missing > 0) {
+                        FlushSnack("$missing application(s) not fetched — will retry on the next entry", error = false)
+                    } else {
+                        cur.snack
+                    },
+                )
             }
         }
     }

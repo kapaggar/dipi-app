@@ -223,6 +223,7 @@ fun DipiAppUi(vm: DeskViewModel) {
                                 onGroupFilter = vm::setTeacherGroupFilter,
                                 onOpen = vm::openTeacherCard,
                                 onSettings = vm::requestCourseOpsSettings,
+                                prefetch = state.teacherPrefetch,
                             )
                             else -> CourseOpsHost(
                                 course = state.course,

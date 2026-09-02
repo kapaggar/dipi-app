@@ -60,7 +60,7 @@ Open the file in a browser. Each option is a `{turn}{letter}` id (`1a`…`1i`) w
 
 **Empty older-courses (see 1g):** heading omitted (as today) and the desk column takes the **full width, three tiles across at 52dp**.
 
-**2026-08-30:** Manage Courses, Daily Activity and SMS Report are gone from the desk-site chip row — owner instruction; still reachable on the desk site. The chip row is now two links (Course Report, Bulk Mail), not five. See the do-not-re-propose list in the Shipped delta ledger below.
+**2026-08-30:** Manage Courses, Daily Activity and SMS Report are gone from the desk-site chip row — owner instruction; still reachable on the desk site. The chip row is now two links (Course Report, Bulk Mail), not five. **2026-09-02 (v5 T3):** Course report became a native tile, so the chip row is one link (Bulk Mail) and the native grid is 2 × 2. See the do-not-re-propose list in the Shipped delta ledger below.
 
 ### 1b — Login, keyboard up · before `20-login-clean.png`
 
@@ -617,3 +617,64 @@ Course ops uses the shipped **Steel** ramp with no additions:
 - Do not **truncate, summarise, score or colour-code** an applicant's answer, and do not hide unanswered questions.
 - Do not invent JSON contracts, `/staff/*` endpoints, or client-side ACL. Two existing `GET`s only.
 - Do not draw the desk rail, the queued-sync strip, or any desk destination while course ops is on.
+
+---
+
+## Sheets v5 — desk sheets, Course report, Board, Rooms (turn 5, frames `5a`–`5t`, shipped 1.34.0 on 2026-09-02)
+
+Design spec: `version-5/README.md`; frames `5a`–`5t` in `DIPI Sheets v5.dc.html`;
+plan and progress ledger: `docs/plans/2026-09-02-sheets-v5.md`.
+
+**The problem this pass fixed.** The twelve desk sheets arrive as print-styled
+Drupal HTML with JavaScript off, so every `Columns:` pill, `Print` link, in-sheet
+hyperlink and the whole seating drag-and-drop panel is dead furniture drawn at the
+same weight as the data. The seating plan spent roughly 400dp of a 900dp screen on
+an instruction panel about dragging students that cannot work here.
+
+### What shipped — do not re-propose
+
+- **Injected sheet stylesheet** (`feature/desk/.../SheetStylesheet.kt`). Real CSS,
+  the one place in the app where the design file's markup ships verbatim. It hides
+  the dead furniture and gives all six HTML sheets one table style. **JavaScript
+  stays off**; the stylesheet is injected at `loadDataWithBaseURL` time and never
+  travels in the transport payload.
+- **Sheet chrome** — `SheetHeader` (title, course identity **once**, and a
+  `VIEW ONLY` / `READ & PRINT` chip) plus `SheetControlBand`: a segmented sort that
+  refetches, and column chips that toggle a CSS class with no refetch.
+- **Sort parameter allowlist.** `SheetSort` is the only route from a control to a
+  query parameter, and it knows exactly two names: `conf` and `seating`. Day 0 list
+  offers confirmation-number order; teacher list and student chit offer seating
+  order; everything else offers nothing. `SheetRouteSafetyTest` fails the build if
+  any sheet GET can be built with `r`.
+- **Native Day 0 summary.** `DaySummaryParser` → `SheetPayload.Summary` →
+  `DaySummaryPane`. The `#day-summary` block is parsed for text rather than matched
+  by tag, because the desk emits unclosed `<b>` tags.
+- **Course report is a centre-dashboard destination, not a Board export.** The
+  centre action tiles are a **2 × 2 grid at 66dp** with sub-lines; the report is
+  native, the date range is its only control, and nothing is fetched until RUN.
+- **Board:** eleven export chips on three shelves, shelf 3 keeping four-column
+  width with an honest empty cell; chips de-emphasised to 38dp / `neutral600` /
+  `accent300`; grey qualifier on each shelf kicker; one `accent300` arrow on each
+  stat card. **Day-11 keeps its full-width fourth line** with an `END OF COURSE`
+  tag — it is not a 13th grid cell, and the v4 dashed GAP marker is dead history.
+- **Rooms & seats:** block headers read *"N occupied · N free of N"* over an
+  occupancy bar; free cells lose the word "free" and the accent; amenity marks sit
+  top-right under a pane-header legend. `( View )` is stripped at parse, beside
+  `( PDF )`, so every screen is clean at once.
+
+### Not built, deliberately
+
+- **The hall grid.** The design draws rows A–E × 7 seats and records the geometry
+  as *inferred, not observed*. Frames `5h`/`5i` are unbuilt. Only dead-furniture
+  removal and the chrome shipped on seating. Picked up in
+  `docs/specs/2026-09-02-seating-r2-orientation-spec.md`.
+- **A seating editor.** The desk's drag-to-reseat is JavaScript and dead here. This
+  surface is read + print. **Nothing labels, implies or reaches "regenerate"** — the
+  `?r=1` route is unreachable from this app by construction, not by discipline.
+- **Any new write protocol.** The pass added none.
+
+### Hard rules unchanged
+
+Live Drupal desk. No `/staff/*`. No client ACL. Server refusals verbatim. Never
+send `?r=` on sheet GETs. Sheet bodies stay in memory or `cacheDir/sheets` and are
+wiped on logout, session expiry and Erase-all.

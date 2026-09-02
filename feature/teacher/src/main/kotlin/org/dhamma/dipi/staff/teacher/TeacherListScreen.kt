@@ -85,6 +85,8 @@ fun TeacherListScreen(
     onGroupFilter: (String?) -> Unit = {},
     onOpen: (RollRow) -> Unit = {},
     onSettings: () -> Unit = {},
+    /** Application pull on entry: attempted/total; null hides the strip. */
+    prefetch: Pair<Int, Int>? = null,
 ) {
     val groups = if (groupFilter == null) roll.groups else roll.groups.filter { it.key == groupFilter }
     val listState = rememberLazyListState()
@@ -105,6 +107,7 @@ fun TeacherListScreen(
     Column(Modifier.fillMaxSize().background(Industry.bg)) {
         if (offline) OfflineStrip()
         Header(courseLine, view, onView, onSettings)
+        prefetch?.let { (done, total) -> PullProgressStrip(done, total) }
         GroupFilterBand(roll.groups, groupFilter, onGroupFilter)
         Box(Modifier.weight(1f)) {
             LazyColumn(state = listState, modifier = Modifier.fillMaxSize().testTag("teacher-roll")) {
@@ -540,5 +543,36 @@ private fun NextGroupFooter(group: RollGroup) {
             color = Industry.neutral600,
         )
         Text("›", fontSize = 15.sp, color = Industry.neutral400)
+    }
+}
+
+/**
+ * Owner feedback 2026-09-02: the roll's applications buffer into the encrypted
+ * course store on entry so the hall reads offline — this strip is the visible
+ * progress of that pull. 30dp, pushes content down, gone when the pull ends.
+ */
+@Composable
+private fun PullProgressStrip(done: Int, total: Int) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .height(30.dp)
+            .padding(horizontal = 24.dp)
+            .testTag("pull-progress"),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        androidx.compose.material3.LinearProgressIndicator(
+            progress = { if (total == 0) 0f else done.toFloat() / total },
+            modifier = Modifier.weight(1f).height(4.dp),
+            color = Industry.accent,
+            trackColor = Industry.neutral200,
+        )
+        Spacer(Modifier.width(12.dp))
+        Text(
+            "Pulling applications… $done / $total",
+            fontSize = 12.sp,
+            color = Industry.neutral600,
+            fontFamily = DipiMono,
+        )
     }
 }
