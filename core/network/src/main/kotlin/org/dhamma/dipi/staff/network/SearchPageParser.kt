@@ -195,11 +195,13 @@ object SearchPageParser {
     /* ── Sensitive extraction (display only, never persisted) ─────────── */
 
     /**
-     * The desk row's PDF-link remnant on the display name — "( PDF )",
-     * "(PDF)", any spacing, any case. Stripped at parse time so every
-     * screen is clean at once (owner feedback 2026-08-16).
+     * The desk row's link remnants on the display name — "( PDF )", "(PDF)",
+     * "( View )", "(view)", any spacing, any case. The desk renders each name
+     * cell with trailing anchors; once the tags are stripped their labels are
+     * left behind as text. Removed at parse time so every screen is clean at
+     * once (owner feedback 2026-08-16; `( View )` added in v5 T5).
      */
-    private val PDF_SUFFIX = Regex("""\s*\(\s*PDF\s*\)""", RegexOption.IGNORE_CASE)
+    private val LINK_REMNANT = Regex("""\s*\(\s*(?:PDF|View)\s*\)""", RegexOption.IGNORE_CASE)
 
     /** dipi edit-form PAN shape: 5 letters + 4 digits + 1 letter (loader.js `looksLikePan`). */
     private val PAN_SHAPE = Regex("""^[A-Za-z]{5}\d{4}[A-Za-z]$""")
@@ -250,7 +252,7 @@ object SearchPageParser {
     fun mapRow(o: JsonObject): ApplicantDto? {
         val id = o.int("aid") ?: return null
         val display = stripTags(o.str("name").orEmpty())
-            .replace(PDF_SUFFIX, "")
+            .replace(LINK_REMNANT, "")
             .replace(Regex("""\s*\((Sevak|AT)[^)]*\)"""), "")
             .trim()
         val parts = display.split(Regex("\\s+")).filter { it.isNotBlank() }

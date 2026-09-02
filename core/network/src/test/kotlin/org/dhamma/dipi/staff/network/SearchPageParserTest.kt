@@ -100,14 +100,25 @@ class SearchPageParserTest {
               {"aid":1,"name":"<a href=\"/app/1/edit\">Meera Deshpande</a> ( PDF )","gender":"Female","courseid":42,"centreid":1,"app_status":"Confirmed"},
               {"aid":2,"name":"Arun Kale (PDF)","gender":"Male","courseid":42,"centreid":1,"app_status":"Pending"},
               {"aid":3,"name":"Priya Nair (  pdf  )","gender":"Female","courseid":42,"centreid":1,"app_status":"Expected"},
-              {"aid":4,"name":"Rohan Kulkarni","gender":"Male","courseid":42,"centreid":1,"app_status":"Expected"}
+              {"aid":4,"name":"Rohan Kulkarni","gender":"Male","courseid":42,"centreid":1,"app_status":"Expected"},
+              {"aid":5,"name":"<a href=\"/application-view/5\">Sunita Rao</a> ( View )","gender":"Female","courseid":42,"centreid":1,"app_status":"Confirmed"},
+              {"aid":6,"name":"Kiran Joshi (View)","gender":"Male","courseid":42,"centreid":1,"app_status":"Pending"},
+              {"aid":7,"name":"Anil Patil (  view  )","gender":"Male","courseid":42,"centreid":1,"app_status":"Expected"},
+              {"aid":8,"name":"Latha Iyer ( PDF ) ( View )","gender":"Female","courseid":42,"centreid":1,"app_status":"Confirmed"}
             ];
             </script>
         """.trimIndent()
         val rows = SearchPageParser.parse(html).dataset
-        assertEquals(listOf("Meera", "Arun", "Priya", "Rohan"), rows.map { it.givenName })
-        assertEquals(listOf("Deshpande", "Kale", "Nair", "Kulkarni"), rows.map { it.familyName })
+        assertEquals(
+            listOf("Meera", "Arun", "Priya", "Rohan", "Sunita", "Kiran", "Anil", "Latha"),
+            rows.map { it.givenName },
+        )
+        assertEquals(
+            listOf("Deshpande", "Kale", "Nair", "Kulkarni", "Rao", "Joshi", "Patil", "Iyer"),
+            rows.map { it.familyName },
+        )
         rows.forEach { assertFalse(it.familyName.contains("PDF", ignoreCase = true)) }
+        rows.forEach { assertFalse(it.familyName.contains("View", ignoreCase = true)) }
     }
 
     @Test
