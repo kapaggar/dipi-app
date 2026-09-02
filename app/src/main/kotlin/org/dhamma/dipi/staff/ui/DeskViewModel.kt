@@ -756,27 +756,24 @@ class DeskViewModel @Inject constructor(
         viewModelScope.launch {
             runCatching {
                 when (key) {
-                    HISTORY_COURSES -> patchHistory(
-                        id,
-                        (_state.value.history[id] ?: cur).copy(
-                            courses = repo.loadAppCourses(id),
-                            loading = (cur.loading + key) - key,
-                        ),
-                    )
-                    HISTORY_ACTIVITY -> patchHistory(
-                        id,
-                        (_state.value.history[id] ?: cur).copy(
-                            activity = repo.loadAppActivity(id),
-                            loading = (cur.loading + key) - key,
-                        ),
-                    )
-                    HISTORY_CLARIFICATIONS -> patchHistory(
-                        id,
-                        (_state.value.history[id] ?: cur).copy(
-                            clarifications = repo.loadAppClarifications(id),
-                            loading = (cur.loading + key) - key,
-                        ),
-                    )
+                    HISTORY_COURSES -> {
+                        val courses = repo.loadAppCourses(id)
+                        val now = _state.value.history[id] ?: cur
+                        patchHistory(id, now.copy(courses = courses, loading = now.loading - key))
+                    }
+                    HISTORY_ACTIVITY -> {
+                        val activity = repo.loadAppActivity(id)
+                        val now = _state.value.history[id] ?: cur
+                        patchHistory(id, now.copy(activity = activity, loading = now.loading - key))
+                    }
+                    HISTORY_CLARIFICATIONS -> {
+                        val clarifications = repo.loadAppClarifications(id)
+                        val now = _state.value.history[id] ?: cur
+                        patchHistory(
+                            id,
+                            now.copy(clarifications = clarifications, loading = now.loading - key),
+                        )
+                    }
                 }
             }.onFailure { e ->
                 handleAuth(e)

@@ -1,11 +1,14 @@
 package org.dhamma.dipi.staff
 
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.height
 import org.dhamma.dipi.staff.applicants.CardScreen
 import org.dhamma.dipi.staff.model.ApplicantCard
 import org.dhamma.dipi.staff.model.ApplicantClarificationRow
@@ -19,6 +22,7 @@ import org.dhamma.dipi.staff.model.CourseId
 import org.dhamma.dipi.staff.model.Gender
 import org.dhamma.dipi.staff.ui.theme.DipiTheme
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -66,12 +70,17 @@ class ApplicantHistoryScreenTest {
             }
         }
         rule.onNodeWithContentDescription("Expand Prior courses").performScrollTo().assertIsDisplayed()
+        val header = rule.onNodeWithContentDescription("Expand Prior courses").getBoundsInRoot()
+        assertTrue(header.height.value >= 48.dp.value)
         rule.onNodeWithText("10-Day · Aug 2026 · Student · Confirmed · False · Pune")
             .performScrollTo()
             .assertIsDisplayed()
         rule.onNodeWithContentDescription("Expand Activity").performScrollTo().performClick()
         assertEquals("activity", expanded)
         rule.onNodeWithText("Please confirm travel date").performScrollTo().assertIsDisplayed()
+        rule.onNodeWithContentDescription("Open clarification PDF").performScrollTo().assertIsDisplayed()
+        val pdf = rule.onNodeWithContentDescription("Open clarification PDF").getBoundsInRoot()
+        assertTrue(pdf.height.value >= 48.dp.value)
         rule.onNodeWithText("Open PDF").performScrollTo().performClick()
         assertEquals(3, clar)
     }

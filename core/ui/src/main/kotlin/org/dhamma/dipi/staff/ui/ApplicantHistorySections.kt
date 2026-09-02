@@ -4,6 +4,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -99,6 +100,7 @@ fun ApplicantHistorySections(
                                 color = c.accent,
                                 fontSize = 13.sp,
                                 modifier = Modifier
+                                    .heightIn(min = 48.dp)
                                     .clickable { onOpenClarification(row.clarId!!) }
                                     .semantics { contentDescription = "Open clarification PDF" }
                                     .padding(top = 2.dp),
@@ -132,6 +134,7 @@ private fun HistoryBlock(
             color = c.accent,
             modifier = Modifier
                 .fillMaxWidth()
+                .heightIn(min = 48.dp)
                 .clickable { onExpand(key) }
                 .semantics { contentDescription = "Expand $title" }
                 .padding(vertical = 6.dp),
