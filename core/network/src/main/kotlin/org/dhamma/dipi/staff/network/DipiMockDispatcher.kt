@@ -110,6 +110,7 @@ class DipiMockDispatcher : Dispatcher() {
             "laundry-list", "valuable-list" ->
                 binary(MockFixtures.xlsBytes, "application/vnd.ms-excel; charset=utf-8")
             "zero-day" -> html(MockFixtures.zeroDayHtml(cid, courseId))
+            "teacher-list" -> html(MockFixtures.teacherListHtml(cid, courseId))
             else -> html(MockFixtures.sheetHtml(slug, cid, courseId))
         }
     }

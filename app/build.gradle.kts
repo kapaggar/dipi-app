@@ -78,6 +78,7 @@ dependencies {
     implementation(project(":feature:auth"))
     implementation(project(":feature:course"))
     implementation(project(":feature:desk"))
+    implementation(project(":feature:teacher"))
     implementation(project(":feature:applicants"))
     implementation(project(":feature:photos"))
     implementation(project(":feature:summary"))

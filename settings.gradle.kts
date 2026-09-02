@@ -25,6 +25,7 @@ include(
     ":feature:auth",
     ":feature:course",
     ":feature:desk",
+    ":feature:teacher",
     ":feature:applicants",
     ":feature:photos",
     ":feature:summary",
