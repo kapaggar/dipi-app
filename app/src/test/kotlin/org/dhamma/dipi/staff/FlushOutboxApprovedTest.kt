@@ -101,6 +101,7 @@ class FlushOutboxApprovedTest {
             api = retrofit.create(StaffApi::class.java),
             tokens = tokens,
             sessionStore = SessionStore(RuntimeEnvironment.getApplication()),
+            courseOpsStore = testCourseOpsStore(),
             applicants = FakeApplicants(),
             outbox = outbox,
             json = Json { ignoreUnknownKeys = true },

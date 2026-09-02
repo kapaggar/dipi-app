@@ -18,6 +18,7 @@ import org.dhamma.dipi.staff.data.ApiException
 import org.dhamma.dipi.staff.data.ConnectivityMonitor
 import org.dhamma.dipi.staff.data.PhotoEditStore
 import org.dhamma.dipi.staff.data.StaffRepository
+import org.dhamma.dipi.staff.datastore.CourseOpsStore
 import org.dhamma.dipi.staff.datastore.SessionStore
 import org.dhamma.dipi.staff.desk.DeskSection
 import org.dhamma.dipi.staff.desk.deskCallList
@@ -56,13 +57,16 @@ import org.dhamma.dipi.staff.model.clearSyncedIfChanged
 import org.dhamma.dipi.staff.model.Session
 import org.dhamma.dipi.staff.model.SheetExport
 import org.dhamma.dipi.staff.model.SheetPayload
+import org.dhamma.dipi.staff.model.TabletMode
 import org.dhamma.dipi.staff.model.WorklistFilter
+import org.dhamma.dipi.staff.model.parseCourseWindow
+import org.dhamma.dipi.staff.model.runningCourse
 import org.dhamma.dipi.staff.network.PhotoLoader
 import org.dhamma.dipi.staff.ui.theme.DeskSkin
 import org.dhamma.dipi.staff.ui.theme.Industry
 import javax.inject.Inject
 
-enum class DeskScreen { Login, Centre, CourseHub, Today, Card, Photos, Summary, Settings, DeskAction, ZeroDay, Audit, Calling, Rooms, CentreOps, Search }
+enum class DeskScreen { Login, Centre, CourseHub, Today, Card, Photos, Summary, Settings, DeskAction, ZeroDay, Audit, Calling, Rooms, CentreOps, Search, TeacherRoll, SeatingPlan, TeacherCard }
 
 data class DeskActionDest(val title: String, val route: String)
 
@@ -96,7 +100,14 @@ fun deskBack(screen: DeskScreen, returnTo: DeskScreen?): DeskScreen = when (scre
     // The in-app Advanced Search opens from the Centre screen only.
     DeskScreen.Search -> DeskScreen.Centre
     DeskScreen.CourseHub -> DeskScreen.Centre
-    DeskScreen.Centre, DeskScreen.Login -> screen
+    // Course ops (spec 2a): the card backs to whichever teacher screen opened
+    // it; both teacher screens back to the roll; the roll is an exit-dialog
+    // root alongside Login and Centre.
+    DeskScreen.TeacherCard ->
+        returnTo.takeIf { it == DeskScreen.SeatingPlan || it == DeskScreen.TeacherRoll }
+            ?: DeskScreen.TeacherRoll
+    DeskScreen.SeatingPlan -> DeskScreen.TeacherRoll
+    DeskScreen.Centre, DeskScreen.Login, DeskScreen.TeacherRoll -> screen
 }
 
 fun deskAfterLogin(): DeskScreen = DeskScreen.Centre
@@ -124,6 +135,14 @@ data class DeskUiState(
     val dark: Boolean = false,
     val skin: DeskSkin = DeskSkin.Steel,
     val lotus: Boolean = true,
+    /** Device mode (spec 2a): DESK is the registrar build, COURSE_OPS the teacher's. */
+    val mode: TabletMode = TabletMode.DESK,
+    /** First-enable PIN collection (set + confirm) is open over Settings. */
+    val pinSetup: Boolean = false,
+    /** The device-PIN gate before Settings opens from course ops. */
+    val pinPrompt: Boolean = false,
+    /** "Wrong PIN" while the gate dialog stays; null otherwise. Never the digits. */
+    val pinError: String? = null,
     val offline: Boolean = false,
     val queuedById: Map<ApplicantId, String> = emptyMap(),
     val queuedCount: Int = 0,
@@ -309,10 +328,15 @@ fun deskSyncLine(lastSyncIso: String?, now: java.time.Instant, offline: Boolean,
 class DeskViewModel @Inject constructor(
     private val repo: StaffRepository,
     private val sessionStore: SessionStore,
+    private val courseOpsStore: CourseOpsStore,
     private val photoStore: PhotoEditStore,
     private val photoLoader: PhotoLoader,
     connectivity: ConnectivityMonitor,
 ) : ViewModel() {
+
+    /** Clock seam for the course lock — tests pin "today"; production is the device date. */
+    @androidx.annotation.VisibleForTesting
+    internal var todayProvider: () -> java.time.LocalDate = { java.time.LocalDate.now() }
 
     private val _state = MutableStateFlow(DeskUiState())
     val state: StateFlow<DeskUiState> = _state.asStateFlow()
@@ -351,6 +375,9 @@ class DeskViewModel @Inject constructor(
         }
         viewModelScope.launch {
             sessionStore.lotus.collect { on -> _state.update { it.copy(lotus = on) } }
+        }
+        viewModelScope.launch {
+            sessionStore.tabletMode.collect { mode -> _state.update { it.copy(mode = mode) } }
         }
         viewModelScope.launch {
             sessionStore.lastSync.collect { sync -> _state.update { it.copy(lastSync = sync) } }
@@ -1250,6 +1277,73 @@ class DeskViewModel @Inject constructor(
         viewModelScope.launch { sessionStore.setForceOffline(!_state.value.offline) }
     }
 
+    /* ── Course ops · mode + device PIN (spec 2a) ───────────────────── */
+
+    /** The course whose parsed window contains today — the course-ops lock. */
+    fun runningCourseToday(): Course? =
+        runningCourse(_state.value.courses + _state.value.olderCourses, todayProvider())
+
+    /** "2 Sep – 13 Sep 2026" for the settings card; null when nothing runs. */
+    fun runningCourseDatesLabel(): String? = runningCourseToday()
+        ?.let { parseCourseWindow(it.name, todayProvider())?.label() }
+
+    /**
+     * The settings radio cards. Enabling course ops with no PIN on the device
+     * first collects one (set + confirm) — the mode flips only after the PIN
+     * lands. Switching back to Desk ops needs no second prompt: entering
+     * Settings from course ops was already PIN-gated at the door.
+     */
+    fun setTabletMode(mode: TabletMode) {
+        if (mode == _state.value.mode) return
+        viewModelScope.launch {
+            if (mode == TabletMode.COURSE_OPS) {
+                val pinSet = runCatching { courseOpsStore.isPinSet() }.getOrDefault(false)
+                if (pinSet) enterCourseOps() else _state.update { it.copy(pinSetup = true) }
+            } else {
+                sessionStore.setTabletMode(TabletMode.DESK)
+                returnTo = DeskScreen.Centre
+                _state.update { it.copy(mode = TabletMode.DESK, course = null) }
+            }
+        }
+    }
+
+    /** The set+confirm dialog's result. The digits go to the store and nowhere else. */
+    fun completePinSetup(pin: String) {
+        viewModelScope.launch {
+            runCatching { courseOpsStore.setPin(pin) }
+            _state.update { it.copy(pinSetup = false) }
+            enterCourseOps()
+        }
+    }
+
+    fun dismissPinSetup() = _state.update { it.copy(pinSetup = false) }
+
+    /** The ⚙ affordance on the teacher header: Settings only through the PIN gate. */
+    fun requestCourseOpsSettings() = _state.update { it.copy(pinPrompt = true, pinError = null) }
+
+    fun submitCourseOpsPin(pin: String) {
+        viewModelScope.launch {
+            val ok = runCatching { courseOpsStore.checkPin(pin) }.getOrDefault(false)
+            if (ok) {
+                _state.update { it.copy(pinPrompt = false, pinError = null) }
+                openSettings()
+            } else {
+                // The dialog stays; the fixed-severity error line reads "Wrong PIN".
+                _state.update { it.copy(pinError = "Wrong PIN") }
+            }
+        }
+    }
+
+    fun dismissPinPrompt() = _state.update { it.copy(pinPrompt = false, pinError = null) }
+
+    /** Flip the mode key and lock to the running course (null → empty state). */
+    private suspend fun enterCourseOps() {
+        sessionStore.setTabletMode(TabletMode.COURSE_OPS)
+        val running = runningCourseToday()
+        returnTo = DeskScreen.TeacherRoll
+        _state.update { it.copy(mode = TabletMode.COURSE_OPS, course = running) }
+    }
+
     fun logout() {
         viewModelScope.launch {
             keepAliveJob?.cancel()
@@ -1298,12 +1392,29 @@ class DeskViewModel @Inject constructor(
         if (centre != null) {
             runCatching { repo.loadCourses(centre.id) }
                 .onSuccess { lists ->
-                    _state.update {
-                        it.copy(
-                            courses = lists.upcoming,
-                            olderCourses = lists.older,
-                            screen = deskAfterLogin(),
-                        )
+                    // Course ops (spec 2a S5): the mode key decides the start
+                    // destination — the roll, locked to the running course.
+                    // DESK is byte-identical to the pre-2a flow: Centre.
+                    if (sessionStore.tabletModeOnce() == TabletMode.COURSE_OPS) {
+                        val running = runningCourse(lists.upcoming + lists.older, todayProvider())
+                        returnTo = DeskScreen.TeacherRoll
+                        _state.update {
+                            it.copy(
+                                courses = lists.upcoming,
+                                olderCourses = lists.older,
+                                course = running,
+                                screen = DeskScreen.TeacherRoll,
+                                mode = TabletMode.COURSE_OPS,
+                            )
+                        }
+                    } else {
+                        _state.update {
+                            it.copy(
+                                courses = lists.upcoming,
+                                olderCourses = lists.older,
+                                screen = deskAfterLogin(),
+                            )
+                        }
                     }
                 }
                 .onFailure { e ->

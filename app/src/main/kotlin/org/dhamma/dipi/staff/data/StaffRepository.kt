@@ -11,6 +11,7 @@ import org.dhamma.dipi.staff.database.ApplicantDao
 import org.dhamma.dipi.staff.database.ApplicantEntity
 import org.dhamma.dipi.staff.database.OutboxDao
 import org.dhamma.dipi.staff.database.OutboxEntity
+import org.dhamma.dipi.staff.datastore.CourseOpsStore
 import org.dhamma.dipi.staff.datastore.SessionStore
 import org.dhamma.dipi.staff.model.ApplicantActivityRow
 import org.dhamma.dipi.staff.model.ApplicantCard
@@ -79,6 +80,7 @@ class StaffRepository @Inject constructor(
     private val api: StaffApi,
     private val tokens: TokenStore,
     private val sessionStore: SessionStore,
+    private val courseOpsStore: CourseOpsStore,
     private val applicants: ApplicantDao,
     private val outbox: OutboxDao,
     private val json: Json,
@@ -583,6 +585,9 @@ class StaffRepository @Inject constructor(
         applicants.clear()
         outbox.clear()
         sessionStore.wipeAll()
+        // Erase-all is the one thing that removes the course-ops device PIN
+        // (spec 2a S3); logout deliberately leaves it in place.
+        courseOpsStore.wipeAll()
         sensitive.clear()
         sheets.wipe()
         lastCentreId = null
