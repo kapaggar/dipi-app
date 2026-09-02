@@ -49,6 +49,7 @@ enum class TeacherView { SENIORITY, SEATING }
 
 // Fixed hexes DESIGN.md § Course ops names outside the ramp tokens:
 // row hairline · card hairline · rules.
+private val PillFill = Color(0xFFFAFAFB)
 private val RowHairline = Color(0xFFEDEDF1)
 private val CardHairline = Color(0xFFDEDEE1)
 private val Rule = Color(0xFFE0E0E3)
@@ -110,7 +111,7 @@ fun TeacherListScreen(
                 groups.forEach { group ->
                     stickyHeader(key = "band-${group.key}") { GroupBand(group) }
                     item(key = "cols-${group.key}") { ColumnHeader() }
-                    items(group.rows.size, key = { "row-${group.key}-${group.rows[it].sn}" }) { i ->
+                    items(group.rows.size, key = { "row-${group.key}-$it" }) { i ->
                         RollRowLine(group.rows[i], flagsFor, onOpen)
                     }
                 }
@@ -239,7 +240,7 @@ private fun GroupFilterBand(
                         if (selected) {
                             Modifier.background(Color.White, shape).border(1.5.dp, Industry.accent, shape)
                         } else {
-                            Modifier.background(Industry.neutral100, shape).border(1.dp, Rule, shape)
+                            Modifier.background(PillFill, shape).border(1.dp, Rule, shape)
                         },
                     )
                     .clickable(role = Role.Button) { onGroupFilter(if (selected) null else g.key) }
@@ -277,6 +278,7 @@ private fun GroupBand(group: RollGroup) {
     Row(
         Modifier
             .fillMaxWidth()
+            .background(Industry.bg)
             .padding(horizontal = 24.dp)
             .height(34.dp)
             .background(Industry.accent100, shape)
@@ -295,7 +297,7 @@ private fun GroupBand(group: RollGroup) {
             color = Industry.accent800,
             maxLines = 1,
         )
-        Text(group.qualifier, fontSize = 12.5.sp, color = Industry.accent500, maxLines = 1)
+        Text(group.qualifier, fontSize = 12.5.sp, color = Industry.accent600, maxLines = 1)
         Spacer(Modifier.weight(1f))
         Text(
             "${group.total} TOTAL",
@@ -514,7 +516,7 @@ private fun NextGroupFooter(group: RollGroup) {
         Modifier
             .fillMaxWidth()
             .height(40.dp)
-            .background(Industry.neutral100)
+            .background(PillFill)
             .topHairline(Rule)
             .padding(horizontal = 24.dp)
             .testTag("next-group-footer"),

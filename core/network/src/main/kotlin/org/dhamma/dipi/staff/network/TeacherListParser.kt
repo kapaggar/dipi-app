@@ -51,7 +51,7 @@ object TeacherListParser {
 
     /** Name suffixes the renderer bolds: `(Sevak)`, `(BT-2001)`, `(T…)`, `(SAT-2011)`, `(AT)`. */
     private val roleSuffixRe = Regex(
-        """<b>\s*\(([^)]*)\)\s*</b>""",
+        """<b>\s*\((Sevak|(?:BT|SAT|AT|T)(?:-\d+)?)\)\s*</b>""",
         RegexOption.IGNORE_CASE,
     )
 

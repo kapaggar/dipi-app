@@ -11,7 +11,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
@@ -41,7 +41,7 @@ fun PinDialog(
     error: String? = null,
 ) {
     val c = LocalDipi.current
-    var pin by rememberSaveable { mutableStateOf("") }
+    var pin by remember { mutableStateOf("") }
     AlertDialog(
         modifier = Modifier.testTag("pin-dialog"),
         onDismissRequest = onDismiss,
@@ -95,8 +95,8 @@ fun PinSetupDialog(
     onSet: (String) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    var pin by rememberSaveable { mutableStateOf("") }
-    var again by rememberSaveable { mutableStateOf("") }
+    var pin by remember { mutableStateOf("") }
+    var again by remember { mutableStateOf("") }
     val ready = pin.length == PIN_LENGTH && pin == again
     AlertDialog(
         modifier = Modifier.testTag("pin-setup-dialog"),

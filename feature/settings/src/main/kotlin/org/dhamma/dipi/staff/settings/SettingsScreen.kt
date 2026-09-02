@@ -137,14 +137,27 @@ fun SettingsScreen(
                 modifier = Modifier.padding(bottom = 12.dp),
             )
         }
+        // Three columns need the mode column to hold its own beside the 428dp
+        // account column AND the appearance column's 258dp ramp strip; below
+        // ~1100dp the mode card stacks on top so the 800-1099dp band (gate
+        // review 2a, finding 1) keeps the pre-2a two-column fold intact.
+        val threeCol = LocalConfiguration.current.screenWidthDp >= 1100
+        if (wide && !threeCol) {
+            TabletModeCard(
+                mode, onMode, runningCourseName, runningCourseDates,
+                modifier = Modifier.padding(bottom = 14.dp),
+            )
+        }
         if (wide) {
             Row(horizontalArrangement = Arrangement.spacedBy(18.dp), verticalAlignment = Alignment.Top) {
-                // First card, its own column: the appearance/testing column and
-                // the 428dp account column keep their pre-2a fold positions.
-                TabletModeCard(
-                    mode, onMode, runningCourseName, runningCourseDates,
-                    modifier = Modifier.weight(1f),
-                )
+                if (threeCol) {
+                    // First card, its own column: the appearance/testing column
+                    // and the 428dp account column keep their pre-2a positions.
+                    TabletModeCard(
+                        mode, onMode, runningCourseName, runningCourseDates,
+                        modifier = Modifier.weight(1f),
+                    )
+                }
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                     AppearanceCard(dark, skin, lotus, onToggleTheme, onSkin, onToggleLotus)
                     TestingCard(offline, onToggleOffline)
@@ -492,6 +505,7 @@ private fun PinGateRow(modifier: Modifier = Modifier) {
         modifier
             .fillMaxWidth()
             .height(48.dp)
+            .background(ModeCardFill, RoundedCornerShape(6.dp))
             .border(1.dp, ModeDash, RoundedCornerShape(6.dp))
             .padding(horizontal = 14.dp)
             .testTag("pin-gate-row"),

@@ -13,3 +13,4 @@ captures/
 .superpowers/
 .kotlin/
 *.hprof
+.claude/
