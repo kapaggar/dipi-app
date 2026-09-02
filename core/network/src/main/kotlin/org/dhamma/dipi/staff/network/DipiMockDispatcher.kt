@@ -67,6 +67,20 @@ class DipiMockDispatcher : Dispatcher() {
             path.matches(Regex("/(day0-list|teacher-list|manager-list|student-chit|checking-slip|seating|zero-day|course-pdf-[mf]|laundry-list|valuable-list|report-day11)/\\d+/\\d+(\\?.*)?")) ->
                 sheet(path)
             path.matches(Regex("/centre/\\d+/course-report(\\?.*)?")) -> courseReport(request, path)
+            // Course-ops student card (spec 2d): the application as written.
+            // Live behaviour: missing permission ⇒ themed 403 (FORBIDDEN_CENTRE
+            // stands in); wrong centre/gender/bad id ⇒ wildcard-loader 404.
+            method == "GET" && path.matches(Regex("/application-view/\\d+(\\?.*)?")) -> {
+                val id = path.split("/")[2].substringBefore("?").toInt()
+                when {
+                    id == MockFixtures.FORBIDDEN_CENTRE -> forbidden()
+                    MockFixtures.people.none { it.id == id } ->
+                        MockResponse().setResponseCode(404)
+                            .addHeader("Content-Type", "text/html; charset=utf-8")
+                            .setBody(MockFixtures.notFoundHtml)
+                    else -> html(MockFixtures.applicationViewHtml(id))
+                }
+            }
             method == "GET" && path.matches(Regex("/app/\\d+/edit(\\?.*)?")) -> {
                 val id = path.split("/")[2].toInt()
                 html(MockFixtures.appEditHtml(id))
