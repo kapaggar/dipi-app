@@ -18,6 +18,7 @@ import kotlinx.serialization.json.Json
 import org.dhamma.dipi.staff.model.CallRecord
 import org.dhamma.dipi.staff.model.CentreOpsPrefs
 import org.dhamma.dipi.staff.model.CheckInRecord
+import org.dhamma.dipi.staff.model.TabletMode
 import org.dhamma.dipi.staff.network.TokenStore
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -103,6 +104,20 @@ class SessionStore @Inject constructor(
     }
 
     val skin: Flow<String> = ds.data.map { it[SKIN] ?: "steel" }
+
+    /**
+     * Tablet mode (spec 2a): desk build vs course ops. Device-local; wiped by
+     * logout and Erase-all — acceptable because in course ops both live behind
+     * the device-PIN gate on Settings.
+     */
+    suspend fun setTabletMode(mode: TabletMode) {
+        ds.edit { it[TABLET_MODE] = mode.key }
+    }
+
+    val tabletMode: Flow<TabletMode> = ds.data.map { TabletMode.fromKey(it[TABLET_MODE]) }
+
+    /** One-shot read for afterLogin/restore — the collector may not have fired yet. */
+    suspend fun tabletModeOnce(): TabletMode = TabletMode.fromKey(ds.data.first()[TABLET_MODE])
 
     /** Lotus decoration (sign-in hero + desk watermark). One switch governs both. */
     suspend fun setLotus(on: Boolean) {
@@ -197,6 +212,7 @@ class SessionStore @Inject constructor(
         private const val REMEMBER_PASS = "remember_pass"
         private val DARK = booleanPreferencesKey("dark")
         private val SKIN = stringPreferencesKey("skin")
+        private val TABLET_MODE = stringPreferencesKey("tablet_mode")
         private val LOTUS = booleanPreferencesKey("lotus")
         private val SYNC = stringPreferencesKey("sync")
         private val OFFLINE = booleanPreferencesKey("offline")

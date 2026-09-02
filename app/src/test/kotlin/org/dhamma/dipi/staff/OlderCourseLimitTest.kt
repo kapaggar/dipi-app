@@ -63,6 +63,7 @@ class OlderCourseLimitTest {
             api = retrofit.create(StaffApi::class.java),
             tokens = tokens,
             sessionStore = sessionStore,
+            courseOpsStore = testCourseOpsStore(),
             applicants = FakeApplicants(),
             outbox = FakeOutbox(),
             json = json,

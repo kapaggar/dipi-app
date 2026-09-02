@@ -131,6 +131,7 @@ class SheetViewerTest {
             api = retrofit.create(StaffApi::class.java),
             tokens = tokens,
             sessionStore = sessionStore,
+            courseOpsStore = testCourseOpsStore(),
             applicants = FakeApplicants(),
             outbox = FakeOutbox(),
             json = json,
@@ -142,6 +143,7 @@ class SheetViewerTest {
         return DeskViewModel(
             repo,
             sessionStore,
+            testCourseOpsStore(),
             PhotoEditStore(app, json),
             PhotoLoader(OkHttpClient(), true, base, server),
             ConnectivityMonitor(app),
