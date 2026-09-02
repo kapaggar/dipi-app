@@ -37,6 +37,10 @@ import org.dhamma.dipi.staff.model.AccoRoom
 import org.dhamma.dipi.staff.model.ApplicantCard
 import org.dhamma.dipi.staff.model.ApplicantDeskHistory
 import org.dhamma.dipi.staff.model.ApplicantId
+import org.dhamma.dipi.staff.model.ApplicationCard
+import org.dhamma.dipi.staff.model.RollGroup
+import org.dhamma.dipi.staff.model.RollRow
+import org.dhamma.dipi.staff.model.flagsFor
 import org.dhamma.dipi.staff.model.ApplicantStatus
 import org.dhamma.dipi.staff.model.HISTORY_ACTIVITY
 import org.dhamma.dipi.staff.model.HISTORY_CLARIFICATIONS
@@ -112,6 +116,52 @@ fun deskBack(screen: DeskScreen, returnTo: DeskScreen?): DeskScreen = when (scre
     DeskScreen.Centre, DeskScreen.Login, DeskScreen.TeacherRoll -> screen
 }
 
+/** The open student card (spec 2d): which roll group, which row in it. */
+data class TeacherCardRef(val groupKey: String, val index: Int)
+
+/**
+ * Derived FLAGS per applicant id (spec 2d S3) — gender comes from the row's
+ * own group band, the answers from the prefetched cards. Rows without a
+ * mapped id or a landed card simply have no entry (un-flagged, never
+ * invented).
+ */
+fun teacherFlags(roll: TeacherRoll?, cards: Map<Int, ApplicationCard>): Map<Int, List<String>> {
+    if (roll == null || cards.isEmpty()) return emptyMap()
+    val out = mutableMapOf<Int, List<String>>()
+    for (group in roll.groups) {
+        for (row in group.rows) {
+            val id = row.applicantId?.value ?: continue
+            val card = cards[id] ?: continue
+            out[id] = flagsFor(card, group.gender)
+        }
+    }
+    return out
+}
+
+/** The group + row a [TeacherCardRef] points at — null when the roll moved. */
+fun teacherCardAt(roll: TeacherRoll?, ref: TeacherCardRef?): Pair<RollGroup, RollRow>? {
+    if (roll == null || ref == null) return null
+    val group = roll.groups.firstOrNull { it.key == ref.groupKey } ?: return null
+    val row = group.rows.getOrNull(ref.index) ?: return null
+    return group to row
+}
+
+/**
+ * ‹ › walk (spec 2d S4): the CURRENT group in roll order, stopping at its
+ * ends — never wrapping into the next group. Rows without a mapped
+ * applicant id have no card, so the walk steps over them.
+ */
+fun teacherCardStep(roll: TeacherRoll?, ref: TeacherCardRef?, delta: Int): TeacherCardRef? {
+    if (roll == null || ref == null || delta == 0) return null
+    val group = roll.groups.firstOrNull { it.key == ref.groupKey } ?: return null
+    var i = ref.index + delta
+    while (i in group.rows.indices) {
+        if (group.rows[i].applicantId != null) return TeacherCardRef(ref.groupKey, i)
+        i += delta
+    }
+    return null
+}
+
 fun deskAfterLogin(): DeskScreen = DeskScreen.Centre
 
 fun deskAfterPickCourse(): DeskScreen = DeskScreen.CourseHub
@@ -150,6 +200,14 @@ data class DeskUiState(
     val teacherRollError: String? = null,
     val teacherView: TeacherView = TeacherView.SENIORITY,
     val teacherGroupFilter: String? = null,
+    /**
+     * Prefetched application cards by applicant id — the in-memory mirror of
+     * the encrypted course cache (spec 2d). Health answers live here for
+     * display only; ApplicationCard's toString redacts them.
+     */
+    val teacherCards: Map<Int, ApplicationCard> = emptyMap(),
+    /** The open student card: group key + row index into the roll. */
+    val teacherCard: TeacherCardRef? = null,
     val offline: Boolean = false,
     val queuedById: Map<ApplicantId, String> = emptyMap(),
     val queuedCount: Int = 0,
@@ -1356,23 +1414,95 @@ class DeskViewModel @Inject constructor(
      * One GET per entry to course ops — the endpoint mutates server data on
      * every request (zeroize_new_course_data), so it is never polled and never
      * refetched on view/filter changes.
+     *
+     * Spec 2d: a fetched roll is id-mapped against the cached worklist +
+     * zero-day merge, snapshotted to the encrypted course cache, and the
+     * whole roll's applications prefetch at ≤4 concurrent. A failed fetch
+     * (offline hall) falls back to the cached snapshot so the roll and every
+     * landed card still read — this is also the ONLY retry point for
+     * prefetch failures (never a hot loop).
      */
     private fun fetchTeacherRoll() {
         val course = _state.value.course ?: return
-        _state.update { it.copy(teacherRoll = null, teacherRollError = null) }
+        _state.update {
+            it.copy(teacherRoll = null, teacherRollError = null, teacherCards = emptyMap(), teacherCard = null)
+        }
         viewModelScope.launch {
             runCatching { repo.loadTeacherRoll(course.centreId.value, course.id.value) }
-                .onSuccess { roll -> _state.update { it.copy(teacherRoll = roll) } }
+                .onSuccess { raw ->
+                    val roll = runCatching { repo.resolveTeacherRoll(course.id.value, raw) }.getOrDefault(raw)
+                    val cached = repo.cachedApplicationCards(course.id.value)
+                    _state.update { it.copy(teacherRoll = roll, teacherCards = cached) }
+                    prefetchTeacherCards(course.id.value, roll)
+                }
                 .onFailure { e ->
                     handleAuth(e)
-                    _state.update { it.copy(teacherRollError = e.message ?: "Teacher list unavailable") }
+                    val cachedRoll = repo.cachedTeacherRoll(course.id.value)
+                    if (cachedRoll != null) {
+                        _state.update {
+                            it.copy(
+                                teacherRoll = cachedRoll,
+                                teacherCards = repo.cachedApplicationCards(course.id.value),
+                            )
+                        }
+                    } else {
+                        _state.update { it.copy(teacherRollError = e.message ?: "Teacher list unavailable") }
+                    }
                 }
+        }
+    }
+
+    /**
+     * Silent ≤4-concurrent prefetch of every mapped row's application.
+     * Flags appear on rows as answers land; failures stay un-flagged and
+     * retry only on the next course-ops entry (spec 2d S2).
+     */
+    private fun prefetchTeacherCards(courseId: Int, roll: TeacherRoll) {
+        val ids = roll.groups.flatMap { g -> g.rows.mapNotNull { it.applicantId?.value } }
+        if (ids.isEmpty()) return
+        viewModelScope.launch {
+            runCatching {
+                repo.prefetchApplicationViews(courseId, ids) { id, card ->
+                    _state.update { it.copy(teacherCards = it.teacherCards + (id to card)) }
+                }
+            }
         }
     }
 
     fun setTeacherView(view: TeacherView) = _state.update { it.copy(teacherView = view) }
 
     fun setTeacherGroupFilter(key: String?) = _state.update { it.copy(teacherGroupFilter = key) }
+
+    /**
+     * Row tap / seat tap → the student card (spec 2d S4). A row that
+     * resolved to no applicant id has no card: the row stays, the tap
+     * answers honestly — never an invented record.
+     */
+    fun openTeacherCard(row: RollRow) {
+        if (row.applicantId == null) {
+            _state.update { it.copy(snack = FlushSnack("Not on the worklist yet", error = false)) }
+            return
+        }
+        val roll = _state.value.teacherRoll ?: return
+        for (group in roll.groups) {
+            val i = group.rows.indexOf(row)
+            if (i >= 0) {
+                val cur = _state.value.screen
+                returnTo = cur.takeIf { it == DeskScreen.TeacherRoll || it == DeskScreen.SeatingPlan }
+                    ?: DeskScreen.TeacherRoll
+                _state.update {
+                    it.copy(screen = DeskScreen.TeacherCard, teacherCard = TeacherCardRef(group.key, i))
+                }
+                return
+            }
+        }
+    }
+
+    /** ‹ › in the card header: walk the current group, stop at its ends. */
+    fun stepTeacherCard(delta: Int) {
+        val next = teacherCardStep(_state.value.teacherRoll, _state.value.teacherCard, delta) ?: return
+        _state.update { it.copy(teacherCard = next) }
+    }
 
     fun logout() {
         viewModelScope.launch {
