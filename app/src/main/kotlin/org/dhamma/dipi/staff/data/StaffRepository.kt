@@ -35,6 +35,7 @@ import org.dhamma.dipi.staff.model.Session
 import org.dhamma.dipi.staff.model.SheetExport
 import org.dhamma.dipi.staff.model.SheetPayload
 import org.dhamma.dipi.staff.model.StatusWrite
+import org.dhamma.dipi.staff.model.TeacherRoll
 import org.dhamma.dipi.staff.model.UserCentreMap
 import org.dhamma.dipi.staff.network.AccoHandlerParser
 import org.dhamma.dipi.staff.network.ApplicantDto
@@ -49,6 +50,7 @@ import org.dhamma.dipi.staff.network.SearchPageParser
 import org.dhamma.dipi.staff.network.SessionCookieJar
 import org.dhamma.dipi.staff.network.SheetTransport
 import org.dhamma.dipi.staff.network.StaffApi
+import org.dhamma.dipi.staff.network.TeacherListParser
 import org.dhamma.dipi.staff.network.TokenStore
 import org.dhamma.dipi.staff.network.html
 import java.io.File
@@ -476,6 +478,27 @@ class StaffRepository @Inject constructor(
                 throw ApiException("Access denied", unauthorized = true)
             }
             AttendedTableParser.parse(html)
+        }.getOrElse { throw it.toApi() }
+    }
+
+    /**
+     * The course-ops roll: `GET /teacher-list/{cid}/{courseId}` parsed once.
+     * Path-only params (the no-`r` rule is structural — [StaffApi.sheetPage]
+     * declares no query), and NEVER polled: the endpoint mutates server data
+     * on every GET (`zeroize_new_course_data`). Callers fetch on entry to
+     * course ops / process start only. Login HTML or 403 → unauthorized;
+     * any other refusal (404 from the wildcard loaders included) surfaces
+     * verbatim. Success is an unthemed fragment starting `<style>`.
+     */
+    suspend fun loadTeacherRoll(centreId: Int, courseId: Int): TeacherRoll {
+        return runCatching {
+            val resp = api.sheetPage("teacher-list", centreId, courseId)
+            val html = resp.html()
+            if (stillOnLogin(html) || resp.code() == 403) {
+                throw ApiException("Access denied", unauthorized = true)
+            }
+            if (!resp.isSuccessful) throw ApiException(html.ifBlank { "HTTP ${resp.code()}" })
+            TeacherListParser.parse(html)
         }.getOrElse { throw it.toApi() }
     }
 
