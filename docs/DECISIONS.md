@@ -245,6 +245,51 @@ are preserved because code comments cite them.
   `tapNeedsFetch` in `:core:model`); closing keeps cached rows, reopening costs no
   second request; only a never-loaded or failed section fetches.
 
+## Course ops — assistant-teacher mode (2026-09-02)
+
+- **Owner: device PIN exit gate.** No PIN existed in the app (the design assumed
+  one); a 4-digit device PIN is set when course ops is enabled — salted SHA-256
+  in the store's own EncryptedSharedPreferences file `dipi_course_ops`,
+  constant-time check, survives logout, wiped by Erase-all. In course ops the
+  PIN gates the Settings door itself, which also covers Logout/Erase — logout
+  clears the mode key, so an ungated logout would bypass the gate. Raw digits
+  never persisted (not even saved-instance state) and never logged.
+- **Owner: hall grid is registrar-configured device-locally** (per gender,
+  rows × seats-per-row, clamps 1..26/1..20) in Centre Settings ("Hall chart",
+  stage-then-SAVE like the room chart; placed below the RESULT card — beside
+  the Room chart broke the phone fold, ruling ratified at gate review). The
+  server's `cs_seat_config` INI is exposed on no readable endpoint. Seat labels
+  place students; data beats config — labels beyond the grid EXTEND it (capped
+  at 2× so a garbage label lands visibly in UNSEATED, never dropped, and never
+  stretches the plan); duplicate labels: first keeps the seat, later ones land
+  in UNSEATED. Empty CW-/CH- slots are unknowable client-side and are not drawn.
+- **Owner: course ops is read-only** — no attendance marking (would be the
+  mode's first write; revisit as its own project), no notes, no edit, no export.
+- **One roll fetch per entry, never polled**: `GET /teacher-list/{cid}/{courseId}`
+  runs a server-side DELETE (`zeroize_new_course_data`) on every request. Seat
+  order derives client-side from labels; `?seating=1` exists but is unused.
+- **The teacher-list Comments column is never parsed or stored** — it is an
+  unlabelled concatenation of health text. Flags derive from `/application-view`
+  fields only: `HLTH MED INTOX TECH PREG MONK` in that order; empty and `-`
+  un-flag; PREG is gender-gated; Pregnancy renders `N/A` for male applicants.
+- **Applicant-id mapping ruling**: teacher-list markup carries no ids
+  (`zero-day.inc:1040-1048`); the zero-day merge's seat field is a seating-aid
+  type, not a hall label, so the seat join is impossible. Rows map by band
+  gender + unique normalized worklist name, disambiguated by room then age;
+  residual ambiguity → no id, the row stays, tap answers "Not on the worklist
+  yet". Mapping uses only already-cached desk data — the two-GET rule holds.
+- **`/application-view` parsing is allowlist-structural**: only the header,
+  `Personal` (its eight labels allowlisted individually), `Course History`
+  (server tile order `10-Day Teen STP Special TSC 20-Day 30-Day 45-Day 60-Day
+  Service`) and `Health` (labels verbatim) are ever read. Identification,
+  Emergency, Contact, Background, Languages, Other, Children/Teen and Long
+  Course sections never reach a row regex; the NPI sweep test plants decoys in
+  every skipped section and enumerates model fields reflectively with a count
+  pin so growth forces re-verification.
+- **The mode is byte-identical off**: DESK-mode behavior is pinned by
+  `centreStillStartsInDesk`; in course ops the desk rail, queued strip and
+  every desk destination never compose.
+
 ## Version milestones (from the documents' own headers)
 
 1.18.0/29 pre-v3-audit baseline · 1.20.0/31 v3 conformance · 1.21.0/33 centre

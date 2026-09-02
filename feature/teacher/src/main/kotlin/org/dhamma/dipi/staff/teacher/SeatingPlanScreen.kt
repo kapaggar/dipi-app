@@ -31,6 +31,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -217,9 +218,9 @@ private fun HallAndLegendBand(hall: Gender, onHall: (Gender) -> Unit) {
         // Legend swatches carry the CELL fills (ground-truth correction):
         // Old accent100/accent300 — not the prose's swatch hexes.
         LegendItem("Old", fill = Industry.accent100, borderColor = Industry.accent300)
-        Spacer(Modifier.width(8.dp))
+        Spacer(Modifier.width(14.dp))
         LegendItem("New", fill = NewFill, borderColor = Industry.neutral300)
-        Spacer(Modifier.width(8.dp))
+        Spacer(Modifier.width(14.dp))
         LegendItem("Empty", fill = Color.White, borderColor = Industry.neutral400, dashed = true)
     }
 }
@@ -281,6 +282,7 @@ private fun SeatGrid(plan: HallPlan, onOpen: (RollRow) -> Unit) {
                     fontWeight = FontWeight.SemiBold,
                     fontSize = 15.sp,
                     color = Industry.neutral500,
+                    textAlign = TextAlign.Center,
                     modifier = Modifier.width(26.dp),
                 )
                 rowCells.forEach { cell -> SeatCellBox(cell, Modifier.weight(1f), onOpen) }
