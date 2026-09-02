@@ -34,6 +34,7 @@ import org.dhamma.dipi.staff.model.Course
 import org.dhamma.dipi.staff.model.CourseId
 import org.dhamma.dipi.staff.model.Gender
 import org.dhamma.dipi.staff.model.Session
+import org.dhamma.dipi.staff.model.SheetExport
 import org.dhamma.dipi.staff.model.SheetPayload
 import org.dhamma.dipi.staff.network.DipiMockDispatcher
 import org.dhamma.dipi.staff.network.DrupalAuthApi
@@ -262,6 +263,34 @@ class SheetViewerTest {
         // The Board pane is still the section underneath.
         rule.onNodeWithText("SHEETS & EXPORTS").assertIsDisplayed()
         rule.onNodeWithText("RARELY URGENT").assertIsDisplayed()
+    }
+
+    @Test
+    fun openCourseReportFetchesWithoutAnOpenCourse() {
+        val vm = buildVm()
+        val gate = CompletableDeferred<SheetPayload>()
+        var exportArg: SheetExport? = null
+        var cidArg = -1
+        var courseArg = -1
+        vm.sheetFetch = { export, cid, courseId ->
+            exportArg = export
+            cidArg = cid
+            courseArg = courseId
+            gate.await()
+        }
+        vm.seedForTest(deskState().copy(course = null))
+        rule.setContent { DipiAppUi(vm) }
+
+        rule.runOnIdle { vm.openCourseReport() }
+        rule.runOnIdle {
+            assertEquals("Course report", vm.state.value.sheetView?.title)
+            assertNull(vm.state.value.course)
+            assertEquals(SheetExport.CourseReport, exportArg)
+            assertEquals(12, cidArg)
+            assertEquals(0, courseArg)
+        }
+        gate.complete(SheetPayload.NotAvailable("Course report is not available until Day 10"))
+        rule.waitForIdle()
     }
 
     @Test
