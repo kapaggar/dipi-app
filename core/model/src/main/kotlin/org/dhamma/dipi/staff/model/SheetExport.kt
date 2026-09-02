@@ -93,6 +93,14 @@ sealed interface SheetPayload {
     /** Streamed PDF or Excel written under cacheDir/sheets, opened via FileProvider. */
     data class Document(val title: String, val file: File, val mimeType: String) : SheetPayload
 
+    /**
+     * The Day 0 summary, parsed into counts rather than handed to the WebView
+     * (v5 T2). The `#day-summary` fragment arrives with no stylesheet, so as
+     * HTML it renders browser-default; as numbers it becomes a native screen.
+     * Counts only — nothing here is NPI, and nothing here is persisted.
+     */
+    data class Summary(val title: String, val summary: DaySummary) : SheetPayload
+
     /** Server refusal (403 page, form-only report, offline) rendered verbatim. */
     data class NotAvailable(val message: String) : SheetPayload
 }

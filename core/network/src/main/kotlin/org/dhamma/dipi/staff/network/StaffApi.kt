@@ -357,12 +357,18 @@ class SheetTransport(
         return SheetPayload.Html(title, html, baseUrl)
     }
 
+    /**
+     * v5 T2: the `#day-summary` fragment is parsed into counts instead of
+     * being handed to the WebView. It arrives with no stylesheet, so as HTML
+     * it can only ever render browser-default; the numbers are what the desk
+     * actually reads off it.
+     */
     private fun daySummary(resp: Response<ResponseBody>): SheetPayload {
         val html = resp.html()
         if (!resp.isSuccessful) return refusal(resp.code(), html)
         val block = extractElementById(html, "day-summary")
             ?: return SheetPayload.NotAvailable("The zero-day page has no #day-summary block")
-        return SheetPayload.Html(SheetExport.Day0Summary.label, block, baseUrl)
+        return SheetPayload.Summary(SheetExport.Day0Summary.label, DaySummaryParser.parse(block))
     }
 
     private suspend fun document(

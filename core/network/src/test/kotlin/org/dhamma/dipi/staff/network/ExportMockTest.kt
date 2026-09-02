@@ -224,16 +224,24 @@ class ExportMockTest {
         assertFalse("HTML sheets must never touch the cache dir", sheetsDir.exists())
     }
 
+    /**
+     * v5 T2: the `#day-summary` fragment is parsed into counts rather than
+     * handed to the WebView. It arrives with no stylesheet, so as HTML it can
+     * only render browser-default.
+     */
     @Test
-    fun daySummaryIsTheExtractedBlockFromTheZeroDayPage() {
+    fun daySummaryIsParsedFromTheZeroDayPageIntoCounts() {
         val payload = fetch(SheetExport.Day0Summary)
-        assertTrue(payload is SheetPayload.Html)
-        payload as SheetPayload.Html
-        assertTrue(payload.html.startsWith("<div id=\"day-summary\">"))
-        assertTrue(payload.html.endsWith("</div>"))
-        assertTrue("summary tables kept verbatim", payload.html.contains("table-totals"))
-        assertTrue(payload.html.contains("<td><b>6</b></td>"))
-        assertFalse("rest of the zero-day page must be dropped", payload.html.contains("Attended Applicants"))
+        assertTrue("expected a parsed summary, got $payload", payload is SheetPayload.Summary)
+        payload as SheetPayload.Summary
+        assertEquals("Day 0 summary", payload.title)
+        assertEquals(81, payload.summary.confirmed.total.total)
+        assertEquals(1, payload.summary.attended.total.total)
+        assertEquals(80, payload.summary.stillToArrive)
+        // The desk's unclosed <b> in the Total cells must not eat the row.
+        assertEquals(5, payload.summary.confirmed.total.server)
+        assertEquals(1, payload.summary.specialSeating.total.chowky.old)
+        assertFalse("HTML sheets must never touch the cache dir", sheetsDir.exists())
     }
 
     @Test

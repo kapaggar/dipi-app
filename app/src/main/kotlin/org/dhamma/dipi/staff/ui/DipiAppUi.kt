@@ -609,6 +609,7 @@ private fun DeskHost(
                 courseLine = sheetView.courseLine,
                 sort = sheetView.sort,
                 onSort = vm::setSheetSort,
+                summary = sheetView.summary,
             )
         }
 

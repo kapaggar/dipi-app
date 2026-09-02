@@ -57,6 +57,7 @@ import org.dhamma.dipi.staff.model.PhotoEdit
 import org.dhamma.dipi.staff.model.PhotoReviewItem
 import org.dhamma.dipi.staff.model.RoomAllocSync
 import org.dhamma.dipi.staff.model.RoomSyncResult
+import org.dhamma.dipi.staff.model.DaySummary
 import org.dhamma.dipi.staff.model.SensitiveInfo
 import org.dhamma.dipi.staff.model.clearSyncedIfChanged
 import org.dhamma.dipi.staff.model.Session
@@ -101,6 +102,11 @@ data class SheetViewUi(
      * changing it refetches, because the order is the server's to decide.
      */
     val sort: SheetSort = SheetSort.Default,
+    /**
+     * Day 0 summary only (v5 T2): the parsed counts, drawn natively instead
+     * of being handed to the WebView as an unstyled fragment.
+     */
+    val summary: DaySummary? = null,
 )
 
 fun deskBack(screen: DeskScreen, returnTo: DeskScreen?): DeskScreen = when (screen) {
@@ -972,6 +978,8 @@ class DeskViewModel @Inject constructor(
             when (payload) {
                 is SheetPayload.Html ->
                     cur.copy(sheetView = cur.sheetView.copy(loading = false, html = payload))
+                is SheetPayload.Summary ->
+                    cur.copy(sheetView = cur.sheetView.copy(loading = false, summary = payload.summary))
                 is SheetPayload.Document ->
                     cur.copy(sheetView = null, openDoc = payload)
                 is SheetPayload.NotAvailable ->

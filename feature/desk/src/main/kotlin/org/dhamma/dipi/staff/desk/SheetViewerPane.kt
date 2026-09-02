@@ -39,6 +39,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import org.dhamma.dipi.staff.model.DaySummary
 import org.dhamma.dipi.staff.model.SheetExport
 import org.dhamma.dipi.staff.model.SheetPayload
 import org.dhamma.dipi.staff.model.SheetSort
@@ -78,6 +79,8 @@ fun SheetViewerPane(
     courseLine: String = "",
     sort: SheetSort = SheetSort.Default,
     onSort: (SheetSort) -> Unit = {},
+    /** Day 0 summary only (v5 T2): drawn natively in place of the WebView. */
+    summary: DaySummary? = null,
 ) {
     val context = LocalContext.current
     var webView by remember { mutableStateOf<WebView?>(null) }
@@ -99,7 +102,7 @@ fun SheetViewerPane(
             title = title,
             courseLine = courseLine,
             export = export,
-            canPrint = html != null,
+            canPrint = html != null && summary == null,
             onPrint = { webView?.let { printSheet(context, title, it) } },
             onClose = onClose,
         )
@@ -121,6 +124,9 @@ fun SheetViewerPane(
         Box(Modifier.weight(1f).fillMaxWidth()) {
             val page = html
             when {
+                // T2: the Day 0 summary is counts, not a document — it never
+                // reaches the WebView, so there is no stylesheet to inject.
+                summary != null -> DaySummaryPane(summary)
                 page != null -> {
                     // The sheet body sits on its own white page inset in the
                     // surface ground; PRINT takes the page, never the chrome.
