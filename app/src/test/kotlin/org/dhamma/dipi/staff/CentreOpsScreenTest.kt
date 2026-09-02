@@ -204,13 +204,13 @@ class CentreOpsScreenTest {
                 )
             }
         }
-        rule.onNodeWithText("Male hall · 5 rows · 7 per row").performScrollTo().assertIsDisplayed()
-        rule.onNodeWithText("Female hall · 5 rows · 7 per row").performScrollTo().assertIsDisplayed()
-        rule.onNodeWithContentDescription("Increase rows · Male hall").performScrollTo().performClick()
-        rule.onNodeWithContentDescription("Decrease seats per row · Female hall").performScrollTo().performClick()
+        rule.onNodeWithText("Male hall · 7 columns · 5 deep").performScrollTo().assertIsDisplayed()
+        rule.onNodeWithText("Female hall · 7 columns · 5 deep").performScrollTo().assertIsDisplayed()
+        rule.onNodeWithContentDescription("Increase columns · Male hall").performScrollTo().performClick()
+        rule.onNodeWithContentDescription("Decrease rows deep · Female hall").performScrollTo().performClick()
         // The header lines reflow instantly — but nothing reached persistence.
-        rule.onNodeWithText("Male hall · 6 rows · 7 per row").performScrollTo().assertIsDisplayed()
-        rule.onNodeWithText("Female hall · 5 rows · 6 per row").performScrollTo().assertIsDisplayed()
+        rule.onNodeWithText("Male hall · 8 columns · 5 deep").performScrollTo().assertIsDisplayed()
+        rule.onNodeWithText("Female hall · 7 columns · 4 deep").performScrollTo().assertIsDisplayed()
         assertEquals(0, captured.size)
     }
 
@@ -230,12 +230,12 @@ class CentreOpsScreenTest {
                 )
             }
         }
-        rule.onNodeWithContentDescription("Increase rows · Male hall").performScrollTo().performClick()
-        rule.onNodeWithContentDescription("Increase rows · Male hall").performScrollTo().performClick()
+        rule.onNodeWithContentDescription("Increase columns · Male hall").performScrollTo().performClick()
+        rule.onNodeWithContentDescription("Increase columns · Male hall").performScrollTo().performClick()
         assertEquals(0, captured.size)
         rule.onNodeWithText("SAVE HALL LAYOUT").performScrollTo().performClick()
         // Only the touched hall persists, once, with the staged value.
-        assertEquals(listOf(Gender.M to HallGrid(rows = 7, seatsPerRow = 7)), captured)
+        assertEquals(listOf(Gender.M to HallGrid(columns = 9, depth = 5)), captured)
     }
 
     @Test
@@ -253,14 +253,14 @@ class CentreOpsScreenTest {
             }
         }
         rule.onNodeWithText("SAVE HALL LAYOUT").performScrollTo().assertIsNotEnabled()
-        rule.onNodeWithContentDescription("Increase seats per row · Male hall").performScrollTo().performClick()
+        rule.onNodeWithContentDescription("Increase rows deep · Male hall").performScrollTo().performClick()
         rule.onNodeWithText("SAVE HALL LAYOUT").performScrollTo().assertIsEnabled()
     }
 
     @Test
     fun hallChartSteppersDisableAtTheClampBounds() {
         val stored = CentreOpsPrefs()
-            .withHallGrid(Gender.M, HallGrid(rows = HallGrid.MIN_ROWS, seatsPerRow = HallGrid.MAX_SEATS_PER_ROW))
+            .withHallGrid(Gender.M, HallGrid(columns = HallGrid.MIN_COLUMNS, depth = HallGrid.MAX_DEPTH))
         rule.setContent {
             DipiTheme {
                 CentreOpsScreen(
@@ -273,9 +273,9 @@ class CentreOpsScreenTest {
                 )
             }
         }
-        rule.onNodeWithContentDescription("Decrease rows · Male hall").performScrollTo().assertIsNotEnabled()
-        rule.onNodeWithContentDescription("Increase seats per row · Male hall").performScrollTo().assertIsNotEnabled()
-        rule.onNodeWithContentDescription("Increase rows · Male hall").performScrollTo().assertIsEnabled()
-        rule.onNodeWithContentDescription("Decrease seats per row · Male hall").performScrollTo().assertIsEnabled()
+        rule.onNodeWithContentDescription("Decrease columns · Male hall").performScrollTo().assertIsNotEnabled()
+        rule.onNodeWithContentDescription("Increase rows deep · Male hall").performScrollTo().assertIsNotEnabled()
+        rule.onNodeWithContentDescription("Increase columns · Male hall").performScrollTo().assertIsEnabled()
+        rule.onNodeWithContentDescription("Decrease rows deep · Male hall").performScrollTo().assertIsEnabled()
     }
 }
