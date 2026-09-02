@@ -100,16 +100,17 @@ class BoardPaneTest {
     private val shelves = listOf(
         "ROLL SHEETS" to listOf("Day 0 list", "Day 0 summary", "Male PDF", "Female PDF"),
         "DESK SLIPS" to listOf("Student chit", "Checking slip", "Seating plan", "Laundry list"),
-        "FOR THE TEAM" to listOf("Teacher list", "Manager list", "Valuable list", "Course report"),
+        // v5 T4: Course report moved to the centre dashboard.
+        "FOR THE TEAM" to listOf("Teacher list", "Manager list", "Valuable list"),
     )
 
     @Test
-    fun twelveExportsSitOnThreeShelvesInTheDesignsGrouping() {
+    fun elevenExportsSitOnThreeShelvesInTheDesignsGrouping() {
         board()
         rule.onNodeWithText("SHEETS & EXPORTS").assertIsDisplayed()
         rule.onNodeWithText("RARELY URGENT").assertIsDisplayed()
         rule.onNodeWithText("SHEETS & EXPORTS · RARELY URGENT").assertDoesNotExist()
-        rule.onAllNodesWithTag("export-chip").assertCountEquals(12)
+        rule.onAllNodesWithTag("export-chip").assertCountEquals(11)
 
         shelves.forEach { (kicker, names) ->
             rule.onNodeWithText(kicker).assertIsDisplayed()
@@ -125,12 +126,12 @@ class BoardPaneTest {
     }
 
     @Test
-    fun exportChipsAreFortyDpAndFireOnExportWithTheUnchangedLabel() {
+    fun exportChipsAreThirtyEightDpAndFireOnExportWithTheUnchangedLabel() {
         var exported: String? = null
         board(onExport = { exported = it })
 
         rule.onAllNodesWithTag("export-chip")[0].getBoundsInRoot().let {
-            assertEquals(40.dp.value, it.height.value, 0.5f)
+            assertEquals(38.dp.value, it.height.value, 0.5f)
         }
         rule.onNodeWithText("Seating plan").performClick()
         assertEquals("Seating plan", exported)
@@ -210,7 +211,7 @@ class BoardPaneTest {
     }
 
     @Test
-    fun twelveShelfChipsAreUnchanged() {
+    fun elevenShelfChipsStayOnTheirShelves() {
         board()
         shelves.forEach { (kicker, names) ->
             rule.onNodeWithText(kicker).assertIsDisplayed()
@@ -233,5 +234,65 @@ class BoardPaneTest {
                     day11.top.value >= shelf.bottom.value - 0.5f,
             )
         }
+    }
+
+    /**
+     * v5 T4: the Board no longer offers Course report — it lives on the
+     * centre dashboard now. Shelf 3 keeps four columns with the last one
+     * empty rather than stretching three chips across the full width.
+     */
+    @Test
+    fun boardHasElevenExportChipsAndNoCourseReport() {
+        board()
+        rule.onAllNodesWithTag("export-chip").assertCountEquals(11)
+        rule.onNodeWithText("Course report").assertDoesNotExist()
+        rule.onAllNodesWithTag("export-shelf-gap").assertCountEquals(1)
+
+        val team = rule.onNodeWithTag("export-shelf-FOR THE TEAM").getBoundsInRoot()
+        val roll = rule.onNodeWithTag("export-shelf-ROLL SHEETS").getBoundsInRoot()
+        val teacher = rule.onNodeWithText("Teacher list").getBoundsInRoot()
+        val day0 = rule.onNodeWithText("Day 0 list").getBoundsInRoot()
+        assertEquals(
+            "A three-chip shelf keeps four-column width",
+            roll.width.value,
+            team.width.value,
+            0.5f,
+        )
+        assertEquals(
+            "Chips on a short shelf must not stretch",
+            day0.width.value,
+            teacher.width.value,
+            0.5f,
+        )
+    }
+
+    /** Each shelf kicker gains a grey qualifier so the grouping explains itself. */
+    @Test
+    fun shelfKickersCarryTheirQualifier() {
+        board()
+        listOf("day 0", "printed and cut", "teachers and managers").forEach {
+            rule.onNodeWithText(it).assertIsDisplayed()
+        }
+    }
+
+    /** Stat cards read as navigation via one quiet arrow, not a button. */
+    @Test
+    fun statCardsCarryOneArrowEach() {
+        board()
+        // The stat card merges its semantics, so the arrow is only visible
+        // in the unmerged tree.
+        rule.onAllNodesWithTag("board-stat-arrow", useUnmergedTree = true).assertCountEquals(4)
+    }
+
+    /** The Day-11 row keeps its own fourth line and gains only a reason tag. */
+    @Test
+    fun day11KeepsItsFourthLineAndGainsAnEndOfCourseTag() {
+        board()
+        rule.onNodeWithTag("export-day11").assertIsDisplayed()
+        rule.onNodeWithText("END OF COURSE").assertIsDisplayed()
+        val chip = rule.onNodeWithTag("export-day11").getBoundsInRoot()
+        val team = rule.onNodeWithTag("export-shelf-FOR THE TEAM").getBoundsInRoot()
+        assertEquals(team.width.value, chip.width.value, 0.5f)
+        assertEquals(40.dp.value, chip.height.value, 0.5f)
     }
 }
