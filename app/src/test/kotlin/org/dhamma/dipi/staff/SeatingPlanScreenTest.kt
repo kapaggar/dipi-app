@@ -13,6 +13,7 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performSemanticsAction
 import okhttp3.mockwebserver.MockWebServer
 import org.dhamma.dipi.staff.model.Gender
 import org.dhamma.dipi.staff.model.HallGrid
@@ -167,11 +168,19 @@ class SeatingPlanScreenTest {
         )
         rule.setContent { DipiTheme { SeatingPlanScreen(roll = long) } }
         val cell = rule.onNodeWithTag("seat-cell-A1-old").getUnclippedBoundsInRoot()
-        val name = rule.onNodeWithText("Ravikiran Dhulipala Venkatasubramanian", useUnmergedTree = true)
-            .getUnclippedBoundsInRoot()
+        val nameNode = rule.onNodeWithText("Ravikiran Dhulipala Venkatasubramanian", useUnmergedTree = true)
+        val name = nameNode.getUnclippedBoundsInRoot()
         // maxLines 2 + Ellipsis: the measured text never spills past the cell.
         assertTrue("name must stay inside its 66dp cell", name.bottom <= cell.bottom)
         assertTrue(name.top >= cell.top)
+        // Gate review r2 F1: bounds alone can't tell Ellipsis from Clip. The
+        // layout INPUT records the composable's actual overflow/maxLines —
+        // immune to Robolectric's no-soft-wrap text shadow.
+        val layout = mutableListOf<androidx.compose.ui.text.TextLayoutResult>()
+        nameNode.performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.GetTextLayoutResult) { it(layout) }
+        assertTrue("at most two lines", layout.first().lineCount <= 2)
+        assertEquals("names ellipsize, never hard-clip", androidx.compose.ui.text.style.TextOverflow.Ellipsis, layout.first().layoutInput.overflow)
+        assertEquals(2, layout.first().layoutInput.maxLines)
     }
 
     @Test

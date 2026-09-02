@@ -296,8 +296,7 @@ class SeatGridTest {
 
     @Test
     fun labelsPastTheTwoTimesCapOnEitherAxisFallToUnseated() {
-        // Depth 81 > 40×2; column past 26×2 needs a 3-letter run the regex
-        // already rejects, so cap the depth axis and a wide numeric flow.
+        // Column cap: "BA1" is index 52 == MAX_PLAN_COLUMNS — rejected below.
         val plan = hallLayout(
             listOf(
                 group(
@@ -312,5 +311,17 @@ class SeatGridTest {
         assertEquals(listOf("Suresh Nair"), plan.unseated.map { it.row.name })
         assertEquals("Vikram Joshi", plan.cells[79][0].seated?.row?.name)
         assertEquals(80, plan.depth)
+    }
+
+    /** Gate review r2 F2: the COLUMN cap has its own rejection path. */
+    @Test
+    fun aLabelAtTheColumnCapFallsToUnseatedNotAStretchedPlan() {
+        val groups = listOf(
+            group(listOf(row(1, "Ram Sharma", "A1"), row(2, "Shyam Verma", "BA1"))),
+        )
+        val plan = hallLayout(groups, HallGrid(columns = 7, depth = 5))
+        // BA = column index 52 = MAX_PLAN_COLUMNS — visible in UNSEATED, never dropped.
+        assertEquals(listOf("Shyam Verma"), plan.unseatedVisible.map { it.row.name })
+        assertTrue(plan.cells.all { r -> r.all { it.seated == null || it.seated?.row?.name == "Ram Sharma" } })
     }
 }
