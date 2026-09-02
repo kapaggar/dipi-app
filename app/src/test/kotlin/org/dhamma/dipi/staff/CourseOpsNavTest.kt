@@ -13,7 +13,13 @@ import org.dhamma.dipi.staff.model.CentreId
 import org.dhamma.dipi.staff.model.Course
 import org.dhamma.dipi.staff.model.CourseId
 import org.dhamma.dipi.staff.model.Session
+import org.dhamma.dipi.staff.model.Gender
+import org.dhamma.dipi.staff.model.RollGroup
+import org.dhamma.dipi.staff.model.RollRow
+import org.dhamma.dipi.staff.model.RollSeniority
+import org.dhamma.dipi.staff.model.SeatKind
 import org.dhamma.dipi.staff.model.TabletMode
+import org.dhamma.dipi.staff.model.TeacherRoll
 import org.dhamma.dipi.staff.network.DipiMockDispatcher
 import org.dhamma.dipi.staff.ui.DeskScreen
 import org.dhamma.dipi.staff.ui.DeskUiState
@@ -84,7 +90,8 @@ class CourseOpsNavTest {
         rule.onNodeWithTag("course-ops-host").assertIsDisplayed()
         rule.onNodeWithText("Teacher list").assertIsDisplayed()
         rule.onNodeWithText(running.name).assertIsDisplayed()
-        rule.onNodeWithText("Roll arrives in the next slice.").assertIsDisplayed()
+        // Wave-2 seam filled: with a course but no roll yet, the pending body shows.
+        rule.onNodeWithTag("course-ops-roll-pending").assertIsDisplayed()
 
         // No desk surface composes: rail and queued strip stay out even
         // with queued > 0 — nothing writes in course ops.
@@ -130,5 +137,33 @@ class CourseOpsNavTest {
         assertEquals(DeskScreen.TeacherRoll, deskBack(DeskScreen.TeacherRoll, null))
         // Settings opened from the roll back to the roll.
         assertEquals(DeskScreen.TeacherRoll, deskBack(DeskScreen.Settings, DeskScreen.TeacherRoll))
+    }
+
+    /** Integrator wiring: a fetched roll replaces the placeholder host body. */
+    @Test
+    fun fetchedRollRendersThroughTheCourseOpsBranch() {
+        val roll = TeacherRoll(
+            groups = listOf(
+                RollGroup(
+                    at = "Trainee A M Teacher", code = "TAM", gender = Gender.M,
+                    seniority = RollSeniority.OLD, group = "1", total = 1,
+                    rows = listOf(
+                        RollRow(
+                            sn = 1, name = "Pradeep Kandpal", roleTag = null,
+                            room = "Mbk-33", age = "33", city = "Bageshwar",
+                            courses = listOf("10D" to 6), cell = "",
+                            seat = "A1", seatKind = SeatKind.FLOOR, backrest = false,
+                            occupation = "India foundation",
+                            education = "MA", languages = "English",
+                        ),
+                    ),
+                ),
+            ),
+        )
+        composeCourseOps(courseOpsState().copy(teacherRoll = roll), prefs = "pin-set")
+        rule.onNodeWithText("Pradeep Kandpal").assertIsDisplayed()
+        rule.onNodeWithTag("course-ops-placeholder").assertDoesNotExist()
+        rule.onNodeWithTag("course-ops-roll-pending").assertDoesNotExist()
+        rule.onNodeWithText("Seniority").assertIsDisplayed()
     }
 }

@@ -73,6 +73,7 @@ import org.dhamma.dipi.staff.photos.PhotoReviewScreen
 import org.dhamma.dipi.staff.settings.PinDialog
 import org.dhamma.dipi.staff.settings.PinSetupDialog
 import org.dhamma.dipi.staff.settings.SettingsScreen
+import org.dhamma.dipi.staff.teacher.TeacherListScreen
 import org.dhamma.dipi.staff.summary.DaySummaryScreen
 import org.dhamma.dipi.staff.ui.theme.DipiCondensed
 import org.dhamma.dipi.staff.ui.theme.DipiTheme
@@ -168,11 +169,29 @@ fun DipiAppUi(vm: DeskViewModel) {
                         )
                     }
                     if (courseOps) {
-                        when (state.screen) {
-                            DeskScreen.Settings -> SettingsPane(vm, state)
+                        val roll = state.teacherRoll
+                        val opsCourse = state.course
+                        when {
+                            state.screen == DeskScreen.Settings -> SettingsPane(vm, state)
+                            roll != null && opsCourse != null -> TeacherListScreen(
+                                roll = roll,
+                                courseLine = opsCourse.name,
+                                view = state.teacherView,
+                                groupFilter = state.teacherGroupFilter,
+                                // The shell's SyncBannerStrips above already shows the
+                                // offline strip; the screen's local one stays off.
+                                offline = false,
+                                onView = vm::setTeacherView,
+                                onGroupFilter = vm::setTeacherGroupFilter,
+                                onSettings = vm::requestCourseOpsSettings,
+                            )
                             else -> CourseOpsHost(
                                 course = state.course,
                                 onSettings = vm::requestCourseOpsSettings,
+                                content = {
+                                    state.teacherRollError?.let { CourseOpsRollError(it) }
+                                        ?: CourseOpsRollPending(hasCourse = state.course != null)
+                                },
                             )
                         }
                         if (state.pinPrompt) {

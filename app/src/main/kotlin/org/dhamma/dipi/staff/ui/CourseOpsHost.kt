@@ -100,3 +100,30 @@ private fun CourseOpsPlaceholder() {
         )
     }
 }
+
+/** Roll fetch failed — the server's words, verbatim, and nothing else. */
+@Composable
+fun CourseOpsRollError(message: String) {
+    val c = LocalDipi.current
+    Box(Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
+        Text(message, fontSize = 14.sp, color = c.foreground, modifier = Modifier.testTag("course-ops-roll-error"))
+    }
+}
+
+/**
+ * Between entry and the roll landing. With no running course the body stays
+ * empty — the host header already carries "No course is running today".
+ */
+@Composable
+fun CourseOpsRollPending(hasCourse: Boolean) {
+    val c = LocalDipi.current
+    if (!hasCourse) return
+    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Text(
+            "Fetching the roll…",
+            fontSize = 14.sp,
+            color = c.muted,
+            modifier = Modifier.testTag("course-ops-roll-pending"),
+        )
+    }
+}

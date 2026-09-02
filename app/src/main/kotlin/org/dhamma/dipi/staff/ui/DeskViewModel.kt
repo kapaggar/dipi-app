@@ -60,7 +60,9 @@ import org.dhamma.dipi.staff.model.SheetPayload
 import org.dhamma.dipi.staff.model.TabletMode
 import org.dhamma.dipi.staff.model.WorklistFilter
 import org.dhamma.dipi.staff.model.parseCourseWindow
+import org.dhamma.dipi.staff.model.TeacherRoll
 import org.dhamma.dipi.staff.model.runningCourse
+import org.dhamma.dipi.staff.teacher.TeacherView
 import org.dhamma.dipi.staff.network.PhotoLoader
 import org.dhamma.dipi.staff.ui.theme.DeskSkin
 import org.dhamma.dipi.staff.ui.theme.Industry
@@ -143,6 +145,11 @@ data class DeskUiState(
     val pinPrompt: Boolean = false,
     /** "Wrong PIN" while the gate dialog stays; null otherwise. Never the digits. */
     val pinError: String? = null,
+    /** The one roll response feeding both teacher screens — fetched once per entry, never polled. */
+    val teacherRoll: TeacherRoll? = null,
+    val teacherRollError: String? = null,
+    val teacherView: TeacherView = TeacherView.SENIORITY,
+    val teacherGroupFilter: String? = null,
     val offline: Boolean = false,
     val queuedById: Map<ApplicantId, String> = emptyMap(),
     val queuedCount: Int = 0,
@@ -1342,7 +1349,30 @@ class DeskViewModel @Inject constructor(
         val running = runningCourseToday()
         returnTo = DeskScreen.TeacherRoll
         _state.update { it.copy(mode = TabletMode.COURSE_OPS, course = running) }
+        fetchTeacherRoll()
     }
+
+    /**
+     * One GET per entry to course ops — the endpoint mutates server data on
+     * every request (zeroize_new_course_data), so it is never polled and never
+     * refetched on view/filter changes.
+     */
+    private fun fetchTeacherRoll() {
+        val course = _state.value.course ?: return
+        _state.update { it.copy(teacherRoll = null, teacherRollError = null) }
+        viewModelScope.launch {
+            runCatching { repo.loadTeacherRoll(course.centreId.value, course.id.value) }
+                .onSuccess { roll -> _state.update { it.copy(teacherRoll = roll) } }
+                .onFailure { e ->
+                    handleAuth(e)
+                    _state.update { it.copy(teacherRollError = e.message ?: "Teacher list unavailable") }
+                }
+        }
+    }
+
+    fun setTeacherView(view: TeacherView) = _state.update { it.copy(teacherView = view) }
+
+    fun setTeacherGroupFilter(key: String?) = _state.update { it.copy(teacherGroupFilter = key) }
 
     fun logout() {
         viewModelScope.launch {
@@ -1407,6 +1437,7 @@ class DeskViewModel @Inject constructor(
                                 mode = TabletMode.COURSE_OPS,
                             )
                         }
+                        fetchTeacherRoll()
                     } else {
                         _state.update {
                             it.copy(
