@@ -9,21 +9,27 @@ Paste this whole file to the next agent. It is written to be read cold.
 | | |
 |---|---|
 | **Branch** | `feat/sheets-v5` |
-| **Tip** | `docs: v5 close-out` (see § 3 for the full commit list) |
-| **Version** | `versionName` **1.34.0**, `versionCode` **55** |
+| **Tip** | `docs: v5 close-out — ship at 1.34.0, progress ledger, design delta, handover` |
+| **Version** | `versionName` **1.34.1**, `versionCode` **56** |
 | **Base** | `main` at `5428052` — the course-ops merge. Sheets v5 sits **on top of** course-ops, not beside it. |
 | **Plan** | `docs/plans/2026-09-02-sheets-v5.md` — § 0.5 is the progress ledger |
 | **Design spec** | `version-5/README.md`; frames `5a`–`5t` in `DIPI Sheets v5.dc.html` |
 | **Design ledger** | `docs/DESIGN.md` § "Sheets v5" — the do-not-re-propose list |
 
-**A wrinkle worth knowing.** During this run the main checkout at
-`/Users/wizops/DIPI/dipi-app` was on `feat/seating-r2` (which is `feat/sheets-v5`
-plus one unrelated docs commit for the follow-on seating spec), and
-`feat/sheets-v5` itself was checked out in a review worktree at
-`/private/tmp/review-v5`. The T3/T4/docs commits were made in the main checkout
-and cherry-picked onto `feat/sheets-v5`, so **both branches carry the work** and
-nothing was discarded. If you see the same commits twice under different SHAs,
-that is why.
+**Two wrinkles worth knowing before you read `git log`.**
+
+1. During this run the main checkout at `/Users/wizops/DIPI/dipi-app` was on
+   `feat/seating-r2` (which is `feat/sheets-v5` plus one unrelated docs commit for
+   the follow-on seating spec), while `feat/sheets-v5` itself was checked out in a
+   review worktree at `/private/tmp/review-v5`. T3 and T4 were committed in the
+   main checkout and **cherry-picked** onto `feat/sheets-v5`, so both branches
+   carry the work. Same content, different SHAs — that is expected, not a mistake.
+2. A second agent was committing into the same working tree at the same time. On
+   `feat/seating-r2` it swept the v5 documentation and the version bump into its
+   own commit, `e4fcd1d` *"feat: course ops buffers the worklist…"*, whose message
+   therefore does not describe half of what it contains. **On `feat/sheets-v5`
+   those doc changes are a separate, correctly-titled commit.** Prefer
+   `feat/sheets-v5` when reading this pass's history.
 
 ---
 
@@ -243,7 +249,12 @@ Then check, in this order:
 - Manage Courses, Daily Activity, SMS Report, Letters — retired by owner decision
   2026-08-30.
 
-**SemVer for the next pass:** `1.35.0` / `56` for a feature, `1.34.1` / `56` for a
+**Follow-up (verify run):** tip `281f51e` did not compile. `prefetchApplicationViews`
+takes `onProgress` last, so a trailing lambda was typed as `(done, total)` and
+`teacherCards + (id to card)` failed. Named `onCard =` in `DeskViewModel` and
+`TeacherCardPrefetchTest`. Full suite re-run green in an isolated worktree.
+
+**SemVer for the next pass:** `1.35.0` / `57` for a feature, `1.34.2` / `57` for a
 fix. Bump both fields; never leave two installs on the same `versionName`.
 
 ---

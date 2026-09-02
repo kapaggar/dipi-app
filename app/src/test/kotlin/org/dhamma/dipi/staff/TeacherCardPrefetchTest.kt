@@ -158,7 +158,7 @@ class TeacherCardPrefetchTest {
         // Prefetch all (> PREFETCH_CONCURRENCY of them) — silent, complete.
         assertEquals(4, PREFETCH_CONCURRENCY)
         val landed = mutableListOf<Int>()
-        repo.prefetchApplicationViews(10, ids) { id, _ -> synchronized(landed) { landed += id } }
+        repo.prefetchApplicationViews(10, ids, onCard = { id, _ -> synchronized(landed) { landed += id } })
         assertEquals(ids.toSet(), landed.toSet())
         val cards = repo.cachedApplicationCards(10)
         assertEquals(ids.toSet(), cards.keys)
@@ -171,7 +171,7 @@ class TeacherCardPrefetchTest {
 
         // Already-cached ids are skipped on the next entry's prefetch.
         var again = 0
-        repo.prefetchApplicationViews(10, ids) { _, _ -> again++ }
+        repo.prefetchApplicationViews(10, ids, onCard = { _, _ -> again++ })
         assertEquals(0, again)
     }
 
@@ -181,7 +181,7 @@ class TeacherCardPrefetchTest {
         val landed = mutableListOf<Int>()
         // 99 refuses (403 stand-in), 9999 is the wildcard-loader 404: both
         // silent, neither cached; the good id still lands.
-        repo.prefetchApplicationViews(10, listOf(99, 9999, 4)) { id, _ -> landed += id }
+        repo.prefetchApplicationViews(10, listOf(99, 9999, 4), onCard = { id, _ -> landed += id })
         assertEquals(listOf(4), landed)
         assertEquals(setOf(4), repo.cachedApplicationCards(10).keys)
     }
