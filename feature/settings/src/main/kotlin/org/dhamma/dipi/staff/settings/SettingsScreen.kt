@@ -38,8 +38,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.testTag
@@ -50,6 +54,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import org.dhamma.dipi.staff.model.Session
+import org.dhamma.dipi.staff.model.TabletMode
 import org.dhamma.dipi.staff.ui.theme.DeskKicker
 import org.dhamma.dipi.staff.ui.theme.DeskSkin
 import org.dhamma.dipi.staff.ui.theme.DeskStyle
@@ -93,6 +98,10 @@ fun SettingsScreen(
     lotus: Boolean = true,
     onSkin: (DeskSkin) -> Unit = {},
     onToggleLotus: () -> Unit = {},
+    mode: TabletMode = TabletMode.DESK,
+    onMode: (TabletMode) -> Unit = {},
+    runningCourseName: String? = null,
+    runningCourseDates: String? = null,
 ) {
     val c = LocalDipi.current
     var confirmReset by remember { mutableStateOf(false) }
@@ -131,6 +140,7 @@ fun SettingsScreen(
         if (wide) {
             Row(horizontalArrangement = Arrangement.spacedBy(18.dp), verticalAlignment = Alignment.Top) {
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                    TabletModeCard(mode, onMode, runningCourseName, runningCourseDates, wide = true)
                     AppearanceCard(dark, skin, lotus, onToggleTheme, onSkin, onToggleLotus)
                     TestingCard(offline, onToggleOffline)
                 }
@@ -147,6 +157,7 @@ fun SettingsScreen(
             }
         } else {
             Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                TabletModeCard(mode, onMode, runningCourseName, runningCourseDates, wide = false)
                 AppearanceCard(dark, skin, lotus, onToggleTheme, onSkin, onToggleLotus)
                 TestingCard(offline, onToggleOffline)
                 AccountCard(
@@ -181,6 +192,294 @@ fun SettingsScreen(
                 TextButton(onClick = { confirmReset = false }) { Text("Cancel") }
             },
         )
+    }
+}
+
+// --------------------------------------------------------------- TABLET MODE
+
+/** Frame 2a's fixed neutrals — the frame is drawn light; hexes win (DESIGN.md). */
+private val ModeCardFill = Color(0xFFFAFAFB)
+private val ModeCardBorder = Color(0xFFDEDEE1)
+private val ModeRule = Color(0xFFE0E0E3)
+private val ModeDash = Color(0xFFD4D4D7)
+private val ModeKeyText = Color(0xFF424244)
+
+/**
+ * Frame 2a — the mode switch (spec 2a S4). Two radio cards, the consequence
+ * rows, the dashed "Course being taught" card and the static PIN row. The
+ * drawn "Switching back asks for the centre PIN" *switch* is replaced by the
+ * always-on device-PIN gate (owner decision) — the row states the gate and
+ * toggles nothing.
+ */
+@Composable
+private fun TabletModeCard(
+    mode: TabletMode,
+    onMode: (TabletMode) -> Unit,
+    runningCourseName: String?,
+    runningCourseDates: String?,
+    wide: Boolean,
+) {
+    SettingsCard(Modifier.testTag("card-tablet-mode")) {
+        if (wide) {
+            Row(horizontalArrangement = Arrangement.spacedBy(20.dp), verticalAlignment = Alignment.Top) {
+                Column(Modifier.weight(1f)) { ModeChoiceColumn(mode, onMode) }
+                Column(Modifier.width(280.dp).padding(top = 26.dp)) {
+                    CourseBeingTaughtCard(runningCourseName, runningCourseDates)
+                    PinGateRow(Modifier.padding(top = 12.dp))
+                }
+            }
+        } else {
+            ModeChoiceColumn(mode, onMode)
+            CourseBeingTaughtCard(runningCourseName, runningCourseDates, Modifier.padding(top = 18.dp))
+            PinGateRow(Modifier.padding(top = 12.dp))
+        }
+    }
+}
+
+@Composable
+private fun ModeChoiceColumn(mode: TabletMode, onMode: (TabletMode) -> Unit) {
+    val c = LocalDipi.current
+    DeskKicker("TABLET MODE", c.muted, Modifier.padding(top = 6.dp, bottom = 10.dp))
+    ModeRadioCard(
+        title = "Desk ops · registration",
+        description = "Board, applications, calling, check-in, rooms & seats, exports. " +
+            "What the registrar uses on day 0.",
+        selected = mode == TabletMode.DESK,
+        onSelect = { onMode(TabletMode.DESK) },
+        testTag = "mode-desk",
+    )
+    ModeRadioCard(
+        title = "Course ops · teacher",
+        description = "Teacher list and seating plan only, for the running course. " +
+            "Desk destinations are hidden until the mode is switched back.",
+        selected = mode == TabletMode.COURSE_OPS,
+        onSelect = { onMode(TabletMode.COURSE_OPS) },
+        testTag = "mode-course-ops",
+        modifier = Modifier.padding(top = 10.dp),
+    )
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .padding(top = 18.dp)
+            .height(1.dp)
+            .background(ModeRule),
+    )
+    DeskKicker("WHILE COURSE OPS IS ON", c.muted, Modifier.padding(top = 13.dp, bottom = 9.dp))
+    ConsequenceRow("✓", "Teacher list", "seniority + seating plan")
+    ConsequenceRow("✓", "Student card", "application, read-only", Modifier.padding(top = 6.dp))
+    ConsequenceRow("—", "Board, applications, calling, check-in", "hidden", Modifier.padding(top = 6.dp))
+    ConsequenceRow("—", "Exports, rooms & seats, bulk mail", "hidden", Modifier.padding(top = 6.dp))
+}
+
+/**
+ * One radio card: unselected `#FAFAFB` on `#DEDEE1`; selected white on 1.5dp
+ * accent with the 3dp accent bar and an `ON` chip. Selection is
+ * `selectable(role = RadioButton)` on the whole card and fires only when the
+ * tapped card is not the live one — single-fire, the desk's rule.
+ */
+@Composable
+private fun ModeRadioCard(
+    title: String,
+    description: String,
+    selected: Boolean,
+    onSelect: () -> Unit,
+    testTag: String,
+    modifier: Modifier = Modifier,
+) {
+    val industry = LocalIndustry.current
+    val shape = RoundedCornerShape(8.dp)
+    Box(
+        modifier
+            .fillMaxWidth()
+            .clip(shape)
+            .background(if (selected) Color.White else ModeCardFill)
+            .border(
+                if (selected) 1.5.dp else 1.dp,
+                if (selected) industry.accent else ModeCardBorder,
+                shape,
+            )
+            .selectable(selected = selected, role = Role.RadioButton) {
+                if (!selected) onSelect()
+            }
+            .testTag(testTag),
+    ) {
+        if (selected) {
+            // The 3dp accent bar — inset 14dp top/bottom, radius 0 3 3 0.
+            Box(
+                Modifier
+                    .matchParentSize()
+                    .padding(vertical = 14.dp),
+                contentAlignment = Alignment.CenterStart,
+            ) {
+                Box(
+                    Modifier
+                        .width(3.dp)
+                        .fillMaxHeight()
+                        .background(
+                            industry.accent,
+                            RoundedCornerShape(topEnd = 3.dp, bottomEnd = 3.dp),
+                        ),
+                )
+            }
+        }
+        Row(
+            Modifier.padding(horizontal = 18.dp, vertical = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            // 22dp ring; 11dp dot when selected.
+            Box(
+                Modifier
+                    .padding(top = 2.dp)
+                    .size(22.dp)
+                    .border(
+                        2.dp,
+                        if (selected) industry.accent700 else industry.neutral400,
+                        RoundedCornerShape(11.dp),
+                    ),
+                contentAlignment = Alignment.Center,
+            ) {
+                if (selected) {
+                    Box(
+                        Modifier
+                            .size(11.dp)
+                            .background(industry.accent700, RoundedCornerShape(6.dp)),
+                    )
+                }
+            }
+            Column {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        title,
+                        fontFamily = DipiCondensed,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 19.sp,
+                        letterSpacing = 0.2.sp,
+                        color = ModeKeyText,
+                    )
+                    if (selected) {
+                        Text(
+                            "ON",
+                            fontFamily = DipiMono,
+                            fontWeight = FontWeight.Medium,
+                            fontSize = 9.sp,
+                            letterSpacing = 0.156.em,
+                            color = industry.accent700,
+                            modifier = Modifier
+                                .padding(start = 10.dp)
+                                .background(industry.accent100, RoundedCornerShape(3.dp))
+                                .padding(horizontal = 6.dp, vertical = 4.dp),
+                        )
+                    }
+                }
+                Text(
+                    description,
+                    fontSize = 13.5.sp,
+                    lineHeight = 20.sp,
+                    color = LocalIndustry.current.neutral600,
+                    modifier = Modifier.padding(top = 5.dp),
+                )
+            }
+        }
+    }
+}
+
+/** A 48dp consequence row: centred index, key left, value right. */
+@Composable
+private fun ConsequenceRow(index: String, key: String, value: String, modifier: Modifier = Modifier) {
+    val industry = LocalIndustry.current
+    Row(
+        modifier
+            .fillMaxWidth()
+            .height(48.dp)
+            .background(ModeCardFill, RoundedCornerShape(6.dp))
+            .border(1.dp, ModeRule, RoundedCornerShape(6.dp))
+            .padding(horizontal = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(Modifier.width(18.dp), contentAlignment = Alignment.Center) {
+            Text(index, fontSize = 14.sp, color = industry.accent400)
+        }
+        Text(
+            key,
+            fontSize = 14.sp,
+            color = ModeKeyText,
+            modifier = Modifier
+                .padding(start = 8.dp)
+                .weight(1f),
+        )
+        Text(value, fontSize = 13.sp, color = industry.neutral500)
+    }
+}
+
+/** The dashed "Course being taught" card — the course lock, stated. */
+@Composable
+private fun CourseBeingTaughtCard(
+    courseName: String?,
+    courseDates: String?,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier
+            .fillMaxWidth()
+            .background(Color.White, RoundedCornerShape(8.dp))
+            .drawBehind {
+                drawRoundRect(
+                    color = ModeDash,
+                    style = Stroke(
+                        width = 1.dp.toPx(),
+                        pathEffect = PathEffect.dashPathEffect(floatArrayOf(8f, 6f)),
+                    ),
+                    cornerRadius = CornerRadius(8.dp.toPx()),
+                )
+            }
+            .padding(horizontal = 18.dp, vertical = 16.dp)
+            .testTag("course-being-taught"),
+    ) {
+        Text(
+            "Course being taught",
+            fontFamily = DipiCondensed,
+            fontWeight = FontWeight.SemiBold,
+            fontSize = 17.sp,
+            color = ModeKeyText,
+        )
+        Text(
+            courseName ?: "No course is running today",
+            fontSize = 14.sp,
+            lineHeight = 21.sp,
+            color = ModeKeyText,
+            modifier = Modifier.padding(top = 8.dp),
+        )
+        if (courseName != null && !courseDates.isNullOrBlank()) {
+            Text(courseDates, fontSize = 14.sp, lineHeight = 21.sp, color = ModeKeyText)
+        }
+        Text(
+            "Locked to the course that is running. The teacher never picks a course; " +
+                "the roll follows the dates.",
+            fontSize = 12.5.sp,
+            lineHeight = 19.sp,
+            color = Color(0xFF7A7A7D),
+            modifier = Modifier.padding(top = 8.dp),
+        )
+    }
+}
+
+/**
+ * The static PIN row — NO switch: the frame's toggle is replaced by the
+ * always-on device-PIN gate (owner decision, DESIGN.md ground-truth
+ * corrections). 48dp so the row still reads as a control-height line.
+ */
+@Composable
+private fun PinGateRow(modifier: Modifier = Modifier) {
+    Row(
+        modifier
+            .fillMaxWidth()
+            .height(48.dp)
+            .border(1.dp, ModeDash, RoundedCornerShape(6.dp))
+            .padding(horizontal = 14.dp)
+            .testTag("pin-gate-row"),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text("Switching back asks for the device PIN", fontSize = 14.sp, color = ModeKeyText)
     }
 }
 
