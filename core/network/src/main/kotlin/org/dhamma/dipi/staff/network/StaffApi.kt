@@ -1,5 +1,8 @@
 package org.dhamma.dipi.staff.network
 
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import okhttp3.ResponseBody
 import org.dhamma.dipi.staff.model.SheetExport
 import org.dhamma.dipi.staff.model.SheetPayload
@@ -281,6 +284,7 @@ object SheetRoutes {
 class SheetTransport(
     private val api: StaffApi,
     private val baseUrl: String,
+    private val io: CoroutineDispatcher = Dispatchers.IO,
     private val sheetsDir: () -> File,
 ) {
     suspend fun fetch(
@@ -342,13 +346,14 @@ class SheetTransport(
         runCatching { sheetsDir().deleteRecursively() }
     }
 
-    private inline fun guarded(label: String, block: () -> SheetPayload): SheetPayload =
-        runCatching(block).getOrElse { e ->
-            when (e) {
-                is java.io.IOException ->
-                    SheetPayload.NotAvailable("Offline — could not reach the desk for $label")
-                else -> SheetPayload.NotAvailable(e.message ?: "Could not fetch $label")
+    private suspend fun guarded(label: String, block: suspend () -> SheetPayload): SheetPayload =
+        try {
+            withContext(io) { block() }
+        } catch (e: Throwable) {
+            runCatching {
+                android.util.Log.w("dipi-sheets", "fetch $label failed ${e.javaClass.simpleName}")
             }
+            SheetPayload.NotAvailable(sheetFailureMessage(label, e))
         }
 
     private fun htmlPayload(title: String, resp: Response<ResponseBody>): SheetPayload {
@@ -443,35 +448,68 @@ class SheetTransport(
         }
     }
 
-    private fun save(
+    /**
+     * Consume a streamed body off the caller thread. `@Streaming` returns
+     * when headers arrive; `body.bytes()` is still a network read and
+     * crashes on Main (`NetworkOnMainThreadException`) or sits on the
+     * read timeout. Always hop to [io] before touching the stream.
+     */
+    private suspend fun save(
         title: String,
         fileName: String,
         fallbackMime: String,
         resp: Response<ResponseBody>,
-    ): SheetPayload {
-        if (!resp.isSuccessful) return refusal(resp.code(), resp.html())
-        val body = resp.body() ?: return SheetPayload.NotAvailable("$title came back empty")
+    ): SheetPayload = withContext(io) {
+        if (!resp.isSuccessful) return@withContext refusal(resp.code(), resp.html())
+        val body = resp.body() ?: return@withContext SheetPayload.NotAvailable("$title came back empty")
         val type = body.contentType()
         val mime = type?.let { "${it.type}/${it.subtype}" }
+        val bytes = body.bytes()
+        runCatching {
+            android.util.Log.i(
+                "dipi-sheets",
+                "document $title status=${resp.code()} mime=$mime bytes=${bytes.size}",
+            )
+        }
         // A refusal or re-rendered form served as 200 HTML must never be
         // saved masquerading as a document.
         if (type?.type == "text" && type.subtype == "html") {
-            return SheetPayload.NotAvailable(body.string())
+            return@withContext SheetPayload.NotAvailable(bytes.toString(Charsets.UTF_8))
+        }
+        if (bytes.isEmpty()) {
+            return@withContext SheetPayload.NotAvailable("$title came back empty")
+        }
+        // S3 miss still sends application/pdf; if the body is a text error,
+        // surface those words instead of handing a broken file to a viewer.
+        if (fallbackMime == SheetRoutes.MIME_PDF && !bytes.startsWithPdf()) {
+            val text = bytes.toString(Charsets.UTF_8).trim()
+            if (text.startsWith("<") || text.startsWith("{") || looksLikePlainError(text)) {
+                return@withContext SheetPayload.NotAvailable(text.ifBlank { "$title came back empty" })
+            }
         }
         val dir = sheetsDir().apply { mkdirs() }
         val file = File(dir, fileName)
-        body.byteStream().use { input -> file.outputStream().use { out -> input.copyTo(out) } }
-        if (file.length() == 0L) {
-            file.delete()
-            return SheetPayload.NotAvailable("$title came back empty")
-        }
-        return SheetPayload.Document(title, file, mime ?: fallbackMime)
+        file.writeBytes(bytes)
+        SheetPayload.Document(title, file, mime ?: fallbackMime)
     }
 
     /** Server refusals render verbatim (hard rule 1) — never a client-side gate. */
     private fun refusal(code: Int, body: String): SheetPayload =
         SheetPayload.NotAvailable(body.ifBlank { "HTTP $code" })
 }
+
+/** IOException → the offline sentence; any other throwable keeps e.message. */
+internal fun sheetFailureMessage(label: String, e: Throwable): String = when (e) {
+    is java.io.IOException -> "Offline — could not reach the desk for $label"
+    else -> e.message?.takeIf { it.isNotBlank() } ?: "Could not fetch $label"
+}
+
+private fun ByteArray.startsWithPdf(): Boolean =
+    size >= 4 && this[0] == '%'.code.toByte() && this[1] == 'P'.code.toByte() &&
+        this[2] == 'D'.code.toByte() && this[3] == 'F'.code.toByte()
+
+private fun looksLikePlainError(text: String): Boolean =
+    text.length < 800 && text.none { it.code < 9 || (it.code in 14..31) }
 
 /**
  * Extracts one element (opening tag through matching close) by id, keeping

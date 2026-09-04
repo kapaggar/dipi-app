@@ -251,10 +251,11 @@ object SearchPageParser {
 
     fun mapRow(o: JsonObject): ApplicantDto? {
         val id = o.int("aid") ?: return null
-        val display = stripTags(o.str("name").orEmpty())
-            .replace(LINK_REMNANT, "")
-            .replace(Regex("""\s*\((Sevak|AT)[^)]*\)"""), "")
-            .trim()
+        val display = cleanPersonName(
+            stripTags(o.str("name").orEmpty())
+                .replace(LINK_REMNANT, "")
+                .replace(Regex("""\s*\((Sevak|AT)[^)]*\)"""), ""),
+        )
         val parts = display.split(Regex("\\s+")).filter { it.isNotBlank() }
         val given = parts.firstOrNull().orEmpty()
         val family = parts.drop(1).joinToString(" ")
@@ -325,11 +326,7 @@ object SearchPageParser {
     }
 
     fun stripTags(raw: String): String =
-        raw.replace(Regex("<[^>]+>"), " ")
-            .replace("&nbsp;", " ")
-            .replace("&amp;", "&")
-            .replace("&lt;", "<")
-            .replace("&gt;", ">")
+        HtmlEntities.unescape(raw.replace(Regex("<[^>]+>"), " "))
             .replace(Regex("\\s+"), " ")
             .trim()
 

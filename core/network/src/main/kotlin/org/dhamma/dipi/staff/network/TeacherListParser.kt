@@ -137,7 +137,7 @@ object TeacherListParser {
             .map { it.groupValues[1].trim() }
             .filter { it.isNotEmpty() }
             .toList()
-        val name = SearchPageParser.stripTags(roleSuffixRe.replace(cellHtml, " "))
+        val name = cleanPersonName(SearchPageParser.stripTags(roleSuffixRe.replace(cellHtml, " ")))
         return name to (tags.joinToString(" · ").ifBlank { null })
     }
 

@@ -47,8 +47,7 @@ internal object HtmlForms {
         Regex("""<form\b[^>]*\baction\s*=\s*["']([^"']+)["']""", RegexOption.IGNORE_CASE)
             .find(html)?.groupValues?.get(1)?.replace("&amp;", "&")
 
-    private fun unescape(raw: String): String =
-        raw.replace("&amp;", "&").replace("&lt;", "<").replace("&gt;", ">").replace("&quot;", "\"")
+    private fun unescape(raw: String): String = HtmlEntities.unescape(raw)
 }
 
 /**

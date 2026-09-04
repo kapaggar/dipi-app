@@ -105,3 +105,23 @@ data class CourseName(
         }
     }
 }
+
+/** Drupal posts `yyyy-MM-dd`; the screen shows `dd-MM-yyyy`. */
+fun displayDeskDate(iso: String): String {
+    val p = iso.split("-")
+    return if (p.size == 3 && p[0].length == 4 && p[0].all { it.isDigit() }) {
+        "${p[2]}-${p[1]}-${p[0]}"
+    } else {
+        iso
+    }
+}
+
+/** Accepts either `dd-MM-yyyy` or `yyyy-MM-dd` and stores ISO. */
+fun parseDeskDate(typed: String): String {
+    val p = typed.trim().split("-")
+    return if (p.size == 3 && p[2].length == 4 && p[2].all { it.isDigit() }) {
+        "${p[2]}-${p[1]}-${p[0]}"
+    } else {
+        typed.trim()
+    }
+}

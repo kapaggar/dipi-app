@@ -2,6 +2,7 @@ package org.dhamma.dipi.staff.desk
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -259,55 +260,53 @@ private fun BoardTile(
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
-    Column(
+    Box(
         modifier
-            .height(100.dp)
+            .height(112.dp)
             .deskCard(shape = CardShape, elevation = 1.dp)
             .clickable(onClick = onClick)
             .padding(horizontal = 15.dp, vertical = 12.dp)
             .testTag("board-stat"),
     ) {
-        Text(
-            number,
-            fontFamily = DipiCondensed,
-            fontWeight = FontWeight.Bold,
-            fontSize = 38.sp,
-            lineHeight = 38.sp,
-            letterSpacing = (-0.02).em,
-            color = Industry.accent800,
-        )
-        Text(
-            label,
-            fontFamily = DipiMono,
-            fontWeight = FontWeight.Medium,
-            fontSize = 10.sp,
-            lineHeight = 10.sp,
-            letterSpacing = 0.16.em,
-            color = Industry.neutral700,
-            maxLines = 1,
-            modifier = Modifier.padding(top = 9.dp),
-        )
-        // v5 T4: one quiet arrow is all the affordance a stat card needs to
-        // read as navigation. No button, no border change.
-        Row(
-            Modifier.fillMaxWidth().padding(top = 7.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
+        Column(Modifier.fillMaxSize()) {
+            Text(
+                number,
+                fontFamily = DipiCondensed,
+                fontWeight = FontWeight.Bold,
+                fontSize = 38.sp,
+                lineHeight = 38.sp,
+                letterSpacing = (-0.02).em,
+                color = Industry.accent800,
+            )
+            Text(
+                label,
+                fontFamily = DipiMono,
+                fontWeight = FontWeight.Medium,
+                fontSize = 10.sp,
+                lineHeight = 10.sp,
+                letterSpacing = 0.16.em,
+                color = Industry.neutral700,
+                maxLines = 1,
+                modifier = Modifier.padding(top = 9.dp),
+            )
             Text(
                 note,
                 fontSize = 12.5.sp,
                 lineHeight = 12.5.sp,
                 color = Industry.neutral500,
                 maxLines = 1,
-                modifier = Modifier.weight(1f),
-            )
-            Text(
-                "→",
-                fontSize = 14.sp,
-                color = Industry.accent300,
-                modifier = Modifier.testTag("board-stat-arrow"),
+                modifier = Modifier.padding(top = 7.dp, end = 18.dp),
             )
         }
+        // Overlay so the pale accent300 arrow is not clipped by the note row.
+        Text(
+            "→",
+            fontSize = 14.sp,
+            color = Industry.accent300,
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .testTag("board-stat-arrow"),
+        )
     }
 }
 

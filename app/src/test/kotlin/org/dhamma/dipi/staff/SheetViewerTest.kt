@@ -41,6 +41,7 @@ import org.dhamma.dipi.staff.model.Session
 import org.dhamma.dipi.staff.model.SheetExport
 import org.dhamma.dipi.staff.model.SheetPayload
 import org.dhamma.dipi.staff.model.SheetSort
+import org.dhamma.dipi.staff.model.TeacherRoll
 import org.dhamma.dipi.staff.network.DipiMockDispatcher
 import org.dhamma.dipi.staff.network.DrupalAuthApi
 import org.dhamma.dipi.staff.network.PhotoLoader
@@ -257,9 +258,9 @@ class SheetViewerTest {
     fun closeReturnsToTheBoardUnderneath() {
         val vm = buildVm()
         vm.sheetFetch = { _, _, _, _ ->
-            SheetPayload.Html("Seating plan", "<html/>", "http://localhost/")
+            error("Board seating must not hit sheetFetch")
         }
-        vm.seedForTest(deskState())
+        vm.seedForTest(deskState().copy(teacherRoll = TeacherRoll(emptyList())))
         rule.setContent { DipiAppUi(vm) }
 
         rule.runOnIdle { vm.openSheet("Seating plan") }
@@ -341,15 +342,28 @@ class SheetViewerTest {
             ".dh-blank-col",
             ".dh-del-col",
             ".add-row",
-            ".ui-state-default",
+            ".drag-img",
         ).forEach { selector ->
             assertTrue("$selector must be hidden", css.contains(selector))
         }
+        assertFalse(
+            "seating cells must stay visible",
+            css.contains(".ui-state-default{display:none") ||
+                css.contains(".ui-state-default{display:none!important"),
+        )
         assertTrue("dead furniture must be display:none", css.contains("display:none!important"))
         // Nothing that cannot be tapped may look tappable.
         assertTrue(css.contains("pointer-events:none!important"))
         // The server body is passed through, never rewritten.
         assertTrue(css.contains("<div class=\"no-print\">Print</div>"))
+    }
+
+    @Test
+    fun injectedStylesheetDoesNotHideSeatingCells() {
+        val css = SheetStylesheet.render("<li class=\"ui-state-default\">A1</li>", emptySet())
+        assertFalse(css.contains(".ui-state-default{display:none"))
+        assertTrue(css.contains("<li class=\"ui-state-default\">A1</li>"))
+        assertTrue(css.contains(".day0-blockinfo"))
     }
 
     /**
@@ -408,7 +422,7 @@ class SheetViewerTest {
         rule.waitForIdle()
         assertEquals(listOf(SheetSort.Default), sorts)
 
-        rule.onNodeWithText("Confirmation no.").performClick()
+        rule.onNodeWithText("Conf no.").performClick()
         rule.waitForIdle()
         assertEquals(listOf(SheetSort.Default, SheetSort.ConfirmationNo), sorts)
         assertEquals(SheetSort.ConfirmationNo, vm.state.value.sheetView?.sort)
@@ -441,17 +455,74 @@ class SheetViewerTest {
     fun seatingPlanChipReadsReadAndPrint() {
         val vm = buildVm()
         vm.sheetFetch = { _, _, _, _ ->
-            SheetPayload.Html("Seating plan", "<table/>", "http://localhost/")
+            error("Board seating must not hit sheetFetch")
         }
-        vm.seedForTest(deskState())
+        vm.seedForTest(deskState().copy(teacherRoll = TeacherRoll(emptyList())))
         rule.setContent { DipiAppUi(vm) }
 
         rule.runOnIdle { vm.openSheet("Seating plan") }
         rule.waitForIdle()
         rule.onNodeWithTag("sheet-viewonly-chip").assertTextEquals("READ & PRINT")
+        rule.onNodeWithTag("hall-body").assertExists()
+        rule.onNodeWithTag("sheet-web").assertDoesNotExist()
+        rule.onNodeWithTag("sheet-print").assertDoesNotExist()
         // No alternate order on this sheet: the desk's only parameter here is
         // the forbidden `r`.
         rule.onNodeWithTag("sheet-sort").assertDoesNotExist()
+    }
+
+    /** Native 5h: the Board chip never GETs `/seating`. */
+    @Test
+    fun seatingPlanNeverHitsSheetFetch() {
+        val vm = buildVm()
+        var fetched = false
+        vm.sheetFetch = { _, _, _, _ ->
+            fetched = true
+            SheetPayload.Html("Seating plan", "<table/>", "http://localhost/")
+        }
+        vm.seedForTest(deskState().copy(teacherRoll = TeacherRoll(emptyList())))
+        rule.setContent { DipiAppUi(vm) }
+
+        rule.runOnIdle { vm.openSheet("Seating plan") }
+        rule.waitForIdle()
+        rule.runOnIdle {
+            assertFalse(fetched)
+            assertTrue(vm.state.value.sheetView!!.nativeHall)
+            assertNull(vm.state.value.sheetView!!.html)
+        }
+        rule.onNodeWithTag("hall-body").assertExists()
+    }
+
+    @Test
+    fun day0SummaryPrintsFromTheSheetHeader() {
+        val vm = buildVm()
+        vm.sheetClock = { "09:41" }
+        vm.sheetFetch = { _, _, _, _ ->
+            SheetPayload.Summary("Day 0 summary", org.dhamma.dipi.staff.model.DaySummary())
+        }
+        vm.seedForTest(deskState())
+        rule.setContent { DipiAppUi(vm) }
+
+        rule.runOnIdle { vm.openSheet("Day 0 summary") }
+        rule.waitForIdle()
+        rule.onNodeWithTag("sheet-print").assertExists()
+        rule.onNodeWithTag("sheet-freshness").assertTextEquals("FROM THE DESK · 09:41")
+        rule.onNodeWithTag("sheet-web").assertDoesNotExist()
+    }
+
+    @Test
+    fun teacherListOffersCityAndEducationChips() {
+        val vm = buildVm()
+        vm.sheetFetch = { _, _, _, _ ->
+            SheetPayload.Html("Teacher list", "<table/>", "http://localhost/")
+        }
+        vm.seedForTest(deskState())
+        rule.setContent { DipiAppUi(vm) }
+
+        rule.runOnIdle { vm.openSheet("Teacher list") }
+        rule.waitForIdle()
+        rule.onNodeWithText("City").assertExists()
+        rule.onNodeWithText("Education").assertExists()
     }
 
     /**
@@ -459,6 +530,27 @@ class SheetViewerTest {
      * is not decoration — pin it so a future "just enable JS for the
      * toolbar" cannot land quietly.
      */
+    @Test
+    fun injectedPrintCssLaysStudentChits9UpAndHidesContact() {
+        val css = SheetStylesheet.render(
+            "<div class=\"table-student-chit\"></div>",
+            emptySet(),
+            SheetExport.StudentChit,
+        )
+        assertTrue(css.contains("dipi-student-chit"))
+        assertTrue("9-up cell width", css.contains("63.3mm"))
+        assertTrue("9-up cell height", css.contains("92.3mm"))
+        assertTrue(css.contains("html.dipi-student-chit .table-student-chit"))
+        assertTrue(
+            "Contact stays off on paper",
+            css.contains("@media print{.d0-contact{display:none!important}}"),
+        )
+        assertEquals(
+            android.print.PrintAttributes.MediaSize.ISO_A4,
+            org.dhamma.dipi.staff.ui.NativePrint.a4Attributes().mediaSize,
+        )
+    }
+
     @Test
     fun javaScriptStaysDisabled() {
         val webView = WebView(RuntimeEnvironment.getApplication())

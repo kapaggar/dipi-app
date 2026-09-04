@@ -58,6 +58,7 @@ import org.dhamma.dipi.staff.model.PhotoReviewItem
 import org.dhamma.dipi.staff.model.RoomAllocSync
 import org.dhamma.dipi.staff.model.RoomSyncResult
 import org.dhamma.dipi.staff.model.DaySummary
+import org.dhamma.dipi.staff.model.parseDeskDate
 import org.dhamma.dipi.staff.model.SensitiveInfo
 import org.dhamma.dipi.staff.model.clearSyncedIfChanged
 import org.dhamma.dipi.staff.model.Session
@@ -110,6 +111,14 @@ data class SheetViewUi(
      * of being handed to the WebView as an unstyled fragment.
      */
     val summary: DaySummary? = null,
+    /**
+     * Board native 5h: the Course ops hall, not `GET /seating` HTML.
+     * The roll lives on [DeskUiState.teacherRoll]; this flag only tells the
+     * overlay to compose [org.dhamma.dipi.staff.teacher.HallBody].
+     */
+    val nativeHall: Boolean = false,
+    /** Device-local `HH:mm` of the successful fetch — hidden while [loading]. */
+    val fetchedAt: String? = null,
 )
 
 fun deskBack(screen: DeskScreen, returnTo: DeskScreen?): DeskScreen = when (screen) {
@@ -840,6 +849,20 @@ class DeskViewModel @Inject constructor(
         { id -> repo.fetchAppEditPage(id) }
     internal var clarFetch: suspend (ApplicantId, Int) -> SheetPayload =
         { appId, clarId -> repo.fetchClarification(appId, clarId) }
+    /**
+     * Board seating (native 5h) — one `GET /teacher-list` via the existing
+     * parser, never `GET /seating`, never `?r=`, never a card prefetch.
+     */
+    internal var hallRollFetch: suspend (Int, Int) -> TeacherRoll =
+        { cid, courseId ->
+            val raw = repo.loadTeacherRoll(cid, courseId)
+            runCatching { repo.resolveTeacherRoll(courseId, raw) }.getOrDefault(raw)
+        }
+    /** Test seam so freshness / report strips pin a clock. */
+    internal var sheetClock: () -> String = {
+        val now = LocalTime.now()
+        "%02d:%02d".format(now.hour, now.minute)
+    }
 
     /**
      * A Board export cell: open the viewer shell immediately (its progress
@@ -850,6 +873,10 @@ class DeskViewModel @Inject constructor(
     fun openSheet(label: String, sort: SheetSort = SheetSort.Default) {
         val export = SheetExport.fromLabel(label) ?: return
         val course = _state.value.course ?: return
+        if (export == SheetExport.SeatingPlan) {
+            openNativeBoardSeating()
+            return
+        }
         _state.update {
             it.copy(
                 sheetView = SheetViewUi(
@@ -880,6 +907,73 @@ class DeskViewModel @Inject constructor(
     }
 
     /**
+     * Board "Seating plan" — the Course ops hall (teacher-at-bottom, 66dp,
+     * chowky/chair rail), fed by one teacher-list GET. Never `GET /seating`
+     * and never `?r=`.
+     */
+    private fun openNativeBoardSeating() {
+        val course = _state.value.course ?: return
+        val existing = _state.value.teacherRoll
+        _state.update {
+            it.copy(
+                sheetView = SheetViewUi(
+                    title = SheetExport.SeatingPlan.label,
+                    export = SheetExport.SeatingPlan,
+                    courseLine = sheetCourseLine(course.name, deskRoll(it.rows).size),
+                    nativeHall = true,
+                    loading = existing == null,
+                    fetchedAt = if (existing != null) sheetClock() else null,
+                ),
+            )
+        }
+        if (existing != null) return
+        viewModelScope.launch {
+            runCatching { hallRollFetch(course.centreId.value, course.id.value) }
+                .onSuccess { roll ->
+                    _state.update { cur ->
+                        if (cur.sheetView?.title != SheetExport.SeatingPlan.label) return@update cur
+                        cur.copy(
+                            teacherRoll = roll,
+                            sheetView = cur.sheetView.copy(
+                                loading = false,
+                                nativeHall = true,
+                                fetchedAt = sheetClock(),
+                            ),
+                        )
+                    }
+                }
+                .onFailure { e ->
+                    if (e is ApiException && e.unauthorized) {
+                        _state.update { it.copy(sheetView = null) }
+                        handleAuth(e)
+                        return@launch
+                    }
+                    _state.update {
+                        it.copy(
+                            sheetView = null,
+                            snack = FlushSnack(e.message ?: "Teacher list unavailable", error = true),
+                        )
+                    }
+                }
+        }
+    }
+
+    /**
+     * Seat tap on the Board hall: open the desk card when the row mapped,
+     * otherwise the same honest snack course ops uses.
+     */
+    fun openDeskAppFromHall(row: RollRow) {
+        val card = row.applicantId?.let { aid -> _state.value.rows.find { it.id == aid } }
+        if (card == null) {
+            _state.update { it.copy(snack = FlushSnack("Not on the worklist yet", error = false)) }
+            return
+        }
+        closeSheet()
+        _state.update { it.copy(deskSection = DeskSection.Applications) }
+        selectDeskApp(card)
+    }
+
+    /**
      * The Centre dashboard's Course report tile (v5 T3). The export is
      * centre-scoped — `SheetRoute.ReportForm` never reads a courseId — so it
      * opens with no course selected. **Nothing is fetched on open:** the desk
@@ -899,10 +993,10 @@ class DeskViewModel @Inject constructor(
     }
 
     fun setReportFrom(value: String) =
-        _state.update { it.copy(courseReport = it.courseReport.copy(from = value)) }
+        _state.update { it.copy(courseReport = it.courseReport.copy(from = parseDeskDate(value))) }
 
     fun setReportTo(value: String) =
-        _state.update { it.copy(courseReport = it.courseReport.copy(to = value)) }
+        _state.update { it.copy(courseReport = it.courseReport.copy(to = parseDeskDate(value))) }
 
     /**
      * Scrape-then-POST the desk's own form with the typed range. A refusal
@@ -930,7 +1024,11 @@ class DeskViewModel @Inject constructor(
                 val cur = it.courseReport.copy(running = false)
                 it.copy(
                     courseReport = when (payload) {
-                        is SheetPayload.Report -> cur.copy(report = payload.report, refusal = null)
+                        is SheetPayload.Report -> cur.copy(
+                            report = payload.report,
+                            refusal = null,
+                            ranAt = sheetClock(),
+                        )
                         is SheetPayload.NotAvailable -> cur.copy(
                             report = null,
                             refusal = payload.message,
@@ -1056,9 +1154,21 @@ class DeskViewModel @Inject constructor(
             if (cur.sheetView?.title != title) return@update cur
             when (payload) {
                 is SheetPayload.Html ->
-                    cur.copy(sheetView = cur.sheetView.copy(loading = false, html = payload))
+                    cur.copy(
+                        sheetView = cur.sheetView.copy(
+                            loading = false,
+                            html = payload,
+                            fetchedAt = sheetClock(),
+                        ),
+                    )
                 is SheetPayload.Summary ->
-                    cur.copy(sheetView = cur.sheetView.copy(loading = false, summary = payload.summary))
+                    cur.copy(
+                        sheetView = cur.sheetView.copy(
+                            loading = false,
+                            summary = payload.summary,
+                            fetchedAt = sheetClock(),
+                        ),
+                    )
                 is SheetPayload.Document ->
                     cur.copy(sheetView = null, openDoc = payload)
                 // The parsed course report has its own destination (v5 T3) and

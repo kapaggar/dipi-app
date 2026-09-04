@@ -91,6 +91,29 @@ fun SeatingPlanScreen(
     }
     Column(Modifier.fillMaxSize().background(Industry.bg)) {
         Header(hall, plan, onView, onSettings)
+        HallBody(roll, hall, gridFor, onHall, onOpen)
+    }
+}
+
+/**
+ * The r2 hall itself — gender tabs, legend, 66dp grid, chowky/chair rail,
+ * unseated. Shared by Course ops and the Board's native 5h seating sheet
+ * so there is one hall geometry.
+ */
+@Composable
+fun HallBody(
+    roll: TeacherRoll,
+    hall: Gender = Gender.M,
+    gridFor: (Gender) -> HallGrid = { HallGrid() },
+    onHall: (Gender) -> Unit = {},
+    onOpen: (RollRow) -> Unit = {},
+    modifier: Modifier = Modifier,
+) {
+    val grid = gridFor(hall)
+    val plan = remember(roll, hall, grid) {
+        hallLayout(roll.groups.filter { it.gender == hall }, grid)
+    }
+    Column(modifier.fillMaxSize().background(Industry.bg).testTag("hall-body")) {
         HallAndLegendBand(hall, onHall)
         BoxWithConstraints(Modifier.fillMaxSize()) {
             val sideRail = maxWidth >= 1000.dp
@@ -114,8 +137,6 @@ fun SeatingPlanScreen(
                         }
                     }
                 } else {
-                    // Portrait (< 1000dp): the rail goes full-width BELOW the
-                    // grid, above UNSEATED, flowing `columns` per row.
                     SeatGrid(plan, onOpen)
                     if (plan.chowkyChair.isNotEmpty()) {
                         Spacer(Modifier.height(14.dp))

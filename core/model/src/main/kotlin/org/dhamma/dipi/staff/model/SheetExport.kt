@@ -75,7 +75,7 @@ enum class SheetSort(val queryName: String) {
         /** Screen label for the segmented control; the sheet's own wording. */
         fun labelFor(export: SheetExport, sort: SheetSort): String = when (sort) {
             Default -> if (export == SheetExport.Day0List) "Name" else "Seniority"
-            ConfirmationNo -> "Confirmation no."
+            ConfirmationNo -> "Conf no."
             SeatingOrder -> "Seating plan"
         }
     }

@@ -307,6 +307,25 @@ are preserved because code comments cite them.
   `centreStillStartsInDesk`; in course ops the desk rail, queued strip and
   every desk destination never compose.
 
+## Reach v5 UI (2026-09-03)
+
+- **Scope:** T1–T5 + T7 + native Board 5h + Teacher-list City/Education chips.
+  T6 (Group seating + Cell list) stays skipped. Course report `NEW` tag stays.
+- **Seating 5h is native on the Board**, reusing Course ops `HallBody`. Do not
+  only unhide the server HTML grid. Still unhide `.ui-state-default` on any
+  leftover `/seating` HTML path. Style `.day0-blockinfo` (live class).
+- **Day 0 summary stays today's overlay.** PRINT + copy polish only.
+- **Binary chips:** restore fetch; snack honestly if Pixel C has no viewer;
+  no in-app PDF/Excel renderer.
+- **Print:** student chits 9-up; Contact stays off on print (chip can show it
+  on screen).
+- **Stat arrows:** layout/size so pale `accent300` reads; do not step to
+  `accent400` unless needed.
+- **Entity decode** is a shared helper for Kotlin-parsed surfaces
+  (`stripTags` / `HtmlForms.unescape`); fixture `Master&#039;s`. Savita em-dash
+  is a join artifact (first + empty surname) and is stripped.
+- **Stale Board KPIs are not a bug.**
+
 ## Version milestones (from the documents' own headers)
 
 1.18.0/29 pre-v3-audit baseline · 1.20.0/31 v3 conformance · 1.21.0/33 centre

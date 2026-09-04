@@ -122,6 +122,31 @@ class SearchPageParserTest {
     }
 
     @Test
+    fun stripTagsDecodesNumericApostrophe() {
+        assertEquals("Master's", SearchPageParser.stripTags("Master&#039;s"))
+        assertEquals("Master's", SearchPageParser.stripTags("Master&apos;s"))
+        assertEquals("say \"hi\"", SearchPageParser.stripTags("say &quot;hi&quot;"))
+        assertEquals("say \"hi\"", SearchPageParser.stripTags("say &#34;hi&#34;"))
+        assertEquals("Master's", SearchPageParser.stripTags("Master&#x27;s"))
+        assertEquals("A & B < C > D", SearchPageParser.stripTags("A &amp; B &lt; C &gt; D"))
+    }
+
+    @Test
+    fun cleanPersonNameDropsATrailingSurnameDash() {
+        assertEquals("Savita", cleanPersonName("Savita —"))
+        assertEquals("Savita", cleanPersonName("Savita -"))
+        assertEquals("Savita Kumar", cleanPersonName("Savita Kumar"))
+        val html = """
+            <script>
+            var dataset = [{"aid":11,"name":"Savita —","gender":"Female","courseid":42,"centreid":1,"app_status":"Confirmed"}];
+            </script>
+        """.trimIndent()
+        val a = SearchPageParser.parse(html).dataset.single()
+        assertEquals("Savita", a.givenName)
+        assertEquals("", a.familyName)
+    }
+
+    @Test
     fun centreIdFromPath() {
         assertEquals(7, SearchPageParser.centreIdFromPath("/search-app/7"))
         assertEquals(91, SearchPageParser.centreIdFromPath("/centre/91"))

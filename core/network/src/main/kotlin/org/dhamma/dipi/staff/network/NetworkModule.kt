@@ -69,12 +69,22 @@ object NetworkModule {
             if (!token.isNullOrBlank() && chain.request().method != "GET" && !skipCsrf) {
                 b.header("X-CSRF-Token", token)
             }
+            // PhpSpreadsheet / S3 streams send Content-Length of the raw file.
+            // Transparent gzip then mismatches that length. Ask for identity
+            // on the binary sheet paths only.
+            if (isBinarySheetPath(path)) {
+                b.header("Accept-Encoding", "identity")
+            }
             chain.proceed(b.build())
         }
         return OkHttpClient.Builder()
             .cookieJar(jar)
             .followRedirects(true)
             .followSslRedirects(true)
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(60, TimeUnit.SECONDS)
+            .writeTimeout(60, TimeUnit.SECONDS)
+            .callTimeout(90, TimeUnit.SECONDS)
             .addInterceptor(csrf)
             .build()
     }
@@ -107,3 +117,10 @@ object NetworkModule {
 
     private fun String.ensureSlash() = if (endsWith("/")) this else "$this/"
 }
+
+internal fun isBinarySheetPath(path: String): Boolean =
+    path.contains("/course-pdf-") ||
+        path.contains("/laundry-list/") ||
+        path.contains("/valuable-list/") ||
+        path.contains("/report-day11/") ||
+        path.contains("/show-clarification/")

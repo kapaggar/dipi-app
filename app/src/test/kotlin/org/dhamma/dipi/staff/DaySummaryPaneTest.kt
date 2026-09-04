@@ -112,7 +112,7 @@ class DaySummaryPaneTest {
         }
         rule.onNodeWithTag("day-summary-confirmed").assertExists()
         rule.onNodeWithTag("day-summary-attended").assertExists()
-        rule.onNodeWithText("PUT OUT IN THE HALL").assertExists()
+        rule.onNodeWithText("SPECIAL SEATING").assertExists()
     }
 
     /** Headline, both matrices and the facilities card all reachable on the tablet. */

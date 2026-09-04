@@ -38,10 +38,12 @@ object SheetStylesheet {
          */
         Day0Contact("d0-contact", "Contact", false),
         Day0Comments("d0-comments", "Comments", true),
-        TeacherCell("tl-cell", "Cell", true),
-        TeacherLanguages("tl-langs", "Languages", true),
+        TeacherCity("tl-city", "City", false),
+        TeacherCell("tl-cell", "Cell", false),
+        TeacherEducation("tl-edu", "Education", false),
+        TeacherLanguages("tl-langs", "Languages", false),
         TeacherComments("tl-comments", "Comments", true),
-        ManagerCell("ml-cell", "Cell", true),
+        ManagerCell("ml-cell", "Cell", false),
         ;
 
         /** The class added to `<html>` when this column is hidden. */
@@ -52,7 +54,13 @@ object SheetStylesheet {
     fun columnsFor(export: SheetExport): List<Column> = when (export) {
         SheetExport.Day0List -> listOf(Column.Day0Occupation, Column.Day0Contact, Column.Day0Comments)
         SheetExport.TeacherList ->
-            listOf(Column.TeacherCell, Column.TeacherLanguages, Column.TeacherComments)
+            listOf(
+                Column.TeacherCity,
+                Column.TeacherCell,
+                Column.TeacherEducation,
+                Column.TeacherLanguages,
+                Column.TeacherComments,
+            )
         SheetExport.ManagerList -> listOf(Column.ManagerCell)
         else -> emptyList()
     }
@@ -63,10 +71,17 @@ object SheetStylesheet {
      * appended after the style, never rewritten — so a change on the desk
      * shows up in the app the same day it ships.
      */
-    fun render(serverHtml: String, hidden: Set<Column>): String {
+    fun render(serverHtml: String, hidden: Set<Column>, export: SheetExport? = null): String {
+        val extra = when (export) {
+            SheetExport.StudentChit -> " dipi-student-chit"
+            SheetExport.CheckingSlip -> " dipi-checking-slip"
+            else -> ""
+        }
         val classes = hidden.joinToString(" ") { it.hideClass }
         return buildString {
-            append("<!doctype html><html class=\"dipi-sheet ")
+            append("<!doctype html><html class=\"dipi-sheet")
+            append(extra)
+            append(" ")
             append(classes)
             append("\"><head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">")
             append("<style>")
@@ -104,7 +119,7 @@ object SheetStylesheet {
         /* 1 · Dead furniture. JavaScript is off: none of this can work. */
         .no-print,.helptext,.day0-toolbar,.tl-toolbar,.ml-toolbar,
         .col-toggle,.remove-seat,.remove-cell,.store-seat-changes,
-        .dh-add-col,.dh-blank-col,.dh-del-col,.add-row,.ui-state-default,
+        .dh-add-col,.dh-blank-col,.dh-del-col,.add-row,.drag-img,
         .ui-draggable-handle,.ui-sortable-handle,.seat-instructions,
         .header-day0 .title,.header-teacher .title,.header-manager .title,
         .header-day0 .title-head,.header-teacher .title-head,
@@ -123,7 +138,7 @@ object SheetStylesheet {
           font-weight:500;font-size:9px;letter-spacing:1.4px;text-transform:uppercase;
           color:#8A8A90;text-align:left;border-bottom:1px solid var(--n400);
           background:#FFF;position:sticky;top:36px;z-index:1}
-        .day0-groupinfo,.tl-groupinfo,.ml-groupinfo{height:36px;background:var(--a100);
+        .day0-blockinfo,.day0-groupinfo,.tl-groupinfo,.ml-groupinfo{height:36px;background:var(--a100);
           border:1px solid var(--a300);border-radius:6px;color:var(--a800);
           font-family:'IBM Plex Mono',ui-monospace,monospace;font-weight:500;
           font-size:10px;letter-spacing:1.4px;text-transform:uppercase;
@@ -153,15 +168,35 @@ object SheetStylesheet {
         .table-student-chit .name{font-size:15px;font-weight:500}
         .table-student-chit .cell:empty{display:none}
 
-        /* 4 · Print. A4, 10mm, and nothing is truncated on paper. */
+        /* 4 · Print. A4, 10mm, chits 9-up (63.3×92.3mm), contact off,
+           nothing truncated. The desk @imports student-chit.css (197×110
+           float, 18-up / 3×6 page breaks) after this block, so every
+           geometry rule here is !important or the server layout wins. */
         @page{size:A4;margin:10mm}
         @media print{
           .d0-comments,.tl-comments{display:block;-webkit-line-clamp:unset;overflow:visible}
-          thead th,.day0-groupinfo,.tl-groupinfo,.ml-groupinfo{position:static}
-          .day0-break{page-break-after:always}
+          thead th,.day0-blockinfo,.day0-groupinfo,.tl-groupinfo,.ml-groupinfo{position:static}
+          .day0-break,.dh-page-sep{page-break-after:always}
           tbody tr{page-break-inside:avoid}
           body{font-size:9pt}
           thead th{font-size:8pt}
+          html.dipi-student-chit .header-day0{display:none!important}
+          html.dipi-student-chit .main-div{
+            display:flex!important;flex-wrap:wrap!important;
+            width:190mm!important;max-width:100%!important;margin:0!important}
+          html.dipi-student-chit .table-student-chit{
+            float:none!important;display:block!important;
+            width:63.3mm!important;height:92.3mm!important;
+            max-width:63.3mm!important;max-height:92.3mm!important;
+            margin:0!important;padding:4mm!important;
+            box-sizing:border-box!important;
+            page-break-inside:avoid!important;break-inside:avoid!important}
+          html.dipi-checking-slip .main-div{
+            display:flex!important;flex-wrap:wrap!important;
+            width:190mm!important;margin:0!important}
+          html.dipi-checking-slip .table-student-chit{
+            float:none!important;width:50%!important;height:130mm!important;
+            margin:0!important;box-sizing:border-box!important}
         }
     """.trimIndent()
 }

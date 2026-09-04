@@ -1,7 +1,6 @@
 package org.dhamma.dipi.staff.desk
 
 import android.content.Context
-import android.print.PrintAttributes
 import android.print.PrintManager
 import android.webkit.WebSettings
 import android.webkit.WebView
@@ -14,6 +13,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -43,6 +43,7 @@ import org.dhamma.dipi.staff.model.DaySummary
 import org.dhamma.dipi.staff.model.SheetExport
 import org.dhamma.dipi.staff.model.SheetPayload
 import org.dhamma.dipi.staff.model.SheetSort
+import org.dhamma.dipi.staff.ui.NativePrint
 import org.dhamma.dipi.staff.ui.theme.DipiCondensed
 import org.dhamma.dipi.staff.ui.theme.DipiMono
 import org.dhamma.dipi.staff.ui.theme.Industry
@@ -81,6 +82,10 @@ fun SheetViewerPane(
     onSort: (SheetSort) -> Unit = {},
     /** Day 0 summary only (v5 T2): drawn natively in place of the WebView. */
     summary: DaySummary? = null,
+    /** Device-local HH:mm of the successful fetch — hidden while [loading]. */
+    fetchedAt: String? = null,
+    /** Board native 5h hall — same geometry as Course ops, no WebView. */
+    nativeHall: (@Composable () -> Unit)? = null,
 ) {
     val context = LocalContext.current
     var webView by remember { mutableStateOf<WebView?>(null) }
@@ -102,12 +107,17 @@ fun SheetViewerPane(
             title = title,
             courseLine = courseLine,
             export = export,
-            canPrint = html != null && summary == null,
-            onPrint = { webView?.let { printSheet(context, title, it) } },
+            canPrint = (html != null && nativeHall == null) || summary != null,
+            onPrint = {
+                when {
+                    summary != null -> NativePrint.printHtml(context, title, daySummaryPrintHtml(summary))
+                    else -> webView?.let { printSheet(context, title, it) }
+                }
+            },
             onClose = onClose,
         )
 
-        if (sortOptions.size > 1 || columns.isNotEmpty()) {
+        if (sortOptions.size > 1 || columns.isNotEmpty() || (!loading && !fetchedAt.isNullOrBlank())) {
             SheetControlBand(
                 export = export,
                 sortOptions = sortOptions,
@@ -118,6 +128,7 @@ fun SheetViewerPane(
                 onToggleColumn = { col ->
                     hidden = if (col.name in hidden) hidden - col.name else hidden + col.name
                 },
+                fetchedAt = if (loading) null else fetchedAt,
             )
         }
 
@@ -126,14 +137,16 @@ fun SheetViewerPane(
             when {
                 // T2: the Day 0 summary is counts, not a document — it never
                 // reaches the WebView, so there is no stylesheet to inject.
+                nativeHall != null -> nativeHall()
                 summary != null -> DaySummaryPane(summary)
                 page != null -> {
                     // The sheet body sits on its own white page inset in the
                     // surface ground; PRINT takes the page, never the chrome.
-                    val body = remember(page, hidden) {
+                    val body = remember(page, hidden, export) {
                         SheetStylesheet.render(
                             serverHtml = page.html,
                             hidden = columns.filter { it.name in hidden }.toSet(),
+                            export = export,
                         )
                     }
                     AndroidView(
@@ -251,7 +264,9 @@ private fun SheetHeader(
             }
         }
         if (canPrint) {
-            DeskPrimaryButton("Print", onPrint)
+            Box(Modifier.testTag("sheet-print")) {
+                DeskPrimaryButton("Print", onPrint)
+            }
         }
         DeskOutlineButton("Close", onClose)
     }
@@ -271,6 +286,7 @@ private fun SheetControlBand(
     columns: List<SheetStylesheet.Column>,
     hidden: Set<String>,
     onToggleColumn: (SheetStylesheet.Column) -> Unit,
+    fetchedAt: String? = null,
 ) {
     Row(
         Modifier
@@ -361,6 +377,18 @@ private fun SheetControlBand(
                 }
             }
         }
+        if (!fetchedAt.isNullOrBlank()) {
+            Spacer(Modifier.weight(1f))
+            Text(
+                "FROM THE DESK · $fetchedAt",
+                fontFamily = DipiMono,
+                fontWeight = FontWeight.Medium,
+                fontSize = 9.sp,
+                letterSpacing = 0.14.em,
+                color = Industry.neutral500,
+                modifier = Modifier.testTag("sheet-freshness"),
+            )
+        }
     }
 }
 
@@ -380,5 +408,5 @@ fun WebView.hardenForSheets() {
 
 private fun printSheet(context: Context, title: String, webView: WebView) {
     val manager = context.getSystemService(Context.PRINT_SERVICE) as? PrintManager ?: return
-    manager.print(title, webView.createPrintDocumentAdapter(title), PrintAttributes.Builder().build())
+    manager.print(title, webView.createPrintDocumentAdapter(title), NativePrint.a4Attributes())
 }

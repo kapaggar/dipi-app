@@ -52,6 +52,7 @@ import org.dhamma.dipi.staff.course.CentreScreen
 import org.dhamma.dipi.staff.course.CourseHubLive
 import org.dhamma.dipi.staff.course.CourseHubScreen
 import org.dhamma.dipi.staff.course.CourseReportScreen
+import org.dhamma.dipi.staff.course.courseReportPrintHtml
 import org.dhamma.dipi.staff.course.DeskActionScreen
 import org.dhamma.dipi.staff.course.RoomsScreen
 import org.dhamma.dipi.staff.desk.ApplicationsPane
@@ -76,6 +77,7 @@ import org.dhamma.dipi.staff.photos.PhotoReviewScreen
 import org.dhamma.dipi.staff.settings.PinDialog
 import org.dhamma.dipi.staff.settings.PinSetupDialog
 import org.dhamma.dipi.staff.settings.SettingsScreen
+import org.dhamma.dipi.staff.teacher.HallBody
 import org.dhamma.dipi.staff.teacher.SeatingPlanScreen
 import org.dhamma.dipi.staff.teacher.StudentCardScreen
 import org.dhamma.dipi.staff.teacher.TeacherListScreen
@@ -306,12 +308,23 @@ private fun DeskBodyRouter(vm: DeskViewModel, state: DeskUiState, wide: Boolean,
         }
         DeskScreen.CourseReport -> {
             val clipboard = LocalClipboardManager.current
+            val reportContext = LocalContext.current
             CourseReportScreen(
                 state = state.courseReport,
                 onFrom = vm::setReportFrom,
                 onTo = vm::setReportTo,
                 onRun = vm::runCourseReport,
                 onShareCsv = vm::shareCourseReportCsv,
+                onPrint = {
+                    val report = state.courseReport.report
+                    if (report != null) {
+                        NativePrint.printHtml(
+                            reportContext,
+                            "Course report",
+                            courseReportPrintHtml(report),
+                        )
+                    }
+                },
                 onCopyMessage = { clipboard.setText(AnnotatedString(it)) },
                 onBack = vm::back,
             )
@@ -627,6 +640,20 @@ private fun DeskHost(
                 sort = sheetView.sort,
                 onSort = vm::setSheetSort,
                 summary = sheetView.summary,
+                fetchedAt = sheetView.fetchedAt,
+                nativeHall = if (sheetView.nativeHall && state.teacherRoll != null) {
+                    {
+                        HallBody(
+                            roll = state.teacherRoll,
+                            hall = state.teacherHall,
+                            gridFor = { g -> state.centreOps.hallGridFor(g) },
+                            onHall = vm::setTeacherHall,
+                            onOpen = vm::openDeskAppFromHall,
+                        )
+                    }
+                } else {
+                    null
+                },
             )
         }
 
@@ -813,7 +840,9 @@ private fun openSheetDocument(
         .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
     runCatching { context.startActivity(view) }.onFailure {
         runCatching { context.startActivity(Intent.createChooser(view, doc.title)) }
-            .onFailure { onNoViewer("No app on this device can open ${doc.title}") }
+            .onFailure {
+                onNoViewer("${doc.title} saved — no app on this device can open it")
+            }
     }
 }
 

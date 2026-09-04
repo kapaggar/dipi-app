@@ -132,7 +132,7 @@ class CourseReportScreenTest {
         rule.onNodeWithText("10 Day").assertIsDisplayed()
         rule.onAllNodesWithTag("report-grand-total").assertCountEquals(1)
         rule.onNodeWithText("GRAND TOTAL").assertIsDisplayed()
-        rule.onNodeWithText("2026-01-01 → 2026-03-31 · 2 courses").assertIsDisplayed()
+        rule.onNodeWithText("01-01-2026 → 31-03-2026 · 2 courses").assertIsDisplayed()
     }
 
     /** A course name the desk typed freehand prints raw, never as an error. */
@@ -154,7 +154,7 @@ class CourseReportScreenTest {
             ),
         )
         rule.onNodeWithTag("report-empty").assertIsDisplayed()
-        rule.onNodeWithText("No course started between 2026-05-01 and 2026-05-02.")
+        rule.onNodeWithText("No course started between 01-05-2026 and 02-05-2026.")
             .assertIsDisplayed()
     }
 
@@ -208,6 +208,15 @@ class CourseReportScreenTest {
     fun shareCsvIsAbsentUntilThereIsAFile() {
         screen(CourseReportUi(ran = true, report = loaded))
         rule.onNodeWithTag("report-share-csv").assertDoesNotExist()
+    }
+
+    @Test
+    fun printButtonExistsOnceAReportIsLoaded() {
+        screen(CourseReportUi(ran = true, report = loaded, ranAt = "09:41"))
+        rule.onNodeWithTag("report-print").assertIsDisplayed()
+        rule.onNodeWithTag("report-run-strip")
+            .assertTextEquals("2 COURSES · 165 STUDENTS · RAN 09:41")
+        rule.onNodeWithText("every course the desk has in this range").assertIsDisplayed()
     }
 
     /** Every tap target on this screen clears the 48dp floor. */

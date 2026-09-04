@@ -279,7 +279,7 @@ private fun FacilitiesCard(summary: DaySummary) {
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         Text(
-            "PUT OUT IN THE HALL",
+            "SPECIAL SEATING",
             fontFamily = DipiMono,
             fontWeight = FontWeight.Medium,
             fontSize = 9.sp,
@@ -361,4 +361,48 @@ private fun FacilitiesFigure(marker: String, value: Int) {
             modifier = Modifier.padding(bottom = 2.dp),
         )
     }
+}
+
+/** Print-only HTML for the Day 0 overlay — no rail, no accent fills. */
+fun daySummaryPrintHtml(summary: DaySummary): String {
+    fun row(label: String, r: DayRollRow) =
+        "<tr><td>$label</td><td>${r.old}</td><td>${r.new}</td><td>${r.total}</td><td>${r.server}</td></tr>"
+    fun special(label: String, r: SpecialRow) =
+        "<tr><td>$label</td><td>${r.chowky.old} O / ${r.chowky.new} N</td>" +
+            "<td>${r.chair.old} O / ${r.chair.new} N</td>" +
+            "<td>${r.backrest.old} O / ${r.backrest.new} N</td></tr>"
+    return """
+        <!doctype html><html><head><meta charset="utf-8">
+        <style>
+          body{font:12pt/1.35 sans-serif;color:#111;margin:12mm}
+          table{width:100%;border-collapse:collapse;margin-bottom:16px}
+          th,td{border-bottom:1px solid #ccc;padding:4px 6px;text-align:right}
+          th:first-child,td:first-child{text-align:left}
+        </style></head><body>
+        <h1>Day 0 summary</h1>
+        <p>Confirmed ${summary.confirmed.total.total} → Attended ${summary.attended.total.total}.
+           Still to arrive ${summary.stillToArrive}.</p>
+        <h2>Confirmed</h2>
+        <table><thead><tr><th></th><th>Old</th><th>New</th><th>Total</th><th>Sevak</th></tr></thead>
+        <tbody>
+          ${row("Male", summary.confirmed.male)}
+          ${row("Female", summary.confirmed.female)}
+          ${row("Total", summary.confirmed.total)}
+        </tbody></table>
+        <h2>Attended</h2>
+        <table><thead><tr><th></th><th>Old</th><th>New</th><th>Total</th><th>Sevak</th></tr></thead>
+        <tbody>
+          ${row("Male", summary.attended.male)}
+          ${row("Female", summary.attended.female)}
+          ${row("Total", summary.attended.total)}
+        </tbody></table>
+        <h2>Special seating</h2>
+        <table><thead><tr><th></th><th>Chowky</th><th>Chair</th><th>Backrest</th></tr></thead>
+        <tbody>
+          ${special("Male", summary.specialSeating.male)}
+          ${special("Female", summary.specialSeating.female)}
+          ${special("Total", summary.specialSeating.total)}
+        </tbody></table>
+        </body></html>
+    """.trimIndent()
 }

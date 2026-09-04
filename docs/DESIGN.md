@@ -688,3 +688,41 @@ an instruction panel about dragging students that cannot work here.
 Live Drupal desk. No `/staff/*`. No client ACL. Server refusals verbatim. Never
 send `?r=` on sheet GETs. Sheet bodies stay in memory or `cacheDir/sheets` and are
 wiped on logout, session expiry and Erase-all.
+
+---
+
+## Reach v5 UI — Board native seating, print, visual pack (1.36.0 / 58, 2026-09-03)
+
+Plan: `docs/plans/2026-09-03-reach-v5-ui.md`. Walkthrough on tablet 1.35.0 was
+the visual source of truth; this pass ships the remaining pack.
+
+### What shipped — do not re-propose
+
+- **Native Board 5h.** The Board "Seating plan" chip opens the Course ops hall
+  (`HallBody`: teacher-at-bottom, letters-as-columns, chowky/chair rail, 66dp,
+  no drag). One `GET /teacher-list` if the roll is not already loaded; never
+  `GET /seating`, never `?r=`, never a card prefetch. The injected stylesheet
+  still unhides `.ui-state-default` for any leftover HTML path.
+- **Binary Board exports** snack the server's words, `"$title came back empty"`,
+  or *"{title} saved — no app on this device can open it"*. No in-app PDF/Excel
+  renderer. OkHttp read timeout 60s; binary paths send `Accept-Encoding: identity`.
+- **Day 0 summary stays an overlay.** PRINT + `SPECIAL SEATING` + `FROM THE DESK · HH:MM`.
+- **Print CSS:** student chits 9-up; Contact `display:none` in `@media print`.
+- **Teacher-list City / Education chips** (off by default). Cell / Languages stay off.
+- **Stat arrows** stay `accent300`; cards are 112dp so the overlay arrow is not clipped.
+- **Course report** displays `dd-MM-yyyy`, POSTs ISO, PRINT next to SHARE CSV,
+  run strip `N COURSES · N STUDENTS · RAN HH:MM`. The `NEW` tag stays.
+- **Entity decode** is shared (`HtmlEntities`) for Kotlin-parsed surfaces only.
+
+### Not built, deliberately
+
+- Group seating + Cell list under MORE ON THE DESK SITE.
+- In-app PDF/Excel renderer.
+- Moving Day 0 summary into the desk rail.
+- "Fixing" stale Board KPIs (stale-until-revalidate is intended).
+- A seating editor / `?r=`.
+
+### PATCH 1.36.1 / 59 (2026-09-04)
+
+- Binary sheet `save()` / `body.bytes()` / file write run on `Dispatchers.IO`. Smoke of 1.36.0: Laundry `NetworkOnMainThreadException`, Male PDF sat on the 60s Main-thread read timeout.
+- Student chit print CSS wins over the imported desk stylesheet: 9-up **63.3×92.3mm** on A4; Contact stays `display:none` in `@media print`. The print job media is `ISO_A4` (Pixel C default is Letter).

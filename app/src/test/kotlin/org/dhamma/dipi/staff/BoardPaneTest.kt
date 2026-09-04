@@ -150,7 +150,7 @@ class BoardPaneTest {
         val stats = rule.onAllNodesWithTag("board-stat")
         stats.assertCountEquals(4)
         repeat(4) { i ->
-            assertEquals(100.dp.value, stats[i].getBoundsInRoot().height.value, 0.5f)
+            assertEquals(112.dp.value, stats[i].getBoundsInRoot().height.value, 0.5f)
         }
         listOf("ARRIVING TODAY", "CHECKED IN", "STILL TO CALL", "NEEDS ATTENTION").forEach {
             rule.onNodeWithText(it).assertIsDisplayed()
@@ -281,7 +281,12 @@ class BoardPaneTest {
         board()
         // The stat card merges its semantics, so the arrow is only visible
         // in the unmerged tree.
-        rule.onAllNodesWithTag("board-stat-arrow", useUnmergedTree = true).assertCountEquals(4)
+        val arrows = rule.onAllNodesWithTag("board-stat-arrow", useUnmergedTree = true)
+        arrows.assertCountEquals(4)
+        repeat(4) { i ->
+            val box = arrows[i].getBoundsInRoot()
+            assertTrue("arrow $i clipped to ${box.height.value}dp", box.height.value >= 10f)
+        }
     }
 
     /** The Day-11 row keeps its own fourth line and gains only a reason tag. */

@@ -22,6 +22,9 @@ data class ApplicantHistory(
     val counts: List<CourseCount> = emptyList(),
 )
 
+/** Standalone dash tokens are empty-surname placeholders, not a family name. */
+private val DASH_ONLY_NAME = Regex("""^[—–−-]+$""")
+
 data class ApplicantCard(
     val id: ApplicantId,
     val centreId: CentreId,
@@ -55,7 +58,9 @@ data class ApplicantCard(
     val flags: List<AuditFlag> = emptyList(),
 ) {
     val displayName: String
-        get() = listOf(givenName, middleName, familyName).filter { it.isNotBlank() }.joinToString(" ")
+        get() = listOf(givenName, middleName, familyName)
+            .filter { it.isNotBlank() && !it.matches(DASH_ONLY_NAME) }
+            .joinToString(" ")
 
     val locationLine: String
         get() = listOf(city, state, country).mapNotNull { it?.takeIf(String::isNotBlank) }.joinToString(", ")

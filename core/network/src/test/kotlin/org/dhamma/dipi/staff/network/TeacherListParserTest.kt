@@ -199,6 +199,23 @@ class TeacherListParserTest {
     }
 
     @Test
+    fun educationDecodesNumericApostrophe() {
+        val html = """
+            <style></style>
+            <table class="table-teacher-list">
+            <thead><tr><th class="tl-groupinfo">AT: (unassigned) | Male | Old | Group 1 | 1 total</th></tr></thead>
+            <tbody><tr>
+            <td>1</td><td>Rakesh Iyer</td><td>Mbk-1</td><td>40</td><td>Pune</td>
+            <td></td><td></td><td>A1</td><td>Teacher</td>
+            <td>Master&#039;s in business admi</td><td>English</td><td>never-read health</td>
+            </tr></tbody></table>
+        """.trimIndent()
+        val row = TeacherListParser.parse(html).groups.single().rows.single()
+        assertEquals("Master's in business admi", row.education)
+        assertEquals("Rakesh Iyer", row.name)
+    }
+
+    @Test
     fun emptyOrRefusalHtmlParsesToAnEmptyRoll() {
         assertTrue(TeacherListParser.parse("").isEmpty)
         assertTrue(TeacherListParser.parse(MockFixtures.accessDeniedHtml).isEmpty)

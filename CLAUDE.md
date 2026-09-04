@@ -2,7 +2,7 @@
 
 DIPI Staff Android (`org.dhamma.dipi.staff`).
 
-**Now shipping:** **1.35.0** (`versionCode` 57) on `main` — Vertical 2 desk, **Sheets v5** (injected sheet stylesheet, native Day 0 summary, native centre Course report, eleven-chip Board, rebalanced Rooms) and **Course ops** (Teacher list / Seating plan with the teacher at the bottom / read-only student card; device-PIN gated; worklist + applications buffered on entry). See `docs/DECISIONS.md`.
+**Now shipping:** **1.36.1** (`versionCode` 59) on `feat/reach-v5-ui` — PATCH on Reach v5 UI (binary `save()` off Main; chit print 9-up on A4). See `docs/DECISIONS.md`.
 
 Governing product rules live in `AGENTS.md` Hard rules (no client ACL, no `Approved`, no attendance write, server messages verbatim, bridge rule).  
 **Transport (this file + `AGENTS.md` win):** the live desk is Drupal HTML, not Services login and not `/staff/*`. Backend PHP is immutable.

@@ -37,6 +37,8 @@ import androidx.compose.ui.unit.sp
 import org.dhamma.dipi.staff.model.CourseReport
 import org.dhamma.dipi.staff.model.CourseReportCounts
 import org.dhamma.dipi.staff.model.CourseReportRow
+import org.dhamma.dipi.staff.model.displayDeskDate
+import org.dhamma.dipi.staff.model.parseDeskDate
 import org.dhamma.dipi.staff.ui.theme.DeskStyle
 import org.dhamma.dipi.staff.ui.theme.DipiCondensed
 import org.dhamma.dipi.staff.ui.theme.DipiMono
@@ -56,6 +58,8 @@ data class CourseReportUi(
     val refusal: String? = null,
     /** `POST /centre/{cid}/course-report · HTTP nnn · hh:mm` under the refusal. */
     val refusalContext: String = "",
+    /** Device-local `HH:mm` of the last successful RUN. */
+    val ranAt: String? = null,
 )
 
 /**
@@ -76,6 +80,7 @@ fun CourseReportScreen(
     onTo: (String) -> Unit = {},
     onRun: () -> Unit = {},
     onShareCsv: () -> Unit = {},
+    onPrint: () -> Unit = {},
     onCopyMessage: (String) -> Unit = {},
     onBack: () -> Unit = {},
     modifier: Modifier = Modifier,
@@ -87,7 +92,7 @@ fun CourseReportScreen(
             .background(c.background)
             .testTag("course-report-screen"),
     ) {
-        Header(state, onShareCsv, onBack)
+        Header(state, onShareCsv, onPrint, onBack)
         RangeBand(state, onFrom, onTo, onRun)
         Box(Modifier.weight(1f).fillMaxWidth()) {
             when {
@@ -95,14 +100,19 @@ fun CourseReportScreen(
                 state.running -> Running(state)
                 !state.ran -> FirstOpen()
                 state.report == null || state.report.isEmpty -> EmptyRange(state)
-                else -> Loaded(state.report)
+                else -> Loaded(state)
             }
         }
     }
 }
 
 @Composable
-private fun Header(state: CourseReportUi, onShareCsv: () -> Unit, onBack: () -> Unit) {
+private fun Header(
+    state: CourseReportUi,
+    onShareCsv: () -> Unit,
+    onPrint: () -> Unit,
+    onBack: () -> Unit,
+) {
     val c = LocalDipi.current
     Row(
         Modifier
@@ -128,11 +138,31 @@ private fun Header(state: CourseReportUi, onShareCsv: () -> Unit, onBack: () -> 
                 color = c.foreground,
             )
             Text(
-                "Roll counts for every course that started in the range below.",
+                "every course the desk has in this range",
                 fontSize = 12.5.sp,
                 color = c.muted,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
+            )
+        }
+        if (state.report != null && !state.report.isEmpty) {
+            Text(
+                "PRINT",
+                fontFamily = DipiCondensed,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 14.sp,
+                letterSpacing = 0.06.em,
+                color = c.muted,
+                modifier = Modifier
+                    .deskCard(
+                        shape = DeskStyle.controlShape,
+                        fill = Color.Transparent,
+                        border = c.hairline,
+                        elevation = 0.dp,
+                    )
+                    .clickable(onClick = onPrint)
+                    .padding(horizontal = 16.dp, vertical = 12.dp)
+                    .testTag("report-print"),
             )
         }
         // Secondary: the CSV is still there for anyone who wants the file.
@@ -231,8 +261,8 @@ private fun DateField(label: String, value: String, tag: String, onChange: (Stri
             contentAlignment = Alignment.CenterStart,
         ) {
             BasicTextField(
-                value = value,
-                onValueChange = onChange,
+                value = displayDeskDate(value),
+                onValueChange = { onChange(parseDeskDate(it)) },
                 singleLine = true,
                 textStyle = TextStyle(
                     fontFamily = DipiMono,
@@ -260,7 +290,7 @@ private fun FirstOpen() {
 @Composable
 private fun Running(state: CourseReportUi) {
     Message(
-        title = "Asking the desk for ${state.from} → ${state.to}.",
+        title = "Asking the desk for ${displayDeskDate(state.from)} → ${displayDeskDate(state.to)}.",
         body = "A wide range takes the desk a while — it walks every course " +
             "in the window. The range above stays editable if you want to narrow it.",
         tag = "report-running",
@@ -272,7 +302,7 @@ private fun Running(state: CourseReportUi) {
 private fun EmptyRange(state: CourseReportUi) {
     val reversed = state.from.isNotBlank() && state.to.isNotBlank() && state.from > state.to
     Message(
-        title = "No course started between ${state.from} and ${state.to}.",
+        title = "No course started between ${displayDeskDate(state.from)} and ${displayDeskDate(state.to)}.",
         body = if (reversed) {
             "The dates are the wrong way round — FROM is later than TO. " +
                 "Swap them and run again."
@@ -376,7 +406,8 @@ private val DangerTint = Color(0x22A33A34)
  * banded and 1dp gutters between the groups. **Nothing is dropped.**
  */
 @Composable
-private fun Loaded(report: CourseReport) {
+private fun Loaded(state: CourseReportUi) {
+    val report = state.report ?: return
     Column(Modifier.fillMaxSize()) {
         Column(
             Modifier
@@ -384,6 +415,19 @@ private fun Loaded(report: CourseReport) {
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 26.dp),
         ) {
+            if (!state.ranAt.isNullOrBlank()) {
+                Text(
+                    "${report.rows.size} COURSES · ${report.grandTotal.rollTotal} STUDENTS · RAN ${state.ranAt}",
+                    fontFamily = DipiMono,
+                    fontWeight = FontWeight.Medium,
+                    fontSize = 9.sp,
+                    letterSpacing = 0.14.em,
+                    color = Industry.neutral500,
+                    modifier = Modifier
+                        .padding(top = 10.dp, bottom = 6.dp)
+                        .testTag("report-run-strip"),
+                )
+            }
             GroupCaps()
             ColumnHeaders()
             report.rows.forEach { ReportRow(it) }
@@ -557,7 +601,7 @@ private fun GrandTotalFooter(report: CourseReport) {
                 )
                 if (report.from.isNotBlank()) {
                     Text(
-                        "${report.from} → ${report.to} · ${report.rows.size} courses",
+                        "${displayDeskDate(report.from)} → ${displayDeskDate(report.to)} · ${report.rows.size} courses",
                         fontSize = 11.5.sp,
                         color = Industry.neutral600,
                     )
@@ -575,4 +619,41 @@ private fun Modifier.bottomHairline(): Modifier = drawBottom(Industry.neutral200
 private fun Modifier.drawBottom(color: Color, thickness: Dp) = drawBehind {
     val h = thickness.toPx()
     drawRect(color = color, topLeft = Offset(0f, size.height - h), size = Size(size.width, h))
+}
+
+/** Print-only HTML for the native report — no rail, no accent fills. */
+fun courseReportPrintHtml(report: CourseReport): String {
+    fun cells(c: CourseReportCounts) = listOf(
+        c.newMale, c.newFemale, c.newTotal,
+        c.oldMale, c.oldFemale, c.oldTotal,
+        c.rollTotal,
+        c.sevakMale, c.sevakFemale, c.sevakTotal,
+        c.teacherConducting, c.teacherAssistant, c.teacherTrainee,
+    ).joinToString("") { "<td>$it</td>" }
+    val rows = report.rows.joinToString("") { row ->
+        "<tr><td>${row.course}</td>${cells(row.counts)}</tr>"
+    }
+    return """
+        <!doctype html><html><head><meta charset="utf-8">
+        <style>
+          body{font:12pt/1.35 sans-serif;color:#111;margin:12mm}
+          table{width:100%;border-collapse:collapse}
+          th,td{border-bottom:1px solid #ccc;padding:4px 6px;text-align:right}
+          th:first-child,td:first-child{text-align:left}
+        </style></head><body>
+        <h1>Course report</h1>
+        <p>${displayDeskDate(report.from)} → ${displayDeskDate(report.to)}</p>
+        <table>
+          <thead><tr><th>Course</th>
+            <th>NM</th><th>NF</th><th>NT</th>
+            <th>OM</th><th>OF</th><th>OT</th>
+            <th>Roll</th>
+            <th>SM</th><th>SF</th><th>ST</th>
+            <th>C</th><th>A</th><th>TR</th>
+          </tr></thead>
+          <tbody>$rows</tbody>
+          <tfoot><tr><td>Grand total</td>${cells(report.grandTotal)}</tr></tfoot>
+        </table>
+        </body></html>
+    """.trimIndent()
 }
