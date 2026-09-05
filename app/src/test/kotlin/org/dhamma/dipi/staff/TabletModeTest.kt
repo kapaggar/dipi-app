@@ -187,8 +187,10 @@ class TabletModeTest {
         rule.onNodeWithText(
             "Locked to the course that is running. The teacher never picks a course; " +
                 "the roll follows the dates.",
-        ).assertIsDisplayed()
-        rule.onNodeWithText("Switching back asks for the device PIN").assertIsDisplayed()
+        ).performScrollTo().assertIsDisplayed()
+        rule.onNodeWithText("Settings and logout need the device PIN").performScrollTo().assertIsDisplayed()
+        rule.onNodeWithText("Nothing writes").performScrollTo().assertIsDisplayed()
+        rule.onNodeWithText("Health answers").performScrollTo().assertIsDisplayed()
     }
 
     /** The dashed card binds the running course when one is resolved. */
@@ -210,8 +212,8 @@ class TabletModeTest {
                 )
             }
         }
-        rule.onNodeWithText("Dhamma Sudha / 10 Day / 2026 / 2nd-Sep to 13th-Sep").assertIsDisplayed()
-        rule.onNodeWithText("2 Sep – 13 Sep 2026").assertIsDisplayed()
+        rule.onNodeWithText("Dhamma Sudha / 10 Day / 2026 / 2nd-Sep to 13th-Sep").performScrollTo().assertIsDisplayed()
+        rule.onNodeWithText("2 Sep – 13 Sep 2026").performScrollTo().assertIsDisplayed()
         rule.onNodeWithText("No course is running today").assertDoesNotExist()
     }
 }

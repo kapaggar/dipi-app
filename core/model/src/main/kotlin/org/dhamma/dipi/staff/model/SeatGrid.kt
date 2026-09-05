@@ -17,14 +17,25 @@ import kotlinx.serialization.Serializable
  * persisted day-one blob decodes to the defaults via `ignoreUnknownKeys`
  * and the registrar re-saves — recorded, acceptable.
  */
+/**
+ * How the occupied CW-/CH- rail draws. [SINGLE_ROW] is the default: one
+ * vertical column, CW-A1 nearest the teacher (bottom of the stack), then
+ * CW-A2… farther up, then the chairs continuing up the same column.
+ * [WRAP] is the older 2-across side column / columns-across stack.
+ */
+@Serializable
+enum class ChowkyRailLayout { SINGLE_ROW, WRAP }
+
 @Serializable
 data class HallGrid(
     val columns: Int = DEFAULT_COLUMNS,
     val depth: Int = DEFAULT_DEPTH,
+    val chowkyRail: ChowkyRailLayout = ChowkyRailLayout.SINGLE_ROW,
 ) {
     fun clamped(): HallGrid = HallGrid(
         columns = columns.coerceIn(MIN_COLUMNS, MAX_COLUMNS),
         depth = depth.coerceIn(MIN_DEPTH, MAX_DEPTH),
+        chowkyRail = chowkyRail,
     )
 
     companion object {
@@ -63,9 +74,11 @@ const val UNSEATED_NO_REASON = "—"
  * depth descending so row 1 lands at the bottom. [chowkyChair] is the CW-
  * (chowky, a low seat) and CH- (chair) positions — hall furniture, NOT
  * pagoda cells (the pagoda is a separate building, unmodelled) — occupied
- * only, ordered by trailing number DESCENDING so `…-1` ends nearest the
- * teacher. [unseated] keeps roll order. [oldCount]/[newCount] tally every
- * row fed in, matching the header sub-line.
+ * only, CW before CH, then trailing number ASCENDING so `CW-A1` is first
+ * (nearest the teacher). The default rail paints that list **bottom-to-top**
+ * so A1 sits at the Dhamma seat; [railPaintOrder] is the draw order.
+ * [unseated] keeps roll order.
+ * [oldCount]/[newCount] tally every row fed in, matching the header sub-line.
  */
 data class HallPlan(
     val columns: Int,
@@ -86,6 +99,16 @@ data class HallPlan(
      */
     val unseatedVisible: List<UnseatedRow>
         get() = unseated.filterNot { it.row.roleTag?.equals("Sevak", ignoreCase = true) == true }
+
+    /** Occupied hall-grid cells plus occupied CW-/CH- rail slots. */
+    val seatedCount: Int
+        get() = cells.sumOf { row -> row.count { it.seated != null } } + chowkyChair.size
+
+    val chowkySeats: List<PlacedSeat>
+        get() = chowkyChair.filter { it.row.seat.trim().startsWith("CW-", ignoreCase = true) }
+
+    val chairSeats: List<PlacedSeat>
+        get() = chowkyChair.filter { it.row.seat.trim().startsWith("CH-", ignoreCase = true) }
 }
 
 private val ALPHANUMERIC_SEAT = Regex("""([A-Za-z]{1,2})[ -]?(\d+)""")
@@ -146,9 +169,10 @@ fun seatPlacement(label: String, columns: Int = HallGrid.DEFAULT_COLUMNS): SeatC
  *
  * - Blank seat → [HallPlan.unseated] with the row's roleTag (or an em-dash) —
  *   roll order kept, never re-sorted.
- * - `CW-`/`CH-` seats → [HallPlan.chowkyChair], trailing number descending
- *   (chairs join the chowky rail with their label shown — recorded ruling;
- *   the design never knew the `CH-` prefix).
+ * - `CW-`/`CH-` seats → [HallPlan.chowkyChair], CW then CH, trailing
+ *   number ascending (`CW-A1` first — nearest the teacher when the default
+ *   column paints bottom-to-top; chairs join the same rail with their
+ *   label shown; the design never knew the `CH-` prefix).
  * - Every other label places by [seatPlacement]; labels past the configured
  *   grid EXTEND it on either axis. A label that cannot place at all
  *   (unparseable, or a duplicate of an already-taken slot) falls to
@@ -211,17 +235,38 @@ fun hallLayout(groups: List<RollGroup>, grid: HallGrid): HallPlan {
 }
 
 /**
- * Chowky/chair rail order (r2 S2): prefix ascending (case-insensitive, digit
- * runs numeric so `CH-2` groups before `CH-12`'s prefix ties), then the
- * TRAILING number DESCENDING — `…-6` at the top, `…-1` at the bottom,
- * nearest the teacher, matching the grid's bottom-up read.
+ * Draw order for one occupied rail. Sort stays CW then CH, suffix
+ * ascending (`CW-A1` first in [HallPlan.chowkyChair]). The default
+ * [ChowkyRailLayout.SINGLE_ROW] column paints **bottom-to-top**, so this
+ * reverses the list: last item drawn is A1, nearest the Dhamma seat.
+ * [ChowkyRailLayout.WRAP] keeps source order (top-down 2-across).
+ */
+fun railPaintOrder(
+    seats: List<PlacedSeat>,
+    layout: ChowkyRailLayout = ChowkyRailLayout.SINGLE_ROW,
+): List<PlacedSeat> =
+    if (layout == ChowkyRailLayout.SINGLE_ROW) seats.asReversed() else seats
+
+/**
+ * Chowky/chair rail order: CW before CH (chowky nearest the teacher),
+ * then the trailing number ASCENDING — `CW-A1` first. Digit runs in the
+ * prefix stay numeric so `CH-2` groups before `CH-12`.
  */
 internal fun compareRailLabels(a: String, b: String): Int {
+    val kind = railKind(a).compareTo(railKind(b))
+    if (kind != 0) return kind
     val (prefixA, numA) = splitTrailingNumber(a)
     val (prefixB, numB) = splitTrailingNumber(b)
-    val cmp = compareSeatLabels(prefixA, prefixB)
-    if (cmp != 0) return cmp
-    return numB.compareTo(numA)
+    val num = numA.compareTo(numB)
+    if (num != 0) return num
+    return compareSeatLabels(prefixA, prefixB)
+}
+
+/** 0 = chowky (`CW-`), 1 = chair (`CH-`), 2 = anything else. */
+private fun railKind(label: String): Int = when {
+    label.startsWith("CW-", ignoreCase = true) -> 0
+    label.startsWith("CH-", ignoreCase = true) -> 1
+    else -> 2
 }
 
 /** `"CW-A12"` → `"CW-A"` to 12; a label with no trailing digits keeps number 0. */

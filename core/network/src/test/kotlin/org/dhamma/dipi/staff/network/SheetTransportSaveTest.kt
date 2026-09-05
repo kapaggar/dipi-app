@@ -62,7 +62,7 @@ class SheetTransportSaveTest {
                 .setHeader("Content-Type", "text/html; charset=utf-8")
                 .setBody("<html>Access denied</html>"),
         )
-        val payload = runBlocking { transport.fetch(SheetExport.MalePdf, 1, 10) }
+        val payload = runBlocking { transport.fetch(SheetExport.Day11Report, 1, 10) }
         assertTrue(payload is SheetPayload.NotAvailable)
         assertEquals("<html>Access denied</html>", (payload as SheetPayload.NotAvailable).message)
     }
@@ -75,9 +75,9 @@ class SheetTransportSaveTest {
                 .setHeader("Content-Type", "application/pdf")
                 .setBody(""),
         )
-        val payload = runBlocking { transport.fetch(SheetExport.MalePdf, 1, 10) }
+        val payload = runBlocking { transport.fetch(SheetExport.Day11Report, 1, 10) }
         assertTrue(payload is SheetPayload.NotAvailable)
-        assertEquals("Male PDF came back empty", (payload as SheetPayload.NotAvailable).message)
+        assertEquals("Course summary came back empty", (payload as SheetPayload.NotAvailable).message)
     }
 
     @Test
@@ -143,7 +143,7 @@ class SheetTransportSaveTest {
                     .setHeader("Content-Type", "application/pdf")
                     .setBody("%PDF-1.4 fixture"),
             )
-            val payload = runBlocking { isolated.fetch(SheetExport.MalePdf, 1, 10) }
+            val payload = runBlocking { isolated.fetch(SheetExport.Day11Report, 1, 10) }
             assertTrue(payload is SheetPayload.Document)
             assertTrue(
                 "streamed body must be read on the IO dispatcher, was ${readOn.get()}",

@@ -39,7 +39,7 @@ import org.dhamma.dipi.staff.ui.theme.deskWash
 
 /** The six desk sections the left rail routes between. Centre settings live on the Centre screen. */
 enum class DeskSection(val label: String, val crumb: String) {
-    Board("Board", "BOARD"),
+    Board("0 Day Board", "0 DAY BOARD"),
     Applications("Applications", "APPLICATIONS"),
     Audit("Audit", "AUDIT"),
     Calling("Calling", "CALLING ROUND"),

@@ -83,8 +83,6 @@ fun courseHubTiles(centreId: Int, courseId: Int): List<CourseHubTile> = listOf(
     CourseHubTile("Seating Plan", "seating/$centreId/$courseId"),
     CourseHubTile("Student Chit", "student-chit/$centreId/$courseId"),
     CourseHubTile("Checking Slip", "checking-slip/$centreId/$courseId"),
-    CourseHubTile("Male PDF", "course-pdf-m/$centreId/$courseId"),
-    CourseHubTile("Female PDF", "course-pdf-f/$centreId/$courseId"),
     CourseHubTile("Teachers List", "teacher-list/$centreId/$courseId"),
     CourseHubTile("Laundry List", "laundry-list/$centreId/$courseId"),
     CourseHubTile("Valuable List", "valuable-list/$centreId/$courseId"),
@@ -114,10 +112,8 @@ fun courseHubDeskTiles(centreId: Int, courseId: Int): List<CourseHubTile> =
  * `hubSheetLabelsAreAllDocumentRoutes` in `CourseHubScreenTest` pins that.
  */
 fun hubSheetLabel(title: String): String? = when (title) {
-    "Male PDF" -> "Male PDF"
-    "Female PDF" -> "Female PDF"
     "Laundry List" -> "Laundry list"
     "Valuable List" -> "Valuable list"
-    "Course Summary Report" -> "Course summary report"
+    "Course Summary Report" -> "Course summary"
     else -> null
 }

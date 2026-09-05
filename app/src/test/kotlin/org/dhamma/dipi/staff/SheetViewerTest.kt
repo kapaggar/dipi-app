@@ -234,11 +234,11 @@ class SheetViewerTest {
             parentFile!!.mkdirs()
             writeText("pdf")
         }
-        vm.sheetFetch = { _, _, _, _ -> SheetPayload.Document("Male PDF", file, "application/pdf") }
+        vm.sheetFetch = { _, _, _, _ -> SheetPayload.Document("Course summary", file, "application/pdf") }
         vm.seedForTest(deskState())
         rule.setContent { DipiAppUi(vm) }
 
-        rule.runOnIdle { vm.openSheet("Male PDF") }
+        rule.runOnIdle { vm.openSheet("Course summary") }
         rule.waitForIdle()
 
         val started = shadowOf(app).nextStartedActivity
@@ -272,7 +272,7 @@ class SheetViewerTest {
         rule.onNodeWithTag("sheet-viewer").assertDoesNotExist()
         // The Board pane is still the section underneath.
         rule.onNodeWithText("SHEETS & EXPORTS").assertIsDisplayed()
-        rule.onNodeWithText("RARELY URGENT").assertIsDisplayed()
+        rule.onNodeWithText("Course summary").assertIsDisplayed()
     }
 
     /**
@@ -531,20 +531,30 @@ class SheetViewerTest {
      * toolbar" cannot land quietly.
      */
     @Test
-    fun injectedPrintCssLaysStudentChits9UpAndHidesContact() {
-        val css = SheetStylesheet.render(
+    fun injectedPrintCssLaysStudentChits12UpAndCheckingSlip2Up() {
+        val chit = SheetStylesheet.render(
             "<div class=\"table-student-chit\"></div>",
             emptySet(),
             SheetExport.StudentChit,
         )
-        assertTrue(css.contains("dipi-student-chit"))
-        assertTrue("9-up cell width", css.contains("63.3mm"))
-        assertTrue("9-up cell height", css.contains("92.3mm"))
-        assertTrue(css.contains("html.dipi-student-chit .table-student-chit"))
+        assertTrue(chit.contains("dipi-student-chit"))
+        assertTrue("12-up cell width", chit.contains("63.3mm"))
+        assertTrue("12-up cell height", chit.contains("69.3mm"))
+        assertFalse("9-up height must not win", chit.contains("92.3mm"))
+        assertTrue(chit.contains("html.dipi-student-chit .table-student-chit"))
         assertTrue(
             "Contact stays off on paper",
-            css.contains("@media print{.d0-contact{display:none!important}}"),
+            chit.contains("@media print{.d0-contact{display:none!important}}"),
         )
+        val slip = SheetStylesheet.render(
+            "<div class=\"table-student-chit\"></div>",
+            emptySet(),
+            SheetExport.CheckingSlip,
+        )
+        assertTrue(slip.contains("dipi-checking-slip"))
+        assertTrue("5g 2-up width", slip.contains("190mm"))
+        assertTrue("5g 2-up height", slip.contains("138.5mm"))
+        assertTrue(slip.contains("TIME  AM / PM"))
         assertEquals(
             android.print.PrintAttributes.MediaSize.ISO_A4,
             org.dhamma.dipi.staff.ui.NativePrint.a4Attributes().mediaSize,

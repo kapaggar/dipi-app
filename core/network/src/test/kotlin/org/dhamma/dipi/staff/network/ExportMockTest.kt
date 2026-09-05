@@ -90,8 +90,6 @@ class ExportMockTest {
             "GET /zero-day/3/42",
             "GET /student-chit/3/42",
             "GET /checking-slip/3/42",
-            "GET /course-pdf-m/3/42",
-            "GET /course-pdf-f/3/42",
             "GET /teacher-list/3/42",
             "GET /manager-list/3/42",
             "GET /laundry-list/3/42",
@@ -182,8 +180,6 @@ class ExportMockTest {
     @Test
     fun pdfExportsStreamToCacheFilesWithPdfMime() {
         listOf(
-            SheetExport.MalePdf to "course-pdf-m-1-10.pdf",
-            SheetExport.FemalePdf to "course-pdf-f-1-10.pdf",
             SheetExport.Day11Report to "report-day11-1-10.pdf",
         ).forEach { (export, name) ->
             val payload = fetch(export)
@@ -250,7 +246,7 @@ class ExportMockTest {
         assertTrue(html is SheetPayload.NotAvailable)
         assertEquals(MockFixtures.accessDeniedHtml, (html as SheetPayload.NotAvailable).message)
 
-        val doc = fetch(SheetExport.MalePdf, cid = MockFixtures.FORBIDDEN_CENTRE)
+        val doc = fetch(SheetExport.Day11Report, cid = MockFixtures.FORBIDDEN_CENTRE)
         assertTrue(doc is SheetPayload.NotAvailable)
         assertEquals(MockFixtures.accessDeniedHtml, (doc as SheetPayload.NotAvailable).message)
         assertFalse("a refusal must never leave a cache file", sheetsDir.exists())
@@ -286,7 +282,7 @@ class ExportMockTest {
 
     @Test
     fun wipeRemovesEveryCachedDocument() {
-        fetch(SheetExport.MalePdf)
+        fetch(SheetExport.Day11Report)
         fetch(SheetExport.LaundryList)
         assertTrue(sheetsDir.listFiles()!!.isNotEmpty())
         transport.wipe()

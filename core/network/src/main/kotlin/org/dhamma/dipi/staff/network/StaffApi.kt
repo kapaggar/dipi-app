@@ -172,7 +172,7 @@ interface StaffApi {
         @Query("seating") seating: Int? = null,
     ): Response<ResponseBody>
 
-    /** Streamed course-pdf-m/-f (application/pdf), laundry/valuable list (vnd.ms-excel). */
+    /** Streamed laundry/valuable list (vnd.ms-excel) and Day-11 PDF. */
     @Streaming
     @GET("/{sheet}/{cid}/{courseId}")
     suspend fun sheetDocument(
@@ -262,8 +262,6 @@ object SheetRoutes {
         SheetExport.Day0Summary -> SheetRoute.DaySummary
         SheetExport.StudentChit -> SheetRoute.Page("student-chit")
         SheetExport.CheckingSlip -> SheetRoute.Page("checking-slip")
-        SheetExport.MalePdf -> SheetRoute.Document("course-pdf-m", MIME_PDF, "pdf")
-        SheetExport.FemalePdf -> SheetRoute.Document("course-pdf-f", MIME_PDF, "pdf")
         SheetExport.TeacherList -> SheetRoute.Page("teacher-list")
         SheetExport.ManagerList -> SheetRoute.Page("manager-list")
         SheetExport.LaundryList -> SheetRoute.Document("laundry-list", MIME_XLS, "xls")

@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -27,7 +26,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
@@ -37,6 +35,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.dhamma.dipi.staff.model.ApplicantId
@@ -92,20 +91,24 @@ fun StudentCardScreen(
     onNext: () -> Unit = {},
     onBack: () -> Unit = {},
     loadPhoto: suspend (ApplicantId) -> ImageBitmap? = { null },
+    /** Door the card was opened from — Teacher list or Seating plan. */
+    backLabel: String = "Teacher list",
+    /** Hall + seat when the door was the plan, e.g. `Female hall · seat A1`. */
+    cameFrom: String? = null,
 ) {
     Column(Modifier.fillMaxSize().background(Industry.bg)) {
-        Header(row, group, card, canPrev, canNext, onPrev, onNext, onBack)
+        Header(row, group, card, canPrev, canNext, onPrev, onNext, onBack, backLabel)
         if (card == null) {
             NotCachedBody(offline)
         } else {
             Row(
                 Modifier
                     .fillMaxSize()
-                    .padding(horizontal = 24.dp, vertical = 12.dp),
+                    .padding(horizontal = 20.dp, vertical = 12.dp),
                 horizontalArrangement = Arrangement.spacedBy(18.dp),
             ) {
                 LeftColumn(row, card, loadPhoto)
-                RightColumn(card, group.gender)
+                RightColumn(card, group.gender, cameFrom)
             }
         }
     }
@@ -123,20 +126,25 @@ private fun Header(
     onPrev: () -> Unit,
     onNext: () -> Unit,
     onBack: () -> Unit,
+    backLabel: String,
 ) {
     Row(
-        Modifier.fillMaxWidth().height(60.dp).padding(horizontal = 24.dp),
+        Modifier.fillMaxWidth().height(60.dp).padding(start = 12.dp, end = 20.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        // Frame draws 44dp; the ≥48dp-target rule wins (noted deviation).
-        Box(
+        Row(
             Modifier
-                .size(48.dp)
+                .height(48.dp)
+                .background(Color.White, RoundedCornerShape(6.dp))
+                .border(1.dp, Industry.neutral300, RoundedCornerShape(6.dp))
                 .clickable(role = Role.Button, onClick = onBack)
+                .padding(start = 10.dp, end = 14.dp)
                 .testTag("card-back"),
-            contentAlignment = Alignment.Center,
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Text("‹", fontSize = 22.sp, color = Industry.neutral600)
+            Text("‹", fontSize = 19.sp, color = Industry.neutral700)
+            Text(backLabel, fontSize = 13.sp, color = Industry.neutral700)
         }
         Column(Modifier.weight(1f).padding(start = 4.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -157,6 +165,7 @@ private fun Header(
                 fontSize = 12.5.sp,
                 color = Industry.neutral600,
                 maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.testTag("card-placement"),
             )
         }
@@ -185,12 +194,13 @@ private fun StatusChip(group: RollGroup, card: ApplicationCard?) {
     )
 }
 
-/** `Mbk-37 · seat E1 · Group 1 · TAM` — roll facts only, blanks dropped. */
+/** `Mbk-37 · seat E1 · Group 1 · TAM · 1 of 18 in this group` — roll facts only. */
 private fun placementLine(row: RollRow, group: RollGroup): String = listOfNotNull(
     row.room.takeIf { it.isNotBlank() },
     row.seat.takeIf { it.isNotBlank() }?.let { "seat $it" },
     "Group ${group.group}",
     group.code,
+    "${row.sn} of ${group.total} in this group",
 ).joinToString(" · ")
 
 @Composable
@@ -198,16 +208,13 @@ private fun WalkButton(glyph: String, enabled: Boolean, onClick: () -> Unit, tag
     val shape = RoundedCornerShape(6.dp)
     Box(
         Modifier
-            .height(48.dp)
-            .defaultMinSize(minWidth = 48.dp)
-            .alpha(if (enabled) 1f else 0.38f)
-            .border(1.dp, Industry.neutral300, shape)
+            .size(48.dp)
+            .border(1.dp, if (enabled) Industry.neutral300 else Industry.neutral200, shape)
             .then(if (enabled) Modifier.clickable(role = Role.Button, onClick = onClick) else Modifier)
-            .padding(horizontal = 16.dp)
             .testTag(tag),
         contentAlignment = Alignment.Center,
     ) {
-        Text(glyph, fontSize = 20.sp, color = Industry.neutral600)
+        Text(glyph, fontSize = 20.sp, color = if (enabled) Industry.neutral700 else Industry.neutral300)
     }
 }
 
@@ -224,12 +231,25 @@ private fun NotCachedBody(offline: Boolean) {
                 modifier = Modifier.testTag("card-not-cached"),
             )
         } else {
-            Text(
-                "Fetching the application…",
-                fontSize = 14.sp,
-                color = Industry.neutral500,
-                modifier = Modifier.testTag("card-fetching"),
-            )
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    "This application hasn't arrived yet",
+                    fontFamily = DipiCondensed,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 18.sp,
+                    color = Industry.text,
+                    modifier = Modifier.testTag("card-fetching"),
+                )
+                Text(
+                    "The roll row is here; the application behind it is still being pulled. " +
+                        "Personal, course history and the six answers appear as soon as it lands.",
+                    fontSize = 13.sp,
+                    lineHeight = 19.5.sp,
+                    color = Industry.neutral600,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(top = 7.dp).width(480.dp),
+                )
+            }
         }
     }
 }
@@ -375,42 +395,124 @@ private fun MetaRow(key: String, value: String) {
 /* ── Right column — what the applicant wrote ────────────────────────── */
 
 @Composable
-private fun RightColumn(card: ApplicationCard, gender: Gender) {
+private fun RightColumn(card: ApplicationCard, gender: Gender, cameFrom: String?) {
+    val answered = card.health.count { healthAnswered(it, gender) }
+    val names = card.health.filter { healthAnswered(it, gender) }.map { it.label }
+    val whose = if (gender == Gender.F) "her" else "his"
     Column(
         Modifier
             .fillMaxHeight()
             .verticalScroll(rememberScrollState())
             .testTag("card-answers"),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(7.dp),
     ) {
         Column {
             Kicker("WHAT THE APPLICANT WROTE")
             Text(
-                "page 2 of the application · in his own words",
+                "page 2 of the application · in $whose own words",
                 fontSize = 11.5.sp,
                 color = Industry.neutral400,
-                modifier = Modifier.padding(top = 2.dp, bottom = 1.dp),
+                modifier = Modifier.padding(top = 4.dp),
             )
         }
+        AnswerSummary(answered, names)
         card.health.forEachIndexed { i, row -> AnswerCard(i + 1, row, gender) }
+        if (cameFrom != null) {
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp)
+                    .height(38.dp)
+                    .background(Industry.neutral100, RoundedCornerShape(6.dp))
+                    .border(1.dp, Industry.neutral200, RoundedCornerShape(6.dp))
+                    .padding(horizontal = 14.dp)
+                    .testTag("card-came-from"),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                Text(
+                    "CAME FROM",
+                    fontFamily = DipiMono,
+                    fontWeight = FontWeight.Medium,
+                    fontSize = 9.sp,
+                    letterSpacing = 1.4.sp,
+                    color = Industry.neutral500,
+                )
+                Text(cameFrom, fontSize = 12.5.sp, color = Industry.neutral700, modifier = Modifier.weight(1f))
+                Text("same record as the roll row", fontSize = 12.sp, color = Industry.neutral400)
+            }
+        }
         Spacer(Modifier.height(16.dp))
+    }
+}
+
+private fun healthAnswered(row: HealthRow, gender: Gender): Boolean {
+    val notApplicable = row.label.equals("Pregnancy", ignoreCase = true) && gender == Gender.M
+    if (notApplicable) return false
+    if (row.label.equals("Pregnancy", ignoreCase = true) &&
+        !row.answer.trim().startsWith("Yes", ignoreCase = true)
+    ) return false
+    return row.answered
+}
+
+@Composable
+private fun AnswerSummary(answered: Int, names: List<String>) {
+    val flagged = answered > 0
+    val label = if (flagged) {
+        names.joinToString(" and ") + " have something written"
+    } else {
+        "Nothing written on any of the six questions"
+    }
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .height(34.dp)
+            .background(if (flagged) Industry.accent100 else Industry.neutral100, RoundedCornerShape(6.dp))
+            .border(1.dp, if (flagged) Industry.accent300 else Industry.neutral200, RoundedCornerShape(6.dp))
+            .padding(horizontal = 14.dp)
+            .testTag("answer-summary"),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Text(
+            label,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Medium,
+            color = if (flagged) Industry.accent800 else Industry.neutral700,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f),
+        )
+        Text(
+            "$answered OF 6 ANSWERED",
+            fontFamily = DipiMono,
+            fontWeight = FontWeight.Medium,
+            fontSize = 10.sp,
+            letterSpacing = 1.2.sp,
+            color = if (flagged) Industry.accent700 else Industry.neutral500,
+        )
     }
 }
 
 @Composable
 private fun AnswerCard(index: Int, row: HealthRow, gender: Gender) {
     val notApplicable = row.label.equals("Pregnancy", ignoreCase = true) && gender == Gender.M
-    val answered = row.answered && !notApplicable &&
-        !(row.label.equals("Pregnancy", ignoreCase = true) &&
-            !row.answer.trim().startsWith("Yes", ignoreCase = true))
+    val answered = healthAnswered(row, gender)
     val shape = RoundedCornerShape(7.dp)
     Column(
         Modifier
             .fillMaxWidth()
+            .then(if (!answered) Modifier.height(56.dp) else Modifier)
             .background(if (answered) Industry.accent100 else PaleFill, shape)
             .border(1.dp, if (answered) Industry.accent300 else ZeroTileBorder, shape)
-            .padding(start = 14.dp, end = 14.dp, top = 11.dp, bottom = 12.dp)
+            .padding(
+                start = 14.dp,
+                end = 14.dp,
+                top = if (answered) 11.dp else 0.dp,
+                bottom = if (answered) 13.dp else 0.dp,
+            )
             .testTag("answer-card-${row.label}"),
+        verticalArrangement = if (answered) Arrangement.Top else Arrangement.Center,
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -422,15 +524,16 @@ private fun AnswerCard(index: Int, row: HealthRow, gender: Gender) {
                 fontWeight = FontWeight.Medium,
                 fontSize = 12.sp,
                 lineHeight = 15.6.sp,
-                color = Industry.neutral400,
+                color = if (answered) Industry.accent400 else Industry.neutral400,
                 modifier = Modifier.width(20.dp),
             )
             // The question label, verbatim — the teacher must see what was asked.
             Text(
                 row.label,
-                fontSize = 13.sp,
+                fontSize = if (answered) 15.5.sp else 14.sp,
+                fontWeight = if (answered) FontWeight.Medium else FontWeight.Normal,
                 lineHeight = 18.2.sp,
-                color = Industry.neutral600,
+                color = if (answered) Industry.text else Industry.neutral700,
                 modifier = Modifier.weight(1f),
             )
             AnswerTag(
@@ -471,19 +574,19 @@ private fun AnswerTag(text: String, accent: Boolean) {
         Modifier
             .height(24.dp)
             .background(
-                if (accent) Industry.accent100 else Industry.neutral200,
+                if (accent) Industry.accent200 else Industry.neutral200,
                 RoundedCornerShape(12.dp),
             )
-            .padding(horizontal = 9.dp),
+            .padding(horizontal = 10.dp),
         contentAlignment = Alignment.Center,
     ) {
         Text(
             text,
             fontFamily = DipiMono,
-            fontWeight = FontWeight.SemiBold,
+            fontWeight = if (accent) FontWeight.SemiBold else FontWeight.Medium,
             fontSize = 10.5.sp,
             letterSpacing = 1.1.sp,
-            color = if (accent) Industry.accent700 else Industry.neutral500,
+            color = if (accent) Industry.accent800 else Industry.neutral600,
         )
     }
 }

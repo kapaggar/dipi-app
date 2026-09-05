@@ -199,10 +199,10 @@ class TeacherListScreenTest {
             }
         }
         rule.onNodeWithTag("offline-strip").assertIsDisplayed()
-        rule.onNodeWithText("◍  Offline — showing cached list").assertIsDisplayed()
+        rule.onNodeWithText("◍ Offline — showing cached list", substring = true).assertIsDisplayed()
         // Pushed down, not floated: the header title starts below the strip.
         val strip = rule.onNodeWithTag("offline-strip").getUnclippedBoundsInRoot()
-        val title = rule.onNodeWithText("Teacher list").getUnclippedBoundsInRoot()
+        val title = rule.onNodeWithTag("teacher-list-title").getUnclippedBoundsInRoot()
         assertTrue("content must sit below the offline strip", title.top >= strip.bottom)
     }
 
@@ -224,5 +224,82 @@ class TeacherListScreenTest {
         rule.onNodeWithText("MED").assertIsDisplayed()
         rule.onNodeWithText("Zara Bhosale").performClick()
         assertEquals("Zara Bhosale", opened?.name)
+    }
+
+    @Test
+    fun headerStatesRollCountAndClearFilterAppearsWhenFiltered() {
+        var filter by mutableStateOf<String?>(null)
+        rule.setContent {
+            DipiTheme {
+                TeacherListScreen(
+                    roll = roll,
+                    courseLine = "Dhamma Sudha / 10 Day / 2026",
+                    groupFilter = filter,
+                    onGroupFilter = { filter = it },
+                )
+            }
+        }
+        rule.onNodeWithText("Dhamma Sudha / 10 Day / 2026 · 3 on the roll").assertIsDisplayed()
+        rule.onNodeWithTag("clear-filter").assertDoesNotExist()
+        rule.onNodeWithTag("group-pill-F-OLD-2").performClick()
+        rule.waitForIdle()
+        rule.onNodeWithTag("clear-filter").assertIsDisplayed()
+        rule.onNodeWithTag("clear-filter").performClick()
+        rule.waitForIdle()
+        rule.onNodeWithText("Rakesh Iyer").assertIsDisplayed()
+    }
+
+    @Test
+    fun coursesColumnCollapsesWhenTheRenderedSetHasNoChips() {
+        rule.setContent {
+            DipiTheme {
+                TeacherListScreen(roll = TeacherRoll(listOf(maleNew)), courseLine = "Sudha")
+            }
+        }
+        rule.onNodeWithTag("courses-collapsed").assertIsDisplayed()
+        rule.onNodeWithText("NO COURSE HISTORY IN THIS GROUP — COURSES COLLAPSED").assertIsDisplayed()
+        rule.onNodeWithText("COURSES").assertDoesNotExist()
+    }
+
+    @Test
+    fun filterEmptyBodyOffersTheOtherGroups() {
+        val empty = RollGroup(
+            at = "Kiran Arya", code = "KA3", gender = Gender.F,
+            seniority = RollSeniority.OLD, group = "9", total = 0, rows = emptyList(),
+        )
+        val withEmpty = TeacherRoll(listOf(femaleOld, maleNew, empty))
+        var filter by mutableStateOf<String?>("F-OLD-9")
+        rule.setContent {
+            DipiTheme {
+                TeacherListScreen(
+                    roll = withEmpty,
+                    courseLine = "Sudha",
+                    groupFilter = filter,
+                    onGroupFilter = { filter = it },
+                )
+            }
+        }
+        rule.onNodeWithTag("filter-empty").assertIsDisplayed()
+        rule.onNodeWithText("Nobody is in this group").assertIsDisplayed()
+        rule.onNodeWithTag("filter-empty-clear").performClick()
+        rule.waitForIdle()
+        assertEquals(null, filter)
+    }
+
+    @Test
+    fun pendingFlagsShowABarNotAnEmptyCell() {
+        rule.setContent {
+            DipiTheme {
+                TeacherListScreen(
+                    roll = roll,
+                    courseLine = "Sudha",
+                    flagsReady = { it.name == "Asha Menon" },
+                    flagsFor = { if (it.name == "Asha Menon") listOf("MED") else emptyList() },
+                )
+            }
+        }
+        // Clickable rows merge descendants; the bar tag lives on the FLAGS cell.
+        rule.onAllNodesWithTag("flags-pending", useUnmergedTree = true).onFirst().assertIsDisplayed()
+        rule.onNodeWithText("MED").assertIsDisplayed()
     }
 }

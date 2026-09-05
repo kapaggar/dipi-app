@@ -119,8 +119,7 @@ object NetworkModule {
 }
 
 internal fun isBinarySheetPath(path: String): Boolean =
-    path.contains("/course-pdf-") ||
-        path.contains("/laundry-list/") ||
+    path.contains("/laundry-list/") ||
         path.contains("/valuable-list/") ||
         path.contains("/report-day11/") ||
         path.contains("/show-clarification/")

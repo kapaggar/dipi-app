@@ -167,7 +167,7 @@ class CourseHubScreenTest {
         // fetch HTML nothing draws. Every mapping must be a Document.
         val mapped = courseHubTiles(1, 10).mapNotNull { hubSheetLabel(it.title) }
         assertEquals(
-            listOf("Male PDF", "Female PDF", "Laundry list", "Valuable list", "Course summary report"),
+            listOf("Laundry list", "Valuable list", "Course summary"),
             mapped,
         )
         mapped.forEach { label ->
@@ -203,7 +203,7 @@ class CourseHubScreenTest {
         }
         rule.onNodeWithContentDescription("Desk site links").performClick()
         rule.onNodeWithText("Course Summary Report").performScrollTo().performClick()
-        assertEquals("Course summary report", sheet)
+        assertEquals("Course summary", sheet)
         assertNull("the Day 11 export must not fall through to openLater", later)
     }
 }

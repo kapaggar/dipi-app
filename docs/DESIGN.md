@@ -726,3 +726,56 @@ the visual source of truth; this pass ships the remaining pack.
 
 - Binary sheet `save()` / `body.bytes()` / file write run on `Dispatchers.IO`. Smoke of 1.36.0: Laundry `NetworkOnMainThreadException`, Male PDF sat on the 60s Main-thread read timeout.
 - Student chit print CSS wins over the imported desk stylesheet: 9-up **63.3×92.3mm** on A4; Contact stays `display:none` in `@media print`. The print job media is `ISO_A4` (Pixel C default is Letter).
+
+### MINOR 1.37.0 / 60 (2026-09-04) — Course ops v6 advise
+
+Plan: `docs/plans/2026-09-04-course-ops-design.md`. Visual authority:
+`DIPI Course ops v6.dc.html`. Seating-r2 locks held (teacher at the bottom,
+letters as columns, CHOWKY / CHAIR, **66 dp** cells, sevaks hidden). No new
+GET, no search, no writes.
+
+- **Teacher list.** SEAT 76 + FLAGS 150 + 16 dp gutter; COURSES collapses when
+  the rendered set has no chips (stated on a foot line); selected GROUP pill
+  is accent-filled; `Clear filter ×`; filter-empty body; `N on the roll`;
+  FLAGS pending bar while a card has not landed.
+- **Hall.** Rail cells follow the hall old/new tint; `CW · CHOWKY` /
+  `CH · CHAIR` sub-labels in a hairline card; empty chair/chowky run says
+  `None in this hall`; UNSEATED kicker + count; hall pills carry seated
+  counts. Header tally stays `N old, N new`.
+- **Student card.** NO rows 56 dp, YES full cards, 34 dp summary, named back
+  door, walk position, CAME FROM footer, `in his/her own words`.
+- **PIN / Settings / empty.** Four PIN cells + “not the account password”
+  (store unchanged); Settings PIN-row and Erase-all copy; consequence rows
+  for writes and health storage; offline strip cache age; roll-error /
+  empty-host bodies (server verbatim; no silent `/teacher-list` retry).
+
+### PATCH 1.37.1 / 61 (2026-09-05) — owner Board / hall / print
+
+- **Rail.** Display string **0 Day Board** (`DeskSection.Board` id unchanged).
+- **Hall.** Chowky/chair default is one horizontal row, CW then CH, suffix
+  ascending (`CW-A1` first). `ChowkyRailLayout.WRAP` keeps the older 2-across
+  stack (Centre settings · Hall chart). Teacher stays at the bottom; 66 dp;
+  Male/Female pills stay; a 12 sp foot line repeats 5h's read-only sentence.
+- **Board chips.** Male PDF and Female PDF are gone — no `course-pdf-m|f`
+  fetch from the Board or the phone hub. ROLL SHEETS is Day 0 list + summary
+  plus two honest holes. Day-11 PDF stays.
+- **Print.** Student chits **12-up** (5e, 63.3×69.3mm); Contact stays off.
+  Checking slip **2-up** stacked (5g, 190×138.5mm) with a TIME/PLACE band.
+  Chit ORDER default is **Name** (5f); Course ops destination is **Teacher list**.
+
+### PATCH 1.37.2 / 62 (2026-09-05) — Board 3×3 + vertical rail
+
+- **Board exports.** SHEETS & EXPORTS is a neat **3×3** of equal 64 dp cells.
+  No shelf headers (`ROLL SHEETS` / `DESK SLIPS` / `FOR THE TEAM`), no
+  `RARELY URGENT` / `END OF COURSE`, no full-width Day-11 row. Grid (day-0
+  first): Day 0 list · Day 0 summary · **Course summary** / Student chit ·
+  Checking slip · Seating plan / Teacher list · Manager list · Laundry list.
+  **Valuable list left the Board** (enum + phone hub + `GET /valuable-list`
+  stay). Male/Female PDFs stay gone. Course summary is a normal cell
+  (`export-chip` + `export-day11`); `onExport("Course summary")` →
+  `SheetExport.Day11Report` → `GET /report-day11`. The older Board string
+  `"Course summary report"` still resolves.
+- **Hall.** Chowky/chair default is one **vertical column**, CW then CH,
+  suffix ascending, painted bottom-to-top so `CW-A1` sits nearest the
+  Dhamma seat. `ChowkyRailLayout.WRAP` keeps the older 2-across stack
+  (Centre settings · Hall chart). Teacher stays at the bottom; 66 dp.

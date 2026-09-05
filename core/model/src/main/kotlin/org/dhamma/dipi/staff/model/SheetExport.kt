@@ -12,8 +12,6 @@ enum class SheetExport(val label: String) {
     Day0Summary("Day 0 summary"),
     StudentChit("Student chit"),
     CheckingSlip("Checking slip"),
-    MalePdf("Male PDF"),
-    FemalePdf("Female PDF"),
     TeacherList("Teacher list"),
     ManagerList("Manager list"),
     LaundryList("Laundry list"),
@@ -22,14 +20,18 @@ enum class SheetExport(val label: String) {
     CourseReport("Course report"),
 
     /**
-     * Day 11 end-of-course summary. Phone hub overflow (`hubSheetLabel`) and
-     * the Board's fourth-line chip (2026-08-31) both send this label.
+     * Day 11 end-of-course summary. The Board cell and phone hub overflow
+     * (`hubSheetLabel`) both send this label. The older Board string
+     * `"Course summary report"` still resolves through [fromLabel].
      */
-    Day11Report("Course summary report"),
+    Day11Report("Course summary"),
     ;
 
     companion object {
-        fun fromLabel(label: String): SheetExport? = entries.firstOrNull { it.label == label }
+        fun fromLabel(label: String): SheetExport? = when (label) {
+            "Course summary report" -> Day11Report
+            else -> entries.firstOrNull { it.label == label }
+        }
     }
 }
 
@@ -74,7 +76,10 @@ enum class SheetSort(val queryName: String) {
 
         /** Screen label for the segmented control; the sheet's own wording. */
         fun labelFor(export: SheetExport, sort: SheetSort): String = when (sort) {
-            Default -> if (export == SheetExport.Day0List) "Name" else "Seniority"
+            Default -> when (export) {
+                SheetExport.Day0List, SheetExport.StudentChit -> "Name"
+                else -> "Seniority"
+            }
             ConfirmationNo -> "Conf no."
             SeatingOrder -> "Seating plan"
         }

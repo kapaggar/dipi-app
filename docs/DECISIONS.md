@@ -144,13 +144,15 @@ are preserved because code comments cite them.
   never built.
 - **08-28 R3 · Applications/Rooms stay out of the Board's NEXT rows** — "counts are
   inventory, not a queue".
-- **08-28/08-31 · Board = 12 exports on three shelves** (`ROLL SHEETS` /
-  `DESK SLIPS` / `FOR THE TEAM`, 3×4) **plus Day-11 as a full-width 40 dp
-  fourth-line row** (T1), never a 13th shelf cell. The chip fires
-  `onExport("Course summary report")` → `SheetExport.Day11Report` →
-  `GET /report-day11/{cid}/{courseId}`. The dashed `GAP — NOT IN 1.22.0` badge is
-  never drawn. R2's original withhold went stale when `0ce3342` cherry-picked the
-  transport at 1.27.0; the chip shipped at 1.28.0.
+- **08-28/08-31 · Board exports, then 1.37.2 3×3.** The 3×4 shelves plus
+  full-width Day-11 row lasted through 1.37.1. **1.37.2** folds SHEETS &
+  EXPORTS into a neat **3×3** of equal cells (no shelf headers, no
+  `RARELY URGENT` / `END OF COURSE`). **Course summary** is a grid cell
+  (`onExport("Course summary")` → `SheetExport.Day11Report` →
+  `GET /report-day11/{cid}/{courseId}`). **Valuable list left the Board**
+  (enum / phone hub / `GET /valuable-list` stay). Male/Female PDF stay gone.
+  The dashed `GAP — NOT IN 1.22.0` badge is never drawn. The older Board
+  string `"Course summary report"` still resolves through `fromLabel`.
 - **08-30 room-layout-reach S4 · Bounded-container class of bug**: the check-in
   room-picker dialog body gets `verticalScroll` (registrars could not allocate past
   room ~27 of 73); header and CANCEL/CHECK IN stay fixed outside the scroll. Third
@@ -317,8 +319,8 @@ are preserved because code comments cite them.
 - **Day 0 summary stays today's overlay.** PRINT + copy polish only.
 - **Binary chips:** restore fetch; snack honestly if Pixel C has no viewer;
   no in-app PDF/Excel renderer.
-- **Print:** student chits 9-up; Contact stays off on print (chip can show it
-  on screen).
+- **Print:** student chits **12-up** (5e, 1.37.1); Contact stays off on print
+  (chip can show it on screen). Checking slip is A4 2-up (5g).
 - **Stat arrows:** layout/size so pale `accent300` reads; do not step to
   `accent400` unless needed.
 - **Entity decode** is a shared helper for Kotlin-parsed surfaces

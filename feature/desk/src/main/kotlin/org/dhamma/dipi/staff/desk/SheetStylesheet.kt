@@ -121,6 +121,7 @@ object SheetStylesheet {
         .col-toggle,.remove-seat,.remove-cell,.store-seat-changes,
         .dh-add-col,.dh-blank-col,.dh-del-col,.add-row,.drag-img,
         .ui-draggable-handle,.ui-sortable-handle,.seat-instructions,
+        .seat-legend,.plan-header,.print-seating,.store-seat-changes,
         .header-day0 .title,.header-teacher .title,.header-manager .title,
         .header-day0 .title-head,.header-teacher .title-head,
         .header-manager .title-head
@@ -161,17 +162,20 @@ object SheetStylesheet {
         .d0-comments,.tl-comments{display:-webkit-box;-webkit-line-clamp:2;
           -webkit-box-orient:vertical;overflow:hidden;font-size:13px;color:var(--n600)}
 
-        /* Student chit: butted hairlines, seat then room then name. */
-        .table-student-chit{border:0.25pt solid #2E2E34;page-break-inside:avoid}
-        .table-student-chit .seat{font-family:'IBM Plex Mono',ui-monospace,monospace;
-          font-weight:600;font-size:15px}
-        .table-student-chit .name{font-size:15px;font-weight:500}
-        .table-student-chit .cell:empty{display:none}
+        /* Student chit: seat → room → name (5e / 5f anatomy). */
+        html.dipi-student-chit .table-student-chit{border:0.25pt solid #2E2E34;
+          page-break-inside:avoid;display:flex;flex-direction:column}
+        html.dipi-student-chit .table-student-chit .seat{order:1;
+          font-family:'IBM Plex Mono',ui-monospace,monospace;font-weight:600;font-size:15px}
+        html.dipi-student-chit .table-student-chit .room{order:2}
+        html.dipi-student-chit .table-student-chit .name{order:3;font-size:15px;font-weight:500}
+        html.dipi-student-chit .table-student-chit .cell{order:4}
+        html.dipi-student-chit .table-student-chit .cell:empty{display:none}
 
-        /* 4 · Print. A4, 10mm, chits 9-up (63.3×92.3mm), contact off,
-           nothing truncated. The desk @imports student-chit.css (197×110
-           float, 18-up / 3×6 page breaks) after this block, so every
-           geometry rule here is !important or the server layout wins. */
+        /* 4 · Print. A4, 10mm. 5e wins: chits 12-up (63.3×69.3mm). 5g:
+           checking slip 2-up stacked (190×138.5mm) with TIME/PLACE boxes.
+           Contact off. The desk @imports student-chit.css after this block,
+           so every geometry rule here is !important. */
         @page{size:A4;margin:10mm}
         @media print{
           .d0-comments,.tl-comments{display:block;-webkit-line-clamp:unset;overflow:visible}
@@ -181,22 +185,36 @@ object SheetStylesheet {
           body{font-size:9pt}
           thead th{font-size:8pt}
           html.dipi-student-chit .header-day0{display:none!important}
+          html.dipi-student-chit .table-student-chit .cell{display:none!important}
           html.dipi-student-chit .main-div{
             display:flex!important;flex-wrap:wrap!important;
             width:190mm!important;max-width:100%!important;margin:0!important}
           html.dipi-student-chit .table-student-chit{
-            float:none!important;display:block!important;
-            width:63.3mm!important;height:92.3mm!important;
-            max-width:63.3mm!important;max-height:92.3mm!important;
-            margin:0!important;padding:4mm!important;
+            float:none!important;display:flex!important;flex-direction:column!important;
+            width:63.3mm!important;height:69.3mm!important;
+            max-width:63.3mm!important;max-height:69.3mm!important;
+            margin:0!important;padding:3.5mm!important;
             box-sizing:border-box!important;
             page-break-inside:avoid!important;break-inside:avoid!important}
+          html.dipi-checking-slip .header-day0{display:none!important}
           html.dipi-checking-slip .main-div{
-            display:flex!important;flex-wrap:wrap!important;
+            display:flex!important;flex-direction:column!important;flex-wrap:nowrap!important;
             width:190mm!important;margin:0!important}
           html.dipi-checking-slip .table-student-chit{
-            float:none!important;width:50%!important;height:130mm!important;
-            margin:0!important;box-sizing:border-box!important}
+            float:none!important;display:flex!important;flex-direction:column!important;
+            width:190mm!important;height:138.5mm!important;
+            max-width:190mm!important;max-height:138.5mm!important;
+            margin:0!important;padding:6mm!important;
+            box-sizing:border-box!important;
+            border:0.25pt solid #2E2E34!important;
+            page-break-inside:avoid!important;break-inside:avoid!important}
+          html.dipi-checking-slip .table-student-chit::before{
+            content:"TIME  AM / PM          PLACE";
+            display:block;height:38px;margin-bottom:5mm;padding:0 6px;
+            line-height:38px;box-sizing:border-box;
+            border:0.25pt solid #2E2E34;
+            font-family:'IBM Plex Mono',ui-monospace,monospace;
+            font-size:8pt;letter-spacing:1.6px;color:#8A8A90}
         }
     """.trimIndent()
 }

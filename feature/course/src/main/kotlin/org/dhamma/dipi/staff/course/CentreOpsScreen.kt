@@ -34,6 +34,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import org.dhamma.dipi.staff.model.CentreOpsPrefs
+import org.dhamma.dipi.staff.model.ChowkyRailLayout
 import org.dhamma.dipi.staff.model.Gender
 import org.dhamma.dipi.staff.model.HallGrid
 import org.dhamma.dipi.staff.model.WHATSAPP_DEFAULT_TEMPLATE
@@ -306,6 +307,46 @@ private fun HallChartCard(
                 max = HallGrid.MAX_DEPTH,
                 contentLabel = "rows deep · $label",
             ) { n -> staged = staged + (g to grid.copy(depth = n)) }
+        }
+        Text(
+            "Chowky / chair rail",
+            fontFamily = DipiCondensed,
+            fontSize = 16.sp,
+            color = c.foreground,
+            modifier = Modifier.padding(top = 10.dp),
+        )
+        Text(
+            "Vertical stack puts CW-A1 nearest the Dhamma seat, then chairs above.",
+            color = c.muted,
+            fontSize = 12.sp,
+        )
+        Row(
+            Modifier.padding(top = 6.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            val rail = staged.getValue(Gender.M).chowkyRail
+            listOf(
+                ChowkyRailLayout.SINGLE_ROW to "Vertical",
+                ChowkyRailLayout.WRAP to "Wrap",
+            ).forEach { (layout, label) ->
+                val on = rail == layout
+                Text(
+                    label,
+                    fontSize = 13.sp,
+                    fontWeight = if (on) FontWeight.Medium else FontWeight.Normal,
+                    color = if (on) Color.White else c.foreground,
+                    modifier = Modifier
+                        .background(
+                            if (on) c.accent else Color.Transparent,
+                            org.dhamma.dipi.staff.ui.theme.DeskStyle.controlShape,
+                        )
+                        .clickable {
+                            staged = staged.mapValues { it.value.copy(chowkyRail = layout) }
+                        }
+                        .padding(horizontal = 14.dp, vertical = 10.dp)
+                        .testTag("chowky-rail-$layout"),
+                )
+            }
         }
         Button(
             onClick = {

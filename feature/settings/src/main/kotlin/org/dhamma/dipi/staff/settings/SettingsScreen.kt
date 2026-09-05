@@ -296,6 +296,8 @@ private fun ModeChoiceColumn(mode: TabletMode, onMode: (TabletMode) -> Unit, com
     )
     ConsequenceRow("✓", "Teacher list", "seniority + seating plan")
     ConsequenceRow("✓", "Student card", "application, read-only", Modifier.padding(top = 6.dp))
+    ConsequenceRow("✓", "Nothing writes", "no attendance, notes or export", Modifier.padding(top = 6.dp))
+    ConsequenceRow("✓", "Health answers", "on screen, encrypted, wiped on course change", Modifier.padding(top = 6.dp))
     ConsequenceRow("—", "Board, applications, calling, check-in", "hidden", Modifier.padding(top = 6.dp))
     ConsequenceRow("—", "Exports, rooms & seats, bulk mail", "hidden", Modifier.padding(top = 6.dp))
 }
@@ -420,7 +422,7 @@ private fun ConsequenceRow(index: String, key: String, value: String, modifier: 
     Row(
         modifier
             .fillMaxWidth()
-            .height(48.dp)
+            .height(44.dp)
             .background(ModeCardFill, RoundedCornerShape(6.dp))
             .border(1.dp, ModeRule, RoundedCornerShape(6.dp))
             .padding(horizontal = 14.dp),
@@ -511,7 +513,7 @@ private fun PinGateRow(modifier: Modifier = Modifier) {
             .testTag("pin-gate-row"),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text("Switching back asks for the device PIN", fontSize = 14.sp, color = ModeKeyText)
+        Text("Settings and logout need the device PIN", fontSize = 14.sp, color = ModeKeyText)
     }
 }
 
@@ -859,7 +861,8 @@ private fun AccountCard(
             Text("Erase all local data", fontSize = 15.sp, fontWeight = FontWeight.Medium, color = c.hard)
         }
         Text(
-            "Removes the saved password, session cookie, course cache, and queued status changes from this tablet.",
+            "Removes the saved password, session cookie, the course-scoped roll and answers, " +
+                "the device PIN, and the mode key from this tablet.",
             fontSize = 13.sp,
             lineHeight = 19.sp,
             color = c.muted,

@@ -72,7 +72,7 @@ HTML. Title is the course name. Actions (from `dh_course_dashboard`):
 - Day 0 List, Zero Day
 - Teachers / Manager / Cell list, Seating, Group seating
 - Laundry, Valuable, Student Chit, Checking Slip
-- Course Summary Report, Male/Female PDF
+- Course Summary Report, Male/Female PDF (desk site only — the app Board dropped the two course PDFs in 1.37.1)
 
 Below that: **Course Summary** — counts by status × gender × old/new, each cell a `search-course` URL.
 

@@ -196,7 +196,7 @@ internal object MockFixtures {
 
     // --- Board "Sheets & exports" fixtures (mock flag only) ---
 
-    /** Minimal but structurally valid PDF blob for `/course-pdf-{m,f}`. */
+    /** Minimal but structurally valid PDF blob for Day-11 (and leftover mock `/course-pdf-*`). */
     val pdfBytes: ByteArray = (
         "%PDF-1.4\n" +
             "1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n" +

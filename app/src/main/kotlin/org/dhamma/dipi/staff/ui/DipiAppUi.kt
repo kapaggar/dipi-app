@@ -146,14 +146,14 @@ fun DipiAppUi(vm: DeskViewModel) {
                             .padding(horizontal = 12.dp, vertical = 6.dp),
                     )
                 }
-                SyncBannerStrips(
-                    offline = state.offline,
-                    // Nothing writes in course ops, so there is never an
-                    // outbox: only the offline strip may show (spec 2a).
-                    queued = if (courseOps) 0 else state.queuedCount,
-                    lastTryAtMs = state.lastSyncAttemptAt,
-                    onRetry = vm::retrySync,
-                )
+                if (!courseOps) {
+                    SyncBannerStrips(
+                        offline = state.offline,
+                        queued = state.queuedCount,
+                        lastTryAtMs = state.lastSyncAttemptAt,
+                        onRetry = vm::retrySync,
+                    )
+                }
                 Box(Modifier.weight(1f)) {
                     // TeacherRoll joins Login/Centre as an exit-dialog root;
                     // in course ops every non-Settings screen renders the
@@ -200,6 +200,22 @@ fun DipiAppUi(vm: DeskViewModel) {
                                     onNext = { vm.stepTeacherCard(1) },
                                     onBack = vm::back,
                                     loadPhoto = vm::loadPhoto,
+                                    backLabel = if (state.teacherView == TeacherView.SEATING) {
+                                        "Seating plan"
+                                    } else {
+                                        "Teacher list"
+                                    },
+                                    cameFrom = if (state.teacherView == TeacherView.SEATING) {
+                                        val hall = if (state.teacherHall == org.dhamma.dipi.staff.model.Gender.F) {
+                                            "Female"
+                                        } else {
+                                            "Male"
+                                        }
+                                        val seat = cardRow.seat.takeIf { it.isNotBlank() }?.let { " · seat $it" }.orEmpty()
+                                        "$hall hall$seat"
+                                    } else {
+                                        null
+                                    },
                                 )
                             }
                             roll != null && opsCourse != null &&
@@ -211,16 +227,22 @@ fun DipiAppUi(vm: DeskViewModel) {
                                 onHall = vm::setTeacherHall,
                                 onOpen = vm::openTeacherCard,
                                 onSettings = vm::requestCourseOpsSettings,
+                                offline = state.offline,
+                                cachedAt = state.teacherRollCachedAt,
+                                prefetch = state.teacherPrefetch,
                             )
                             roll != null && opsCourse != null -> TeacherListScreen(
                                 roll = roll,
                                 courseLine = opsCourse.name,
                                 view = state.teacherView,
                                 groupFilter = state.teacherGroupFilter,
-                                // The shell's SyncBannerStrips above already shows the
-                                // offline strip; the screen's local one stays off.
-                                offline = false,
+                                offline = state.offline,
+                                cachedAt = state.teacherRollCachedAt,
                                 flagsFor = { row -> row.applicantId?.let { flagsById[it.value] }.orEmpty() },
+                                flagsReady = { row ->
+                                    val id = row.applicantId?.value
+                                    id == null || id in state.teacherCards || state.teacherPrefetch == null
+                                },
                                 onView = vm::setTeacherView,
                                 onGroupFilter = vm::setTeacherGroupFilter,
                                 onOpen = vm::openTeacherCard,
@@ -230,6 +252,8 @@ fun DipiAppUi(vm: DeskViewModel) {
                             else -> CourseOpsHost(
                                 course = state.course,
                                 onSettings = vm::requestCourseOpsSettings,
+                                offline = state.offline,
+                                cachedAt = state.teacherRollCachedAt,
                                 content = {
                                     state.teacherRollError?.let { CourseOpsRollError(it) }
                                         ?: CourseOpsRollPending(hasCourse = state.course != null)

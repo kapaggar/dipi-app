@@ -244,6 +244,8 @@ data class DeskUiState(
     val teacherCards: Map<Int, ApplicationCard> = emptyMap(),
     /** Application pull on course-ops entry: attempted/total, null when idle or done. */
     val teacherPrefetch: Pair<Int, Int>? = null,
+    /** Device-local `HH:mm` of the last roll land — offline strip cache age. */
+    val teacherRollCachedAt: String? = null,
     /** The open student card: group key + row index into the roll. */
     val teacherCard: TeacherCardRef? = null,
     val offline: Boolean = false,
@@ -1693,7 +1695,13 @@ class DeskViewModel @Inject constructor(
                     runCatching { repo.ensureCourseOpsWorklist(course) }
                     val roll = runCatching { repo.resolveTeacherRoll(course.id.value, raw) }.getOrDefault(raw)
                     val cached = repo.cachedApplicationCards(course.id.value)
-                    _state.update { it.copy(teacherRoll = roll, teacherCards = cached) }
+                    _state.update {
+                        it.copy(
+                            teacherRoll = roll,
+                            teacherCards = cached,
+                            teacherRollCachedAt = sheetClock(),
+                        )
+                    }
                     prefetchTeacherCards(course.id.value, roll)
                 }
                 .onFailure { e ->
@@ -1706,6 +1714,7 @@ class DeskViewModel @Inject constructor(
                             it.copy(
                                 teacherRoll = cachedRoll,
                                 teacherCards = repo.cachedApplicationCards(course.id.value),
+                                teacherRollCachedAt = it.teacherRollCachedAt ?: sheetClock(),
                             )
                         }
                     } else {

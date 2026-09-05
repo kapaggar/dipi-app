@@ -203,7 +203,27 @@ class StudentCardScreenTest {
             DipiTheme { StudentCardScreen(row = row(), group = group(), card = card()) }
         }
         rule.onNodeWithText("OLD · OM42").assertIsDisplayed()
-        rule.onNodeWithText("Mbk-8 · seat CW-A3 · Group 1 · TAM").assertIsDisplayed()
+        rule.onNodeWithText("Mbk-8 · seat CW-A3 · Group 1 · TAM · 1 of 1 in this group").assertIsDisplayed()
+        rule.onNodeWithText("Teacher list").assertIsDisplayed()
+        rule.onNodeWithTag("answer-summary").assertIsDisplayed()
+    }
+
+    @Test
+    fun namedBackAndCameFromFollowTheDoor() {
+        rule.setContent {
+            DipiTheme {
+                StudentCardScreen(
+                    row = row(),
+                    group = group(),
+                    card = card(),
+                    backLabel = "Seating plan",
+                    cameFrom = "Female hall · seat A1",
+                )
+            }
+        }
+        rule.onNodeWithText("Seating plan").assertIsDisplayed()
+        rule.onNodeWithTag("card-came-from").assertIsDisplayed()
+        rule.onNodeWithText("Female hall · seat A1").assertIsDisplayed()
     }
 
     @Test

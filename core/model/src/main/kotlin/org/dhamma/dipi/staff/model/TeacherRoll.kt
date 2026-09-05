@@ -13,6 +13,9 @@ package org.dhamma.dipi.staff.model
  */
 data class TeacherRoll(val groups: List<RollGroup>) {
     val isEmpty: Boolean get() = groups.isEmpty()
+
+    /** Page band totals, summed — the header's "N on the roll". */
+    val rollCount: Int get() = groups.sumOf { it.total }
 }
 
 /** Old/New comes ONLY from the block band — no row carries it. */

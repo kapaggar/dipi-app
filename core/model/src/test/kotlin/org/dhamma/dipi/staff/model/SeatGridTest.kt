@@ -10,7 +10,7 @@ import org.junit.Test
  * The pure seat-placement pass on the r2 orientation (letters are COLUMNS,
  * numbers are DEPTH, seat 1 nearest the teacher — the live web page is the
  * authority): alphanumeric and numeric-flow placement, AA columns,
- * CW-/CH- exclusion to the chowky/chair rail in trailing-number-descending
+ * CW-/CH- exclusion to the chowky/chair rail in CW-then-CH suffix-ascending
  * order, blank → unseated with the roleTag reason, the sevak filter that
  * never touches the tally, grid extension past the config on both axes with
  * the 2× cap, and the old/new tally the sub-line shows.
@@ -140,7 +140,7 @@ class SeatGridTest {
     }
 
     @Test
-    fun cwAndChSeatsGoToTheRailTrailingNumberDescending() {
+    fun cwAndChSeatsGoToTheRailCwFirstThenSuffixAscending() {
         val plan = hallLayout(
             listOf(
                 group(
@@ -158,12 +158,21 @@ class SeatGridTest {
         )
         // Not force-fitted into the hall rows.
         assertEquals(1, plan.cells.flatten().count { it.seated != null })
-        // Prefix ascending, then trailing number DESCENDING — …-1 ends
-        // nearest the teacher, matching the grid's bottom-up read.
+        // CW before CH, trailing number ASCENDING — CW-A1/B1 first, nearest
+        // the teacher. Default paint is bottom-to-top (A1 last in the list).
         assertEquals(
-            listOf("CH-12", "CH-2", "CW-A6", "CW-A3", "CW-B1"),
+            listOf("CW-B1", "CW-A3", "CW-A6", "CH-2", "CH-12"),
             plan.chowkyChair.map { it.row.seat },
         )
+        assertEquals(
+            listOf("CH-12", "CH-2", "CW-A6", "CW-A3", "CW-B1"),
+            railPaintOrder(plan.chowkyChair).map { it.row.seat },
+        )
+        assertEquals(
+            plan.chowkyChair.map { it.row.seat },
+            railPaintOrder(plan.chowkyChair, ChowkyRailLayout.WRAP).map { it.row.seat },
+        )
+        assertEquals(ChowkyRailLayout.SINGLE_ROW, HallGrid().chowkyRail)
     }
 
     @Test
@@ -245,6 +254,9 @@ class SeatGridTest {
         assertEquals(true, plan.cells[0][0].seated?.old)
         assertEquals(false, plan.cells[1][1].seated?.old)
         assertEquals(true, plan.chowkyChair.single().old)
+        assertEquals(1, plan.chowkySeats.size)
+        assertEquals(0, plan.chairSeats.size)
+        assertEquals(4, plan.seatedCount)
     }
 
     @Test

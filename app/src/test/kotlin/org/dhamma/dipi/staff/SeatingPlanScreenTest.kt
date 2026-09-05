@@ -15,6 +15,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performSemanticsAction
 import okhttp3.mockwebserver.MockWebServer
+import org.dhamma.dipi.staff.model.ChowkyRailLayout
 import org.dhamma.dipi.staff.model.Gender
 import org.dhamma.dipi.staff.model.HallGrid
 import org.dhamma.dipi.staff.model.RollGroup
@@ -43,10 +44,11 @@ import org.robolectric.annotation.Config
  * frame 2c's geometry): legend and cell fills, letters-as-columns with depth
  * row 1 at the bottom, the TEACHER · DHAMMA SEAT marker and column-letter
  * axis BELOW the grid, 66dp cells with ellipsized two-line names, the
- * CHOWKY / CHAIR rail in trailing-number-descending order (full-width below
- * the grid under 1000dp), sevaks hidden from UNSEATED without touching the
- * tally, seat tap → the same student card, and hall switching as a pure
- * state flip over the ONE fetched response — never a refetch.
+ * CHOWKY / CHAIR rail in one vertical column (CW-A1 nearest the Dhamma
+ * seat at the bottom; WRAP is the older 2-across), sevaks hidden from
+ * UNSEATED without touching the tally, seat tap → the same student card,
+ * and hall switching as a pure state flip over the ONE fetched response
+ * — never a refetch.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = "w1240dp-h844dp-land")
@@ -190,15 +192,48 @@ class SeatingPlanScreenTest {
         rule.onNodeWithTag("chowky-seat-CW-A3", useUnmergedTree = true).assertExists()
         rule.onNodeWithTag("chowky-seat-CH-12", useUnmergedTree = true).assertExists()
         rule.onNodeWithText("CHOWKY / CHAIR").assertIsDisplayed()
+        rule.onNodeWithText("CW then CH").assertIsDisplayed()
         // Occupied only: exactly the two occupied cells, no empty slots drawn.
         rule.onNodeWithText("Vikram Joshi").assertIsDisplayed()
         rule.onNodeWithText("Arjun Patel").assertIsDisplayed()
     }
 
     @Test
-    fun chowkyChairRailOrdersTrailingNumbersDescending() {
-        // Web ground truth: CW-A6 at the top, CW-A1 at the bottom, nearest
-        // the teacher. 2-per-row rail: [CW-A6, CW-A3] then [CW-A1].
+    fun chowkyChairRailIsOneColumnCwA1NearestTheTeacher() {
+        val mixed = TeacherRoll(
+            listOf(
+                maleOld.copy(
+                    rows = listOf(
+                        row(1, "Suresh Nair", "CW-A1"),
+                        row(2, "Vikram Joshi", "CW-A6"),
+                        row(3, "Rakesh Iyer", "CW-A3"),
+                        row(4, "Arjun Patel", "CH-A1"),
+                    ),
+                    total = 4,
+                ),
+            ),
+        )
+        rule.setContent { DipiTheme { SeatingPlanScreen(roll = mixed) } }
+        val a1 = rule.onNodeWithTag("chowky-seat-CW-A1").getUnclippedBoundsInRoot()
+        val a3 = rule.onNodeWithTag("chowky-seat-CW-A3").getUnclippedBoundsInRoot()
+        val a6 = rule.onNodeWithTag("chowky-seat-CW-A6").getUnclippedBoundsInRoot()
+        val ch = rule.onNodeWithTag("chowky-seat-CH-A1").getUnclippedBoundsInRoot()
+        val teacher = rule.onNodeWithTag("teacher-marker").getUnclippedBoundsInRoot()
+        // One column: same left edge, not a horizontal row, not a 2×3 wrap.
+        assertEquals("one column", a1.left.value, a3.left.value, 0.5f)
+        assertEquals("one column", a3.left.value, a6.left.value, 0.5f)
+        assertEquals("one column", a6.left.value, ch.left.value, 0.5f)
+        assertTrue("CW-A1 is nearest the Dhamma seat (bottom)", a1.top.value >= a3.bottom.value - 0.5f)
+        assertTrue("CW-A3 sits above CW-A1", a3.top.value >= a6.bottom.value - 0.5f)
+        assertTrue("CW-A6 sits above CW-A3", a6.top.value >= ch.bottom.value - 0.5f)
+        assertTrue("CW-A1 sits nearest the teacher marker", a1.bottom.value >= teacher.top.value - 8f)
+        assertTrue("CH-A1 is farthest up the column", ch.top.value < a6.top.value)
+        rule.onNodeWithText("None in this hall").assertDoesNotExist()
+        rule.onNodeWithTag("hall-read-only").assertIsDisplayed()
+    }
+
+    @Test
+    fun wrapRailKeepsTheOldTwoAcrossStack() {
         val chowkies = TeacherRoll(
             listOf(
                 maleOld.copy(
@@ -211,13 +246,21 @@ class SeatingPlanScreenTest {
                 ),
             ),
         )
-        rule.setContent { DipiTheme { SeatingPlanScreen(roll = chowkies) } }
-        val a6 = rule.onNodeWithTag("chowky-seat-CW-A6").getUnclippedBoundsInRoot()
-        val a3 = rule.onNodeWithTag("chowky-seat-CW-A3").getUnclippedBoundsInRoot()
+        rule.setContent {
+            DipiTheme {
+                SeatingPlanScreen(
+                    roll = chowkies,
+                    gridFor = { HallGrid(chowkyRail = ChowkyRailLayout.WRAP) },
+                )
+            }
+        }
         val a1 = rule.onNodeWithTag("chowky-seat-CW-A1").getUnclippedBoundsInRoot()
-        assertTrue("CW-A6 leads the first rail row", a6.left < a3.left)
-        assertEquals(a6.top.value, a3.top.value, 0.5f)
-        assertTrue("CW-A1 ends nearest the teacher", a1.top >= a6.bottom)
+        val a3 = rule.onNodeWithTag("chowky-seat-CW-A3").getUnclippedBoundsInRoot()
+        val a6 = rule.onNodeWithTag("chowky-seat-CW-A6").getUnclippedBoundsInRoot()
+        assertTrue("WRAP first row is CW-A1 then CW-A3", a1.left < a3.left)
+        assertEquals(a1.top.value, a3.top.value, 0.5f)
+        assertTrue("CW-A6 wraps to the next line", a6.top >= a1.bottom)
+        rule.onNodeWithText("None in this hall").assertIsDisplayed()
     }
 
     @Test
@@ -336,17 +379,19 @@ class SeatingPlanScreenTest {
 
     @Test
     @Config(qualifiers = "w900dp-h1240dp")
-    fun portraitMovesTheChowkyChairRailFullWidthBelowTheGrid() {
+    fun portraitKeepsTheRailAVerticalColumnBesideTheGrid() {
         rule.setContent { DipiTheme { SeatingPlanScreen(roll = roll) } }
         val section = rule.onNodeWithTag("chowky-chair-section").getUnclippedBoundsInRoot()
         val marker = rule.onNodeWithTag("teacher-marker").getUnclippedBoundsInRoot()
-        val a1 = rule.onNodeWithTag("seat-cell-A1-old").getUnclippedBoundsInRoot()
-        // Below the grid (its bottom chrome included), above UNSEATED.
-        assertTrue("rail must render below the grid", section.top >= a1.bottom)
-        assertTrue("rail must render below the teacher marker", section.top >= marker.bottom)
+        val hallA1 = rule.onNodeWithTag("seat-cell-A1-old").getUnclippedBoundsInRoot()
+        val cw = rule.onNodeWithTag("chowky-seat-CW-A3").getUnclippedBoundsInRoot()
+        val ch = rule.onNodeWithTag("chowky-seat-CH-12").getUnclippedBoundsInRoot()
+        assertTrue("rail sits beside the hall, not a full-width strip", section.left.value >= hallA1.right.value - 0.5f)
+        assertTrue("rail is not a horizontal row", cw.left.value == ch.left.value || kotlin.math.abs(cw.left.value - ch.left.value) < 0.5f)
+        assertTrue("CW-A3 is nearer the teacher than CH-12", cw.top.value >= ch.bottom.value - 0.5f)
+        assertTrue("column bottom sits at the Dhamma seat", cw.bottom.value >= marker.top.value - 8f)
         val unseated = rule.onNodeWithText("UNSEATED").getUnclippedBoundsInRoot()
-        assertTrue("rail must sit above UNSEATED", unseated.top >= section.bottom)
-        // Full width: 900dp window minus the 24dp gutters.
-        assertEquals(852f, (section.right - section.left).value, 1f)
+        assertTrue("UNSEATED stays below the hall", unseated.top.value >= marker.bottom.value - 0.5f)
+        assertTrue("rail is a narrow column, not 852dp full width", (section.right - section.left).value < 200f)
     }
 }

@@ -345,7 +345,7 @@ class SettingsScreenTest {
                 )
             }
         }
-        rule.onNodeWithText("APPEARANCE").assertIsDisplayed()
+        rule.onNodeWithText("APPEARANCE").performScrollTo().assertIsDisplayed()
         rule.onNodeWithText("TESTING").performScrollTo().assertIsDisplayed()
         rule.onNodeWithText("ACCOUNT & SESSION").performScrollTo().assertIsDisplayed()
         rule.onNodeWithText("Erase all local data").performScrollTo().assertIsDisplayed()

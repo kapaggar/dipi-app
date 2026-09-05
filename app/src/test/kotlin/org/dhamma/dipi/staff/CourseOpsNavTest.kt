@@ -3,6 +3,8 @@ package org.dhamma.dipi.staff
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.unit.dp
@@ -119,7 +121,7 @@ class CourseOpsNavTest {
     fun emptyStateWhenNoCourseRunsKeepsTheSettingsDoor()
     {
         composeCourseOps(courseOpsState().copy(course = null), "nav_empty")
-        rule.onNodeWithText("No course is running today").assertIsDisplayed()
+        rule.onAllNodesWithText("No course is running today").onFirst().assertIsDisplayed()
         rule.onNodeWithTag("course-ops-settings").assertIsDisplayed()
         rule.onNodeWithTag("desk-rail").assertDoesNotExist()
     }
@@ -164,6 +166,7 @@ class CourseOpsNavTest {
         rule.onNodeWithText("Pradeep Kandpal").assertIsDisplayed()
         rule.onNodeWithTag("course-ops-placeholder").assertDoesNotExist()
         rule.onNodeWithTag("course-ops-roll-pending").assertDoesNotExist()
-        rule.onNodeWithText("Seniority").assertIsDisplayed()
+        rule.onNodeWithTag("dest-teacher-list").assertIsDisplayed()
+        rule.onNodeWithText("Seniority").assertDoesNotExist()
     }
 }

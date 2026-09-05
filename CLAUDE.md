@@ -2,14 +2,14 @@
 
 DIPI Staff Android (`org.dhamma.dipi.staff`).
 
-**Now shipping:** **1.36.1** (`versionCode` 59) on `feat/reach-v5-ui` — PATCH on Reach v5 UI (binary `save()` off Main; chit print 9-up on A4). See `docs/DECISIONS.md`.
+**Now shipping:** **1.37.2** (`versionCode` 62) on `feat/course-ops-design` — Course ops v6 plus owner PATCH (0 Day Board, Board 3×3 with Course summary in-grid, Valuable off the Board, vertical CW/CH rail, 12-up chits, Teacher list). See `docs/plans/2026-09-04-course-ops-design.md`.
 
 Governing product rules live in `AGENTS.md` Hard rules (no client ACL, no `Approved`, no attendance write, server messages verbatim, bridge rule).  
 **Transport (this file + `AGENTS.md` win):** the live desk is Drupal HTML, not Services login and not `/staff/*`. Backend PHP is immutable.
 
 Vertical 1 loop: login → centre (from `dh_user_center`) → upcoming courses → today worklist (`var dataset`) → public card → `GET /change-status` → settings (remember me / erase all local data). Photo review/upload is mock-only.
 
-Vertical 2 desk: one course, six rail sections (`DeskSection`: Board, Applications, Audit, Calling, Check-in, Rooms & seats) plus the `DeskScreen` phone routes. Board = the live desk's 11 shelf exports through `SheetTransport` plus Day-11 on the fourth-line row (Course report moved to the centre dashboard in v5 T3); HTML sheets render in the hardened WebView under an injected stylesheet with an allowlisted `conf`/`seating` sort; Check-in/Rooms merge web-assigned rooms parsed from `#table-attending` on `GET /zero-day/{cid}/{courseId}`; centre room config is read-only from `GET /centre/{cid}/acco-handler`; `nf`/`om`/`sm` confirmation prefixes drive the gender + new/old filters (`ConfPrefix`). Status vocabulary comes from the worklist `edit-app-status` select with roster fallback (T3).
+Vertical 2 desk: one course, six rail sections (`DeskSection`: 0 Day Board, Applications, Audit, Calling, Check-in, Rooms & seats) plus the `DeskScreen` phone routes. 0 Day Board = the live desk's **3×3** exports through `SheetTransport` (Course summary in-grid; Valuable list off the Board since 1.37.2; Course report moved to the centre dashboard in v5 T3; Male/Female PDFs removed in 1.37.1); HTML sheets render in the hardened WebView under an injected stylesheet with an allowlisted `conf`/`seating` sort; Check-in/Rooms merge web-assigned rooms parsed from `#table-attending` on `GET /zero-day/{cid}/{courseId}`; centre room config is read-only from `GET /centre/{cid}/acco-handler`; `nf`/`om`/`sm` confirmation prefixes drive the gender + new/old filters (`ConfPrefix`). Status vocabulary comes from the worklist `edit-app-status` select with roster fallback (T3).
 
 **Tests:** full green suite is `./gradlew :core:model:test :core:audit:test :core:network:testDebugUnitTest :core:datastore:testDebugUnitTest :app:testDebugUnitTest`. Never `./gradlew test` at the root — it drags in `:app:testReleaseUnitTest`, where every Robolectric Compose test dies (`ui-test-manifest` is `debugImplementation`, so `ComponentActivity` will not resolve).
 

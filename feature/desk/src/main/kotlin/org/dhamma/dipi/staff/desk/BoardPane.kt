@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -33,37 +32,25 @@ import org.dhamma.dipi.staff.ui.theme.Industry
 import org.dhamma.dipi.staff.ui.theme.deskCard
 
 /**
- * Three semantic shelves of four columns. Shelf 3 carries **three** chips
- * since v5 T4 moved Course report to the centre dashboard — the fourth cell
- * stays empty rather than letting three chips stretch across four columns
- * and read as more important than the eight above. The hole is honest.
+ * One 3×3 of equal cells. Day-0 first, Course summary in the grid (not a
+ * fourth line). Valuable list stays in [org.dhamma.dipi.staff.model.SheetExport]
+ * and the phone hub; it is not a Board cell. Male/Female PDF stay gone.
  */
-private val EXPORT_SHELVES = listOf(
-    Shelf("ROLL SHEETS", "day 0", listOf("Day 0 list", "Day 0 summary", "Male PDF", "Female PDF")),
-    Shelf(
-        "DESK SLIPS",
-        "printed and cut",
-        listOf("Student chit", "Checking slip", "Seating plan", "Laundry list"),
-    ),
-    Shelf(
-        "FOR THE TEAM",
-        "teachers and managers",
-        listOf("Teacher list", "Manager list", "Valuable list"),
-    ),
+private val BOARD_EXPORTS = listOf(
+    "Day 0 list", "Day 0 summary", "Course summary",
+    "Student chit", "Checking slip", "Seating plan",
+    "Teacher list", "Manager list", "Laundry list",
 )
 
-private const val SHELF_COLUMNS = 4
-
-private data class Shelf(val kicker: String, val qualifier: String, val labels: List<String>)
+private const val GRID_COLUMNS = 3
 
 private val CardShape = RoundedCornerShape(8.dp)
-private val ChipShape = RoundedCornerShape(6.dp)
+private val CellShape = RoundedCornerShape(8.dp)
 
 /**
  * The first thing on screen at 09:00: four live numbers carry the
- * navigation, three verb-first rows say what to do next, and the twelve PDF
- * exports drop to small type — they are exports, not decisions. v4 densifies
- * all three bands so the whole Board lands on one fold.
+ * navigation, three verb-first rows say what to do next, and the nine
+ * exports sit in one 3×3 — they are exports, not decisions.
  */
 @Composable
 fun BoardPane(
@@ -133,119 +120,67 @@ fun BoardPane(
             }
         }
 
-        Row(
-            Modifier.padding(top = 18.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically,
+        Text(
+            "SHEETS & EXPORTS",
+            fontFamily = DipiMono,
+            fontWeight = FontWeight.Medium,
+            fontSize = 9.5.sp,
+            letterSpacing = 1.7.sp,
+            color = Industry.neutral600,
+            modifier = Modifier.padding(top = 18.dp, bottom = 10.dp),
+        )
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .testTag("export-grid"),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Text(
-                "SHEETS & EXPORTS",
-                fontFamily = DipiMono,
-                fontWeight = FontWeight.Medium,
-                fontSize = 9.5.sp,
-                letterSpacing = 1.7.sp,
-                color = Industry.neutral600,
-            )
-            Text(
-                "RARELY URGENT",
-                fontFamily = DipiMono,
-                fontWeight = FontWeight.Normal,
-                fontSize = 9.5.sp,
-                letterSpacing = 1.2.sp,
-                color = Industry.neutral400,
-            )
-        }
-        EXPORT_SHELVES.forEach { shelf ->
-            Column(
-                Modifier
-                    .fillMaxWidth()
-                    .padding(top = 12.dp)
-                    .testTag("export-shelf-${shelf.kicker}"),
-            ) {
+            BOARD_EXPORTS.chunked(GRID_COLUMNS).forEach { row ->
                 Row(
-                    Modifier.padding(bottom = 7.dp),
-                    horizontalArrangement = Arrangement.spacedBy(7.dp),
-                    verticalAlignment = Alignment.CenterVertically,
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    DeskKicker(shelf.kicker, Industry.neutral500)
-                    Text(
-                        shelf.qualifier,
-                        fontSize = 11.sp,
-                        color = Industry.neutral400,
-                    )
-                }
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    shelf.labels.forEach { label ->
-                        ExportChip(label, Modifier.weight(1f), onExport)
-                    }
-                    // The empty fourth cell: shelves are semantic, so the
-                    // column rhythm holds even when a shelf loses a chip.
-                    repeat(SHELF_COLUMNS - shelf.labels.size) {
-                        Spacer(Modifier.weight(1f).testTag("export-shelf-gap"))
+                    row.forEach { label ->
+                        ExportCell(label, Modifier.weight(1f), onExport)
                     }
                 }
             }
-        }
-        // Day 11 lands after the course; the design's own fourth line keeps it
-        // out of the urgent shelves (v4 frame 1f, dc.html:579).
-        Row(
-            Modifier
-                .padding(top = 12.dp)
-                .fillMaxWidth()
-                .height(40.dp)
-                .deskCard(shape = ChipShape, elevation = 0.dp)
-                .clickable { onExport("Course summary report") }
-                .padding(horizontal = 13.dp)
-                .testTag("export-day11"),
-            horizontalArrangement = Arrangement.spacedBy(9.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            DeskIcon(DeskIconKind.Download, 13.dp, Industry.accent400)
-            Text(
-                "Day 11 · Course summary report",
-                fontSize = 13.5.sp,
-                maxLines = 1,
-                color = Industry.neutral800,
-                modifier = Modifier.weight(1f),
-            )
-            // Why it is not on a shelf: it is the only export that belongs
-            // after the course has ended.
-            Text(
-                "END OF COURSE",
-                fontFamily = DipiMono,
-                fontWeight = FontWeight.Medium,
-                fontSize = 9.sp,
-                letterSpacing = 1.2.sp,
-                color = Industry.neutral400,
-            )
         }
     }
 }
 
 /**
- * v5 T4 de-emphasises the exports rather than adding to them: paler border
- * and fill, 38dp instead of 40, `neutral600` label, `accent300` glyph. The
- * reading order on the Board is numbers → next actions → exports.
+ * One equal cell in the 3×3. Taller than the old 38dp chips so the nine
+ * tap targets read as a grid, not a shelf of pills. Course summary is a
+ * normal cell and still carries `export-day11`.
  */
 @Composable
-private fun ExportChip(label: String, modifier: Modifier, onExport: (String) -> Unit) {
-    Row(
+private fun ExportCell(label: String, modifier: Modifier, onExport: (String) -> Unit) {
+    val day11 = label == "Course summary"
+    Box(
         modifier
-            .height(38.dp)
-            .deskCard(
-                shape = ChipShape,
-                fill = ChipFill,
-                border = ChipBorder,
-                elevation = 0.dp,
-            )
-            .clickable { onExport(label) }
-            .padding(horizontal = 13.dp)
-            .testTag("export-chip"),
-        horizontalArrangement = Arrangement.spacedBy(9.dp),
-        verticalAlignment = Alignment.CenterVertically,
+            .fillMaxWidth()
+            .height(64.dp)
+            .then(if (day11) Modifier.testTag("export-day11") else Modifier),
     ) {
-        DeskIcon(DeskIconKind.Download, 13.dp, Industry.accent300)
-        Text(label, fontSize = 13.sp, maxLines = 1, color = Industry.neutral600)
+        Row(
+            Modifier
+                .fillMaxSize()
+                .deskCard(
+                    shape = CellShape,
+                    fill = ChipFill,
+                    border = ChipBorder,
+                    elevation = 0.dp,
+                )
+                .clickable { onExport(label) }
+                .padding(horizontal = 14.dp)
+                .testTag("export-chip"),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            DeskIcon(DeskIconKind.Download, 16.dp, Industry.accent300)
+            Text(label, fontSize = 14.sp, maxLines = 2, color = Industry.neutral700)
+        }
     }
 }
 

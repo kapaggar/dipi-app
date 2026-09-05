@@ -34,11 +34,9 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
 /**
- * v4 frame 1f: the Board lands on one fold. Stat cards are 100dp, NEXT rows
- * 58dp, and the twelve exports — same names, same callback — sit on three
- * labelled shelves of four 40dp chips. Day 11 · Course summary report ships
- * on the design's own fourth-line row (full-width, 40dp), not inside the
- * 3×4 shelf grid. The dashed GAP badge is not drawn.
+ * 1.37.2: SHEETS & EXPORTS is a neat 3×3 of equal cells. No shelf headers,
+ * no full-width Day-11 row. Course summary sits in the grid. Valuable list
+ * left the Board. Male/Female PDF stay gone.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = "w1240dp-h844dp-land")
@@ -97,46 +95,100 @@ class BoardPaneTest {
         }
     }
 
-    private val shelves = listOf(
-        "ROLL SHEETS" to listOf("Day 0 list", "Day 0 summary", "Male PDF", "Female PDF"),
-        "DESK SLIPS" to listOf("Student chit", "Checking slip", "Seating plan", "Laundry list"),
-        // v5 T4: Course report moved to the centre dashboard.
-        "FOR THE TEAM" to listOf("Teacher list", "Manager list", "Valuable list"),
+    private val grid = listOf(
+        listOf("Day 0 list", "Day 0 summary", "Course summary"),
+        listOf("Student chit", "Checking slip", "Seating plan"),
+        listOf("Teacher list", "Manager list", "Laundry list"),
     )
 
     @Test
-    fun elevenExportsSitOnThreeShelvesInTheDesignsGrouping() {
+    fun nineEqualCellsSitOnAThreeByThreeWithNoShelfHeaders() {
         board()
         rule.onNodeWithText("SHEETS & EXPORTS").assertIsDisplayed()
-        rule.onNodeWithText("RARELY URGENT").assertIsDisplayed()
-        rule.onNodeWithText("SHEETS & EXPORTS · RARELY URGENT").assertDoesNotExist()
-        rule.onAllNodesWithTag("export-chip").assertCountEquals(11)
+        rule.onNodeWithTag("export-grid").assertIsDisplayed()
+        rule.onAllNodesWithTag("export-chip").assertCountEquals(9)
 
-        shelves.forEach { (kicker, names) ->
-            rule.onNodeWithText(kicker).assertIsDisplayed()
-            val shelf = rule.onNodeWithTag("export-shelf-$kicker").getBoundsInRoot()
-            names.forEach { name ->
-                val chip = rule.onNodeWithText(name).getBoundsInRoot()
-                assertTrue(
-                    "$name should sit on the $kicker shelf",
-                    chip.top >= shelf.top && chip.bottom <= shelf.bottom,
-                )
-            }
-        }
+        listOf(
+            "ROLL SHEETS", "DESK SLIPS", "FOR THE TEAM",
+            "RARELY URGENT", "END OF COURSE",
+            "day 0", "printed and cut", "teachers and managers",
+        ).forEach { rule.onNodeWithText(it).assertDoesNotExist() }
+
+        rule.onNodeWithText("Valuable list").assertDoesNotExist()
+        rule.onNodeWithText("Male PDF").assertDoesNotExist()
+        rule.onNodeWithText("Female PDF").assertDoesNotExist()
+        rule.onNodeWithText("Course report").assertDoesNotExist()
+        rule.onNodeWithText("Day 11 · Course summary report").assertDoesNotExist()
+        rule.onAllNodesWithTag("export-shelf-gap").assertCountEquals(0)
+
+        grid.flatten().forEach { rule.onNodeWithText(it).assertIsDisplayed() }
     }
 
     @Test
-    fun exportChipsAreThirtyEightDpAndFireOnExportWithTheUnchangedLabel() {
+    fun exportCellsAreSixtyFourDpEqualAndFireOnExport() {
         var exported: String? = null
         board(onExport = { exported = it })
 
-        rule.onAllNodesWithTag("export-chip")[0].getBoundsInRoot().let {
-            assertEquals(38.dp.value, it.height.value, 0.5f)
+        val chips = rule.onAllNodesWithTag("export-chip")
+        chips.assertCountEquals(9)
+        val first = chips[0].getBoundsInRoot()
+        assertEquals(64.dp.value, first.height.value, 0.5f)
+        repeat(9) { i ->
+            val box = chips[i].getBoundsInRoot()
+            assertEquals("cell $i height", first.height.value, box.height.value, 0.5f)
+            assertEquals("cell $i width", first.width.value, box.width.value, 1.5f)
         }
+
         rule.onNodeWithText("Seating plan").performClick()
         assertEquals("Seating plan", exported)
         rule.onNodeWithText("Day 0 summary").performClick()
         assertEquals("Day 0 summary", exported)
+    }
+
+    @Test
+    fun courseSummaryIsAGridCellNotAFourthLine() {
+        var exported: String? = null
+        board(onExport = { exported = it })
+
+        rule.onNodeWithText("Course summary").assertIsDisplayed()
+        rule.onNodeWithTag("export-day11").assertIsDisplayed()
+
+        val chips = rule.onAllNodesWithTag("export-chip")
+        val day0 = chips[0].getBoundsInRoot()
+        val summary = chips[1].getBoundsInRoot()
+        val day11 = rule.onNodeWithTag("export-day11").getBoundsInRoot()
+        assertEquals("Course summary shares the first row", day0.top.value, day11.top.value, 0.5f)
+        assertEquals(day0.height.value, day11.height.value, 0.5f)
+        assertEquals(day0.width.value, day11.width.value, 1.5f)
+        assertTrue("Course summary sits to the right of Day 0 summary", day11.left.value >= summary.right.value - 0.5f)
+        assertTrue(
+            "Course summary is a cell, not a full-width fourth line",
+            day11.width.value < (day0.width.value * 2f),
+        )
+
+        rule.onNodeWithText("Course summary").performClick()
+        assertEquals("Course summary", exported)
+    }
+
+    @Test
+    fun gridReadsLeftToRightThenDown() {
+        board()
+        grid.forEach { row ->
+            val left = rule.onNodeWithText(row[0]).getBoundsInRoot()
+            val mid = rule.onNodeWithText(row[1]).getBoundsInRoot()
+            val right = rule.onNodeWithText(row[2]).getBoundsInRoot()
+            assertEquals("${row[0]} and ${row[1]} share a row", left.top.value, mid.top.value, 0.5f)
+            assertEquals("${row[1]} and ${row[2]} share a row", mid.top.value, right.top.value, 0.5f)
+            assertTrue("${row[0]} precedes ${row[1]}", left.right.value <= mid.left.value + 0.5f)
+            assertTrue("${row[1]} precedes ${row[2]}", mid.right.value <= right.left.value + 0.5f)
+        }
+        val top = rule.onNodeWithText("Day 0 list").getBoundsInRoot()
+        val mid = rule.onNodeWithText("Student chit").getBoundsInRoot()
+        val bot = rule.onNodeWithText("Teacher list").getBoundsInRoot()
+        assertTrue("second row sits below the first", mid.top.value >= top.bottom.value - 0.5f)
+        assertTrue("third row sits below the second", bot.top.value >= mid.bottom.value - 0.5f)
+        assertEquals("first column aligns", top.left.value, mid.left.value, 0.5f)
+        assertEquals("first column aligns", mid.left.value, bot.left.value, 0.5f)
     }
 
     @Test
@@ -184,120 +236,13 @@ class BoardPaneTest {
     }
 
     @Test
-    fun dayElevenChipSitsOnTheFourthLineAndFiresTheExportLabel() {
-        var exported: String? = null
-        board(onExport = { exported = it })
-
-        rule.onNodeWithText("Day 11 · Course summary report").assertIsDisplayed()
-        rule.onNodeWithText("GAP — NOT IN 1.22.0").assertDoesNotExist()
-        rule.onNodeWithText("Review applications").assertDoesNotExist()
-
-        val chip = rule.onNodeWithTag("export-day11").getBoundsInRoot()
-        val team = rule.onNodeWithTag("export-shelf-FOR THE TEAM").getBoundsInRoot()
-        assertTrue(
-            "Day 11 must sit below the FOR THE TEAM shelf",
-            chip.top.value >= team.bottom.value - 0.5f,
-        )
-        assertEquals(40.dp.value, chip.height.value, 0.5f)
-        assertEquals(
-            "Day 11 is the design's full-width fourth line",
-            team.width.value,
-            chip.width.value,
-            0.5f,
-        )
-
-        rule.onNodeWithText("Day 11 · Course summary report").performClick()
-        assertEquals("Course summary report", exported)
-    }
-
-    @Test
-    fun elevenShelfChipsStayOnTheirShelves() {
-        board()
-        shelves.forEach { (kicker, names) ->
-            rule.onNodeWithText(kicker).assertIsDisplayed()
-            val shelf = rule.onNodeWithTag("export-shelf-$kicker").getBoundsInRoot()
-            names.forEach { name ->
-                val chip = rule.onNodeWithText(name).getBoundsInRoot()
-                assertTrue(
-                    "$name should sit on the $kicker shelf",
-                    chip.top >= shelf.top && chip.bottom <= shelf.bottom,
-                )
-            }
-        }
-        // Day 11 is NOT inside any shelf tag.
-        val day11 = rule.onNodeWithText("Day 11 · Course summary report").getBoundsInRoot()
-        shelves.forEach { (kicker, _) ->
-            val shelf = rule.onNodeWithTag("export-shelf-$kicker").getBoundsInRoot()
-            assertTrue(
-                "Day 11 must not sit inside $kicker",
-                day11.bottom.value <= shelf.top.value + 0.5f ||
-                    day11.top.value >= shelf.bottom.value - 0.5f,
-            )
-        }
-    }
-
-    /**
-     * v5 T4: the Board no longer offers Course report — it lives on the
-     * centre dashboard now. Shelf 3 keeps four columns with the last one
-     * empty rather than stretching three chips across the full width.
-     */
-    @Test
-    fun boardHasElevenExportChipsAndNoCourseReport() {
-        board()
-        rule.onAllNodesWithTag("export-chip").assertCountEquals(11)
-        rule.onNodeWithText("Course report").assertDoesNotExist()
-        rule.onAllNodesWithTag("export-shelf-gap").assertCountEquals(1)
-
-        val team = rule.onNodeWithTag("export-shelf-FOR THE TEAM").getBoundsInRoot()
-        val roll = rule.onNodeWithTag("export-shelf-ROLL SHEETS").getBoundsInRoot()
-        val teacher = rule.onNodeWithText("Teacher list").getBoundsInRoot()
-        val day0 = rule.onNodeWithText("Day 0 list").getBoundsInRoot()
-        assertEquals(
-            "A three-chip shelf keeps four-column width",
-            roll.width.value,
-            team.width.value,
-            0.5f,
-        )
-        assertEquals(
-            "Chips on a short shelf must not stretch",
-            day0.width.value,
-            teacher.width.value,
-            0.5f,
-        )
-    }
-
-    /** Each shelf kicker gains a grey qualifier so the grouping explains itself. */
-    @Test
-    fun shelfKickersCarryTheirQualifier() {
-        board()
-        listOf("day 0", "printed and cut", "teachers and managers").forEach {
-            rule.onNodeWithText(it).assertIsDisplayed()
-        }
-    }
-
-    /** Stat cards read as navigation via one quiet arrow, not a button. */
-    @Test
     fun statCardsCarryOneArrowEach() {
         board()
-        // The stat card merges its semantics, so the arrow is only visible
-        // in the unmerged tree.
         val arrows = rule.onAllNodesWithTag("board-stat-arrow", useUnmergedTree = true)
         arrows.assertCountEquals(4)
         repeat(4) { i ->
             val box = arrows[i].getBoundsInRoot()
             assertTrue("arrow $i clipped to ${box.height.value}dp", box.height.value >= 10f)
         }
-    }
-
-    /** The Day-11 row keeps its own fourth line and gains only a reason tag. */
-    @Test
-    fun day11KeepsItsFourthLineAndGainsAnEndOfCourseTag() {
-        board()
-        rule.onNodeWithTag("export-day11").assertIsDisplayed()
-        rule.onNodeWithText("END OF COURSE").assertIsDisplayed()
-        val chip = rule.onNodeWithTag("export-day11").getBoundsInRoot()
-        val team = rule.onNodeWithTag("export-shelf-FOR THE TEAM").getBoundsInRoot()
-        assertEquals(team.width.value, chip.width.value, 0.5f)
-        assertEquals(40.dp.value, chip.height.value, 0.5f)
     }
 }

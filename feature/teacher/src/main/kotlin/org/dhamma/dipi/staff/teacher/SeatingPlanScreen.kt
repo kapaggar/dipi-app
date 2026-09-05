@@ -36,6 +36,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import org.dhamma.dipi.staff.model.ChowkyRailLayout
 import org.dhamma.dipi.staff.model.Gender
 import org.dhamma.dipi.staff.model.HallCell
 import org.dhamma.dipi.staff.model.HallGrid
@@ -45,6 +46,7 @@ import org.dhamma.dipi.staff.model.RollRow
 import org.dhamma.dipi.staff.model.TeacherRoll
 import org.dhamma.dipi.staff.model.UnseatedRow
 import org.dhamma.dipi.staff.model.hallLayout
+import org.dhamma.dipi.staff.model.railPaintOrder
 import org.dhamma.dipi.staff.ui.theme.DipiCondensed
 import org.dhamma.dipi.staff.ui.theme.DipiMono
 import org.dhamma.dipi.staff.ui.theme.Industry
@@ -55,6 +57,13 @@ private val Rule = Color(0xFFE0E0E3)
 private val UnseatedText = Color(0xFF424244)
 
 private val CellShape = RoundedCornerShape(5.dp)
+private val RailCardFill = Color(0xFFFAFAFB)
+private val RailCardBorder = Color(0xFFDEDEE1)
+
+private fun Modifier.bottomHairline(color: Color): Modifier = drawBehind {
+    val y = size.height - 0.5.dp.toPx()
+    drawLine(color, Offset(0f, y), Offset(size.width, y), 1.dp.toPx())
+}
 
 /**
  * Frame 2c + the r2 orientation ruling (the live web seating page OVERRIDES
@@ -67,8 +76,10 @@ private val CellShape = RoundedCornerShape(5.dp)
  * r2 geometry: letters are COLUMNS, numbers are DEPTH — depth renders
  * DESCENDING so row 1 sits at the bottom, directly above the column-letter
  * axis and the TEACHER · DHAMMA SEAT marker. Nothing is drawn above the
- * grid. Below 1000dp width the chowky/chair rail leaves the side and renders
- * full-width below the grid, above UNSEATED.
+ * grid. The chowky/chair rail defaults to one vertical column (CW-A1 at
+ * the bottom, nearest the Dhamma seat, then chairs continuing up);
+ * [ChowkyRailLayout.WRAP] keeps the older 2-across side column. Below
+ * 1000dp, WRAP also stacks full-width below the grid.
  *
  * Ground-truth corrections applied: Old cells fill accent100 on accent300
  * (the legend-swatch hexes in the prose were the frame's error); the
@@ -84,12 +95,19 @@ fun SeatingPlanScreen(
     onHall: (Gender) -> Unit = {},
     onOpen: (RollRow) -> Unit = {},
     onSettings: () -> Unit = {},
+    offline: Boolean = false,
+    cachedAt: String? = null,
+    prefetch: Pair<Int, Int>? = null,
 ) {
     val grid = gridFor(hall)
     val plan = remember(roll, hall, grid) {
         hallLayout(roll.groups.filter { it.gender == hall }, grid)
     }
     Column(Modifier.fillMaxSize().background(Industry.bg)) {
+        when {
+            offline -> CourseOpsOfflineStrip(cachedAt)
+            prefetch != null -> { /* list strip is the home; seating stays readable */ }
+        }
         Header(hall, plan, onView, onSettings)
         HallBody(roll, hall, gridFor, onHall, onOpen)
     }
@@ -113,10 +131,12 @@ fun HallBody(
     val plan = remember(roll, hall, grid) {
         hallLayout(roll.groups.filter { it.gender == hall }, grid)
     }
+    val railLayout = grid.chowkyRail
     Column(modifier.fillMaxSize().background(Industry.bg).testTag("hall-body")) {
-        HallAndLegendBand(hall, onHall)
+        HallAndLegendBand(roll, hall, gridFor, onHall)
         BoxWithConstraints(Modifier.fillMaxSize()) {
-            val sideRail = maxWidth >= 1000.dp
+            val columnRail = railLayout == ChowkyRailLayout.SINGLE_ROW
+            val wrapSide = railLayout == ChowkyRailLayout.WRAP && maxWidth >= 1000.dp
             val visibleUnseated = plan.unseatedVisible
             Column(
                 Modifier
@@ -125,7 +145,27 @@ fun HallBody(
                     .padding(horizontal = 24.dp),
             ) {
                 Spacer(Modifier.height(2.dp))
-                if (sideRail) {
+                if (columnRail) {
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.Bottom,
+                    ) {
+                        Column(Modifier.weight(1f)) {
+                            SeatGrid(plan, onOpen)
+                        }
+                        if (plan.chowkyChair.isNotEmpty()) {
+                            Spacer(Modifier.width(18.dp))
+                            ChowkyChairSection(
+                                plan,
+                                railLayout,
+                                perRow = 1,
+                                Modifier.width(156.dp),
+                                onOpen,
+                            )
+                        }
+                    }
+                    if (visibleUnseated.isNotEmpty()) UnseatedSection(visibleUnseated)
+                } else if (wrapSide) {
                     Row(Modifier.fillMaxWidth()) {
                         Column(Modifier.weight(1f)) {
                             SeatGrid(plan, onOpen)
@@ -133,18 +173,36 @@ fun HallBody(
                         }
                         if (plan.chowkyChair.isNotEmpty()) {
                             Spacer(Modifier.width(18.dp))
-                            ChowkyChairSection(plan.chowkyChair, perRow = 2, Modifier.width(280.dp), onOpen)
+                            ChowkyChairSection(
+                                plan,
+                                railLayout,
+                                perRow = 2,
+                                Modifier.width(280.dp),
+                                onOpen,
+                            )
                         }
                     }
                 } else {
                     SeatGrid(plan, onOpen)
                     if (plan.chowkyChair.isNotEmpty()) {
                         Spacer(Modifier.height(14.dp))
-                        ChowkyChairSection(plan.chowkyChair, perRow = plan.columns, Modifier.fillMaxWidth(), onOpen)
+                        ChowkyChairSection(
+                            plan,
+                            railLayout,
+                            perRow = plan.columns,
+                            Modifier.fillMaxWidth(),
+                            onOpen,
+                        )
                     }
                     if (visibleUnseated.isNotEmpty()) UnseatedSection(visibleUnseated)
                 }
-                Spacer(Modifier.height(24.dp))
+                Text(
+                    "Read and print only — seats are set on the desk.",
+                    fontSize = 12.sp,
+                    color = Industry.neutral400,
+                    modifier = Modifier.padding(top = 10.dp, bottom = 8.dp).testTag("hall-read-only"),
+                )
+                Spacer(Modifier.height(16.dp))
             }
         }
     }
@@ -181,7 +239,9 @@ private fun Header(
                 maxLines = 1,
             )
         }
-        SeatingDestinationButton("Seniority", selected = false) { onView(TeacherView.SENIORITY) }
+        SeatingDestinationButton("Teacher list", selected = false, testTag = "dest-teacher-list") {
+            onView(TeacherView.SENIORITY)
+        }
         Spacer(Modifier.width(8.dp))
         SeatingDestinationButton("Seating plan", selected = true) { onView(TeacherView.SEATING) }
         Spacer(Modifier.width(8.dp))
@@ -199,7 +259,12 @@ private fun Header(
 
 /** Same 48dp destination pair as the teacher list — a two-way switch over one response. */
 @Composable
-private fun SeatingDestinationButton(label: String, selected: Boolean, onClick: () -> Unit) {
+private fun SeatingDestinationButton(
+    label: String,
+    selected: Boolean,
+    testTag: String? = null,
+    onClick: () -> Unit,
+) {
     val shape = RoundedCornerShape(6.dp)
     Row(
         Modifier
@@ -212,6 +277,7 @@ private fun SeatingDestinationButton(label: String, selected: Boolean, onClick: 
                 },
             )
             .clickable(onClick = onClick, role = Role.Button)
+            .then(if (testTag != null) Modifier.testTag(testTag) else Modifier)
             .padding(horizontal = 20.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -224,11 +290,21 @@ private fun SeatingDestinationButton(label: String, selected: Boolean, onClick: 
     }
 }
 
-/** 40dp band: Male/Female 32dp pills left, the three-swatch legend right. */
+/** 40dp band: Male/Female 32dp pills left (seated counts), the three-swatch legend right. */
 @Composable
-private fun HallAndLegendBand(hall: Gender, onHall: (Gender) -> Unit) {
+private fun HallAndLegendBand(
+    roll: TeacherRoll,
+    hall: Gender,
+    gridFor: (Gender) -> HallGrid,
+    onHall: (Gender) -> Unit,
+) {
+    val seatedByHall = remember(roll) {
+        Gender.entries.associateWith { g ->
+            hallLayout(roll.groups.filter { it.gender == g }, gridFor(g)).seatedCount
+        }
+    }
     Row(
-        Modifier.fillMaxWidth().height(40.dp).padding(horizontal = 24.dp),
+        Modifier.fillMaxWidth().height(44.dp).bottomHairline(Rule).padding(horizontal = 24.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
@@ -249,16 +325,33 @@ private fun HallAndLegendBand(hall: Gender, onHall: (Gender) -> Unit) {
                     .padding(horizontal = 16.dp)
                     .testTag("hall-tab-${g.name}"),
                 verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(7.dp),
             ) {
                 Text(
                     hallWord(g),
                     fontSize = 13.sp,
                     fontWeight = if (selected) FontWeight.Medium else FontWeight.Normal,
-                    color = if (selected) Color.White else Industry.neutral600,
+                    color = if (selected) Color.White else Industry.neutral700,
+                )
+                Text(
+                    (seatedByHall[g] ?: 0).toString(),
+                    fontFamily = DipiMono,
+                    fontWeight = FontWeight.Medium,
+                    fontSize = 11.sp,
+                    color = if (selected) Color.White.copy(alpha = 0.75f) else Industry.neutral500,
                 )
             }
         }
         Spacer(Modifier.weight(1f))
+        Text(
+            "LEGEND",
+            fontFamily = DipiMono,
+            fontWeight = FontWeight.Medium,
+            fontSize = 9.sp,
+            letterSpacing = 1.7.sp,
+            color = Industry.neutral500,
+            modifier = Modifier.padding(end = 6.dp),
+        )
         // Legend swatches carry the CELL fills (ground-truth correction):
         // Old accent100/accent300 — not the prose's swatch hexes.
         LegendItem("Old", fill = Industry.accent100, borderColor = Industry.accent300)
@@ -398,7 +491,7 @@ private fun SeatCellBox(cell: HallCell, modifier: Modifier, onOpen: (RollRow) ->
             fontWeight = FontWeight.Medium,
             fontSize = 10.sp,
             letterSpacing = 0.8.sp,
-            color = Industry.accent600,
+            color = if (seated == null) Industry.neutral400 else Industry.accent700,
             maxLines = 1,
         )
         if (seated != null) {
@@ -419,19 +512,26 @@ private fun SeatCellBox(cell: HallCell, modifier: Modifier, onOpen: (RollRow) ->
  * The chowky/chair rail: `CW-` chowkies (low seats) and `CH-` chairs are
  * hall positions outside the web page's row grid — NOT pagoda cells (the
  * pagoda is a separate building; its cells are a future feature). Occupied
- * only, on the accent tint, in trailing-number-DESCENDING order so `…-1`
- * ends nearest the teacher. ≥1000dp it is the fixed 280dp side column
- * ([perRow] = 2); below that it renders full-width below the grid,
- * [perRow] = the grid's columns.
+ * only. [ChowkyRailLayout.SINGLE_ROW] (default) draws one vertical
+ * column, painted bottom-to-top so `CW-A1` sits nearest the Dhamma seat.
+ * [ChowkyRailLayout.WRAP] keeps the older 2-across side column /
+ * columns-across stack with separate CW and CH runs.
  */
 @Composable
 private fun ChowkyChairSection(
-    seats: List<PlacedSeat>,
+    plan: HallPlan,
+    layout: ChowkyRailLayout,
     perRow: Int,
     modifier: Modifier,
     onOpen: (RollRow) -> Unit,
 ) {
-    Column(modifier.testTag("chowky-chair-section")) {
+    Column(
+        modifier
+            .testTag("chowky-chair-section")
+            .background(RailCardFill, RoundedCornerShape(8.dp))
+            .border(1.dp, RailCardBorder, RoundedCornerShape(8.dp))
+            .padding(horizontal = 12.dp, vertical = 11.dp),
+    ) {
         Text(
             "CHOWKY / CHAIR",
             fontFamily = DipiMono,
@@ -439,47 +539,136 @@ private fun ChowkyChairSection(
             fontSize = 9.sp,
             letterSpacing = 1.7.sp,
             color = Industry.neutral500,
-            modifier = Modifier.padding(bottom = 8.dp),
         )
-        seats.chunked(perRow.coerceAtLeast(1)).forEach { line ->
-            Row(
-                Modifier.fillMaxWidth().padding(bottom = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+        if (layout == ChowkyRailLayout.SINGLE_ROW) {
+            RailRun(
+                "CW then CH",
+                railPaintOrder(plan.chowkyChair, layout),
+                perRow,
+                onOpen,
+                emptyLabel = null,
+            )
+            return@Column
+        }
+        if (plan.chowkySeats.isEmpty()) {
+            Text(
+                "CW · CHOWKY",
+                fontFamily = DipiMono,
+                fontWeight = FontWeight.Medium,
+                fontSize = 8.5.sp,
+                letterSpacing = 1.5.sp,
+                color = Industry.neutral400,
+                modifier = Modifier.padding(top = 9.dp, bottom = 6.dp),
+            )
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .height(38.dp)
+                    .dashedBorder(Industry.neutral300, 5.dp)
+                    .testTag("chowky-none"),
+                contentAlignment = Alignment.Center,
             ) {
-                line.forEach { seat ->
-                    Column(
-                        Modifier
-                            .weight(1f)
-                            .height(66.dp)
-                            .background(Industry.accent100, CellShape)
-                            .border(1.dp, Industry.accent300, CellShape)
-                            .clickable { onOpen(seat.row) }
-                            .padding(horizontal = 8.dp, vertical = 6.dp)
-                            .testTag("chowky-seat-${seat.row.seat.trim()}"),
-                        verticalArrangement = Arrangement.SpaceBetween,
-                    ) {
-                        Text(
-                            seat.row.seat.trim(),
-                            fontFamily = DipiMono,
-                            fontWeight = FontWeight.Medium,
-                            fontSize = 10.sp,
-                            letterSpacing = 0.8.sp,
-                            color = Industry.accent600,
-                            maxLines = 1,
-                        )
-                        Text(
-                            seat.row.name,
-                            fontSize = 12.5.sp,
-                            lineHeight = 14.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = Industry.text,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    }
-                }
-                repeat(perRow.coerceAtLeast(1) - line.size) { Spacer(Modifier.weight(1f)) }
+                Text("None in this hall", fontSize = 12.sp, color = Industry.neutral400)
             }
+        } else {
+            RailRun("CW · CHOWKY", plan.chowkySeats, perRow, onOpen, emptyLabel = null)
+        }
+        Text(
+            "CH · CHAIR",
+            fontFamily = DipiMono,
+            fontWeight = FontWeight.Medium,
+            fontSize = 8.5.sp,
+            letterSpacing = 1.5.sp,
+            color = Industry.neutral400,
+            modifier = Modifier.padding(top = 11.dp).bottomHairline(Industry.neutral200).padding(top = 10.dp),
+        )
+        if (plan.chairSeats.isEmpty()) {
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(top = 7.dp)
+                    .height(38.dp)
+                    .dashedBorder(Industry.neutral300, 5.dp)
+                    .testTag("chair-none"),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text("None in this hall", fontSize = 12.sp, color = Industry.neutral400)
+            }
+        } else {
+            RailRun(null, plan.chairSeats, perRow, onOpen, emptyLabel = null)
+        }
+    }
+}
+
+@Composable
+private fun RailRun(
+    kicker: String?,
+    seats: List<PlacedSeat>,
+    perRow: Int,
+    onOpen: (RollRow) -> Unit,
+    emptyLabel: String?,
+) {
+    if (kicker != null) {
+        Text(
+            kicker,
+            fontFamily = DipiMono,
+            fontWeight = FontWeight.Medium,
+            fontSize = 8.5.sp,
+            letterSpacing = 1.5.sp,
+            color = Industry.neutral400,
+            modifier = Modifier.padding(top = 9.dp, bottom = 6.dp),
+        )
+    } else {
+        Spacer(Modifier.height(6.dp))
+    }
+    if (seats.isEmpty() && emptyLabel != null) {
+        Text(emptyLabel, fontSize = 12.sp, color = Industry.neutral400)
+        return
+    }
+    seats.chunked(perRow.coerceAtLeast(1)).forEach { line ->
+        Row(
+            Modifier.fillMaxWidth().padding(bottom = 7.dp),
+            horizontalArrangement = Arrangement.spacedBy(7.dp),
+        ) {
+            line.forEach { seat ->
+                val old = seat.old
+                Column(
+                    Modifier
+                        .weight(1f)
+                        .height(66.dp)
+                        .then(
+                            if (old) {
+                                Modifier.background(Industry.accent100, CellShape).border(1.dp, Industry.accent300, CellShape)
+                            } else {
+                                Modifier.background(NewFill, CellShape).border(1.dp, Industry.neutral300, CellShape)
+                            },
+                        )
+                        .clickable { onOpen(seat.row) }
+                        .padding(horizontal = 9.dp, vertical = 7.dp)
+                        .testTag("chowky-seat-${seat.row.seat.trim()}"),
+                    verticalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Text(
+                        seat.row.seat.trim(),
+                        fontFamily = DipiMono,
+                        fontWeight = FontWeight.Medium,
+                        fontSize = 11.sp,
+                        letterSpacing = 0.8.sp,
+                        color = if (old) Industry.accent700 else Industry.accent600,
+                        maxLines = 1,
+                    )
+                    Text(
+                        seat.row.name,
+                        fontSize = 12.5.sp,
+                        lineHeight = 14.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = Industry.text,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
+            repeat(perRow.coerceAtLeast(1) - line.size) { Spacer(Modifier.weight(1f)) }
         }
     }
 }
@@ -501,24 +690,34 @@ private fun UnseatedSection(unseated: List<UnseatedRow>) {
             }
             .padding(top = 11.dp),
     ) {
-        Text(
-            "UNSEATED",
-            fontFamily = DipiMono,
-            fontWeight = FontWeight.Medium,
-            fontSize = 9.sp,
-            letterSpacing = 1.7.sp,
-            color = Industry.neutral500,
-            modifier = Modifier.padding(bottom = 9.dp),
-        )
+        Row(
+            Modifier.padding(bottom = 9.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Text(
+                "UNSEATED",
+                fontFamily = DipiMono,
+                fontWeight = FontWeight.Medium,
+                fontSize = 9.sp,
+                letterSpacing = 1.7.sp,
+                color = Industry.neutral500,
+            )
+            Text(
+                "on the roll, not in the hall · ${unseated.size}",
+                fontSize = 12.sp,
+                color = Industry.neutral400,
+            )
+        }
         unseated.forEach { u ->
             Row(
                 Modifier
                     .fillMaxWidth()
                     .padding(bottom = 6.dp)
-                    .height(34.dp)
+                    .height(38.dp)
                     .background(NewFill, CellShape)
                     .border(1.dp, Rule, CellShape)
-                    .padding(horizontal = 10.dp)
+                    .padding(horizontal = 12.dp)
                     .testTag("unseated-row"),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
