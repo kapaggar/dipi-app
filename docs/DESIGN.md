@@ -632,8 +632,11 @@ Course ops uses the shipped **Steel** ramp with no additions:
 
 ## Sheets v5 — desk sheets, Course report, Board, Rooms (turn 5, frames `5a`–`5t`, shipped 1.34.0 on 2026-09-02)
 
-Design spec: `version-5/README.md`; frames `5a`–`5t` in `DIPI Sheets v5.dc.html`;
-plan and progress ledger: `docs/plans/2026-09-02-sheets-v5.md`.
+Design spec: the frame and shot index below (absorbed from the retired
+`version-5/` handover on 2026-09-05); frames `5a`–`5t` in `DIPI Sheets v5.dc.html`;
+plan and progress ledger: `docs/plans/2026-09-02-sheets-v5.md`; implementation
+handover: `docs/handovers/2026-09-02-sheets-v5-implementation.md`; transport and
+markup skeletons: `docs/LIVE-DESK.md` Part 4.
 
 **The problem this pass fixed.** The twelve desk sheets arrive as print-styled
 Drupal HTML with JavaScript off, so every `Columns:` pill, `Print` link, in-sheet
@@ -682,6 +685,61 @@ an instruction panel about dragging students that cannot work here.
   surface is read + print. **Nothing labels, implies or reaches "regenerate"** — the
   `?r=1` route is unreachable from this app by construction, not by discipline.
 - **Any new write protocol.** The pass added none.
+
+### Frame index — `DIPI Sheets v5.dc.html`
+
+Screen frames are 1280×900 dp (Pixel C landscape, density 2). Print frames are A4
+proportion with mm annotations. `5a` and `5t` are the shared vocabulary the rest
+spend.
+
+| Frame | Subject | Kind | Built? |
+|---|---|---|---|
+| 5a | Sheet viewer chrome — shared native toolbar (title, course identity, order/sort segmented control, column chips, PRINT, CLOSE) plus the injected desk-sheet stylesheet, shown on Day 0 list | screen | yes (1.34.0) |
+| 5b | Day 0 list — all four group blocks, default column set | screen | yes |
+| 5c | Day 0 list — A4 print with a page break | print | yes |
+| 5d | Day 0 summary — native surface | screen | yes (`DaySummaryPane`) |
+| 5e | Student chit — A4 12-up | print | yes (1.37.2, was 9-up in 1.36.0) |
+| 5f | Student chit — A4 9-up + one chit at 2× with anatomy callouts | print | superseded by 5e |
+| 5g | Checking slip — A4 2-up | print | yes (1.37.2) |
+| 5h | Seating plan — screen, male page, chrome removed | screen | yes, as the **native Course ops hall** (1.36.0), not the `/seating` HTML |
+| 5i | Seating plan — A4, one gender per page, legend + header | print | yes (1.38.0, `seatingPlanPrintHtml` from the in-memory roll) |
+| 5j | Teacher list — screen, both comment states (clamped + expanded) | screen | yes |
+| 5k | Teacher list — A4 print | print | yes |
+| 5l | Manager list — screen | screen | yes |
+| 5m | Manager list — A4 print, emergency-first | print | yes |
+| 5n | Centre dashboard with the fourth tile (`Course report` beside `Centre Settings`) | screen | yes, as a 2×2 tile grid at 66dp |
+| 5o | Course report — native surface, loaded state with date range | screen | yes |
+| 5p | Course report — empty / loading / verbatim-refusal states | screen | yes (empty-range completed 1.38.0) |
+| 5q | Course report — A4 print | print | yes |
+| 5r | Main Board — `Course report` removed, shelf 3 resolved, Day-11 row kept | screen | superseded — the Board is **3×3** since 1.37.2 |
+| 5s | Rooms & seats — `( View )` gone, rebalanced cells, free-cell treatment | screen | yes |
+| 5t | Table style specimen — the one table style all sheets inherit (columns, rules, mono, group band, clamped free text), screen and print side by side | both | yes (`SheetStylesheet.kt`) |
+
+### Source captures — zip only, never committed
+
+The v5 pass worked from twelve Pixel C captures (2560×1800, exported at 1024×720;
+the Day-11 PDF page at 1024×777), session `sudha.user` · Dhamma Sudha, courses
+`10 Day / 2026 / 19th-Aug to 30th-Aug` and `2nd-Sep to 13th-Sep`.
+
+| # | Zip name | Surface |
+|---|---|---|
+| 1 | `01-day0-list.png` | Day 0 list — **readable phones + emails** |
+| 2 | `02-day0-summary.png` | Day 0 summary, unstyled `#day-summary` fragment |
+| 3 | `03-student-chit.png` | Student chits — shows the `Cell: Room No.:` redundancy |
+| 4 | `04-checking-slip.png` | Checking slip |
+| 5 | `05-seating-plan-male.png` | Seating plan, male page + the 400dp instruction panel |
+| 6 | `06-seating-plan-female.png` | Seating plan, female page |
+| 7 | `07-teacher-list.png` | Teacher list |
+| 8 | `08-manager-list.png` | Manager list — **emergency contacts and numbers** |
+| 9 | `09-course-report-csv.png` | Course report as raw CSV (the 1.30.5 behaviour) |
+| 9b | `10-course-summary-day11-pdf.png` | Day-11 course summary PDF — target content shape |
+| 10 | `11-main-board.png` | Main Board |
+| 11 | `12-rooms-and-seats.png` | Rooms & seats |
+
+**No shot is committed, not even the clean ones.** Every capture carries real
+student data; AGENTS.md hard rule 10 forbids it and there are no judgement calls.
+They live in the handover zip only (`~/Downloads/dipi-sheets-v5-handover.zip`),
+alongside the source HAR, which is likewise never committed.
 
 ### Hard rules unchanged
 

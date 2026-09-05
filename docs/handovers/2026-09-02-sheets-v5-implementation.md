@@ -13,7 +13,7 @@ Paste this whole file to the next agent. It is written to be read cold.
 | **Version** | `versionName` **1.34.1**, `versionCode` **56** |
 | **Base** | `main` at `5428052` — the course-ops merge. Sheets v5 sits **on top of** course-ops, not beside it. |
 | **Plan** | `docs/plans/2026-09-02-sheets-v5.md` — § 0.5 is the progress ledger |
-| **Design spec** | `version-5/README.md`; frames `5a`–`5t` in `DIPI Sheets v5.dc.html` |
+| **Design spec** | frames `5a`–`5t` in `DIPI Sheets v5.dc.html`; the frame and shot index is in `docs/DESIGN.md` § "Sheets v5" (absorbed from `version-5/README.md` when that folder was folded into the docs on 2026-09-05) |
 | **Design ledger** | `docs/DESIGN.md` § "Sheets v5" — the do-not-re-propose list |
 
 **Two wrinkles worth knowing before you read `git log`.**
