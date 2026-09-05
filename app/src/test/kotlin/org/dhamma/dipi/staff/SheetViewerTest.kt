@@ -493,6 +493,36 @@ class SheetViewerTest {
         rule.onNodeWithTag("hall-body").assertExists()
     }
 
+    /** 5i: a roll with seats gives the native hall a real PRINT button. */
+    @Test
+    fun seatingPlanWithARollShowsThePrintButton() {
+        val vm = buildVm()
+        val roll = TeacherRoll(
+            listOf(
+                org.dhamma.dipi.staff.model.RollGroup(
+                    at = "Uma Rangan", code = "URN", gender = Gender.M,
+                    seniority = org.dhamma.dipi.staff.model.RollSeniority.OLD,
+                    group = "1", total = 1,
+                    rows = listOf(
+                        org.dhamma.dipi.staff.model.RollRow(
+                            sn = 1, name = "Alice Kumar", room = "Mbk-1", age = "40", city = "Pune",
+                            courses = emptyList(), cell = "", seat = "A1",
+                            seatKind = org.dhamma.dipi.staff.model.SeatKind.FLOOR,
+                            backrest = false, occupation = "", education = "", languages = "",
+                        ),
+                    ),
+                ),
+            ),
+        )
+        vm.seedForTest(deskState().copy(teacherRoll = roll))
+        rule.setContent { DipiAppUi(vm) }
+
+        rule.runOnIdle { vm.openSheet("Seating plan") }
+        rule.waitForIdle()
+        rule.onNodeWithTag("sheet-viewonly-chip").assertTextEquals("READ & PRINT")
+        rule.onNodeWithTag("sheet-print").assertExists()
+    }
+
     @Test
     fun day0SummaryPrintsFromTheSheetHeader() {
         val vm = buildVm()

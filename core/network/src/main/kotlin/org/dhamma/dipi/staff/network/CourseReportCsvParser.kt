@@ -53,7 +53,10 @@ object CourseReportCsvParser {
 
         records.drop(1).forEach { record ->
             val course = record.getOrNull(courseAt)?.trim().orEmpty()
-            if (course.isBlank() && record.all { it.isBlank() }) return@forEach
+            // A row with no course name is not a course. The live desk answers a
+            // range with no courses with one blank-name, all-zero row; keeping it
+            // would show a ghost row and suppress the empty-range guidance.
+            if (course.isBlank()) return@forEach
             var counts = CourseReportCounts()
             header.forEachIndexed { i, name ->
                 val fill = COLUMNS[name] ?: return@forEachIndexed

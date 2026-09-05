@@ -212,8 +212,11 @@ are preserved because code comments cite them.
   (all earlier SHIPPED-DELTA files are consolidated there).
 - **08-31 T8 · Also retired**: **Letters** (added to the 08-30 retired table) and
   **CentreEditScreen** (the native `CentreOpsScreen` is the centre-settings
-  surface). Swept when unused: `DeskSectionPlaceholder`, `ComingScreen`,
+  surface). Swept when unused: `ComingScreen`,
   `ZeroDayDraft` leftovers, stale R2 / "13th chip" comments.
+  (`DeskSectionPlaceholder` was **not** swept — it is still the `DeskShell`
+  empty-state default that `DeskShellTest` exercises; the earlier claim it was
+  removed was inaccurate.)
 - **`feat/desk-gap` served as a read-only donor via `git show`**; its
   `DeskSearchFields` / `POST /search-app`, retired screens and `docs/qa-1.19.0/` were
   explicitly not ported. On 2026-09-01 the branch was close-out merged (`-s ours`,

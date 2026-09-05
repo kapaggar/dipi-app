@@ -78,6 +78,7 @@ import org.dhamma.dipi.staff.settings.PinDialog
 import org.dhamma.dipi.staff.settings.PinSetupDialog
 import org.dhamma.dipi.staff.settings.SettingsScreen
 import org.dhamma.dipi.staff.teacher.HallBody
+import org.dhamma.dipi.staff.desk.seatingPlanPrintHtml
 import org.dhamma.dipi.staff.teacher.SeatingPlanScreen
 import org.dhamma.dipi.staff.teacher.StudentCardScreen
 import org.dhamma.dipi.staff.teacher.TeacherListScreen
@@ -678,6 +679,9 @@ private fun DeskHost(
                 } else {
                     null
                 },
+                nativeHallPrintHtml = state.teacherRoll
+                    ?.takeIf { sheetView.nativeHall && it.groups.isNotEmpty() }
+                    ?.let { roll -> seatingPlanPrintHtml(roll) { g -> state.centreOps.hallGridFor(g) } },
             )
         }
 

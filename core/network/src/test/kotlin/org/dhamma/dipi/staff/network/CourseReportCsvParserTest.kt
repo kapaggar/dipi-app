@@ -110,6 +110,38 @@ class CourseReportCsvParserTest {
     }
 
     /**
+     * The live desk answers a range with no courses with a header plus a
+     * single blank-name, all-zero data row (verified on the Pixel C, 2026-09-05:
+     * any future/reversed range returns "1 course · 0 students"). A row with no
+     * course name is not a course, so the report must read empty — otherwise the
+     * empty-range guidance never renders and the registrar sees a ghost row.
+     */
+    @Test
+    fun aBlankNameZeroRowIsNotACourseSoTheReportIsEmpty() {
+        val csv = "$header\n,0,0,0,0,0,0,0,0,0,0,0,0,0,\"\""
+
+        val report = CourseReportCsvParser.parse(csv, from = "2031-01-01", to = "2031-12-31")
+
+        assertTrue(report.rows.isEmpty())
+        assertTrue(report.isEmpty)
+    }
+
+    /** A blank-name row among real courses drops out; the real courses stay. */
+    @Test
+    fun aBlankNameRowIsDroppedButNamedCoursesSurvive() {
+        val csv = """
+            $header
+            "Dhamma Sudha / 10 Day / 2026 / 03 Jan - 14 Jan",40,38,78,22,19,41,119,6,5,11,1,2,0,"Anil Kale"
+            ,0,0,0,0,0,0,0,0,0,0,0,0,0,
+        """.trimIndent()
+
+        val report = CourseReportCsvParser.parse(csv)
+
+        assertEquals(1, report.rows.size)
+        assertEquals(119, report.rows.single().counts.rollTotal)
+    }
+
+    /**
      * A renamed or reordered column must degrade to zero, never read the
      * wrong figure into the wrong group.
      */

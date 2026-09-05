@@ -779,3 +779,19 @@ GET, no search, no writes.
   suffix ascending, painted bottom-to-top so `CW-A1` sits nearest the
   Dhamma seat. `ChowkyRailLayout.WRAP` keeps the older 2-across stack
   (Centre settings · Hall chart). Teacher stays at the bottom; 66 dp.
+
+### MINOR 1.38.0 / 63 (2026-09-05) — seating print + report empty-state
+
+- **Native seating print (5i).** The Board seating surface's `READ & PRINT`
+  tag now has a real `PRINT` button. It prints from the **in-memory roll**
+  through the same pure `hallLayout` the screen draws — no `GET /seating`,
+  no invented geometry — one gender per A4 page, depth descending (row 1 at
+  the Dhamma seat), with the chowky/chair rail and the visible unseated list.
+  `seatingPlanPrintHtml` (feature/desk). The button is hidden when the roll
+  is empty (nothing to print).
+- **Course report empty range.** The live desk answers a range with no
+  courses with a header plus one blank-name, all-zero row; that row is not a
+  course, so `CourseReportCsvParser` now drops blank-name rows. An empty
+  range therefore renders the `EmptyRange` guidance instead of a ghost
+  "1 course · 0 students" line (verified on the Pixel C, any future/reversed
+  range).

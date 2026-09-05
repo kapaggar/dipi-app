@@ -2,7 +2,7 @@
 
 DIPI Staff Android (`org.dhamma.dipi.staff`).
 
-**Now shipping:** **1.37.2** (`versionCode` 62) on `feat/course-ops-design` — Course ops v6 plus owner PATCH (0 Day Board, Board 3×3 with Course summary in-grid, Valuable off the Board, vertical CW/CH rail, 12-up chits, Teacher list). See `docs/plans/2026-09-04-course-ops-design.md`.
+**Now shipping:** **1.38.0** (`versionCode` 63) on `main` — native seating **PRINT** (5i, from the in-memory roll, one gender per A4 page, no `GET /seating`) and the Course report **empty-range** state (blank-name zero rows dropped so a no-course range shows the guidance, not a ghost row). Prior: 1.37.2 Course ops v6 + owner PATCH (0 Day Board, Board 3×3 with Course summary in-grid, Valuable off the Board, vertical CW/CH rail, 12-up chits, Teacher list). See `docs/DESIGN.md` shipped-delta and `docs/plans/2026-09-04-course-ops-design.md`.
 
 Governing product rules live in `AGENTS.md` Hard rules (no client ACL, no `Approved`, no attendance write, server messages verbatim, bridge rule).  
 **Transport (this file + `AGENTS.md` win):** the live desk is Drupal HTML, not Services login and not `/staff/*`. Backend PHP is immutable.

@@ -86,6 +86,8 @@ fun SheetViewerPane(
     fetchedAt: String? = null,
     /** Board native 5h hall — same geometry as Course ops, no WebView. */
     nativeHall: (@Composable () -> Unit)? = null,
+    /** 5i: print-only HTML for the native hall (null = nothing to print). */
+    nativeHallPrintHtml: String? = null,
 ) {
     val context = LocalContext.current
     var webView by remember { mutableStateOf<WebView?>(null) }
@@ -107,10 +109,13 @@ fun SheetViewerPane(
             title = title,
             courseLine = courseLine,
             export = export,
-            canPrint = (html != null && nativeHall == null) || summary != null,
+            canPrint = (html != null && nativeHall == null) || summary != null ||
+                nativeHallPrintHtml != null,
             onPrint = {
                 when {
                     summary != null -> NativePrint.printHtml(context, title, daySummaryPrintHtml(summary))
+                    nativeHallPrintHtml != null ->
+                        NativePrint.printHtml(context, title, nativeHallPrintHtml)
                     else -> webView?.let { printSheet(context, title, it) }
                 }
             },
