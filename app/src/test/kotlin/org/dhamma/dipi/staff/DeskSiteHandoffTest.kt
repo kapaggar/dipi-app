@@ -86,7 +86,7 @@ class DeskSiteHandoffTest {
         val opened = RecordingContext()
         assertTrue(opened.openDeskSite(DeskSiteDestination.AdvancedSearch(12)))
         assertEquals(Intent.ACTION_VIEW, opened.intent?.action)
-        assertEquals("https://dipi.vridhamma.org/search-app/12", opened.intent?.data.toString())
+        assertEquals("${BuildConfig.BASE_URL.trimEnd('/')}/search-app/12", opened.intent?.data.toString())
         assertNull(opened.intent?.`package`)
 
         assertFalse(MissingBrowserContext().openDeskSite(DeskSiteDestination.AdvancedSearch(12)))
@@ -140,6 +140,7 @@ class DeskSiteHandoffTest {
         rule.onNodeWithText("Full Advanced Search on the desk site ↗").performClick()
 
         rule.onNodeWithText("No browser can open the desk site").assertIsDisplayed()
+        assertTrue(vm.state.value.snack?.error == true)
         assertEquals(DeskScreen.Search, vm.state.value.screen)
     }
 

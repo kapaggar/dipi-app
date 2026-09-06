@@ -839,6 +839,10 @@ class DeskViewModel @Inject constructor(
         _state.update { it.copy(snack = FlushSnack(text, error = false)) }
     }
 
+    fun deskError(text: String) {
+        _state.update { it.copy(snack = FlushSnack(text, error = true)) }
+    }
+
     /* ── V2 desk · sheets & exports ─────────────────────────────────── */
 
     /**

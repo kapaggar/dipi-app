@@ -523,7 +523,7 @@ private fun DeskViewModel.openDeskSite(
     launcher: DeskSiteLauncher,
     destination: DeskSiteDestination,
 ) {
-    if (!launcher.launch(destination)) deskNote("No browser can open the desk site")
+    if (!launcher.launch(destination)) deskError("No browser can open the desk site")
 }
 
 /**
