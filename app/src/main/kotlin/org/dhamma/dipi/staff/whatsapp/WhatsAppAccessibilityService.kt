@@ -3,6 +3,7 @@ package org.dhamma.dipi.staff.whatsapp
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.AccessibilityServiceInfo
 import android.app.KeyguardManager
+import org.dhamma.dipi.staff.MainActivity
 import android.content.Intent
 import android.graphics.PixelFormat
 import android.net.Uri
@@ -76,6 +77,13 @@ class WhatsAppAccessibilityService : AccessibilityService() {
             return completion.await()
         } finally { clear() }
     }
+    fun returnToDipiIfVisible() {
+        if (getSystemService(KeyguardManager::class.java).isKeyguardLocked) return
+        val root = rootInActiveWindow ?: return
+        val visible = try { root.packageName?.toString() in WHATSAPP_PACKAGES } finally { root.recycle() }
+        if (visible) startActivity(Intent(this, MainActivity::class.java).addFlags(
+            Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP))
+    }
     fun abort(reason: String) {
         val active = request ?: return
         active.result.complete(SendResult(if (active.clicked) WhatsAppAttemptState.OutcomeUnknown else WhatsAppAttemptState.Failed, reason))
@@ -128,13 +136,14 @@ class WhatsAppAccessibilityService : AccessibilityService() {
             val root = rootInActiveWindow ?: return
             val obtained = mutableListOf<AccessibilityNodeInfo>()
             try {
+                root.refresh()
                 if (root.packageName?.toString() != active.pkg) {
                     if (interruptsWhatsAppLaunch(root.packageName?.toString(), active.pkg, packageName, active.appeared, elapsed)) abort("Another app or system dialog interrupted WhatsApp.")
                     return
                 }
                 active.appeared = true
                 if (controller.ui.value.running) watchingPackage = active.pkg
-                fun nodes(id: String) = root.findAccessibilityNodeInfosByViewId("${active.pkg}:id/$id").also { obtained.addAll(it) }.filter { it.isVisibleToUser }
+                fun nodes(id: String) = root.findAccessibilityNodeInfosByViewId("${active.pkg}:id/$id").also { obtained.addAll(it) }.filter { it.refresh() && it.isVisibleToUser }
                 val names = nodes("conversation_contact_name")
                 val entries = nodes("entry")
                 if (names.size != 1 || entries.size != 1) { if (elapsed > 8000) abort("Unsupported WhatsApp screen. Nothing further will be sent."); return }
@@ -160,7 +169,7 @@ class WhatsAppAccessibilityService : AccessibilityService() {
                     children.count { it.viewIdResourceName == "${active.pkg}:id/message_text" && it.text?.toString() == active.text } == 1 &&
                         children.any { it.viewIdResourceName == "${active.pkg}:id/status" && !it.contentDescription.isNullOrBlank() }
                 }
-                active.observation = if (active.clicked) "after Send; awaiting the outgoing message" else "before Send"
+                active.observation = if (active.clicked) "after Send; ${matches - active.baseline} new matching outgoing rows; composer ${if (entry in setOf("", "Message")) "clear" else "not clear"}" else "before Send"
                 if (active.clicked) {
                     if (submissionObserved(entry, matches, active.baseline)) {
                         active.result.complete(SendResult(WhatsAppAttemptState.SubmissionObserved, "Submission observed"))

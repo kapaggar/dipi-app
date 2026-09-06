@@ -125,3 +125,30 @@ checked to be absent from the APK. The release assets `dipi-staff-1.43.1.apk` an
 `dipi-staff.apk` are identical, with SHA-256:
 
 `1348b5272a15c47a4f9533e0aa7d46a6ed193892056b523067a1b2e12b9fbf8f`
+
+## QA follow-up - 1.43.2
+
+- Setup: one enable switch, visible code/permission/test readiness, and collapsed
+  setup controls after provisioning. Android permission status refreshes on return.
+- Calling: numbered recipient/message/review steps, remembered letter behind
+  Change letter, and an explicit completion/progress screen without a second
+  preparation form underneath an unfinished batch.
+- Root-cause finding: neither the original self-test nor batch runner explicitly
+  returned to the desk activity. Completion now persists progress, clears the
+  accessibility observer, then returns to the existing DIPI activity if WhatsApp
+  is still visible. It never takes focus from an unrelated app or locked screen.
+- Refresh the root and composer/header nodes as well as outgoing message nodes;
+  exact text verification remains required. A timeout reports only matching-row
+  count and whether the composer cleared, never message text or URLs.
+- Pixel C pilot: a longer synthetic self-chat message with Hindi, paragraphs and
+  a complete link was observed successfully, and DIPI automatically regained
+  focus and displayed the passed result. No applicant was messaged. Saved letter
+  expansion/collapse was exercised on the tablet.
+- Recovery regression tests distinguish completed submissions/skips from unknown
+  outcomes after interruption. Unknown attempts remain ineligible for retry.
+- The owner requested the existing provisioning string for other tablets; generated
+  an owner-only file outside Git using the existing administrator helper. No email
+  was sent and no backend source was modified.
+
+Validation for this follow-up: 725 tests, zero failures/errors/skips, using the
+required model/audit/network/datastore/app debug-unit suite.

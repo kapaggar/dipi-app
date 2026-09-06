@@ -32,6 +32,10 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+    override fun onResume() {
+        super.onResume()
+        whatsapp.refreshDeviceStatus()
+    }
     override fun onStop() {
         if (whatsapp.ui.value.running && WhatsAppAccessibilityService.connected?.hasRequest != true) {
             whatsapp.pause("DIPI left the foreground before WhatsApp opened. Review progress before resuming.")

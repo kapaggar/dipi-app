@@ -65,4 +65,30 @@ class WhatsAppRecoveryTest {
         assertFalse(controller.ready())
     }
 
+    @Test fun `finishing preserves observed submissions through process recovery`() {
+        store.saveBatch(WhatsAppBatch(scope, 100, 44, listOf(
+            WhatsAppAttempt(1, "919000000001", WhatsAppAttemptState.SubmissionObserved),
+            WhatsAppAttempt(2, "919000000002", WhatsAppAttemptState.Skipped))))
+        val first = controller()
+        first.bind(state())
+        first.finishBatchRun()
+        assertFalse(first.ui.value.running)
+        assertEquals("Batch complete", batchProgressTitle(first.ui.value.batch!!, false))
+        val restarted = controller()
+        restarted.bind(state())
+        assertEquals("Batch complete", batchProgressTitle(restarted.ui.value.batch!!, false))
+        assertEquals(WhatsAppAttemptState.SubmissionObserved, restarted.ui.value.batch!!.attempts.first().state)
+    }
+
+    @Test fun `interrupted send never appears complete or becomes retryable`() {
+        store.saveBatch(WhatsAppBatch(scope, 100, 44, listOf(WhatsAppAttempt(1, "919000000001", WhatsAppAttemptState.SendStarted))))
+        val controller = controller()
+        controller.bind(state())
+        controller.finishBatchRun()
+        assertFalse(batchComplete(controller.ui.value.batch!!))
+        assertEquals("Batch paused · review progress", batchProgressTitle(controller.ui.value.batch!!, false))
+        controller.retryFailed(1)
+        assertEquals(WhatsAppAttemptState.OutcomeUnknown, controller.ui.value.batch!!.attempts.single().state)
+    }
+
 }

@@ -7,6 +7,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
@@ -64,31 +66,43 @@ private fun AutomationSettings(controller: WhatsAppController, state: WhatsAppUi
     var code by remember { mutableStateOf("") }
     var ownPhone by remember { mutableStateOf("") }
     var removal by remember { mutableStateOf(false) }
-    Text("Only this centre on this device · ${profile.scope.origin} · centre ${profile.scope.centreId}")
-    Text("Experimental: WhatsApp updates can interrupt automation and automated sending can restrict your account. Keep the tablet unlocked and dedicated to the run.")
-    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        WHATSAPP_PACKAGES.forEach { pkg ->
-            FilterChip(selected = profile.packageName == pkg, enabled = !state.busy && !state.running,
-                onClick = { controller.configure(false, pkg) }, label = { Text(if (pkg == "com.whatsapp") "WhatsApp" else "WhatsApp Business") })
+    val tested = profile.testedVersion != null && profile.testedVersion == controller.packageVersion()
+    var setupExpanded by rememberSaveable(profile.scope) { mutableStateOf(!state.configured || !tested) }
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+        Column(Modifier.weight(1f)) {
+            Text("WhatsApp automation", style = MaterialTheme.typography.titleLarge)
+            Text(if (profile.enabled) "On for this centre and tablet" else "Off for this centre and tablet")
         }
+        Switch(checked = profile.enabled, enabled = !state.busy && !state.running && (profile.enabled || state.configured && tested && state.accessibilityReady),
+            onCheckedChange = { controller.configure(it, profile.packageName) })
     }
-    Text(if (state.configured) "Provisioning code is stored on this device." else "Obtain the provisioning code from your authorised centre administrator.")
-    Text("This one constant code supplies the existing encryption key and IV. Share it separately with eligible desk admins. It is not included in the APK, backups or exports; anyone who obtains it has the same shared-key access.")
-    OutlinedTextField(value = code, onValueChange = { code = it.take(256) }, label = { Text("Provisioning code") }, visualTransformation = PasswordVisualTransformation(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, autoCorrectEnabled = false), singleLine = true, modifier = Modifier.fillMaxWidth())
-    Button(enabled = code.isNotBlank() && !state.busy && !state.running, onClick = { controller.provision(code); code = "" }) { Text("Store code on this tablet") }
-    HorizontalDivider()
-    Text("Device check", style = MaterialTheme.typography.titleMedium)
-    OutlinedButton(onClick = controller::accessibilitySettings) { Text("Enable DIPI WhatsApp accessibility service") }
-    Text("The service reads the selected WhatsApp screen and clicks Send only during a started run. Pause and Stop stay available over WhatsApp. No unrelated chat history is stored.")
-    OutlinedTextField(value = ownPhone, onValueChange = { ownPhone = it.take(24) }, label = { Text("This WhatsApp account's own number, with country code") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-    Button(enabled = !state.busy && !state.running && automationPhone(ownPhone) != null, onClick = { controller.testSelf(ownPhone) }) { Text("Send labelled test to Message yourself") }
-    controller.pilotResult()?.let { Text("Last device check: $it") }
-    Text("Tested WhatsApp version: ${profile.testedVersion ?: "Not tested"}. A WhatsApp update requires another test.")
-    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        Switch(checked = profile.enabled, enabled = !state.busy && !state.running, onCheckedChange = { controller.configure(it, profile.packageName) })
-        Text("Enable managed letters and batch sending for this centre")
+    Text("Keep this tablet unlocked during a run. Messages are sent only after you review a batch and tap Start.")
+    Text("${if (state.configured) "✓" else "1."} Provisioning code ${if (state.configured) "saved" else "needed"}   ·   ${if (state.accessibilityReady) "✓ Accessibility on" else "2. Accessibility needed"}   ·   ${if (tested) "✓ Device test passed" else "3. Device test needed"}")
+    if (!state.accessibilityReady) OutlinedButton(onClick = controller::accessibilitySettings) { Text("Turn on Android permission") }
+    TextButton(onClick = { setupExpanded = !setupExpanded }) { Text(if (setupExpanded) "Hide setup" else "Setup and device check") }
+    if (setupExpanded) {
+        HorizontalDivider()
+        Text("1 · Connect this tablet", style = MaterialTheme.typography.titleMedium)
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            WHATSAPP_PACKAGES.forEach { pkg ->
+                FilterChip(selected = profile.packageName == pkg, enabled = !state.busy && !state.running,
+                    onClick = { controller.configure(false, pkg) }, label = { Text(if (pkg == "com.whatsapp") "WhatsApp" else "WhatsApp Business") })
+            }
+        }
+        Text(if (state.configured) "Code saved securely. Enter a new code only to replace it." else "Paste the code supplied by your centre administrator.")
+        OutlinedTextField(value = code, onValueChange = { code = it.take(256) }, label = { Text("Provisioning code") }, visualTransformation = PasswordVisualTransformation(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, autoCorrectEnabled = false), singleLine = true, modifier = Modifier.fillMaxWidth())
+        Button(enabled = code.isNotBlank() && !state.busy && !state.running, onClick = { controller.provision(code); code = "" }) { Text("Save code") }
+        Text("2 · Allow WhatsApp control", style = MaterialTheme.typography.titleMedium)
+        Text("In Android settings, turn on DIPI WhatsApp automation, then return here.")
+        OutlinedButton(onClick = controller::accessibilitySettings) { Text(if (state.accessibilityReady) "Android permission · On" else "Open Android permission") }
+        Text("3 · Test your own chat", style = MaterialTheme.typography.titleMedium)
+        Text(if (tested) "Passed for WhatsApp ${profile.testedVersion}. Test again after WhatsApp updates." else "A labelled test checks your own chat. No applicant receives this test.")
+        OutlinedTextField(value = ownPhone, onValueChange = { ownPhone = it.take(24) }, label = { Text("Your WhatsApp number, including country code") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone), singleLine = true, modifier = Modifier.fillMaxWidth())
+        Button(enabled = !state.busy && !state.running && state.accessibilityReady && automationPhone(ownPhone) != null, onClick = { controller.testSelf(ownPhone) }) { Text("Test my WhatsApp") }
+        controller.pilotResult()?.let { Text("Last test: $it") }
+        Text("Experimental automation can break after WhatsApp updates and can restrict your WhatsApp account. Share the provisioning code only with eligible admins; it grants shared-key access.", style = MaterialTheme.typography.bodySmall)
+        TextButton(onClick = { removal = true }, enabled = !state.busy && !state.running) { Text("Remove this tablet’s setup") }
     }
-    TextButton(onClick = { removal = true }, enabled = !state.busy && !state.running) { Text("Remove this centre's key and automation settings") }
     if (removal) AlertDialog(onDismissRequest = { removal = false }, title = { Text("Remove automation settings?") }, text = { Text("The stored key, settings and local batch progress for this centre will be erased.") },
         confirmButton = { TextButton(onClick = { controller.removeProfile(); removal = false }) { Text("Remove") } },
         dismissButton = { TextButton(onClick = { removal = false }) { Text("Cancel") } })
@@ -97,6 +111,7 @@ private fun AutomationSettings(controller: WhatsAppController, state: WhatsAppUi
 @Composable
 private fun AutomationBatch(controller: WhatsAppController, state: WhatsAppUi) {
     var discard by remember { mutableStateOf(false) }
+    var lettersExpanded by rememberSaveable { mutableStateOf(false) }
     val profile = state.profile ?: return
     if (!controller.ready()) {
         Text("Enable and test automation in Centre settings before starting a batch.")
@@ -104,27 +119,32 @@ private fun AutomationBatch(controller: WhatsAppController, state: WhatsAppUi) {
     }
     val batch = state.batch
     if (batch != null) {
-        Text("Saved batch · ${batch.attempts.count { it.state == WhatsAppAttemptState.SubmissionObserved }}/${batch.attempts.size} submissions observed", style = MaterialTheme.typography.titleMedium)
+        Text(batchProgressTitle(batch, state.running), style = MaterialTheme.typography.titleLarge)
+        LinearProgressIndicator(progress = { batch.attempts.count { it.state in setOf(WhatsAppAttemptState.SubmissionObserved, WhatsAppAttemptState.Skipped) }.toFloat() / batch.attempts.size }, modifier = Modifier.fillMaxWidth())
+        Text("${batch.attempts.count { it.state == WhatsAppAttemptState.SubmissionObserved }} submitted · ${batch.attempts.count { it.state == WhatsAppAttemptState.Skipped }} skipped · ${batch.attempts.count { it.state == WhatsAppAttemptState.OutcomeUnknown }} need checking")
         Text("Submission observed does not mean delivered. An unknown outcome must be checked in WhatsApp and skipped here; it will never be retried automatically.")
         batch.attempts.forEach { attempt ->
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Application ${attempt.applicantId} · +${attempt.phone} · ${attempt.state}", modifier = Modifier.weight(1f))
+                Text("${state.candidates.firstOrNull { it.id.value == attempt.applicantId }?.displayName ?: "Application ${attempt.applicantId}"} · +${attempt.phone} · ${attemptLabel(attempt.state)}", modifier = Modifier.weight(1f))
                 if (!state.running && attempt.state == WhatsAppAttemptState.Failed) TextButton(onClick = { controller.retryFailed(attempt.applicantId) }) { Text("Retry") }
                 if (!state.running && attempt.state !in setOf(WhatsAppAttemptState.SubmissionObserved, WhatsAppAttemptState.Skipped)) TextButton(onClick = { controller.skip(attempt.applicantId) }) { Text(if (attempt.state == WhatsAppAttemptState.OutcomeUnknown) "Reviewed · skip" else "Skip") }
             }
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        if (batchComplete(batch)) {
+            Button(onClick = controller::discard) { Text("Done · prepare another batch") }
+        } else Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(onClick = { if (state.running) controller.pause() else controller.resume() }, enabled = !state.busy && (state.running || batch.attempts.any { it.state == WhatsAppAttemptState.Pending })) { Text(if (state.running) "Pause" else "Resume pending") }
             OutlinedButton(onClick = { controller.pause(); discard = true }) { Text("Stop / discard batch") }
         }
         if (discard) AlertDialog(onDismissRequest = { discard = false }, title = { Text("Discard this batch?") }, text = { Text("Local progress will be removed. Messages already submitted cannot be undone. Starting another batch may send them again.") },
             confirmButton = { TextButton(onClick = { controller.discard(); discard = false }) { Text("Discard") } }, dismissButton = { TextButton(onClick = { discard = false }) { Text("Keep progress") } })
-        HorizontalDivider()
+        return
     }
     if (state.running) return
     Text("WhatsApp must display the recipient’s full phone number. Saved-name-only chats stop for manual review.")
-    Text("Recipients from the Calling filters", style = MaterialTheme.typography.titleMedium)
-    OutlinedButton(onClick = controller::selectAll, enabled = !state.busy) { Text("Select all valid numbers (${state.candidates.size})") }
+    Text("1 · Recipients (${state.selected.size} selected)", style = MaterialTheme.typography.titleLarge)
+    Text("This list follows your Calling filters. Select who should receive the message.")
+    OutlinedButton(onClick = controller::selectAll, enabled = !state.busy) { Text(if (state.selected.isNotEmpty()) "Clear selection" else "Select all valid numbers") }
     Column(Modifier.fillMaxWidth().heightIn(max = 300.dp).verticalScroll(rememberScrollState())) {
     state.candidates.forEach { card ->
         val phone = automationPhone(card.mobile)
@@ -138,22 +158,53 @@ private fun AutomationBatch(controller: WhatsAppController, state: WhatsAppUi) {
         Checkbox(checked = state.duplicateConsent, onCheckedChange = controller::duplicateConsent, enabled = !state.busy)
         Text("Some selected applicants share a number. Send a separate personalised message for EACH selected applicant to that number.")
     }
-    Text("Active managed letter", style = MaterialTheme.typography.titleMedium)
-    OutlinedButton(onClick = controller::refreshLetters, enabled = !state.busy) { Text("Refresh active letters") }
-    Column(Modifier.fillMaxWidth().heightIn(max = 260.dp).verticalScroll(rememberScrollState())) {
-    state.letters.forEach { letter ->
-        Row {
-            RadioButton(selected = profile.letterId == letter.id, enabled = !state.busy, onClick = { controller.chooseLetter(letter.id) })
-            Text("${letter.name} · ${letter.courseType} · ${letter.event} · #${letter.id}")
+    HorizontalDivider()
+    Text("2 · Message", style = MaterialTheme.typography.titleLarge)
+    val selectedLetter = state.letters.firstOrNull { it.id == profile.letterId }
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+        Text(selectedLetter?.name ?: profile.letterId?.let { "Saved letter #$it" } ?: "Choose a letter to continue", modifier = Modifier.weight(1f))
+        TextButton(onClick = { lettersExpanded = !lettersExpanded }) { Text(if (lettersExpanded) "Close letters" else if (profile.letterId == null) "Choose letter" else "Change letter") }
+    }
+    Text("Your letter choice is remembered for this centre.", style = MaterialTheme.typography.bodySmall)
+    if (lettersExpanded || profile.letterId == null) {
+        OutlinedButton(onClick = controller::refreshLetters, enabled = !state.busy) { Text("Refresh letters") }
+        Column(Modifier.fillMaxWidth().heightIn(max = 260.dp).verticalScroll(rememberScrollState())) {
+            state.letters.forEach { letter ->
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    RadioButton(selected = profile.letterId == letter.id, enabled = !state.busy, onClick = { controller.chooseLetter(letter.id); lettersExpanded = false })
+                    Text("${letter.name} · ${letter.courseType} · ${letter.event} · #${letter.id}")
+                }
+            }
         }
     }
-    }
-    Button(onClick = controller::preview, enabled = !state.busy && state.selected.isNotEmpty() && profile.letterId != null) { Text("Prepare personalised sample") }
-    Text("Preparing letters can initialise missing applicant login credentials on the existing server. It does not change attendance or desk status.")
+    Button(onClick = controller::preview, enabled = !state.busy && state.selected.isNotEmpty() && selectedLetter != null && (!controller.duplicates() || state.duplicateConsent)) { Text(if (state.busy) "Preparing preview…" else "Preview message") }
+    Text("Previewing may initialise missing applicant login details on the existing server.", style = MaterialTheme.typography.bodySmall)
     state.preview?.let { preview ->
         HorizontalDivider()
-        Text("Sample · application ${preview.applicantId}", style = MaterialTheme.typography.titleMedium)
+        Text("3 · Review and send", style = MaterialTheme.typography.titleLarge)
+        Text("Sample for ${state.candidates.firstOrNull { it.id.value == preview.applicantId }?.displayName ?: "application ${preview.applicantId}"}. Each recipient gets their own personalised letter.")
         Text(preview.text)
         Button(onClick = controller::start, enabled = !state.busy && controller.ready()) { Text("Start sending to ${state.selected.size} selected applicants") }
     }
+}
+
+internal fun batchComplete(batch: WhatsAppBatch): Boolean = batch.attempts.all {
+    it.state == WhatsAppAttemptState.SubmissionObserved || it.state == WhatsAppAttemptState.Skipped
+}
+
+internal fun batchProgressTitle(batch: WhatsAppBatch, running: Boolean): String = when {
+    batchComplete(batch) -> "Batch complete"
+    running -> "Sending · ${batch.attempts.count { it.state == WhatsAppAttemptState.SubmissionObserved }} of ${batch.attempts.size} submitted"
+    else -> "Batch paused · review progress"
+}
+
+internal fun attemptLabel(state: WhatsAppAttemptState): String = when (state) {
+    WhatsAppAttemptState.Pending -> "Waiting"
+    WhatsAppAttemptState.Preparing -> "Preparing letter"
+    WhatsAppAttemptState.Opening -> "Opening WhatsApp"
+    WhatsAppAttemptState.SendStarted -> "Checking submission"
+    WhatsAppAttemptState.SubmissionObserved -> "Submission observed"
+    WhatsAppAttemptState.OutcomeUnknown -> "Outcome unknown · check WhatsApp"
+    WhatsAppAttemptState.Failed -> "Not submitted · review"
+    WhatsAppAttemptState.Skipped -> "Skipped"
 }

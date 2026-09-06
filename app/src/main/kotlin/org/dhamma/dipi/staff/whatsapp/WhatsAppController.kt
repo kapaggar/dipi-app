@@ -21,6 +21,7 @@ import javax.inject.Singleton
 data class WhatsAppUi(
     val profile: CentreWhatsAppProfile? = null,
     val configured: Boolean = false,
+    val accessibilityReady: Boolean = false,
     val panel: String? = null,
     val candidates: List<ApplicantCard> = emptyList(),
     val selected: Set<Int> = emptySet(),
@@ -73,7 +74,8 @@ class WhatsAppController @Inject constructor(
         mutable.value = WhatsAppUi()
     }
     fun erase() { endSession(); store.wipeAll() }
-    fun openSettings() { mutable.value = mutable.value.copy(panel = "settings", message = "") }
+    fun refreshDeviceStatus() { mutable.value = mutable.value.copy(accessibilityReady = WhatsAppAccessibilityService.connected != null) }
+    fun openSettings() { refreshDeviceStatus(); mutable.value = mutable.value.copy(panel = "settings", message = "") }
     fun close() { if (!mutable.value.running) { job?.cancel(); epoch++; mutable.value = mutable.value.copy(panel = null, preview = null, busy = false) } }
     fun accessibilitySettings() {
         context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
@@ -89,8 +91,8 @@ class WhatsAppController @Inject constructor(
     fun configure(enabled: Boolean, packageName: String) {
         pause("Settings changed.")
         val current = mutable.value.profile ?: return
-        if (enabled && (!mutable.value.configured || current.testedVersion != packageVersion())) {
-            message("Provision the letter key and pass the self-test before enabling automation."); return
+        if (enabled && (!mutable.value.configured || current.testedVersion == null || current.testedVersion != packageVersion() || WhatsAppAccessibilityService.connected == null)) {
+            message("Save the code, turn on Android permission and pass the device test before enabling automation."); return
         }
         val next = current.copy(enabled = enabled, packageName = packageName,
             testedVersion = current.testedVersion.takeIf { packageName == current.packageName })
@@ -130,7 +132,7 @@ class WhatsAppController @Inject constructor(
     }
     fun selectAll() {
         if (mutable.value.busy || mutable.value.running) return
-        mutable.value = mutable.value.copy(selected = mutable.value.candidates.filter { automationPhone(it.mobile) != null }.map { it.id.value }.toSet(), preview = null, duplicateConsent = false)
+        mutable.value = mutable.value.copy(selected = if (mutable.value.selected.isNotEmpty()) emptySet() else mutable.value.candidates.filter { automationPhone(it.mobile) != null }.map { it.id.value }.toSet(), preview = null, duplicateConsent = false)
     }
     fun chooseLetter(id: Int) {
         if (mutable.value.busy || mutable.value.running) return
@@ -217,12 +219,19 @@ class WhatsAppController @Inject constructor(
                 catch (e: Exception) { message(e.message ?: "Batch paused") }
                 finally {
                     if (mine == epoch) {
-                        interruptBatch()
-                        mutable.value = mutable.value.copy(running = false)
-                        WhatsAppAccessibilityService.connected?.clear()
+                        finishBatchRun()
                     }
                 }
             }
+        }
+    }
+    /** Persist terminal progress before bringing the original desk activity back. */
+    internal fun finishBatchRun() {
+        interruptBatch()
+        mutable.value = mutable.value.copy(running = false)
+        WhatsAppAccessibilityService.connected?.let { service ->
+            service.clear()
+            service.returnToDipiIfVisible()
         }
     }
     fun pause(reason: String = "Paused. Review progress before resuming.") {
@@ -256,7 +265,9 @@ class WhatsAppController @Inject constructor(
         store.save(untested)
         mutable.value = mutable.value.copy(profile = untested)
         store.savePilotResult(profile.scope, "Device check interrupted before submission could be verified. Run a fresh labelled test.")
-        val result = service.send(profile.packageName, phone, "DIPI automation SELF TEST ${UUID.randomUUID()}\nनमस्ते · https://example.com/?a=1&b=2", true) {}
+        val result = try {
+            service.send(profile.packageName, phone, selfTestMessage(UUID.randomUUID().toString()), true) {}
+        } finally { service.returnToDipiIfVisible() }
         store.savePilotResult(profile.scope, result.reason)
         check(result.state == WhatsAppAttemptState.SubmissionObserved) { result.reason }
         val next = profile.copy(enabled = false, testedVersion = version)
@@ -277,3 +288,9 @@ class WhatsAppController @Inject constructor(
     private fun safe(block: () -> Unit) { try { block() } catch (e: Exception) { message(e.message ?: "Operation failed") } }
     private fun message(value: String) { mutable.value = mutable.value.copy(message = value) }
 }
+
+internal fun selfTestMessage(id: String): String = "DIPI automation SELF TEST $id\n" +
+    "नमस्ते। यह केवल अपने WhatsApp की जाँच के लिए है।\n\n" +
+    "This checks a longer letter with paragraphs and a complete link. No applicant receives this test.\n\n" +
+    "Please review this test message. The tablet should return to DIPI after the outgoing message is observed. " .repeat(4) +
+    "\n\nhttps://example.com/?a=1&b=2\nEnd of self-test."

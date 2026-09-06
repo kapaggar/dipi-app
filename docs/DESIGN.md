@@ -941,3 +941,13 @@ server-rendered personalised sample. Pause/Stop float over WhatsApp during a run
 Saved recovery never resumes automatically; an uncertain Send is not retried.
 Names alone cannot verify a recipient, so saved-name-only chats stop for manual
 handling. Automation defaults off and must be retested after a WhatsApp update.
+
+### WhatsApp QA polish - 1.43.2 (2026-09-06)
+
+Owner QA amendment: simplify enablement and Calling. Setup has a single enable switch,
+readiness checklist and collapsible setup/device-test controls. Calling is Recipients,
+Message, Review and send; the saved centre letter is collapsed behind Change letter.
+Saved progress replaces the preparation form until staff finish or discard that batch.
+Completed batches display a completion summary; uncertain outcomes remain paused for
+review. A finished run returns to the existing DIPI activity. Exact recipient/composer
+verification and no automatic retry of unknown sends remain unchanged.
