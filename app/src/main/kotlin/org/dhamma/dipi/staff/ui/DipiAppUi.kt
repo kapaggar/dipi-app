@@ -1,6 +1,8 @@
 package org.dhamma.dipi.staff.ui
 
 import android.app.Activity
+import org.dhamma.dipi.staff.whatsapp.LocalWhatsAppController
+import org.dhamma.dipi.staff.whatsapp.WhatsAppSettingsEntry
 import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.BackHandler
@@ -513,6 +515,7 @@ private fun DeskBodyRouter(
             onBack = vm::back,
             onWhatsAppTemplate = vm::setWhatsAppTemplate,
             onHallGrid = vm::setHallGrid,
+            automationContent = { WhatsAppSettingsEntry() },
         )
         DeskScreen.Settings -> SettingsPane(vm, state)
         else -> DeskBody(vm, state, wide)
@@ -543,6 +546,7 @@ private fun DeskHost(
         context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:$tel")))
     }
     val roll = deskRoll(state.rows)
+    val whatsappController = LocalWhatsAppController.current
     // Both feed the calling round's WhatsApp template tokens.
     val centre = session.centres.firstOrNull()?.name.orEmpty()
     val courseDates = listOf(course.start, course.end).filter { it.isNotBlank() }.joinToString(" – ")
@@ -606,6 +610,7 @@ private fun DeskHost(
                         card.mobile?.let(dial)
                     },
                     onWhatsApp = { card ->
+                        if (whatsappController?.offerSingle(card) == true) return@CallingPane
                         val wa = deskWaNumber(card.mobile) ?: return@CallingPane
                         vm.logCallAttempt(card)
                         // The centre's own wording, rendered against this card;
@@ -633,6 +638,7 @@ private fun DeskHost(
                     onPriority = vm::toggleCallPriority,
                     statusChoices = state.statusChoices,
                     onChangeStatus = vm::changeStatusFor,
+                    onWhatsAppBatch = whatsappController?.let { it::openBatch },
                 )
                 DeskSection.Rooms -> RoomsPane(
                     roll = roll,

@@ -17,6 +17,16 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:theme="@style/Theme.DipiStaff"
         android:usesCleartextTraffic="true">
+        <service
+            android:name=".whatsapp.WhatsAppAccessibilityService"
+            android:exported="true"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
+            android:label="DIPI WhatsApp automation">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data android:name="android.accessibilityservice" android:resource="@xml/whatsapp_accessibility" />
+        </service>
         <activity
             android:name=".MainActivity"
             android:exported="true"

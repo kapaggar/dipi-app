@@ -1,0 +1,3 @@
+<resources>
+    <string name="whatsapp_accessibility_description">During a batch you start, DIPI reads the selected WhatsApp screen to verify each recipient and prepared letter, presses Send once and observes the outgoing message. No chat history is stored. Pause or Stop is always available. This is experimental automation, not an accessibility tool for disabilities.</string>
+</resources>

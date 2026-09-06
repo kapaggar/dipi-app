@@ -57,6 +57,7 @@ fun CentreOpsScreen(
     onBack: () -> Unit,
     onWhatsAppTemplate: (String) -> Unit = {},
     onHallGrid: (Gender, HallGrid) -> Unit = { _, _ -> },
+    automationContent: @Composable () -> Unit = {},
 ) {
     val c = LocalDipi.current
     val grouped = prefs.rooms.groupBy { it.gender to it.section }
@@ -138,6 +139,7 @@ fun CentreOpsScreen(
         )
         Spacer(Modifier.height(14.dp))
         WhatsAppTemplateCard(prefs.whatsAppTemplate, onWhatsAppTemplate)
+        automationContent()
         Spacer(Modifier.height(14.dp))
         Text("Accommodation", fontFamily = DipiCondensed, fontSize = 16.sp, modifier = Modifier.padding(top = 8.dp))
         Text(

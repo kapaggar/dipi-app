@@ -83,6 +83,7 @@ fun CallingPane(
     onPriority: () -> Unit = {},
     statusChoices: List<String> = emptyList(),
     onChangeStatus: (ApplicantCard, String) -> Unit = { _, _ -> },
+    onWhatsAppBatch: ((List<ApplicantCard>) -> Unit)? = null,
 ) {
     val scoped = deskScoped(roll, deskGenderScope(gender), deskSeniorityScope(seniority))
     val callList = deskCallList(scoped)
@@ -118,6 +119,11 @@ fun CallingPane(
                 SortPill(priority, onPriority)
             }
             CallSearchField(search, onSearch)
+            onWhatsAppBatch?.let { open ->
+                androidx.compose.material3.OutlinedButton(onClick = { open(shown) }) {
+                    Text("WhatsApp batch · ${shown.size} in this view")
+                }
+            }
         }
 
         if (shown.isEmpty()) {

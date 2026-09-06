@@ -451,6 +451,8 @@ class DeskViewModel @Inject constructor(
     private val photoLoader: PhotoLoader,
     connectivity: ConnectivityMonitor,
 ) : ViewModel() {
+    internal var onWhatsAppSessionExit: () -> Unit = {}
+    internal var onWhatsAppErase: () -> Unit = {}
 
     /** Clock seam for the course lock — tests pin "today"; production is the device date. */
     @androidx.annotation.VisibleForTesting
@@ -1804,6 +1806,7 @@ class DeskViewModel @Inject constructor(
     }
 
     fun logout() {
+        onWhatsAppSessionExit()
         viewModelScope.launch {
             keepAliveJob?.cancel()
             returnTo = null
@@ -1822,6 +1825,7 @@ class DeskViewModel @Inject constructor(
     }
 
     fun factoryReset() {
+        onWhatsAppErase()
         viewModelScope.launch {
             keepAliveJob?.cancel()
             returnTo = null

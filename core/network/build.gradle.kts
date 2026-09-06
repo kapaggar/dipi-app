@@ -11,6 +11,7 @@ android {
     compileSdk = 35
     defaultConfig { minSdk = 26 }
     compileOptions {
+        isCoreLibraryDesugaringEnabled = true
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
@@ -18,6 +19,8 @@ android {
 }
 
 dependencies {
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs_nio:2.1.5")
+    implementation("org.jsoup:jsoup:1.23.2")
     implementation(project(":core:model"))
     implementation(libs.okhttp)
     implementation(libs.okhttp.logging)

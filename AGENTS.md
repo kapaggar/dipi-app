@@ -61,6 +61,7 @@ Server reference (read-only): `/Users/wizops/DIPI/dipi-web` module `dh_manageapp
     `https://github.com/kapaggar/dipi-app/releases/latest/download/dipi-staff.apk` pointing at the newest build.
 13. **Server messages verbatim.** Error snackbars show the server's text unmodified (e.g. `Please Edit application and choose Area teacher before approving!`).
 14. **Bridge rule:** letters, waitlist, LC review, SMS/WhatsApp dispatch are black boxes behind the desk's `_change_status`. Never reimplement them, never preview letter bodies.
+    **Owner amendment (2026-09-06, WhatsApp automation):** an explicitly opted-in centre/device may list its active managed letters, retrieve and preview a selected server-rendered applicant letter in memory, and hand it to the installed WhatsApp app. Provision shared encryption material separately into protected local storage; never bundle it in the APK. Do not reproduce merge fields or invoke Drupal delivery/status endpoints. Unattended device sending and release are gated on a successful Pixel C pilot with controlled recipients. Existing letter rendering may initialise missing applicant login/auth-code fields on the server. Implementation status and pilot evidence: `docs/plans/2026-09-06-whatsapp-automation.md`.
 
 ## Desk tablet (Wi-Fi ADB)
 
