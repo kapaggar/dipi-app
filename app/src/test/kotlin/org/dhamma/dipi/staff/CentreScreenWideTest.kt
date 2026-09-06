@@ -373,6 +373,43 @@ class CentreScreenWideTest {
     }
 
     @Test
+    fun fourOlderCoursesFillTwoRowsOfTwo() {
+        val older = listOf("A", "B", "C", "D").mapIndexed { index, label ->
+            Course(
+                CourseId(20 + index),
+                CentreId(1),
+                "Older course $label",
+                "2026-07-06",
+                "2026-07-17",
+            )
+        }
+        rule.setContent {
+            DipiTheme {
+                CentreScreen(
+                    session = singleCentreSession,
+                    courses = listOf(course),
+                    onPick = {},
+                    olderCourses = older,
+                )
+            }
+        }
+
+        fun bounds(label: String) = rule.onNodeWithText(label, useUnmergedTree = true)
+            .onParent().getUnclippedBoundsInRoot()
+
+        val a = bounds("Older course A")
+        val b = bounds("Older course B")
+        val c = bounds("Older course C")
+        val d = bounds("Older course D")
+
+        assertEquals(a.top.value, b.top.value, 1f)
+        assertEquals(c.top.value, d.top.value, 1f)
+        assertTrue(c.top > a.top)
+        assertEquals(a.left.value, c.left.value, 1f)
+        assertEquals(b.left.value, d.left.value, 1f)
+    }
+
+    @Test
     fun noDeskSiteChipsRenderOnTheWideLayout() {
         // Bulk Mail was the last `action == null` chip (retired 2026-09-05);
         // the wide layout drops the chip shelf and its kicker with it.

@@ -73,7 +73,7 @@ import javax.inject.Singleton
  * The desk lists every course from the last six months in its dropdown; the
  * registrar only ever reaches for the last few (owner feedback 2026-08-27).
  */
-const val OLDER_COURSE_LIMIT = 3
+const val OLDER_COURSE_LIMIT = 4
 
 /**
  * The status vocabulary offered in the sheet: the desk's own select when the

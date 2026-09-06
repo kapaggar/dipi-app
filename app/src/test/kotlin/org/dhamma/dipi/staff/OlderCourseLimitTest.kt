@@ -80,12 +80,13 @@ class OlderCourseLimitTest {
     }
 
     @Test
-    fun loadCoursesCapsTooManyOlderCoursesAtThree() = runBlocking {
+    fun loadCoursesCapsTooManyOlderCoursesAtFour() = runBlocking {
         val courses = repository.loadCourses(CentreId(1))
-        assertEquals(3, courses.older.size)
-        assertEquals("5th older", courses.older[0].name)
-        assertEquals("4th older", courses.older[1].name)
-        assertEquals("3rd older", courses.older[2].name)
+        assertEquals(4, courses.older.size)
+        assertEquals(
+            listOf("5th older", "4th older", "3rd older", "2nd older"),
+            courses.older.map { it.name },
+        )
     }
 
     @Test
