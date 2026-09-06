@@ -590,6 +590,10 @@ class SheetViewerTest {
             android.print.PrintAttributes.MediaSize.ISO_A4,
             org.dhamma.dipi.staff.ui.NativePrint.a4Attributes().mediaSize,
         )
+        assertEquals(
+            android.print.PrintAttributes.MediaSize.ISO_A4.asLandscape(),
+            org.dhamma.dipi.staff.ui.NativePrint.a4LandscapeAttributes().mediaSize,
+        )
     }
 
     /* ── M1 · the viewer mounts at the DipiAppUi root, so the phone draws it ── */

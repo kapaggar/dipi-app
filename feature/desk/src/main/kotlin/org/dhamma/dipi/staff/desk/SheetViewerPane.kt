@@ -121,7 +121,12 @@ fun SheetViewerPane(
                 when {
                     summary != null -> NativePrint.printHtml(context, title, daySummaryPrintHtml(summary))
                     nativeHallPrintHtml != null ->
-                        NativePrint.printHtml(context, title, nativeHallPrintHtml)
+                        NativePrint.printHtml(
+                            context,
+                            title,
+                            nativeHallPrintHtml,
+                            NativePrint.a4LandscapeAttributes(),
+                        )
                     else -> webView?.let { printSheet(context, title, it) }
                 }
             },

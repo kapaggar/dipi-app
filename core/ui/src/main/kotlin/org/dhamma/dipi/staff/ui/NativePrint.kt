@@ -22,7 +22,19 @@ object NativePrint {
             .setMinMargins(PrintAttributes.Margins.NO_MARGINS)
             .build()
 
-    fun printHtml(context: Context, jobName: String, html: String) {
+    /** A4 landscape for the native seating plan; other sheets stay portrait. */
+    fun a4LandscapeAttributes(): PrintAttributes =
+        PrintAttributes.Builder()
+            .setMediaSize(PrintAttributes.MediaSize.ISO_A4.asLandscape())
+            .setMinMargins(PrintAttributes.Margins.NO_MARGINS)
+            .build()
+
+    fun printHtml(
+        context: Context,
+        jobName: String,
+        html: String,
+        attributes: PrintAttributes = a4Attributes(),
+    ) {
         val manager = context.getSystemService(Context.PRINT_SERVICE) as? PrintManager ?: return
         val wv = WebView(context)
         hold = wv
@@ -31,7 +43,7 @@ object NativePrint {
                 manager.print(
                     jobName,
                     wv.createPrintDocumentAdapter(jobName),
-                    a4Attributes(),
+                    attributes,
                 )
             }
         }
