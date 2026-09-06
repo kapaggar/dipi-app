@@ -239,3 +239,25 @@ Expected: package `org.dhamma.dipi.staff`, versionCode 70, versionName 1.42.1.
 git add app/build.gradle.kts AGENTS.md CLAUDE.md docs/DESIGN.md
 git commit -m "release: bump DIPI Staff to 1.42.1"
 ```
+
+---
+
+### Task 4: Apply Print-Preview Layout Feedback
+
+**Files:**
+- Modify: `app/src/test/kotlin/org/dhamma/dipi/staff/SeatingPrintTest.kt`
+- Modify: `feature/desk/src/main/kotlin/org/dhamma/dipi/staff/desk/SeatingPrint.kt`
+- Modify: `docs/superpowers/specs/2026-09-05-seating-print-landscape-design.md`
+- Modify: `docs/DESIGN.md`
+
+**Contract:** Render the floor grid only through the furthest occupied column
+and depth, preserve internal gaps, place chowky/chair cards in a vertical side
+rail with A1 nearest the teacher, keep the teacher marker below row 1 without
+overlap, and omit unseated rows from this occupied-seat printout.
+
+- [ ] Add failing formatter tests for occupied-footprint trimming, vertical
+  rail structure/order, teacher-after-grid placement, and unseated omission.
+- [ ] Implement the page-body/main/rail layout and occupied footprint helper.
+- [ ] Run the focused formatter tests and inspect generated markup.
+- [ ] Build and install the debug APK, then inspect the Pixel C print preview.
+- [ ] Run the prescribed full suite and assemble/verify the release APK.

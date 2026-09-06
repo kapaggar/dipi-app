@@ -1,14 +1,16 @@
 package org.dhamma.dipi.staff.desk
 
 import org.dhamma.dipi.staff.model.BACKREST_GLYPH
+import org.dhamma.dipi.staff.model.ChowkyRailLayout
 import org.dhamma.dipi.staff.model.Gender
+import org.dhamma.dipi.staff.model.HallCell
 import org.dhamma.dipi.staff.model.HallGrid
 import org.dhamma.dipi.staff.model.HallPlan
 import org.dhamma.dipi.staff.model.RollGroup
 import org.dhamma.dipi.staff.model.TeacherRoll
-import org.dhamma.dipi.staff.model.UNSEATED_NO_REASON
 import org.dhamma.dipi.staff.model.backrestSeatLabel
 import org.dhamma.dipi.staff.model.hallLayout
+import org.dhamma.dipi.staff.model.railPaintOrder
 
 /**
  * Print-only HTML for the native 5h hall (frame 5i, `READ & PRINT`).
@@ -17,8 +19,8 @@ import org.dhamma.dipi.staff.model.hallLayout
  * drag-drop editor and carries the dangerous `?r=` auto-allocation), so paper
  * is rendered from the in-memory roll instead — through the *same* pure
  * [hallLayout] the screen draws, so print and screen can never disagree. One
- * gender per A4 page, depth descending so row 1 sits at the Dhamma seat, the
- * chowky/chair rail and the visible unseated list beneath. Monochrome by
+ * gender per A4 page, depth descending so row 1 sits at the Dhamma seat, and
+ * the occupied chowky/chair rail in one vertical side column. Monochrome by
  * construction; no accent fills reach paper.
  */
 fun seatingPlanPrintHtml(
@@ -48,6 +50,8 @@ fun seatingPlanPrintHtml(
             gap:4mm;margin-bottom:2mm}
           h1{font-size:16pt;line-height:1;margin:0}
           .sub{font-size:8.5pt;color:#444;margin:0;text-align:right}
+          .page-body{flex:1;min-height:0;display:flex;gap:2mm;align-items:stretch}
+          .main{flex:1;min-width:0;min-height:0;display:flex;flex-direction:column}
           .grid-wrap{flex:1;min-height:0;display:flex}
           table.grid{width:100%;height:100%;border-collapse:collapse;table-layout:fixed}
           table.grid tr.seat-row{height:auto}
@@ -65,19 +69,22 @@ fun seatingPlanPrintHtml(
           tr.axis{height:4mm}
           tr.axis td{border:0;height:4mm;text-align:center;font-size:7.5pt;
             color:#555;padding:0.8mm 0 0}
-          .teacher{border:0.5pt solid #333;background:#f0f0f0;text-align:center;
+          .teacher{flex:none;border:0.5pt solid #333;background:#f0f0f0;text-align:center;
             font-size:8pt;font-weight:700;letter-spacing:0.16em;color:#222;
             padding:1.5mm;margin-top:0.8mm}
-          .lower{flex:none;margin-top:1.5mm}
-          h2{font-size:8pt;line-height:1;margin:0 0 0.8mm;letter-spacing:0.08em}
-          .cards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0.8mm}
+          .rail{flex:0 0 48mm;min-width:0;display:flex;flex-direction:column;
+            border:0.5pt solid #555;padding:1.5mm}
+          h2{font-size:8pt;line-height:1;margin:0;letter-spacing:0.08em}
+          .rail-cards{flex:1;min-height:0;display:flex;flex-direction:column;
+            justify-content:flex-end;gap:0.8mm;padding-top:1.5mm}
           .card{border:0.5pt solid #555;padding:1mm 1.2mm;min-width:0}
           .card .id{font-size:7.5pt}
           .card .nm{font-size:8.5pt;margin-top:0.4mm;white-space:nowrap;
             overflow:hidden;text-overflow:ellipsis}
           .card .meta{font-size:7pt;margin-top:0.5mm}
           .card .on{font-size:6.5pt;margin-top:0.4mm}
-          .lower+.lower{margin-top:1.5mm}
+          .no-floor{flex:1;display:flex;align-items:center;justify-content:center;
+            border:0.5pt dashed #aaa;color:#666;font-size:9pt}
         </style></head><body>
         ${sections.joinToString("\n")}
         </body></html>
@@ -87,13 +94,14 @@ fun seatingPlanPrintHtml(
 private fun hallSection(gender: Gender, plan: HallPlan, breakAfter: Boolean): String {
     val genderWord = if (gender == Gender.F) "Female" else "Male"
     val style = if (breakAfter) " style=\"page-break-after:always\"" else ""
+    val footprint = occupiedFootprint(plan)
 
     val gridRows = buildString {
         // Depth descending: highest depth at the top, depth row 1 at the bottom
         // (directly above the teacher marker), matching the screen.
-        for (d in plan.cells.indices.reversed()) {
+        for (d in footprint.cells.indices.reversed()) {
             append("<tr class=\"seat-row\">")
-            for (cell in plan.cells[d]) {
+            for (cell in footprint.cells[d]) {
                 val seated = cell.seated
                 if (seated != null) {
                     val oldNew = if (seated.old) "OLD" else "NEW"
@@ -113,14 +121,20 @@ private fun hallSection(gender: Gender, plan: HallPlan, breakAfter: Boolean): St
             append("</tr>")
         }
         append("<tr class=\"axis\">")
-        plan.columnLetters.forEach { append("<td>${esc(it)}</td>") }
+        footprint.columnLetters.forEach { append("<td>${esc(it)}</td>") }
         append("</tr>")
+    }
+
+    val grid = if (footprint.cells.isEmpty()) {
+        "<div class=\"grid-wrap\"><div class=\"no-floor\">NO OCCUPIED FLOOR SEATS</div></div>"
+    } else {
+        "<div class=\"grid-wrap\"><table class=\"grid\"><tbody>$gridRows</tbody></table></div>"
     }
 
     val rail = if (plan.chowkyChair.isEmpty()) {
         ""
     } else {
-        val items = plan.chowkyChair.joinToString("") { s ->
+        val items = railPaintOrder(plan.chowkyChair, ChowkyRailLayout.SINGLE_ROW).joinToString("") { s ->
             val oldNew = if (s.old) "OLD" else "NEW"
             "<div class=\"card\">${personBlock(
                 backrestSeatLabel(s.row.seat.trim(), s.row.backrest),
@@ -130,19 +144,7 @@ private fun hallSection(gender: Gender, plan: HallPlan, breakAfter: Boolean): St
                 oldNew,
             )}</div>"
         }
-        "<div class=\"lower\"><h2>CHOWKY / CHAIR</h2><div class=\"cards\">$items</div></div>"
-    }
-
-    val unseated = if (plan.unseatedVisible.isEmpty()) {
-        ""
-    } else {
-        val items = plan.unseatedVisible.joinToString("") { u ->
-            val reason = if (u.reason == UNSEATED_NO_REASON) "" else " — ${esc(u.reason)}"
-            "<div class=\"card\"><span class=\"id\">UNSEATED$reason</span>" +
-                "<span class=\"nm\">${esc(u.row.name)}</span>" +
-                "<span class=\"meta\">${roomAge(u.row.room, u.row.age)}</span></div>"
-        }
-        "<div class=\"lower\"><h2>UNSEATED</h2><div class=\"cards\">$items</div></div>"
+        "<aside class=\"rail\"><h2>CHOWKY / CHAIR</h2><div class=\"rail-cards\">$items</div></aside>"
     }
 
     // The legend only earns its line when a drawn seat (hall cell or rail)
@@ -151,19 +153,43 @@ private fun hallSection(gender: Gender, plan: HallPlan, breakAfter: Boolean): St
         plan.chowkyChair.any { it.row.backrest }
     val legend =
         if (hasBackrest) " · ${esc(BACKREST_GLYPH)} = backrest" else ""
+    val printedSeats = footprint.cells.flatten().mapNotNull { it.seated } + plan.chowkyChair
+    val printedOld = printedSeats.count { it.old }
+    val printedNew = printedSeats.size - printedOld
 
     return """
         <section class="hall"$style>
           <div class="header">
             <h1>$genderWord hall</h1>
-            <p class="sub">${plan.seatedCount} seated · ${plan.oldCount} old, ${plan.newCount} new$legend</p>
+            <p class="sub">${printedSeats.size} seated · $printedOld old, $printedNew new$legend</p>
           </div>
-          <div class="grid-wrap"><table class="grid"><tbody>$gridRows</tbody></table></div>
-          <div class="teacher">TEACHER · DHAMMA SEAT</div>
-          $rail
-          $unseated
+          <div class="page-body">
+            <main class="main">
+              $grid
+              <div class="teacher">TEACHER · DHAMMA SEAT</div>
+            </main>
+            $rail
+          </div>
         </section>
     """.trimIndent()
+}
+
+private data class PrintFootprint(
+    val cells: List<List<HallCell>>,
+    val columnLetters: List<String>,
+)
+
+/** Keep the A1-anchored rectangle through the furthest occupied floor seat. */
+private fun occupiedFootprint(plan: HallPlan): PrintFootprint {
+    val lastDepth = plan.cells.indexOfLast { row -> row.any { it.seated != null } }
+    if (lastDepth < 0) return PrintFootprint(emptyList(), emptyList())
+    val lastColumn = plan.cells
+        .take(lastDepth + 1)
+        .maxOf { row -> row.indexOfLast { it.seated != null } }
+    return PrintFootprint(
+        cells = plan.cells.take(lastDepth + 1).map { row -> row.take(lastColumn + 1) },
+        columnLetters = plan.columnLetters.take(lastColumn + 1),
+    )
 }
 
 private fun personBlock(

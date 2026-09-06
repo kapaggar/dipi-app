@@ -71,8 +71,9 @@ class SeatingPrintTest {
     fun printUsesTheFullLandscapePageBox() {
         assertTrue(html.contains("size:A4 landscape"))
         assertTrue(html.contains("height:198mm"))
+        assertTrue(html.contains("class=\"page-body\""))
         assertTrue(html.contains("class=\"grid-wrap\""))
-        assertTrue(html.contains("grid-template-columns:repeat(4,minmax(0,1fr))"))
+        assertTrue(html.contains("class=\"rail\""))
     }
 
     @Test
@@ -90,10 +91,11 @@ class SeatingPrintTest {
     }
 
     @Test
-    fun visibleUnseatedStudentShowsOperationalDetails() {
-        assertTrue(html.contains("Deepak Nair"))
-        assertTrue(html.contains("ROOM Mbk-4"))
-        assertTrue(html.contains("UNSEATED"))
+    fun unseatedRowsStayOffTheOccupiedSeatPlan() {
+        assertFalse(html.contains("Deepak Nair"))
+        assertFalse(html.contains("Eshan Sevak"))
+        assertFalse(html.contains("ROOM Mbk-4"))
+        assertFalse(html.contains("UNSEATED"))
     }
 
     @Test
@@ -148,9 +150,68 @@ class SeatingPrintTest {
     }
 
     @Test
-    fun anUnseatedStudentIsListedButAnUnseatedSevakIsNot() {
-        assertTrue(html.contains("Deepak Nair"))
-        assertFalse(html.contains("Eshan Sevak"))
+    fun gridStopsAtTheFurthestOccupiedColumnAndDepth() {
+        val occupiedFootprint = TeacherRoll(
+            groups = listOf(
+                group(
+                    Gender.F,
+                    RollSeniority.NEW,
+                    listOf(
+                        row(1, "Near Teacher", "A1"),
+                        row(2, "Far Corner", "C5"),
+                    ),
+                ),
+            ),
+        )
+
+        val out = seatingPlanPrintHtml(occupiedFootprint) { HallGrid(columns = 7, depth = 8) }
+        assertTrue(out.contains("SEAT C5"))
+        assertTrue(out.contains("SEAT B4")) // preserve gaps inside the occupied footprint
+        assertFalse(out.contains("SEAT D1"))
+        assertFalse(out.contains("SEAT G5"))
+        assertFalse(out.contains("SEAT A6"))
+    }
+
+    @Test
+    fun chowkyChairSeatsUseAVerticalSideRailWithA1NearestTheTeacher() {
+        val railRoll = TeacherRoll(
+            groups = listOf(
+                group(
+                    Gender.M,
+                    RollSeniority.OLD,
+                    listOf(
+                        row(1, "Floor Student", "A1"),
+                        row(2, "Nearest", "CW-A1"),
+                        row(3, "Middle", "CW-A2"),
+                        row(4, "Furthest", "CH-A3"),
+                    ),
+                ),
+            ),
+        )
+
+        val out = seatingPlanPrintHtml(railRoll) { HallGrid(columns = 7, depth = 8) }
+        assertTrue(out.contains("class=\"rail\""))
+        assertTrue(out.contains("class=\"rail-cards\""))
+        assertTrue(out.indexOf("SEAT CH-A3") < out.indexOf("SEAT CW-A2"))
+        assertTrue(out.indexOf("SEAT CW-A2") < out.indexOf("SEAT CW-A1"))
+    }
+
+    @Test
+    fun teacherMarkerIsASeparateNonShrinkingRowBelowTheGrid() {
+        val gridEnd = html.indexOf("</table></div>")
+        val teacher = html.indexOf("<div class=\"teacher\">")
+        val mainEnd = html.indexOf("</main>")
+
+        assertTrue(html.contains(".teacher{flex:none"))
+        assertTrue(gridEnd >= 0)
+        assertTrue(gridEnd < teacher)
+        assertTrue(teacher < mainEnd)
+    }
+
+    @Test
+    fun headerCountsOnlyPrintedSeats() {
+        assertTrue(html.contains("3 seated · 3 old, 0 new"))
+        assertFalse(html.contains("3 seated · 5 old, 0 new"))
     }
 
     @Test

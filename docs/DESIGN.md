@@ -917,8 +917,13 @@ GET, no search, no writes.
   printable area; its hall grid expands into the space left by the compact
   header, teacher marker, and lower cards.
 - Occupied hall and chowky/chair blocks show Dhamma seat, name, room, age,
-  and old/new. Visible unseated cards show name, room, and age; blank room or
-  age uses a dash. The print remains monochrome and HTML-escaped.
+  and old/new; blank room or age uses a dash. The print remains monochrome
+  and HTML-escaped.
+- Print-preview amendment: the hall stops at its furthest occupied floor-seat
+  column and depth, preserving internal gaps but removing unused trailing
+  seats. Chowky/chair cards form a bottom-aligned vertical side rail with A1
+  nearest the teacher. The Dhamma-seat marker is a non-shrinking row below
+  floor row 1, and unseated rows stay off this occupied-seat printout.
 - Data flow and safety are unchanged: `seatingPlanPrintHtml` uses the
   in-memory roll and shared `hallLayout`, never `GET /seating` and never
   sends `?r=`.

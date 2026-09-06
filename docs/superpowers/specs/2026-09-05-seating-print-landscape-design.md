@@ -1,7 +1,7 @@
 # Seating Plan Landscape Print Design
 
 **Date:** 2026-09-05
-**Status:** Approved
+**Status:** Approved, with print-preview amendment
 
 ## Problem
 
@@ -30,12 +30,12 @@ and old/new status.
   - the student name;
   - `ROOM <room> · AGE <age>` with a clear fallback dash for blank values;
   - `OLD` or `NEW`.
-- Empty floor seats keep a visible seat identifier and no invented student
-  data.
-- Chowky/chair students render as compact multi-column blocks with the same
-  seat, name, room, age, old/new, and backrest information.
-- Visible unseated students remain on the gender page in compact multi-column
-  blocks, including room and age. Sevaks remain excluded as today.
+- Empty floor seats inside the occupied A1-anchored footprint keep a visible
+  seat identifier and no invented student data; trailing empty rows and
+  columns do not print.
+- Chowky/chair students render as compact blocks in one vertical side rail
+  with the same seat, name, room, age, old/new, and backrest information.
+- Unseated rows do not print on this occupied-seat plan.
 - The teacher marker stays immediately below the floor grid, matching the
   screen orientation. Depth remains descending so row 1 is nearest the Dhamma
   seat.
@@ -49,10 +49,17 @@ wrapper consumes the remaining height, and the table stretches to both the
 wrapper width and height. This lets a shallow hall use larger cells while a
 deep hall still fits on one page.
 
-The lower chowky/chair and unseated areas use a four-column print grid.
-They keep all entries visible while consuming horizontal space that the current
-single-column lists waste. Typography remains monochrome and optimized for a
-standard office printer.
+The printed floor grid is anchored at A1 and stops at the furthest occupied
+floor-seat column and depth. This removes trailing configured seats that have
+no student while preserving empty gaps inside the occupied footprint, so the
+physical layout remains readable.
+
+The page body places the floor grid and a single-column chowky/chair rail side
+by side. The rail is ordered vertically with CW-A1 nearest the teacher. The
+teacher marker is a separate, non-shrinking row at the bottom of the floor-grid
+column, below row 1, so it cannot cover seat content. Unseated rows do not print
+on the seating plan; the page represents occupied floor and chowky/chair seats.
+Typography remains monochrome and optimized for a standard office printer.
 
 ## Data and Safety
 
@@ -64,8 +71,9 @@ logging, or server write. It never calls `/seating` and never sends `?r=`.
 
 - Unit tests pin landscape print attributes and the explicit landscape page
   rule.
-- HTML tests pin room, age, seat labels, blank fallbacks, chowky/chair details,
-  escaping, gender page separation, and conditional backrest legends.
+- HTML tests pin room, age, seat labels, blank fallbacks, occupied-footprint
+  trimming, vertical chowky/chair ordering, teacher placement, escaping,
+  gender page separation, and conditional backrest legends.
 - A generated PDF is checked for A4 landscape dimensions, two gender pages,
   full-width grid use, readable content, and absence of overflow.
 - The prescribed full JVM/Robolectric suite and release assembly must pass
