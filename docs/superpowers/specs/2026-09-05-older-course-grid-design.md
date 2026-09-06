@@ -1,6 +1,6 @@
 # Four-course dashboard history grid
 
-**Date:** 2026-09-05  
+**Date:** 2026-09-05
 **Release:** 1.42.0 (`versionCode` 69)
 
 ## Goal

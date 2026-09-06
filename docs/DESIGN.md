@@ -901,3 +901,11 @@ GET, no search, no writes.
 - **Advanced Search and Add Application only** open their exact desk URLs in
   the system browser. Browser session state remains separate: the app never
   transfers its Drupal cookies to the browser.
+
+### MINOR 1.42.0 / 69 (2026-09-05) — four-course history grid
+
+- The centre dashboard keeps the four newest older courses. The existing
+  two-column wide layout therefore renders a complete 2×2 grid; narrow
+  layouts continue to stack the same four controls.
+- Course discovery remains the centre-page scrape in server order. No
+  endpoint, parser, or client-side sort changed.
