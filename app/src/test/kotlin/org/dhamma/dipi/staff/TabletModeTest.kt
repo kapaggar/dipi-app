@@ -16,6 +16,12 @@ import org.dhamma.dipi.staff.model.Course
 import org.dhamma.dipi.staff.model.CourseId
 import org.dhamma.dipi.staff.model.Session
 import org.dhamma.dipi.staff.model.TabletMode
+import org.dhamma.dipi.staff.model.Gender
+import org.dhamma.dipi.staff.model.RollGroup
+import org.dhamma.dipi.staff.model.RollRow
+import org.dhamma.dipi.staff.model.RollSeniority
+import org.dhamma.dipi.staff.model.SeatKind
+import org.dhamma.dipi.staff.model.TeacherRoll
 import org.dhamma.dipi.staff.network.DipiMockDispatcher
 import org.dhamma.dipi.staff.settings.SettingsScreen
 import org.dhamma.dipi.staff.ui.DeskScreen
@@ -215,5 +221,46 @@ class TabletModeTest {
         rule.onNodeWithText("Dhamma Sudha / 10 Day / 2026 / 2nd-Sep to 13th-Sep").performScrollTo().assertIsDisplayed()
         rule.onNodeWithText("2 Sep – 13 Sep 2026").performScrollTo().assertIsDisplayed()
         rule.onNodeWithText("No course is running today").assertDoesNotExist()
+    }
+
+    @Test
+    fun coldProcessCachedRollFallbackDoesNotInventFetchTime() {
+        server.start()
+        val t = buildTestVm(server, pinPrefsName = "tablet_mode_cached_roll")
+        t.courseOpsStore.wipeAll()
+        t.courseOpsStore.setPin("4271")
+        val cachedRoll = TeacherRoll(
+            listOf(
+                RollGroup(
+                    at = "(unassigned)", code = null, gender = Gender.M,
+                    seniority = RollSeniority.OLD, group = "1", total = 1,
+                    rows = listOf(
+                        RollRow(
+                            sn = 1, name = "Cached student", room = "", age = "", city = "",
+                            courses = emptyList(), cell = "", seat = "", seatKind = SeatKind.FLOOR,
+                            backrest = false, occupation = "", education = "", languages = "",
+                        ),
+                    ),
+                ),
+            ),
+        )
+        t.courseOpsStore.saveRoll(77, cachedRoll)
+        server.shutdown()
+        t.vm.todayProvider = { LocalDate.of(2026, 9, 5) }
+        t.vm.sheetClock = { "09:41" }
+        t.vm.seedForTest(
+            DeskUiState(
+                screen = DeskScreen.Settings,
+                session = session,
+                courses = listOf(runningCourse()),
+            ),
+        )
+
+        t.vm.setTabletMode(TabletMode.COURSE_OPS)
+        rule.awaitTrue("cached roll should render after teacher-list failure") {
+            t.vm.state.value.teacherRoll == cachedRoll
+        }
+        assertEquals(cachedRoll, t.vm.state.value.teacherRoll)
+        assertEquals(null, t.vm.state.value.teacherRollCachedAt)
     }
 }

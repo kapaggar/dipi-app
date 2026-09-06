@@ -1714,7 +1714,7 @@ class DeskViewModel @Inject constructor(
                             it.copy(
                                 teacherRoll = cachedRoll,
                                 teacherCards = repo.cachedApplicationCards(course.id.value),
-                                teacherRollCachedAt = it.teacherRollCachedAt ?: sheetClock(),
+                                teacherRollCachedAt = null,
                             )
                         }
                     } else {
