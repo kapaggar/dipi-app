@@ -949,3 +949,18 @@ open graphify-out/graph.html
 
 `.graphifyignore` keeps Drupal core/contrib out. Re-stage `*.module` → `graphify-out/_modules/*.php` if you rebuild from scratch (Graphify does not treat `.module` as PHP).
 
+
+## Application edit browser session - 2026-09-06
+
+The former app edit viewer fetched authenticated HTML through OkHttp but did not
+share that session with WebView. Native HTML Save therefore posted anonymously;
+`dh_manageapp.module:app_id_load` fails the current-user centre/gender checks and
+Drupal returns Page not found. Cookie expiry is not required to trigger this.
+
+The repaired Edit action opens `/user/login?destination=app%2F{id}%2Fedit` in the
+system browser. Drupal’s `user_menu_site_status_alter` redirects logged-in users
+through `drupal_goto`, which honours the relative destination. Anonymous users
+get the login form and reach the same edit route after sign-in. Deployed anonymous
+GET verified HTTP 200 and destination preservation; no application was submitted.
+Browser session state remains separate from app credentials/cookies. The app makes
+a single normal worklist refresh after returning to the same course and session.

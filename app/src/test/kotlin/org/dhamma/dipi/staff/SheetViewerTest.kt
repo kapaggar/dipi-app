@@ -52,6 +52,7 @@ import org.dhamma.dipi.staff.network.TokenStore
 import org.dhamma.dipi.staff.ui.DeskScreen
 import org.dhamma.dipi.staff.ui.DeskUiState
 import org.dhamma.dipi.staff.ui.DeskViewModel
+import org.dhamma.dipi.staff.ui.url
 import org.dhamma.dipi.staff.ui.DipiAppUi
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -306,20 +307,28 @@ class SheetViewerTest {
     }
 
     @Test
-    fun appEditOpensTheViewerTitledForTheApplicant() {
+    fun applicationEditOpensAuthenticatedBrowserFlowInsteadOfReadOnlyWebView() {
         val vm = buildVm()
-        vm.editFetch = { SheetPayload.Html("app-edit", "<html/>", "http://localhost/") }
-        vm.seedForTest(deskState())
-        rule.setContent { DipiAppUi(vm) }
+        vm.seedForTest(deskState().copy(
+            rows = listOf(card()), visible = listOf(card()),
+            deskSection = org.dhamma.dipi.staff.desk.DeskSection.Applications,
+            deskAppId = card().id,
+        ))
+        var destination: String? = null
+        rule.setContent { DipiAppUi(vm, deskSiteLauncher = org.dhamma.dipi.staff.ui.DeskSiteLauncher {
+            destination = it.url(); true
+        }) }
 
-        rule.runOnIdle { vm.openAppEdit(card()) }
         rule.waitForIdle()
-        rule.onNodeWithTag("sheet-viewer").assertExists()
-        rule.onNodeWithTag("sheet-title").assertTextEquals("Edit · Meera Kulkarni")
-        rule.onNodeWithTag("sheet-web").assertExists()
-        // No export behind the Applications edit page: no sort, no chips.
-        rule.onNodeWithTag("sheet-sort").assertDoesNotExist()
-        rule.onNodeWithTag("sheet-column-chip").assertDoesNotExist()
+        rule.runOnIdle { vm.seedForTest(deskState().copy(
+            rows = listOf(card()), visible = listOf(card()),
+            deskSection = org.dhamma.dipi.staff.desk.DeskSection.Applications,
+            deskAppId = card().id,
+        )) }
+        rule.onNodeWithText("EDIT ON DESK SITE ↗").performClick()
+        rule.waitForIdle()
+        assertEquals("${BuildConfig.BASE_URL}/user/login?destination=app%2F31%2Fedit", destination)
+        rule.onNodeWithTag("sheet-viewer").assertDoesNotExist()
     }
 
     /* ── v5 T1 · shared sheet chrome + injected stylesheet ────────────── */

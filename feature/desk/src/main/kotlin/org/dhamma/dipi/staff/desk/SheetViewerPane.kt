@@ -53,8 +53,8 @@ import org.dhamma.dipi.staff.ui.theme.Industry
 import org.dhamma.dipi.staff.ui.theme.deskCard
 
 /**
- * Display-only viewer for the desk's print-styled HTML sheets (and the
- * Applications edit page). Covers the whole desk frame; PRINT hands the
+ * Display-only viewer for the desk's print-styled HTML sheets.
+ * Covers the whole desk frame; PRINT hands the
  * WebView to the Android print framework, CLOSE returns to the pane
  * underneath.
  *
@@ -77,7 +77,7 @@ fun SheetViewerPane(
     loading: Boolean,
     onClose: () -> Unit,
     modifier: Modifier = Modifier,
-    /** Null for the Applications edit page and clarifications — no chrome controls. */
+    /** Null for non-export content — no chrome controls. */
     export: SheetExport? = null,
     /** `{type} / {year} / {dates}` plus roll count; the second header line. */
     courseLine: String = "",

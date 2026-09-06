@@ -70,7 +70,7 @@ class DeskSiteHandoffTest {
         .also { it.seedForTest(state) }
 
     @Test
-    fun destinationsBuildOnlyTheTwoApprovedDeskUrls() {
+    fun destinationsBuildTheApprovedDeskUrls() {
         assertEquals(
             "https://dipi.vridhamma.org/search-app/12",
             DeskSiteDestination.AdvancedSearch(12).url("https://dipi.vridhamma.org/"),
@@ -79,6 +79,77 @@ class DeskSiteHandoffTest {
             "https://dipi.vridhamma.org/app/add/12/77",
             DeskSiteDestination.AddApplication(12, 77).url("https://dipi.vridhamma.org/"),
         )
+    }
+
+    @Test
+    fun editUsesLoginDestinationWithoutPassingCookiesOrApplicantFields() {
+        val opened = RecordingContext()
+        assertTrue(opened.openDeskSite(DeskSiteDestination.EditApplication(31)))
+        assertEquals(Intent.ACTION_VIEW, opened.intent?.action)
+        assertEquals("${BuildConfig.BASE_URL}/user/login?destination=app%2F31%2Fedit", opened.intent?.data.toString())
+        assertNull(opened.intent?.extras)
+        assertNull(opened.intent?.clipData)
+        assertNull(opened.intent?.`package`)
+        assertEquals("https://example.test/user/login?destination=app%2F31%2Fedit",
+            DeskSiteDestination.EditApplication(31).url("https://example.test/"))
+    }
+
+    private fun editCard() = org.dhamma.dipi.staff.model.ApplicantCard(
+        id = org.dhamma.dipi.staff.model.ApplicantId(31), centreId = course.centreId,
+        courseId = course.id, givenName = "Meera", familyName = "Kulkarni",
+        gender = org.dhamma.dipi.staff.model.Gender.F,
+        status = org.dhamma.dipi.staff.model.ApplicantStatus("Confirmed"),
+        type = org.dhamma.dipi.staff.model.ApplicantType.Student,
+        oldStudent = false, attended = false,
+    )
+
+    @Test
+    fun editRefreshesOnceOnlyAfterLeavingAndReturning() {
+        server.start()
+        val vm = vmFor(DeskUiState(screen = DeskScreen.CourseHub, session = session, course = course))
+        rule.runOnIdle {
+            vm.openAppEdit(editCard(), DeskSiteLauncher { true })
+            vm.onAppResumed()
+        }
+        assertEquals(0, server.requestCount)
+        rule.runOnIdle { vm.onAppPaused(); vm.onAppResumed() }
+        rule.awaitTrue("Worklist refresh on return") { server.requestCount == 1 && !vm.state.value.loading }
+        rule.runOnIdle { vm.onAppPaused(); vm.onAppResumed() }
+        rule.waitForIdle()
+        assertEquals(1, server.requestCount)
+        assertNull(vm.state.value.sheetView)
+    }
+
+    @Test
+    fun failedEditHandoffDoesNotRefreshOrOpenAViewer() {
+        server.start()
+        val vm = vmFor(DeskUiState(screen = DeskScreen.CourseHub, session = session, course = course))
+        rule.runOnIdle {
+            vm.openAppEdit(editCard(), DeskSiteLauncher { false })
+            vm.onAppPaused(); vm.onAppResumed()
+        }
+        assertEquals("No browser can open the desk site", vm.state.value.snack?.text)
+        assertNull(vm.state.value.sheetView)
+        assertEquals(0, server.requestCount)
+    }
+
+    @Test
+    fun returnDoesNotRefreshAnotherCourseOrSession() {
+        server.start()
+        val initial = DeskUiState(screen = DeskScreen.CourseHub, session = session, course = course)
+        val vm = vmFor(initial)
+        rule.runOnIdle {
+            vm.openAppEdit(editCard(), DeskSiteLauncher { true })
+            vm.onAppPaused()
+            vm.seedForTest(initial.copy(course = course.copy(id = CourseId(78))))
+            vm.onAppResumed()
+            vm.seedForTest(initial)
+            vm.openAppEdit(editCard(), DeskSiteLauncher { true })
+            vm.onAppPaused()
+            vm.seedForTest(initial.copy(session = session.copy(uid = 6)))
+            vm.onAppResumed()
+        }
+        assertEquals(0, server.requestCount)
     }
 
     @Test

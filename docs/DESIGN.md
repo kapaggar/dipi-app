@@ -964,3 +964,11 @@ student views, photos and WhatsApp. Keep actionable errors, destructive-action a
 uncertain-send notices. Replace app-authored em dashes and missing-value labels with
 hyphens; server messages and applicant content remain verbatim. This owner amendment
 supersedes the older design's verbose captions.
+
+### Application edit session fix - 1.43.5 (2026-09-06)
+
+Owner-reported Save failure: the application Edit entry must open a working editor.
+Replace the display-only embedded form with **Edit on desk site ↗**, using the
+system browser’s sign-in/edit flow. No confirmation dialog or copied app session.
+On return, refresh the same course once, retaining selection and recomputing audit.
+The sheet viewer remains for exports, not application editing.

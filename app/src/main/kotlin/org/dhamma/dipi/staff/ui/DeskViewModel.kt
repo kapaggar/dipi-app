@@ -853,8 +853,6 @@ class DeskViewModel @Inject constructor(
      */
     internal var sheetFetch: suspend (SheetExport, Int, Int, SheetSort) -> SheetPayload =
         { export, centreId, courseId, sort -> repo.fetchSheet(export, centreId, courseId, sort) }
-    internal var editFetch: suspend (ApplicantId) -> SheetPayload =
-        { id -> repo.fetchAppEditPage(id) }
     internal var clarFetch: suspend (ApplicantId, Int) -> SheetPayload =
         { appId, clarId -> repo.fetchClarification(appId, clarId) }
     /**
@@ -1073,13 +1071,31 @@ class DeskViewModel @Inject constructor(
         }
     }
 
-    /** Applications "Edit": the desk's own edit page, display-only, in the same viewer. */
-    fun openAppEdit(card: ApplicantCard) {
-        val title = "Edit · ${card.displayName}"
-        _state.update { it.copy(sheetView = SheetViewUi(title = title)) }
-        viewModelScope.launch {
-            resolveSheet(title) { editFetch(card.id) }
+    private data class PendingAppEdit(val session: Session, val course: Course, var leftApp: Boolean = false)
+    private var pendingAppEdit: PendingAppEdit? = null
+
+    /** The desk owns the full edit form and its authenticated submission. */
+    fun openAppEdit(card: ApplicantCard, launcher: DeskSiteLauncher) {
+        val current = _state.value
+        if (!launcher.launch(DeskSiteDestination.EditApplication(card.id.value))) {
+            deskError("No browser can open the desk site")
+            return
         }
+        pendingAppEdit = current.session?.let { session ->
+            current.course?.let { PendingAppEdit(session, it) }
+        }
+    }
+
+    fun onAppPaused() {
+        pendingAppEdit?.leftApp = true
+    }
+
+    fun onAppResumed() {
+        val pending = pendingAppEdit?.takeIf { it.leftApp } ?: return
+        pendingAppEdit = null
+        val current = _state.value
+        if (current.session == pending.session && current.course == pending.course &&
+            current.mode == TabletMode.DESK) refresh()
     }
 
     /**
@@ -1806,6 +1822,7 @@ class DeskViewModel @Inject constructor(
     }
 
     fun logout() {
+        pendingAppEdit = null
         onWhatsAppSessionExit()
         viewModelScope.launch {
             keepAliveJob?.cancel()
@@ -1825,6 +1842,7 @@ class DeskViewModel @Inject constructor(
     }
 
     fun factoryReset() {
+        pendingAppEdit = null
         onWhatsAppErase()
         viewModelScope.launch {
             keepAliveJob?.cancel()
@@ -1990,6 +2008,7 @@ class DeskViewModel @Inject constructor(
 
     private fun handleAuth(e: Throwable) {
         if (e is ApiException && e.unauthorized) {
+            pendingAppEdit = null
             viewModelScope.launch {
                 keepAliveJob?.cancel()
                 returnTo = null

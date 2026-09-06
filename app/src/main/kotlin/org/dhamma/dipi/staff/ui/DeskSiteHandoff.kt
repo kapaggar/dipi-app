@@ -7,6 +7,7 @@ import android.net.Uri
 import org.dhamma.dipi.staff.BuildConfig
 
 sealed interface DeskSiteDestination {
+    data class EditApplication(val applicantId: Int) : DeskSiteDestination
     data class AdvancedSearch(val centreId: Int) : DeskSiteDestination
     data class AddApplication(val centreId: Int, val courseId: Int) : DeskSiteDestination
 }
@@ -14,6 +15,9 @@ sealed interface DeskSiteDestination {
 fun DeskSiteDestination.url(baseUrl: String = BuildConfig.BASE_URL): String {
     val root = baseUrl.trimEnd('/')
     return when (this) {
+        // Both anonymous login and Drupal’s already-signed-in redirect honour destination.
+        is DeskSiteDestination.EditApplication ->
+            "$root/user/login?destination=app%2F$applicantId%2Fedit"
         is DeskSiteDestination.AdvancedSearch -> "$root/search-app/$centreId"
         is DeskSiteDestination.AddApplication -> "$root/app/add/$centreId/$courseId"
     }

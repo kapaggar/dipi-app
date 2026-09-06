@@ -24,6 +24,10 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.runtime.DisposableEffect
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -98,6 +102,18 @@ fun DipiAppUi(vm: DeskViewModel, deskSiteLauncher: DeskSiteLauncher? = null) {
     val handoffContext = LocalContext.current
     val handoff = deskSiteLauncher ?: DeskSiteLauncher { destination ->
         handoffContext.openDeskSite(destination)
+    }
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner, vm) {
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_PAUSE -> vm.onAppPaused()
+                Lifecycle.Event.ON_RESUME -> vm.onAppResumed()
+                else -> Unit
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
     val wide = LocalConfiguration.current.screenWidthDp >= 600
     // The v2 desk is designed at 1240×844; below ~1100dp the phone flow keeps serving.
@@ -421,7 +437,7 @@ private fun DeskBodyRouter(
             val course = state.course
             if (session != null && course != null && deskWide) {
                 LaunchedEffect(course.id) { vm.ensureDesk() }
-                DeskHost(vm, state, session, course)
+                DeskHost(vm, state, session, course, deskSiteLauncher)
             } else if (session != null && course != null) {
                 // Silent worklist prefetch so the hub's count chips light up.
                 LaunchedEffect(course.id) { vm.ensureDesk() }
@@ -539,6 +555,7 @@ private fun DeskHost(
     state: DeskUiState,
     session: org.dhamma.dipi.staff.model.Session,
     course: org.dhamma.dipi.staff.model.Course,
+    deskSiteLauncher: DeskSiteLauncher,
 ) {
     val context = LocalContext.current
     val dial: (String) -> Unit = { number ->
@@ -663,7 +680,7 @@ private fun DeskHost(
                         vm.openSheet()
                     },
                     onDial = dial,
-                    onEdit = vm::openAppEdit,
+                    onEdit = { vm.openAppEdit(it, deskSiteLauncher) },
                     loadPhoto = vm::loadPhoto,
                     counts = state.counts,
                     selectedStatuses = state.selected,

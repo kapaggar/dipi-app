@@ -418,7 +418,7 @@ private fun AppDetail(
         ) {
             DeskPrimaryButton("Change status", onChangeStatus)
             DeskOutlineButton("Call", onDial)
-            DeskOutlineButton("Edit", onEdit)
+            DeskOutlineButton("Edit on desk site ↗", onEdit)
         }
     }
 }
