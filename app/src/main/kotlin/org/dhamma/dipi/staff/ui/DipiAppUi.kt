@@ -90,9 +90,13 @@ import org.dhamma.dipi.staff.ui.theme.LocalDipi
 import org.dhamma.dipi.staff.ui.theme.phoneWash
 
 @Composable
-fun DipiAppUi(vm: DeskViewModel) {
+fun DipiAppUi(vm: DeskViewModel, deskSiteLauncher: DeskSiteLauncher? = null) {
     val state by vm.state.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
+    val handoffContext = LocalContext.current
+    val handoff = deskSiteLauncher ?: DeskSiteLauncher { destination ->
+        handoffContext.openDeskSite(destination)
+    }
     val wide = LocalConfiguration.current.screenWidthDp >= 600
     // The v2 desk is designed at 1240×844; below ~1100dp the phone flow keeps serving.
     val deskWide = LocalConfiguration.current.screenWidthDp >= 1100
@@ -270,7 +274,7 @@ fun DipiAppUi(vm: DeskViewModel) {
                             )
                         }
                     } else {
-                        DeskBodyRouter(vm, state, wide, deskWide)
+                        DeskBodyRouter(vm, state, wide, deskWide, handoff)
                     }
                 }
             }
@@ -336,7 +340,13 @@ fun DipiAppUi(vm: DeskViewModel) {
 
 /** The pre-2a desk routing, untouched — the desk build when the mode is off. */
 @Composable
-private fun DeskBodyRouter(vm: DeskViewModel, state: DeskUiState, wide: Boolean, deskWide: Boolean) {
+private fun DeskBodyRouter(
+    vm: DeskViewModel,
+    state: DeskUiState,
+    wide: Boolean,
+    deskWide: Boolean,
+    deskSiteLauncher: DeskSiteLauncher,
+) {
     when (state.screen) {
         DeskScreen.Login -> LoginScreen(
             username = state.username,
@@ -398,7 +408,9 @@ private fun DeskBodyRouter(vm: DeskViewModel, state: DeskUiState, wide: Boolean,
             AdvancedSearchScreen(
                 rows = state.searchRows,
                 onOpen = vm::openSearchResult,
-                onOpenDesk = { vm.openLater("Advanced Search", "search-app/$cid") },
+                onOpenDesk = {
+                    vm.openDeskSite(deskSiteLauncher, DeskSiteDestination.AdvancedSearch(cid))
+                },
                 onBack = vm::back,
             )
         }
@@ -425,7 +437,12 @@ private fun DeskBodyRouter(vm: DeskViewModel, state: DeskUiState, wide: Boolean,
                     onZeroDay = vm::openZeroDay,
                     onCentreOps = vm::openCentreOps,
                     onSheet = vm::openSheet,
-                    onLater = vm::openLater,
+                    onAddApplication = {
+                        vm.openDeskSite(
+                            deskSiteLauncher,
+                            DeskSiteDestination.AddApplication(course.centreId.value, course.id.value),
+                        )
+                    },
                 )
             }
         }
@@ -500,6 +517,13 @@ private fun DeskBodyRouter(vm: DeskViewModel, state: DeskUiState, wide: Boolean,
         DeskScreen.Settings -> SettingsPane(vm, state)
         else -> DeskBody(vm, state, wide)
     }
+}
+
+private fun DeskViewModel.openDeskSite(
+    launcher: DeskSiteLauncher,
+    destination: DeskSiteDestination,
+) {
+    if (!launcher.launch(destination)) deskNote("No browser can open the desk site")
 }
 
 /**

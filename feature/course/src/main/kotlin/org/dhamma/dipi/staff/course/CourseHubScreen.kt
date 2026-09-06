@@ -60,7 +60,7 @@ fun CourseHubScreen(
     onZeroDay: () -> Unit = {},
     onCentreOps: () -> Unit = {},
     onSheet: (String) -> Unit = {},
-    onLater: (String, String) -> Unit,
+    onAddApplication: () -> Unit = {},
 ) {
     val c = LocalDipi.current
     val cid = course.centreId.value
@@ -88,11 +88,14 @@ fun CourseHubScreen(
                 DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
                     courseHubDeskTiles(cid, id).forEach { tile ->
                         DropdownMenuItem(
-                            text = { Text(tile.title) },
+                            text = { Text(if (tile.title == "Add Application") "${tile.title} ↗" else tile.title) },
                             onClick = {
                                 menuOpen = false
-                                val sheet = hubSheetLabel(tile.title)
-                                if (sheet != null) onSheet(sheet) else onLater(tile.title, tile.route)
+                                if (tile.title == "Add Application") {
+                                    onAddApplication()
+                                } else {
+                                    hubSheetLabel(tile.title)?.let(onSheet)
+                                }
                             },
                         )
                     }
@@ -148,8 +151,11 @@ fun CourseHubScreen(
                                     CourseHubLive.ZeroDay -> onZeroDay()
                                     CourseHubLive.CentreOps -> onCentreOps()
                                     null -> {
-                                        val sheet = hubSheetLabel(tile.title)
-                                        if (sheet != null) onSheet(sheet) else onLater(tile.title, tile.route)
+                                        if (tile.title == "Add Application") {
+                                            onAddApplication()
+                                        } else {
+                                            hubSheetLabel(tile.title)?.let(onSheet)
+                                        }
                                     }
                                 }
                             },

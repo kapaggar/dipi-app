@@ -170,7 +170,7 @@ fun AdvancedSearchScreen(
         }
 
         TextButton(onClick = onOpenDesk, modifier = Modifier.padding(top = 12.dp)) {
-            Text("Full Advanced Search on the desk site")
+            Text("Full Advanced Search on the desk site ↗")
         }
     }
 }

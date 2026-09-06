@@ -92,7 +92,7 @@ class AdvancedSearchScreenTest {
         }
         rule.onNodeWithText("Nothing cached yet — open a course once to search its applicants here.")
             .assertIsDisplayed()
-        rule.onNodeWithText("Full Advanced Search on the desk site").performClick()
+        rule.onNodeWithText("Full Advanced Search on the desk site ↗").performClick()
         assertTrue(desk)
     }
 }

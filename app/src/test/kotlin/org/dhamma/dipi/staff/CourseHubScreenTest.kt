@@ -72,7 +72,6 @@ class CourseHubScreenTest {
         var calling = 0
         var zero = 0
         var ops = 0
-        var later: Pair<String, String>? = null
         rule.setContent {
             DipiTheme {
                 CourseHubScreen(
@@ -92,7 +91,6 @@ class CourseHubScreenTest {
                     onCalling = { calling += 1 },
                     onZeroDay = { zero += 1 },
                     onCentreOps = { ops += 1 },
-                    onLater = { title, route -> later = title to route },
                 )
             }
         }
@@ -132,12 +130,11 @@ class CourseHubScreenTest {
         assertEquals(1, audit)
         assertEquals(1, calling)
         assertEquals(1, ops)
-        assertEquals(null, later)
     }
 
     @Test
     fun overflowMenuReachesTheDeskSiteDestinations() {
-        var later: Pair<String, String>? = null
+        var addApplication = false
         rule.setContent {
             DipiTheme {
                 CourseHubScreen(
@@ -147,16 +144,16 @@ class CourseHubScreenTest {
                     onApplications = {},
                     onSummary = {},
                     onPhotos = {},
-                    onLater = { title, route -> later = title to route },
+                    onAddApplication = { addApplication = true },
                 )
             }
         }
         rule.onNodeWithText("Add Application").assertDoesNotExist()
         rule.onNodeWithContentDescription("Desk site links").performClick()
-        rule.onNodeWithText("Add Application").assertIsDisplayed()
+        rule.onNodeWithText("Add Application ↗").assertIsDisplayed()
         rule.onNodeWithText("Course Summary Report").assertExists()
-        rule.onNodeWithText("Add Application").performClick()
-        assertEquals("Add Application" to "app/add/1/10", later)
+        rule.onNodeWithText("Add Application ↗").performClick()
+        assertTrue(addApplication)
     }
 
     @Test
@@ -182,7 +179,6 @@ class CourseHubScreenTest {
 
     @Test
     fun courseSummaryReportOpensTheSheetInsteadOfThePlaceholder() {
-        var later: Pair<String, String>? = null
         var sheet: String? = null
         rule.setContent {
             DipiTheme {
@@ -194,13 +190,11 @@ class CourseHubScreenTest {
                     onSummary = {},
                     onPhotos = {},
                     onSheet = { sheet = it },
-                    onLater = { title, route -> later = title to route },
                 )
             }
         }
         rule.onNodeWithContentDescription("Desk site links").performClick()
         rule.onNodeWithText("Course Summary Report").performScrollTo().performClick()
         assertEquals("Course summary", sheet)
-        assertNull("the Day 11 export must not fall through to openLater", later)
     }
 }
