@@ -88,21 +88,26 @@ class DeskPanesTest {
     @Test
     fun snackbarUsesActiveErrorTokenAndPreservesSuccessToneAndMessage() {
         val token = Color(0xFF123456)
+        val wasInspectorEnabled = isDebugInspectorInfoEnabled
         isDebugInspectorInfoEnabled = true
-        rule.setContent {
-            DipiTheme {
-                CompositionLocalProvider(LocalDipi provides LightDipi.copy(snackError = token)) {
-                    DeskSnackbar("server says: choose Area teacher", error = true, modifier = Modifier.testTag("error-snack"))
-                    DeskSnackbar("success stays verbatim", error = false, modifier = Modifier.testTag("success-snack"))
+        try {
+            rule.setContent {
+                DipiTheme {
+                    CompositionLocalProvider(LocalDipi provides LightDipi.copy(snackError = token)) {
+                        DeskSnackbar("server says: choose Area teacher", error = true, modifier = Modifier.testTag("error-snack"))
+                        DeskSnackbar("success stays verbatim", error = false, modifier = Modifier.testTag("success-snack"))
+                    }
                 }
             }
-        }
-        rule.onNodeWithText("server says: choose Area teacher").assertIsDisplayed()
-        assertEquals(token, rule.onNodeWithText("server says: choose Area teacher").snackbarBackground())
+            rule.onNodeWithText("server says: choose Area teacher").assertIsDisplayed()
+            assertEquals(token, rule.onNodeWithText("server says: choose Area teacher").snackbarBackground())
 
-        val success = rule.onNodeWithText("success stays verbatim").snackbarBackground()
-        assertEquals(Industry.accent800, success)
-        rule.onNodeWithText("success stays verbatim").assertIsDisplayed()
+            val success = rule.onNodeWithText("success stays verbatim").snackbarBackground()
+            assertEquals(Industry.accent800, success)
+            rule.onNodeWithText("success stays verbatim").assertIsDisplayed()
+        } finally {
+            isDebugInspectorInfoEnabled = wasInspectorEnabled
+        }
     }
 
     private fun SemanticsNodeInteraction.snackbarBackground(): Color {
