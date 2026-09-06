@@ -70,7 +70,7 @@ class CentreScreenTest {
     fun catalogueOmitsLettersAtAndReferral() {
         val titles = centreDeskTiles(1).map { it.title }
         assertTrue(titles.contains("Centre Settings"))
-        assertTrue(titles.contains("Bulk Mail"))
+        assertFalse(titles.contains("Bulk Mail"))
         assertFalse(titles.any { it.contains("Letter", ignoreCase = true) })
         assertFalse(titles.any { it.contains("AT", ignoreCase = true) })
         assertFalse(titles.any { it.contains("Referral", ignoreCase = true) })
@@ -84,19 +84,20 @@ class CentreScreenTest {
 
     @Test
     fun catalogueRetiresManageCoursesDailyActivityAndSmsReport() {
-        // S1 (owner decision 2026-08-30): three desk destinations leave the
-        // app's surface entirely. v5 T3 turns Course report native, so five
-        // remain — four native, one chip.
+        // S1 (owner decision 2026-08-30): three desk destinations left the
+        // app's surface entirely; Bulk Mail followed 2026-09-05 (no transport
+        // behind it, and building one crosses the bridge rule). Four native
+        // tiles remain, no desk-site chips.
         val tiles = centreDeskTiles(1)
         assertEquals(
-            listOf("Centre Settings", "Course report", "Advanced Search", "App Settings", "Bulk Mail"),
+            listOf("Centre Settings", "Course report", "Advanced Search", "App Settings"),
             tiles.map { it.title },
         )
-        listOf("Manage Courses", "Daily Activity", "SMS Report").forEach { gone ->
+        listOf("Manage Courses", "Daily Activity", "SMS Report", "Bulk Mail").forEach { gone ->
             assertFalse(tiles.any { it.title == gone })
         }
         assertEquals(4, tiles.count { it.action != null })
-        assertEquals(1, tiles.count { it.action == null })
+        assertEquals(0, tiles.count { it.action == null })
     }
 
     /**
@@ -117,7 +118,7 @@ class CentreScreenTest {
     }
 
     @Test
-    fun theFiveSurvivingTilesRenderAndFireTheirCallbacks() {
+    fun theFourSurvivingTilesRenderAndFireTheirCallbacks() {
         var ops = false
         var advanced = false
         var settingsOpened = false
@@ -138,7 +139,7 @@ class CentreScreenTest {
             }
         }
         listOf(
-            "Centre Settings", "Advanced Search", "App Settings", "Course report", "Bulk Mail",
+            "Centre Settings", "Advanced Search", "App Settings", "Course report",
         ).forEach { rule.onNodeWithText(it).performScrollTo().assertIsDisplayed() }
 
         rule.onNodeWithText("Centre Settings").performScrollTo().performClick()
@@ -150,12 +151,11 @@ class CentreScreenTest {
         // The three native tiles never reach the desk-site path.
         assertTrue(fired.isEmpty())
 
-        rule.onNodeWithText("Bulk Mail").performScrollTo().performClick()
+        // Bulk Mail retired 2026-09-05: nothing on this screen reaches the
+        // desk-site path or the Board export path any more.
+        rule.onNodeWithText("Bulk Mail").assertDoesNotExist()
         assertNull("The Board export path is gone from this screen", exported)
-        assertEquals(
-            listOf("Bulk Mail" to "centre/1/bulk-mail-schedule"),
-            fired,
-        )
+        assertTrue(fired.isEmpty())
     }
 
     /** The tile opens the native screen — never the desk site, never an export. */
@@ -184,7 +184,10 @@ class CentreScreenTest {
     }
 
     @Test
-    fun bulkMailChipStillRoutesToPlaceholder() {
+    fun bulkMailIsRetired() {
+        // Owner ruling 2026-09-05: the tile had no transport behind it and
+        // building one crosses the bridge rule (AGENTS.md hard rule 14) —
+        // retired the way Letters was, pinned absent.
         var exported: String? = null
         var later: Pair<String, String>? = null
         rule.setContent {
@@ -198,8 +201,9 @@ class CentreScreenTest {
                 )
             }
         }
-        rule.onNodeWithText("Bulk Mail").performScrollTo().performClick()
-        assertEquals("Bulk Mail" to "centre/1/bulk-mail-schedule", later)
+        rule.onNodeWithText("Bulk Mail").assertDoesNotExist()
+        assertFalse(centreDeskTiles(1).any { it.title == "Bulk Mail" })
+        assertNull(later)
         assertNull(exported)
     }
 
@@ -268,7 +272,7 @@ class CentreScreenTest {
         rule.onNodeWithText("Daily Activity").assertDoesNotExist()
         rule.onNodeWithText("SMS Report").assertDoesNotExist()
         rule.onNodeWithText("Course report").performScrollTo().assertIsDisplayed()
-        rule.onNodeWithText("Bulk Mail").performScrollTo().assertIsDisplayed()
+        rule.onNodeWithText("Bulk Mail").assertDoesNotExist()
         rule.onNodeWithText("App Settings").performScrollTo().assertIsDisplayed()
         rule.onNodeWithText("Manage Letters").assertDoesNotExist()
         rule.onNodeWithText("AT Schedule").assertDoesNotExist()
@@ -522,24 +526,21 @@ class CentreScreenTest {
     }
 
     @Test
-    fun deskSiteChipsStillFireOnLaterWithTheSameTitleAndRoute() {
-        // Placeholder chips (no sheet) still hand `onLater` the catalogue's
-        // (title, route) pair. Sheet-bearing chips fetch a real export.
-        val deskSite = centreDeskTiles(1).filter { it.action == null }
-        val fired = mutableListOf<Pair<String, String>>()
+    fun noDeskSiteChipsRemainAfterTheBulkMailRetirement() {
+        // Bulk Mail was the last `action == null` chip; with it retired
+        // (owner ruling 2026-09-05) the chip section and its kicker leave
+        // the screen instead of rendering an empty shelf.
+        assertTrue(centreDeskTiles(1).none { it.action == null })
         rule.setContent {
             DipiTheme {
                 CentreScreen(
                     session = session,
                     courses = listOf(course),
                     onPick = {},
-                    onLater = { title, route -> fired += title to route },
                 )
             }
         }
-        rule.onNodeWithText("MORE ON THE DESK SITE").performScrollTo().assertIsDisplayed()
-        deskSite.forEach { rule.onNodeWithText(it.title).performScrollTo().performClick() }
-        assertEquals(deskSite.filter { it.sheet == null }.map { it.title to it.route }, fired)
+        rule.onNodeWithText("MORE ON THE DESK SITE").assertDoesNotExist()
     }
 
     @Test

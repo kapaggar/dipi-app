@@ -438,7 +438,9 @@ private fun OlderCourseRow(
  * the remaining desk-site links (two, after the S1 trim) become pill chips
  * with a trailing `↗` under a `MORE ON THE DESK SITE` kicker. A chip with a
  * [DeskTileSpec.sheet] fetches that export; the rest still hand `onLater`
- * the catalogue's own (title, route) pair.
+ * the catalogue's own (title, route) pair. The shelf only renders when a
+ * chip exists — none does since the Bulk Mail retirement (2026-09-05), so
+ * the kicker never floats over an empty row.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -484,25 +486,28 @@ private fun CentreDeskColumn(
                 }
             }
         }
-        Spacer(Modifier.height(14.dp))
-        Box(Modifier.fillMaxWidth().height(1.dp).background(c.hairline))
-        Spacer(Modifier.height(11.dp))
-        Text(
-            "MORE ON THE DESK SITE",
-            fontFamily = DipiMono,
-            fontWeight = FontWeight.Medium,
-            fontSize = 9.sp,
-            letterSpacing = 1.7.sp,
-            color = c.muted,
-        )
-        Spacer(Modifier.height(9.dp))
-        FlowRow(
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
-        ) {
-            tiles.filter { it.action == null }.forEach { tile ->
-                DeskSiteChip(tile.title) {
-                    tile.sheet?.let(onExport) ?: onLater(tile.title, tile.route)
+        val chips = tiles.filter { it.action == null }
+        if (chips.isNotEmpty()) {
+            Spacer(Modifier.height(14.dp))
+            Box(Modifier.fillMaxWidth().height(1.dp).background(c.hairline))
+            Spacer(Modifier.height(11.dp))
+            Text(
+                "MORE ON THE DESK SITE",
+                fontFamily = DipiMono,
+                fontWeight = FontWeight.Medium,
+                fontSize = 9.sp,
+                letterSpacing = 1.7.sp,
+                color = c.muted,
+            )
+            Spacer(Modifier.height(9.dp))
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                chips.forEach { tile ->
+                    DeskSiteChip(tile.title) {
+                        tile.sheet?.let(onExport) ?: onLater(tile.title, tile.route)
+                    }
                 }
             }
         }

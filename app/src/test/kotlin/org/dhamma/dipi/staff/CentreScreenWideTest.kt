@@ -22,6 +22,7 @@ import org.dhamma.dipi.staff.model.MatrixRow
 import org.dhamma.dipi.staff.model.Session
 import org.dhamma.dipi.staff.ui.theme.DipiTheme
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -160,10 +161,10 @@ class CentreScreenWideTest {
         rule.onNodeWithText("Centre Settings").assertIsDisplayed()
         rule.onNodeWithText("Advanced Search").assertIsDisplayed()
         rule.onNodeWithText("App Settings").assertIsDisplayed()
-        rule.onNodeWithText("MORE ON THE DESK SITE").performScrollTo().assertIsDisplayed()
-        deskSiteTiles.forEach {
-            rule.onNodeWithText(it.title).performScrollTo().assertIsDisplayed()
-        }
+        // No desk-site chips remain after the Bulk Mail retirement
+        // (2026-09-05); the kicker leaves with them.
+        rule.onNodeWithText("MORE ON THE DESK SITE").assertDoesNotExist()
+        rule.onNodeWithText("Course report").performScrollTo().assertIsDisplayed()
     }
 
     @Test
@@ -173,8 +174,9 @@ class CentreScreenWideTest {
         // what a `fill = false` child declines — so against the old
         // weight(0.6f)/weight(0.4f) pair the lower pane stayed clamped to 40%
         // while ~292px sat empty at the bottom of the screen, pushing the
-        // tail of the desk column (the kicker and the two chips) past the
-        // fold. The lower pane's weight(1f) now takes the whole remainder.
+        // tail of the desk column past the fold. The lower pane's weight(1f)
+        // now takes the whole remainder. (The tail is the last tile row since
+        // the Bulk Mail retirement removed the chip shelf, 2026-09-05.)
         //
         // No performScrollTo() anywhere in this test: that is the whole
         // assertion. It fails against weight(0.4f).
@@ -191,9 +193,9 @@ class CentreScreenWideTest {
         }
         rule.onNodeWithText("Older courses").assertIsDisplayed()
         rule.onNodeWithText("Centre desk").assertIsDisplayed()
-        rule.onNodeWithText("MORE ON THE DESK SITE").assertWhollyOnScreen()
         rule.onNodeWithText("Course report").assertWhollyOnScreen()
-        rule.onNodeWithText("Bulk Mail").assertWhollyOnScreen()
+        rule.onNodeWithText("App Settings").assertWhollyOnScreen()
+        rule.onNodeWithText("Bulk Mail").assertDoesNotExist()
     }
 
     @Test
@@ -371,23 +373,20 @@ class CentreScreenWideTest {
     }
 
     @Test
-    fun deskSiteChipsStillFireOnLaterWithTheSameTitleAndRoute() {
-        // The 3/2 split is a rendering change only: the `action == null`
-        // entries become pill chips. Placeholder chips still hand `onLater`
-        // the catalogue pair; sheet-bearing chips fetch a real export.
-        val fired = mutableListOf<Pair<String, String>>()
+    fun noDeskSiteChipsRenderOnTheWideLayout() {
+        // Bulk Mail was the last `action == null` chip (retired 2026-09-05);
+        // the wide layout drops the chip shelf and its kicker with it.
+        assertTrue(deskSiteTiles.isEmpty())
         rule.setContent {
             DipiTheme {
                 CentreScreen(
                     session = singleCentreSession,
                     courses = listOf(course),
                     onPick = {},
-                    onLater = { title, route -> fired += title to route },
                 )
             }
         }
-        deskSiteTiles.forEach { rule.onNodeWithText(it.title).performClick() }
-        assertEquals(deskSiteTiles.filter { it.sheet == null }.map { it.title to it.route }, fired)
+        rule.onNodeWithText("MORE ON THE DESK SITE").assertDoesNotExist()
     }
 
     @Test
@@ -434,8 +433,8 @@ class CentreScreenWideTest {
         rule.onNodeWithText("Centre Settings").assertIsDisplayed()
         rule.onNodeWithText("Advanced Search").assertIsDisplayed()
         rule.onNodeWithText("App Settings").assertIsDisplayed()
-        rule.onNodeWithText("MORE ON THE DESK SITE").assertIsDisplayed()
-        deskSiteTiles.forEach { rule.onNodeWithText(it.title).assertIsDisplayed() }
+        rule.onNodeWithText("Course report").assertIsDisplayed()
+        rule.onNodeWithText("MORE ON THE DESK SITE").assertDoesNotExist()
     }
 
     private val deskSiteTiles = centreDeskTiles(1).filter { it.action == null }
