@@ -892,3 +892,12 @@ GET, no search, no writes.
   transport behind it; building one crosses the bridge rule). It was the
   last `action == null` chip, so the `MORE ON THE DESK SITE` shelf renders
   only when a chip exists. Four native tiles remain. Do not re-propose.
+
+### MINOR 1.41.0 / 68 (2026-09-05) — desk resilience and approved handoffs
+
+- **Cached course-ops roll fallback** keeps its timestamp unknown when the
+  freshness value is unavailable. **Desk error snackbars** resolve through
+  `LocalDipi.snackError`.
+- **Advanced Search and Add Application only** open their exact desk URLs in
+  the system browser. Browser session state remains separate: the app never
+  transfers its Drupal cookies to the browser.
