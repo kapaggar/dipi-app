@@ -4,6 +4,7 @@ import android.content.Intent
 import android.webkit.WebView
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertTextEquals
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
@@ -589,6 +590,46 @@ class SheetViewerTest {
             android.print.PrintAttributes.MediaSize.ISO_A4,
             org.dhamma.dipi.staff.ui.NativePrint.a4Attributes().mediaSize,
         )
+    }
+
+    /* ── M1 · the viewer mounts at the DipiAppUi root, so the phone draws it ── */
+
+    @Test
+    @Config(qualifiers = "w411dp-h891dp")
+    fun phoneOpensAPageSheetInTheViewerAndCloseReturnsToTheHub() {
+        val vm = buildVm()
+        vm.sheetFetch = { _, _, _, _ ->
+            SheetPayload.Html("Day 0 list", "<html><body>ROLL</body></html>", "http://localhost/")
+        }
+        vm.seedForTest(deskState())          // screen = CourseHub; 411dp → phone branch
+        rule.setContent { DipiAppUi(vm) }
+
+        rule.runOnIdle { vm.openSheet("Day 0 list") }
+        rule.waitForIdle()
+        rule.onNodeWithTag("sheet-viewer").assertExists()
+        rule.onNodeWithTag("sheet-web").assertExists()
+
+        rule.runOnIdle { vm.back() }         // back closes the overlay first
+        rule.waitForIdle()
+        rule.onNodeWithTag("sheet-viewer").assertDoesNotExist()
+    }
+
+    @Test
+    @Config(qualifiers = "w411dp-h891dp")
+    fun phoneHubOverflowTileOpensThePageSheetViewer() {
+        val vm = buildVm()
+        vm.sheetFetch = { _, _, _, _ ->
+            SheetPayload.Html("Day 0 list", "<html><body>ROLL</body></html>", "http://localhost/")
+        }
+        vm.seedForTest(deskState())
+        rule.setContent { DipiAppUi(vm) }
+
+        // The hub overflow tile → sheet route, end to end on the phone.
+        rule.onNodeWithContentDescription("Desk site links").performClick()
+        rule.onNodeWithText("Day 0 List").performClick()
+        rule.waitForIdle()
+        rule.onNodeWithTag("sheet-viewer").assertExists()
+        rule.onNodeWithTag("sheet-web").assertExists()
     }
 
     @Test

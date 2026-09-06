@@ -6,6 +6,8 @@ import android.webkit.WebSettings
 import android.webkit.WebView
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -29,6 +31,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
@@ -90,6 +93,9 @@ fun SheetViewerPane(
     nativeHallPrintHtml: String? = null,
 ) {
     val context = LocalContext.current
+    // Below 600dp (the phone) the chrome and the sheet body pan instead of
+    // assuming the 1240dp desk frame; the hardening never varies by width.
+    val compact = LocalConfiguration.current.screenWidthDp < 600
     var webView by remember { mutableStateOf<WebView?>(null) }
     val columns = remember(export) { export?.let(SheetStylesheet::columnsFor).orEmpty() }
     // Chip state lives here, not in the ViewModel: hiding a column is a CSS
@@ -124,6 +130,7 @@ fun SheetViewerPane(
 
         if (sortOptions.size > 1 || columns.isNotEmpty() || (!loading && !fetchedAt.isNullOrBlank())) {
             SheetControlBand(
+                compact = compact,
                 export = export,
                 sortOptions = sortOptions,
                 sort = sort,
@@ -161,7 +168,21 @@ fun SheetViewerPane(
                             .clip(RoundedCornerShape(8.dp))
                             .background(Color.White)
                             .testTag("sheet-web"),
-                        factory = { ctx -> WebView(ctx).apply { hardenForSheets() } },
+                        factory = { ctx ->
+                            WebView(ctx).apply {
+                                hardenForSheets()
+                                // Layout only — the five hardening settings
+                                // above never vary. The desk-width sheet gets
+                                // a viewport and pinch-zoom on the phone.
+                                if (compact) {
+                                    settings.useWideViewPort = true
+                                    settings.loadWithOverviewMode = true
+                                    settings.setSupportZoom(true)
+                                    settings.builtInZoomControls = true
+                                    settings.displayZoomControls = false
+                                }
+                            }
+                        },
                         update = { wv ->
                             webView = wv
                             // The tag tracks what is loaded so recompositions
@@ -284,6 +305,7 @@ private fun SheetHeader(
  */
 @Composable
 private fun SheetControlBand(
+    compact: Boolean,
     export: SheetExport?,
     sortOptions: List<SheetSort>,
     sort: SheetSort,
@@ -299,6 +321,7 @@ private fun SheetControlBand(
             .height(52.dp)
             .background(Industry.neutral100)
             .bottomHairline(Industry.neutral300)
+            .then(if (compact) Modifier.horizontalScroll(rememberScrollState()) else Modifier)
             .padding(horizontal = 20.dp),
         horizontalArrangement = Arrangement.spacedBy(14.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -383,7 +406,9 @@ private fun SheetControlBand(
             }
         }
         if (!fetchedAt.isNullOrBlank()) {
-            Spacer(Modifier.weight(1f))
+            // A weight inside a horizontally-scrollable row is unbounded, so
+            // the compact band uses a fixed gap instead of pushing right.
+            if (compact) Spacer(Modifier.width(14.dp)) else Spacer(Modifier.weight(1f))
             Text(
                 "FROM THE DESK · $fetchedAt",
                 fontFamily = DipiMono,

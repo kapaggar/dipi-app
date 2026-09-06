@@ -98,20 +98,25 @@ fun courseHubDeskTiles(centreId: Int, courseId: Int): List<CourseHubTile> =
     courseHubTiles(centreId, courseId).filter { it.live == null }
 
 /**
- * Hub overflow titles that already have a Board `SheetExport`, so the phone
- * fetches the real document instead of the [DeskTileAction]-less placeholder.
+ * Hub overflow titles that have a Board `SheetExport`, so the phone fetches
+ * the real sheet instead of the [DeskTileAction]-less placeholder.
  *
- * Deliberately narrower than the catalogue: only exports whose `SheetRoute`
- * is a `Document` are listed. `Page` exports (Day 0 List, Seating Plan,
- * Student Chit, Checking Slip, Teachers List) resolve to HTML that only
- * `SheetViewerPane` can draw, and that pane lives inside the tablet desk
- * frame — routing them here would fetch a body the phone never shows.
- * Documents reach the system viewer through `DeskUiState.openDoc`, which is
- * collected at the top of `DipiAppUi` and therefore works on both sizes.
+ * Since 1.39.0 `SheetViewerPane` mounts at the `DipiAppUi` root, so every
+ * Board export is drawable at every window size: `Page` exports (Day 0 List,
+ * Seating Plan, Student Chit, Checking Slip, Teachers List) open in the
+ * in-app viewer, and `Document` exports still hand off to the system viewer
+ * through `DeskUiState.openDoc`, which is collected at the top of
+ * `DipiAppUi`. The Seating Plan tile reaches the native hall (5h/5i), never
+ * `GET /seating`.
  *
- * `hubSheetLabelsAreAllDocumentRoutes` in `CourseHubScreenTest` pins that.
+ * `hubSheetLabelsCoverEveryBoardExport` in `CourseHubScreenTest` pins that.
  */
 fun hubSheetLabel(title: String): String? = when (title) {
+    "Day 0 List" -> "Day 0 list"
+    "Seating Plan" -> "Seating plan"
+    "Student Chit" -> "Student chit"
+    "Checking Slip" -> "Checking slip"
+    "Teachers List" -> "Teacher list"
     "Laundry List" -> "Laundry list"
     "Valuable List" -> "Valuable list"
     "Course Summary Report" -> "Course summary"

@@ -15,8 +15,6 @@ import org.dhamma.dipi.staff.model.CentreId
 import org.dhamma.dipi.staff.model.Course
 import org.dhamma.dipi.staff.model.CourseId
 import org.dhamma.dipi.staff.model.SheetExport
-import org.dhamma.dipi.staff.network.SheetRoute
-import org.dhamma.dipi.staff.network.SheetRoutes
 import org.dhamma.dipi.staff.ui.theme.DipiTheme
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -162,24 +160,23 @@ class CourseHubScreenTest {
     }
 
     @Test
-    fun hubSheetLabelsAreAllDocumentRoutes() {
-        // The phone has no SheetViewerPane, so a Page export routed here would
-        // fetch HTML nothing draws. Every mapping must be a Document.
+    fun hubSheetLabelsCoverEveryBoardExport() {
+        // 1.39.0: SheetViewerPane mounts at the DipiAppUi root, so Page
+        // exports are drawable at every window size. Every hub tile with a
+        // Board export must resolve to one — Documents to the system viewer,
+        // Pages to the in-app viewer.
         val mapped = courseHubTiles(1, 10).mapNotNull { hubSheetLabel(it.title) }
         assertEquals(
-            listOf("Laundry list", "Valuable list", "Course summary"),
+            listOf(
+                "Day 0 list", "Seating plan", "Student chit", "Checking slip",
+                "Teacher list", "Laundry list", "Valuable list", "Course summary",
+            ),
             mapped,
         )
         mapped.forEach { label ->
-            val export = SheetExport.fromLabel(label)
-            assertNotNull("'$label' must be a Board export", export)
-            assertTrue(
-                "'$label' must resolve to a Document route",
-                SheetRoutes.of(export!!) is SheetRoute.Document,
-            )
+            assertNotNull("'$label' must be a Board export", SheetExport.fromLabel(label))
         }
-        listOf("Day 0 List", "Seating Plan", "Student Chit", "Checking Slip", "Teachers List")
-            .forEach { assertNull("$it is HTML — it must stay on the desk-site path", hubSheetLabel(it)) }
+        // The one deliberate non-sheet: Add Application stays a desk-site link.
         assertNull(hubSheetLabel("Add Application"))
     }
 

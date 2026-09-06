@@ -274,6 +274,45 @@ fun DipiAppUi(vm: DeskViewModel) {
                     }
                 }
             }
+
+            // The sheet viewer overlays the whole desk frame (rail included) the
+            // way the dialogs overlay the shell; vm.back() closes it first, so
+            // the DeskScreen back stack underneath is untouched.
+            val sheetView = state.sheetView
+            if (sheetView != null) {
+                // `state` is a delegated property here, so the roll needs a
+                // local val for the null check to carry into the lambda.
+                val sheetRoll = state.teacherRoll
+                SheetViewerPane(
+                    title = sheetView.title,
+                    html = sheetView.html,
+                    loading = sheetView.loading,
+                    onClose = vm::closeSheet,
+                    export = sheetView.export,
+                    courseLine = sheetView.courseLine,
+                    sort = sheetView.sort,
+                    onSort = vm::setSheetSort,
+                    summary = sheetView.summary,
+                    fetchedAt = sheetView.fetchedAt,
+                    nativeHall = if (sheetView.nativeHall && sheetRoll != null) {
+                        {
+                            HallBody(
+                                roll = sheetRoll,
+                                hall = state.teacherHall,
+                                gridFor = { g -> state.centreOps.hallGridFor(g) },
+                                onHall = vm::setTeacherHall,
+                                onOpen = vm::openDeskAppFromHall,
+                            )
+                        }
+                    } else {
+                        null
+                    },
+                    nativeHallPrintHtml = sheetRoll
+                        ?.takeIf { sheetView.nativeHall && it.groups.isNotEmpty() }
+                        ?.let { roll -> seatingPlanPrintHtml(roll) { g -> state.centreOps.hallGridFor(g) } },
+                )
+            }
+
             SnackbarHost(
                 hostState = snackbar,
                 modifier = Modifier
@@ -647,41 +686,6 @@ private fun DeskHost(
                 onCustom = vm::onSheetCustom,
                 onConfirm = vm::confirmStatus,
                 onDismiss = vm::dismissSheet,
-            )
-        }
-
-        // The sheet viewer overlays the whole desk frame (rail included) the
-        // way the dialogs overlay the shell; vm.back() closes it first, so
-        // the DeskScreen back stack underneath is untouched.
-        val sheetView = state.sheetView
-        if (sheetView != null) {
-            SheetViewerPane(
-                title = sheetView.title,
-                html = sheetView.html,
-                loading = sheetView.loading,
-                onClose = vm::closeSheet,
-                export = sheetView.export,
-                courseLine = sheetView.courseLine,
-                sort = sheetView.sort,
-                onSort = vm::setSheetSort,
-                summary = sheetView.summary,
-                fetchedAt = sheetView.fetchedAt,
-                nativeHall = if (sheetView.nativeHall && state.teacherRoll != null) {
-                    {
-                        HallBody(
-                            roll = state.teacherRoll,
-                            hall = state.teacherHall,
-                            gridFor = { g -> state.centreOps.hallGridFor(g) },
-                            onHall = vm::setTeacherHall,
-                            onOpen = vm::openDeskAppFromHall,
-                        )
-                    }
-                } else {
-                    null
-                },
-                nativeHallPrintHtml = state.teacherRoll
-                    ?.takeIf { sheetView.nativeHall && it.groups.isNotEmpty() }
-                    ?.let { roll -> seatingPlanPrintHtml(roll) { g -> state.centreOps.hallGridFor(g) } },
             )
         }
 
