@@ -34,6 +34,9 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.semantics.SemanticsPropertyKey
+import androidx.compose.ui.semantics.SemanticsPropertyReceiver
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
@@ -43,7 +46,11 @@ import androidx.compose.ui.unit.sp
 import org.dhamma.dipi.staff.ui.theme.DeskStyle
 import org.dhamma.dipi.staff.ui.theme.DipiCondensed
 import org.dhamma.dipi.staff.ui.theme.Industry
+import org.dhamma.dipi.staff.ui.theme.LocalDipi
 import org.dhamma.dipi.staff.ui.theme.deskCard
+
+val DeskSnackbarBackground = SemanticsPropertyKey<Color>("DeskSnackbarBackground")
+var SemanticsPropertyReceiver.deskSnackbarBackground by DeskSnackbarBackground
 
 internal fun Modifier.bottomHairline(color: Color): Modifier = drawBehind {
     val y = size.height - 0.5.dp.toPx()
@@ -217,9 +224,10 @@ fun DeskOutlineButton(label: String, onClick: () -> Unit) {
  */
 @Composable
 fun DeskSnackbar(text: String, error: Boolean, modifier: Modifier = Modifier) {
-    val tone = if (error) Color(0xFF5A2F2F) else Industry.accent800
+    val tone = if (error) LocalDipi.current.snackError else Industry.accent800
     Box(
         modifier
+            .semantics { deskSnackbarBackground = tone }
             .padding(start = 24.dp, bottom = 20.dp)
             .width(520.dp),
         contentAlignment = Alignment.CenterStart,

@@ -4,6 +4,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.SemanticsNodeInteraction
@@ -21,6 +24,7 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.height
 import androidx.compose.ui.unit.width
@@ -31,6 +35,8 @@ import org.dhamma.dipi.staff.desk.CallingPane
 import org.dhamma.dipi.staff.desk.CheckInDialog
 import org.dhamma.dipi.staff.desk.CheckInPane
 import org.dhamma.dipi.staff.desk.DeskSection
+import org.dhamma.dipi.staff.desk.DeskSnackbar
+import org.dhamma.dipi.staff.desk.DeskSnackbarBackground
 import org.dhamma.dipi.staff.desk.RoomsPane
 import org.dhamma.dipi.staff.model.AccoRoom
 import org.dhamma.dipi.staff.model.ApplicantCard
@@ -60,6 +66,9 @@ import org.dhamma.dipi.staff.ui.DeskUiState
 import org.dhamma.dipi.staff.ui.deskAdoptSearchCourse
 import org.dhamma.dipi.staff.ui.deskOpenCourse
 import org.dhamma.dipi.staff.ui.theme.DipiTheme
+import org.dhamma.dipi.staff.ui.theme.Industry
+import org.dhamma.dipi.staff.ui.theme.LightDipi
+import org.dhamma.dipi.staff.ui.theme.LocalDipi
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -74,6 +83,26 @@ import org.robolectric.annotation.Config
 class DeskPanesTest {
     @get:Rule
     val rule = createComposeRule()
+
+    @Test
+    fun snackbarUsesActiveErrorTokenAndPreservesSuccessToneAndMessage() {
+        val token = Color(0xFF123456)
+        rule.setContent {
+            DipiTheme {
+                CompositionLocalProvider(LocalDipi provides LightDipi.copy(snackError = token)) {
+                    DeskSnackbar("server says: choose Area teacher", error = true, modifier = Modifier.testTag("error-snack"))
+                    DeskSnackbar("success stays verbatim", error = false, modifier = Modifier.testTag("success-snack"))
+                }
+            }
+        }
+        rule.onNodeWithText("server says: choose Area teacher").assertIsDisplayed()
+        val error = rule.onNodeWithTag("error-snack").fetchSemanticsNode().config[DeskSnackbarBackground]
+        assertEquals(token, error)
+
+        val success = rule.onNodeWithTag("success-snack").fetchSemanticsNode().config[DeskSnackbarBackground]
+        assertEquals(Industry.accent800, success)
+        rule.onNodeWithText("success stays verbatim").assertIsDisplayed()
+    }
 
     private fun card(
         id: Int,
