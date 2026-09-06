@@ -2,7 +2,7 @@
 
 DIPI Staff Android (`org.dhamma.dipi.staff`).
 
-**Now shipping:** **1.38.0** (`versionCode` 63) on `main` — native seating **PRINT** (5i, from the in-memory roll, one gender per A4 page, no `GET /seating`) and the Course report **empty-range** state (blank-name zero rows dropped so a no-course range shows the guidance, not a ghost row). Prior: 1.37.2 Course ops v6 + owner PATCH (0 Day Board, Board 3×3 with Course summary in-grid, Valuable off the Board, vertical CW/CH rail, 12-up chits, Teacher list). See `docs/DESIGN.md` shipped-delta and `docs/plans/2026-09-04-course-ops-design.md`.
+**Now shipping:** **1.40.2** (`versionCode` 67) on `main` — the ui-gaps pass: phone sheet viewer (1.39.0, viewer at the `DipiAppUi` root, full v5 chrome, hardening unchanged), per-student backrest glyph `⌐` on every seat surface + 5i print (1.40.0), `SeatGrid` reads `SeatKind` (1.40.1), Bulk Mail tile retired (1.40.2). Owner Q1-Q3 rulings in `docs/DECISIONS.md`. Prior: 1.38.0 native seating PRINT + Course report empty-range; 1.37.2 Course ops v6 + owner PATCH (0 Day Board, Board 3×3 with Course summary in-grid, Valuable off the Board, vertical CW/CH rail, 12-up chits, Teacher list). See `docs/DESIGN.md` shipped-delta and `docs/plans/2026-09-04-course-ops-design.md`.
 
 Governing product rules live in `AGENTS.md` Hard rules (no client ACL, no `Approved`, no attendance write, server messages verbatim, bridge rule).  
 **Transport (this file + `AGENTS.md` win):** the live desk is Drupal HTML, not Services login and not `/staff/*`. Backend PHP is immutable.

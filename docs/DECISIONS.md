@@ -331,6 +331,33 @@ are preserved because code comments cite them.
   is a join artifact (first + empty surname) and is stripped.
 - **Stale Board KPIs are not a bug.**
 
+## UI gaps M1-M4 (2026-09-05, owner Q&A before the plan)
+
+- **Q1 — phone sheet chrome: (a) full v5 chrome, tables scroll.** The five
+  `Page` exports open on the phone in the same chrome as the tablet (sort
+  segments, column chips, print, close); below 600dp the band scrolls and
+  the WebView gets viewport + pinch-zoom. Not (b) reduced chrome, not (c)
+  phone column sets — M1 was one slice because of this answer.
+- **Q2 — backrest marker: chair-back glyph**, `⌐` U+2310, prefix position
+  (`⌐ CW-A3`), one constant in `core/model/Backrest.kt`. The design files
+  carried no per-student treatment (only the aggregate counter). Declared
+  fallback if the glyph ever renders as tofu on the Pixel C: `¬` U+00AC,
+  changed in that one file only.
+- **Q3 — Bulk Mail: retired** (not relabelled), the way Letters was —
+  removed from `centreDeskTiles` with its UI; the desk-site chip shelf
+  (`MORE ON THE DESK SITE`) hides when no chip exists. Building it was
+  never an option (bridge rule, hard rule 14).
+- **Authorized test edits for this pass:** (1)
+  `CourseHubScreenTest.hubSheetLabelsAreAllDocumentRoutes` rewritten as
+  `hubSheetLabelsCoverEveryBoardExport` (the old test pinned the invariant
+  M1 inverts); (2) the `CentreScreenTest`/`CentreScreenWideTest` Bulk Mail
+  and chip-shelf pins, rewritten to pin the retirement. One further edit was
+  forced by M2 and is flagged, not pre-authorized:
+  `StudentCardScreenTest.headerCarriesStatusChipAndPlacementLine` pins the
+  exact placement-line string and its fixture already carried
+  `backrest = true`, so the expected string now goes through
+  `backrestSeatLabel` (full-line pin kept).
+
 ## Version milestones (from the documents' own headers)
 
 1.18.0/29 pre-v3-audit baseline · 1.20.0/31 v3 conformance · 1.21.0/33 centre

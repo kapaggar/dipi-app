@@ -853,3 +853,42 @@ GET, no search, no writes.
   range therefore renders the `EmptyRange` guidance instead of a ghost
   "1 course · 0 students" line (verified on the Pixel C, any future/reversed
   range).
+
+### MINOR 1.39.0 / 64 (2026-09-05) — phone sheet viewer (ui-gaps M1)
+
+- **`SheetViewerPane` mounts at the `DipiAppUi` root**, not inside the
+  ≥1100dp `DeskHost`, so the five `Page` exports (Day 0 list, Seating plan,
+  Student chit, Checking slip, Teacher list) open from the phone hub
+  overflow. `hubSheetLabel` now maps all eight Board exports; owner Q1
+  ruling: **full v5 chrome** on the phone. Below 600dp the control band
+  horizontal-scrolls and the WebView gains viewport + pinch-zoom (controls
+  hidden) — layout only, the five hardening settings never vary by width.
+  Seating plan on the phone reaches the **native** hall + 5i print, never
+  `GET /seating`. `vm.back()` ordering unchanged (overlay closes first).
+
+### MINOR 1.40.0 / 65 (2026-09-05) — per-student backrest (ui-gaps M2)
+
+- **`BACKREST_GLYPH` (`⌐`, U+2310, prefix)** — owner Q2 ruling; the design
+  files had no per-student treatment. One definition
+  (`core/model/Backrest.kt`, `backrestSeatLabel`) drawn on every seat
+  surface: teacher-list SEAT cell (`SeatW` 76dp unchanged), student-card
+  placement line (`seat ⌐ CW-A3`), hall cell, chowky/chair rail, and the 5i
+  print with a per-hall `⌐ = backrest` legend that only renders when that
+  page draws a flagged seat. Fallback if the Pixel C ever shows tofu: flip
+  the one constant to `¬` (U+00AC).
+
+### PATCH 1.40.1 / 66 (2026-09-05) — SeatKind single source (ui-gaps M3)
+
+- **`SeatGrid` reads the parser's `SeatKind` enum** (rail routing and
+  `chowkySeats`/`chairSeats`) instead of re-deriving CW-/CH- from the seat
+  string. No user-visible change; ordering still takes the trailing number
+  off the string and `CW-A1` stays nearest the Dhamma seat. No store
+  migration either way (`ignoreUnknownKeys` + `runCatching` decode, pinned
+  in `CourseOpsStoreTest`).
+
+### PATCH 1.40.2 / 67 (2026-09-05) — Bulk Mail retired (ui-gaps M4)
+
+- **Bulk Mail left the centre desk catalogue** (owner Q3 ruling — no
+  transport behind it; building one crosses the bridge rule). It was the
+  last `action == null` chip, so the `MORE ON THE DESK SITE` shelf renders
+  only when a chip exists. Four native tiles remain. Do not re-propose.
