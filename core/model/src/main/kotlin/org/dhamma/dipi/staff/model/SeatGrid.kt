@@ -105,10 +105,10 @@ data class HallPlan(
         get() = cells.sumOf { row -> row.count { it.seated != null } } + chowkyChair.size
 
     val chowkySeats: List<PlacedSeat>
-        get() = chowkyChair.filter { it.row.seat.trim().startsWith("CW-", ignoreCase = true) }
+        get() = chowkyChair.filter { it.row.seatKind == SeatKind.CELL }
 
     val chairSeats: List<PlacedSeat>
-        get() = chowkyChair.filter { it.row.seat.trim().startsWith("CH-", ignoreCase = true) }
+        get() = chowkyChair.filter { it.row.seatKind == SeatKind.CHAIR }
 }
 
 private val ALPHANUMERIC_SEAT = Regex("""([A-Za-z]{1,2})[ -]?(\d+)""")
@@ -201,8 +201,10 @@ fun hallLayout(groups: List<RollGroup>, grid: HallGrid): HallPlan {
             val seat = row.seat.trim()
             when {
                 seat.isEmpty() -> unseat(row)
-                seat.startsWith("CW-", ignoreCase = true) ||
-                    seat.startsWith("CH-", ignoreCase = true) -> railSeats += PlacedSeat(row, old)
+                // The CW/CH rule has ONE spelling: the parser's SeatKind enum
+                // (TeacherRoll.seatKind). Never re-derive it from the prefix.
+                row.seatKind == SeatKind.CELL ||
+                    row.seatKind == SeatKind.CHAIR -> railSeats += PlacedSeat(row, old)
                 else -> {
                     val cell = seatPlacement(seat, g.columns)
                     if (cell == null) {

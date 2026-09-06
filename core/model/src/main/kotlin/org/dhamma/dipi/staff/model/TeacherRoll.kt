@@ -75,6 +75,7 @@ data class RollRow(
     val cell: String,
     /** Display string verbatim incl. any `CW-`/`CH-` prefix; blank = unseated. */
     val seat: String,
+    /** Single source of the CW/CH/floor rule — `SeatGrid` reads this, never the prefix. */
     val seatKind: SeatKind,
     val backrest: Boolean,
     val occupation: String,

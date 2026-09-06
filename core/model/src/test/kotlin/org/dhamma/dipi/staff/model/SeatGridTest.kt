@@ -22,15 +22,16 @@ class SeatGridTest {
         name: String,
         seat: String,
         roleTag: String? = null,
-    ) = RollRow(
-        sn = sn, name = name, roleTag = roleTag, room = "Mbk-$sn", age = "40", city = "Pune",
-        courses = emptyList(), cell = "",
-        seat = seat,
-        seatKind = when {
+        kind: SeatKind = when {
             seat.startsWith("CW-", ignoreCase = true) -> SeatKind.CELL
             seat.startsWith("CH-", ignoreCase = true) -> SeatKind.CHAIR
             else -> SeatKind.FLOOR
         },
+    ) = RollRow(
+        sn = sn, name = name, roleTag = roleTag, room = "Mbk-$sn", age = "40", city = "Pune",
+        courses = emptyList(), cell = "",
+        seat = seat,
+        seatKind = kind,
         backrest = false, occupation = "", education = "", languages = "",
     )
 
@@ -173,6 +174,25 @@ class SeatGridTest {
             railPaintOrder(plan.chowkyChair, ChowkyRailLayout.WRAP).map { it.row.seat },
         )
         assertEquals(ChowkyRailLayout.SINGLE_ROW, HallGrid().chowkyRail)
+    }
+
+    @Test
+    fun railClassificationReadsSeatKindNotThePrefix() {
+        // A row whose enum and prefix disagree can only come from a future
+        // parser change — the grid must follow the enum, the single source.
+        val plan = hallLayout(
+            listOf(
+                group(
+                    rows = listOf(
+                        row(1, "Asha Pawar", "CW-A1"),                        // CELL via parser convention
+                        row(2, "Rohan Jadhav", "K-7", kind = SeatKind.CHAIR), // no CH- prefix
+                    ),
+                ),
+            ),
+            HallGrid(),
+        )
+        assertEquals(listOf("CW-A1"), plan.chowkySeats.map { it.row.seat })
+        assertEquals(listOf("K-7"), plan.chairSeats.map { it.row.seat })
     }
 
     @Test

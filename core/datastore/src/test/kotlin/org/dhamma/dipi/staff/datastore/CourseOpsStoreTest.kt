@@ -193,6 +193,32 @@ class CourseOpsStoreTest {
         assertEquals(healthText, loaded.getValue(4).healthRow("Medication")?.answer)
     }
 
+    /** RollDto JSON with one row carrying [extraRowFields] spliced in verbatim. */
+    private fun rowDtoJsonWith(extraRowFields: String) =
+        """{"groups":[{"at":"Uma Rangan","code":"URN","gender":"M","seniority":"OLD","group":"1","total":1,""" +
+            """"rows":[{"sn":1,"name":"Suresh Nair","room":"Mbk-8","age":"51","city":"Kochi",""" +
+            """"cell":"","seat":"K-7",$extraRowFields,"backrest":false,""" +
+            """"occupation":"","education":"","languages":""}]}]}"""
+
+    /** Decode [fixture] through the store's OWN path: raw prefs write, then loadRoll. */
+    private fun decodeRollFixture(fixture: String): TeacherRoll? {
+        prefs().edit()
+            .putInt("course_id", 10)
+            .putString("course_roll", fixture)
+            .commit()
+        return store().loadRoll(10)
+    }
+
+    @Test
+    fun snapshotCarryingSeatKindAndUnknownKeysStillDecodes() {
+        // ignoreUnknownKeys=true (CourseOpsStore.kt:172) + runCatching (:116):
+        // a snapshot written by any past or future field set restores, so
+        // seatKind needs no migration in either direction.
+        val fixture = rowDtoJsonWith("\"seatKind\":\"CHAIR\",\"legacyPrefixRule\":true")
+        val roll = decodeRollFixture(fixture)   // through the store's own Json
+        assertEquals(SeatKind.CHAIR, roll!!.groups.first().rows.first().seatKind)
+    }
+
     // ---- SessionStore.tablet_mode (the skin pattern)
 
     @Test
