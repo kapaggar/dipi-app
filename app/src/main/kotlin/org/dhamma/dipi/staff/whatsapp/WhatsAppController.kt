@@ -289,8 +289,8 @@ class WhatsAppController @Inject constructor(
     private fun message(value: String) { mutable.value = mutable.value.copy(message = value) }
 }
 
-internal fun selfTestMessage(id: String): String = "DIPI automation SELF TEST $id\n" +
-    "नमस्ते। यह केवल अपने WhatsApp की जाँच के लिए है।\n\n" +
-    "This checks a longer letter with paragraphs and a complete link. No applicant receives this test.\n\n" +
-    "Please review this test message. The tablet should return to DIPI after the outgoing message is observed. " .repeat(4) +
-    "\n\nhttps://example.com/?a=1&b=2\nEnd of self-test."
+internal fun selfTestMessage(id: String): String = "DIPI automation SELF TEST $id\n\n" +
+    "*नमस्ते। यह केवल अपने WhatsApp की जाँच के लिए है।*\n\n" +
+    "*Long-letter verification*\n" +
+    (1..30).joinToString("\n\n") { "Paragraph $it. This is a synthetic device check. No applicant receives it. The complete outgoing letter must be verified before DIPI reports success." } +
+    "\n\n*Complete link*\nhttps://example.com/?a=1&b=two%2Bthree\nEnd of self-test."

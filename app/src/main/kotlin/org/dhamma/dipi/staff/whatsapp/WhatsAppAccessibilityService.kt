@@ -43,6 +43,9 @@ class WhatsAppAccessibilityService : AccessibilityService() {
         var clicked = false
         var baseline = 0
         var draftSet = false
+        // Retain the exact outgoing row whose Read more action we clicked.
+        // Its status icon can leave the viewport when a long message expands.
+        var expansionRow: AccessibilityNodeInfo? = null
         var observation = "chat not ready"
         var started = android.os.SystemClock.elapsedRealtime()
     }
@@ -91,6 +94,8 @@ class WhatsAppAccessibilityService : AccessibilityService() {
     }
     fun clear() {
         handler.removeCallbacks(tick)
+        request?.expansionRow?.recycle()
+        request?.expansionRow = null
         request = null
         if (controller.ui.value.running && watchingPackage != null) {
             handler.postDelayed(tick, 250)
@@ -162,18 +167,37 @@ class WhatsAppAccessibilityService : AccessibilityService() {
                     obtained.addAll(children)
                     return children + children.flatMap { descendants(it) }
                 }
-                val rows = nodes("conversation_text_row")
-                val matches = rows.count { row ->
+                data class RowEvidence(val node: AccessibilityNodeInfo, val full: Boolean,
+                    val outgoing: Boolean, val collapsed: Boolean, val readMore: AccessibilityNodeInfo?)
+                val rows = nodes("conversation_text_row").map { row ->
                     val children = descendants(row)
                     children.forEach { it.refresh() }
-                    children.count { it.viewIdResourceName == "${active.pkg}:id/message_text" && it.text?.toString() == active.text } == 1 &&
-                        children.any { it.viewIdResourceName == "${active.pkg}:id/status" && !it.contentDescription.isNullOrBlank() }
+                    val texts = children.filter { it.viewIdResourceName == "${active.pkg}:id/message_text" }
+                    val more = children.filter { it.isVisibleToUser && it.isClickable && it.contentDescription?.toString() == "Read more" }.singleOrNull()
+                    val visible = texts.singleOrNull()?.text?.toString()
+                    RowEvidence(row, visible != null && outgoingTextMatches(visible, active.text),
+                        children.any { it.viewIdResourceName == "${active.pkg}:id/status" && !it.contentDescription.isNullOrBlank() },
+                        visible != null && collapsedLetterCandidate(visible, active.text, more != null), more)
                 }
-                active.observation = if (active.clicked) "after Send; ${matches - active.baseline} new matching outgoing rows; composer ${if (entry in setOf("", "Message")) "clear" else "not clear"}" else "before Send"
+                val candidates = rows.filter { it.outgoing && (it.full || it.collapsed) }
+                val matches = rows.count { it.outgoing && it.full }
+                active.observation = if (active.clicked) "after Send; ${matches - active.baseline} new full matches; composer ${if (entry in setOf("", "Message")) "clear" else "not clear"}" else "before Send"
                 if (active.clicked) {
-                    if (submissionObserved(entry, matches, active.baseline)) {
+                    val expandedMatches = active.expansionRow?.let { expanded ->
+                        rows.any { it.node == expanded && it.full }
+                    } == true
+                    if (submissionObserved(entry, matches, active.baseline) ||
+                        (entry in setOf("", "Message") && expandedMatches)) {
                         active.result.complete(SendResult(WhatsAppAttemptState.SubmissionObserved, "Submission observed"))
                         clear()
+                    } else if (active.expansionRow == null && canExpandNewCandidate(entry, candidates.size, active.baseline)) {
+                        val candidate = candidates.single()
+                        if (candidate.collapsed && candidate.readMore != null) {
+                            active.expansionRow = AccessibilityNodeInfo.obtain(candidate.node)
+                            if (!candidate.readMore.performAction(AccessibilityNodeInfo.ACTION_CLICK)) {
+                                abort("The outgoing letter could not be expanded for verification. Check WhatsApp before continuing.")
+                            }
+                        }
                     }
                     return
                 }
@@ -186,7 +210,7 @@ class WhatsAppAccessibilityService : AccessibilityService() {
                 if (entry != active.text) { if (elapsed > 8000) abort("WhatsApp draft does not exactly match the prepared letter."); return }
                 val buttons = nodes("send")
                 if (buttons.size != 1 || !buttons.single().isEnabled || !buttons.single().isClickable) { abort("WhatsApp Send button is unavailable."); return }
-                active.baseline = matches
+                active.baseline = candidates.size
                 active.beforeClick() // Must persist SendStarted successfully before clicking.
                 active.clicked = true
                 active.started = android.os.SystemClock.elapsedRealtime()

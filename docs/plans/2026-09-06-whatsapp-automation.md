@@ -152,3 +152,31 @@ checked to be absent from the APK. The release assets `dipi-staff-1.43.1.apk` an
 
 Validation for this follow-up: 725 tests, zero failures/errors/skips, using the
 required model/audit/network/datastore/app debug-unit suite.
+
+## Long-letter timeout diagnosis - 1.43.3
+
+The owner reproduced a timeout after delivery on the Pixel C. DIPI reported a clear
+composer and zero matching outgoing rows. Inspection of the existing sent message,
+without resending or saving edits, established a 4,139-character raw message with
+12 bold delimiters, a 779-character collapsed accessibility preview, and a
+4,127-character expanded display. Short/plain self-tests did not cover this case.
+
+The observer now accepts exact display text with paired bold markers hidden, while
+preserving all words, whitespace and complete URLs. A collapsed prefix is only a
+candidate for expansion, never evidence of submission. After Send, a unique new
+outgoing candidate may have its exact Read more accessibility control clicked.
+The observer retains that row identity and requires its full expanded text and a
+clear composer before recording submission. This preserves outgoing evidence when
+the status icon leaves the viewport on expansion. Existing similar collapsed rows
+make identity ambiguous and remain unknown; there is no automatic retry.
+
+Synthetic regressions first failed against the original exact-string observation,
+then passed for formatted Hindi, paragraphs, complete URLs, collapsed previews and
+ambiguous/old candidates. The 3,806-character formatted Pixel C self-test passed
+with automatic expansion, full observation and return to DIPI. No applicant was
+sent another message; the owner's existing uncertain attempt remains for review.
+The built-in test now uses 30 paragraphs to cover messages longer than this failure.
+
+Final release validation: 729 tests passed with zero failures/errors/skips. The
+4,706-character, 30-paragraph bold/Hindi/link self-test passed on the installed
+1.43.3 release APK (versionCode 84), with automatic return and Submission observed.
