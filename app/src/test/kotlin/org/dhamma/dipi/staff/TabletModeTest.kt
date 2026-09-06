@@ -152,7 +152,7 @@ class TabletModeTest {
 
     /** Frame 2a copy, verbatim — titles, descriptions, consequence rows, cards. */
     @Test
-    fun tabletModeCardCarriesTheFrameCopyVerbatim() {
+    fun tabletModeCardExplainsModeAndAccessRestrictions() {
         rule.setContent {
             DipiTheme {
                 SettingsScreen(
@@ -170,13 +170,11 @@ class TabletModeTest {
         rule.onNodeWithText("TABLET MODE").assertIsDisplayed()
         rule.onNodeWithText("Desk ops · registration").assertIsDisplayed()
         rule.onNodeWithText(
-            "Board, applications, calling, check-in, rooms & seats, exports. " +
-                "What the registrar uses on day 0.",
+            "Registration, calling, check-in and exports.",
         ).assertIsDisplayed()
         rule.onNodeWithText("Course ops · teacher").assertIsDisplayed()
         rule.onNodeWithText(
-            "Teacher list and seating plan only, for the running course. " +
-                "Desk destinations are hidden until the mode is switched back.",
+            "Teacher list and seating plan for the running course.",
         ).assertIsDisplayed()
         rule.onNodeWithText("ON").assertIsDisplayed()
         rule.onNodeWithText("WHILE COURSE OPS IS ON").assertIsDisplayed()
@@ -185,17 +183,16 @@ class TabletModeTest {
         rule.onNodeWithText("Student card").assertIsDisplayed()
         rule.onNodeWithText("application, read-only").assertIsDisplayed()
         rule.onNodeWithText("Board, applications, calling, check-in").assertIsDisplayed()
-        rule.onNodeWithText("Exports, rooms & seats, bulk mail").assertIsDisplayed()
+        rule.onNodeWithText("Exports, rooms & seats").assertIsDisplayed()
         assertEquals(2, rule.onAllNodesWithText("hidden").fetchSemanticsNodes().size)
         // The right column: the course lock and the static PIN row (no switch).
         rule.onNodeWithText("Course being taught").assertIsDisplayed()
         rule.onNodeWithText("No course is running today").assertIsDisplayed()
         rule.onNodeWithText(
-            "Locked to the course that is running. The teacher never picks a course; " +
-                "the roll follows the dates.",
+            "Uses the course running today.",
         ).performScrollTo().assertIsDisplayed()
         rule.onNodeWithText("Settings and logout need the device PIN").performScrollTo().assertIsDisplayed()
-        rule.onNodeWithText("Nothing writes").performScrollTo().assertIsDisplayed()
+        rule.onNodeWithText("Read-only").performScrollTo().assertIsDisplayed()
         rule.onNodeWithText("Health answers").performScrollTo().assertIsDisplayed()
     }
 

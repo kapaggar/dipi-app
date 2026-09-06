@@ -9,7 +9,7 @@ class CentreOpsEffectTest {
     fun allThreeOnListsEveryQuestionAndDropsTheHallSentence() {
         val prefs = CentreOpsPrefs(laundry = true, valuables = true, groups = true)
         assertEquals(
-            "Check-in asks for room, seating, laundry, valuables and group.",
+            "Check-in: room, seating, laundry, valuables and group.",
             centreOpsEffect(prefs),
         )
     }
@@ -18,8 +18,8 @@ class CentreOpsEffectTest {
     fun groupsOffAddsTheHallSentence() {
         val prefs = CentreOpsPrefs(laundry = true, valuables = true, groups = false)
         assertEquals(
-            "Check-in asks for room, seating, laundry and valuables. " +
-                "Everyone sits in Main Dhamma Hall and Zero Day hides group chips.",
+            "Check-in: room, seating, laundry and valuables. " +
+                "Hall: Main Dhamma Hall.",
             centreOpsEffect(prefs),
         )
     }
@@ -28,8 +28,8 @@ class CentreOpsEffectTest {
     fun allOffStillAsksRoomAndSeating() {
         val prefs = CentreOpsPrefs(laundry = false, valuables = false, groups = false)
         assertEquals(
-            "Check-in asks for room and seating. " +
-                "Everyone sits in Main Dhamma Hall and Zero Day hides group chips.",
+            "Check-in: room and seating. " +
+                "Hall: Main Dhamma Hall.",
             centreOpsEffect(prefs),
         )
     }
@@ -38,7 +38,7 @@ class CentreOpsEffectTest {
     fun laundryOffKeepsTheRestInOrder() {
         val prefs = CentreOpsPrefs(laundry = false, valuables = true, groups = true)
         assertEquals(
-            "Check-in asks for room, seating, valuables and group.",
+            "Check-in: room, seating, valuables and group.",
             centreOpsEffect(prefs),
         )
     }

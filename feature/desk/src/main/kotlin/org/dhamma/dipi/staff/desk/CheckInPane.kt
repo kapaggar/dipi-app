@@ -345,7 +345,7 @@ private fun RosterRow(
             if (isIn) DeskIcon(DeskIconKind.Check, 12.dp, Color.White, strokeWidth = 2.2f)
         }
         Text(
-            card.confNo?.display() ?: "—",
+            card.confNo?.display() ?: "-",
             fontFamily = DipiMono,
             fontWeight = FontWeight.Medium,
             fontSize = 13.sp,
@@ -610,7 +610,7 @@ fun CheckInDialog(
                 horizontalArrangement = Arrangement.spacedBy(14.dp),
             ) {
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                    DeskKicker("CHECK IN · ${card.confNo?.display() ?: "—"}", Industry.accent700)
+                    DeskKicker("CHECK IN · ${card.confNo?.display() ?: "-"}", Industry.accent700)
                     Text(
                         card.displayName,
                         fontFamily = DipiCondensed,

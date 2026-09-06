@@ -40,7 +40,7 @@ Implemented in Android; the backend is unchanged.
 - The body is written through the composer accessibility action, not the launch
   URL, to avoid putting personalised text or bearer links in activity logs.
 - Pause/Stop controls, interruption detection and encrypted metadata recovery.
-  Unfinished progress cannot be overwritten by a batch from another course.
+  Each course has independent encrypted batch progress.
   Unknown outcomes never retry automatically; recovery is always explicitly
   initiated. Messaging progress does not change calls, attendance or desk status.
 - A labelled Message yourself check gates enablement for the installed WhatsApp
@@ -180,3 +180,29 @@ The built-in test now uses 30 paragraphs to cover messages longer than this fail
 Final release validation: 729 tests passed with zero failures/errors/skips. The
 4,706-character, 30-paragraph bold/Hindi/link self-test passed on the installed
 1.43.3 release APK (versionCode 84), with automatic return and Submission observed.
+
+## Course isolation and copy follow-up - 1.43.4
+
+The open tablet showed the old centre-wide guard blocking a batch because another
+course had unfinished progress. Batch keys now include course ID as well as the
+hashed server/centre scope. The single legacy slot is moved atomically into its
+recorded course before reading or writing any course batch. Existing uncertain
+attempts stay uncertain; no batch resumes automatically. Discard removes only the
+current course's progress, while Remove centre setup and Erase all still remove all
+applicable batches.
+
+The current batch's Discard control is above its bounded recipient list. Other
+courses open directly in batch preparation. Regression tests cover the original
+blocker, legacy migration when another course opens first, independent recovery,
+targeted discard, origin/centre isolation and erase-all.
+
+The owner also requested concise copy and hyphens throughout app-authored UI. Routine
+descriptions were shortened or removed across desk, Calling, settings, reports,
+teacher/student screens, photos and WhatsApp; consequential warnings remain brief.
+Server responses and applicant content are unchanged. Backend code is unchanged.
+
+Final validation: 732 tests passed with zero failures/errors/skips, and the signed
+1.43.4 release APK (versionCode 85) was installed on the Pixel C. The September 16
+course now opens recipient selection and the saved letter directly, without the
+other-course unfinished-batch warning. Accessibility automation remains enabled.
+No applicant messages were sent and no saved batches were discarded during this check.

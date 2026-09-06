@@ -295,8 +295,7 @@ private fun FacilitiesCard(summary: DaySummary) {
         }
         if (summary.specialSeating.isEmpty) {
             Text(
-                "Nobody has asked for a low seat, a chair or a backrest. " +
-                    "The grid is empty on purpose — there is nothing to put out.",
+                "No special seating requested.",
                 fontSize = 12.5.sp,
                 lineHeight = 17.sp,
                 color = Industry.neutral600,

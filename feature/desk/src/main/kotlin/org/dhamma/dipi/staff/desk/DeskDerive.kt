@@ -386,7 +386,7 @@ fun deskWaNumber(raw: String?): String? {
 
 /* ── Check-in save ─────────────────────────────────────────────────── */
 
-const val HEALTH_REMINDER = "Health disclosures on file — review before confirming"
+const val HEALTH_REMINDER = "Health disclosures on file - review before confirming"
 
 /** Once per newly selected applicant — a reminder, not a gate. */
 fun deskHealthSnack(

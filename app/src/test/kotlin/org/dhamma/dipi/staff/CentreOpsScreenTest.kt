@@ -59,14 +59,13 @@ class CentreOpsScreenTest {
         }
         rule.onNodeWithText("Centre settings").assertIsDisplayed()
         rule.onNodeWithText(
-            "Three switches change what check-in asks for. " +
-                "The line at the bottom shows the result.",
+            "Check-in options",
         ).assertIsDisplayed()
-        rule.onNodeWithText("Check-in asks whether laundry was issued.").assertIsDisplayed()
+        rule.onNodeWithText("Laundry at check-in").assertIsDisplayed()
         rule.onNodeWithText("RESULT").assertIsDisplayed()
         rule.onNodeWithText(
-            "Check-in asks for room, seating, laundry and valuables. " +
-                "Everyone sits in Main Dhamma Hall and Zero Day hides group chips.",
+            "Check-in: room, seating, laundry and valuables. " +
+                "Hall: Main Dhamma Hall.",
         ).assertIsDisplayed()
         rule.onNodeWithTag("toggle-laundry").assertIsOn()
         rule.onNodeWithTag("toggle-valuables").assertIsOn()
@@ -87,7 +86,7 @@ class CentreOpsScreenTest {
                 )
             }
         }
-        rule.onNodeWithText("Check-in asks for room, seating and group.").assertIsDisplayed()
+        rule.onNodeWithText("Check-in: room, seating and group.").assertIsDisplayed()
     }
 
     @Test
@@ -150,7 +149,7 @@ class CentreOpsScreenTest {
         }
         // The accommodation summary now sits under the WhatsApp-message card,
         // so it has to be scrolled to before it is on screen.
-        rule.onNodeWithText("Room list comes from the desk site (Centre → Edit) and refreshes on sign-in.")
+        rule.onNodeWithText("Edit rooms on the desk site. Refreshes at sign-in.")
             .performScrollTo()
             .assertIsDisplayed()
         rule.onNodeWithText("2 rooms").performScrollTo().assertIsDisplayed()
@@ -182,7 +181,7 @@ class CentreOpsScreenTest {
         rule.onNodeWithTag("whatsapp-template").performScrollTo().performTextInput("X")
         assertTrue(written!!.contains("Hi {name}"))
         // Reset hands back a blank template, which means the built-in default.
-        rule.onNodeWithText("Reset to the default message").performScrollTo().performClick()
+        rule.onNodeWithText("Reset message").performScrollTo().performClick()
         assertEquals("", written)
     }
 

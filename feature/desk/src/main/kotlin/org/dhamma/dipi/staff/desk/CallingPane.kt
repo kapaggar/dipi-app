@@ -100,7 +100,7 @@ fun CallingPane(
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
                 DeskH2("Call round")
-                DeskSub("$logged of ${callList.size} logged · log the outcome as you go, the list empties itself")
+                DeskSub("$logged of ${callList.size} logged")
             }
             DeskSegmented(
                 listOf("To call") + CALL_OUTCOMES,
@@ -456,7 +456,7 @@ private fun DeskStatusChanger(
                 color = Industry.neutral600,
             )
             Text(
-                current.ifBlank { "—" },
+                current.ifBlank { "-" },
                 fontSize = 12.5.sp,
                 fontWeight = FontWeight.Medium,
                 maxLines = 1,
@@ -591,7 +591,7 @@ private fun NoteField(name: String, note: String, onNote: (String) -> Unit) {
             ) {
                 if (note.isEmpty()) {
                     Text(
-                        "Add a short note — stays on this device",
+                        "Note (this tablet only)",
                         fontSize = 12.5.sp,
                         color = Industry.neutral500,
                     )

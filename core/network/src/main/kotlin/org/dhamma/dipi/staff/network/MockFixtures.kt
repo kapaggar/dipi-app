@@ -89,7 +89,7 @@ internal object MockFixtures {
             flags = listOf(
                 FlagDto("HARD", "Mobile number cannot be an Indian number", "phone_prefix_invalid · +91 50031 55402", "phone_prefix_invalid"),
                 FlagDto("HARD", "Emergency contact number is blank", "missing_field · 'Emergency Contact No'", "missing_field"),
-                FlagDto("HARD", "No ID type or ID number on the application", "id_missing · ID Type —, ID No —", "id_missing"),
+                FlagDto("HARD", "No ID type or ID number on the application", "id_missing · ID Type -, ID No -", "id_missing"),
             ),
         ),
         person(
@@ -189,7 +189,7 @@ internal object MockFixtures {
 
     val photoReview = listOf(
         PhotoReviewDto(RAKESH_ID, "suggest", "suggest ↻90°", 90, false),
-        PhotoReviewDto(9, "auto", "✨ auto ↻180° — ✓ keep", 180, false),
+        PhotoReviewDto(9, "auto", "✨ auto ↻180° - ✓ keep", 180, false),
         PhotoReviewDto(3, "suggest", "suggest ✂ zoom", 0, true),
         PhotoReviewDto(7, "nofel", "no face found", 0, false),
     )

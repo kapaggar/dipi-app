@@ -904,7 +904,7 @@ private fun openSheetDocument(
     runCatching { context.startActivity(view) }.onFailure {
         runCatching { context.startActivity(Intent.createChooser(view, doc.title)) }
             .onFailure {
-                onNoViewer("${doc.title} saved — no app on this device can open it")
+                onNoViewer("${doc.title} saved - no app on this device can open it")
             }
     }
 }

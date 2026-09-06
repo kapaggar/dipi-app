@@ -262,7 +262,7 @@ private fun AppListRow(
         }
         Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(3.dp)) {
             Text(
-                card.confNo?.display() ?: "—",
+                card.confNo?.display() ?: "-",
                 fontFamily = DipiMono,
                 fontWeight = FontWeight.Medium,
                 fontSize = 11.5.sp,
@@ -396,10 +396,10 @@ private fun AppDetail(
             }
 
             Column(Modifier.fillMaxWidth().topHairline(Industry.neutral300)) {
-                FactRow("Mobile", card.mobile ?: "—")
-                FactRow("Email", card.email ?: "—")
-                FactRow("Date of birth", card.dob ?: "—")
-                FactRow("Applied", card.createdAt ?: "—")
+                FactRow("Mobile", card.mobile ?: "-")
+                FactRow("Email", card.email ?: "-")
+                FactRow("Date of birth", card.dob ?: "-")
+                FactRow("Applied", card.createdAt ?: "-")
             }
 
             ApplicantHistorySections(

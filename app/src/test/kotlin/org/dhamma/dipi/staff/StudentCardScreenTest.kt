@@ -248,7 +248,7 @@ class StudentCardScreenTest {
             DipiTheme { StudentCardScreen(row = row(), group = group(), card = null, offline = true) }
         }
         rule.onNodeWithTag("card-not-cached").assertIsDisplayed()
-        rule.onNodeWithText("Not cached — connect once to fetch").assertIsDisplayed()
+        rule.onNodeWithText("Not cached - connect to load").assertIsDisplayed()
     }
 
     // ---- the pure ‹ › walk (spec 2d S4)

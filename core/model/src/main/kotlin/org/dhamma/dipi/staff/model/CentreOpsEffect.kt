@@ -15,10 +15,10 @@ fun centreOpsEffect(prefs: CentreOpsPrefs): String {
         if (prefs.groups) add("group")
     }
     val list = asks.dropLast(1).joinToString(", ") + " and " + asks.last()
-    val head = "Check-in asks for $list."
+    val head = "Check-in: $list."
     return if (prefs.groups) {
         head
     } else {
-        "$head Everyone sits in $MAIN_DHAMMA_HALL and Zero Day hides group chips."
+        "$head Hall: $MAIN_DHAMMA_HALL."
     }
 }

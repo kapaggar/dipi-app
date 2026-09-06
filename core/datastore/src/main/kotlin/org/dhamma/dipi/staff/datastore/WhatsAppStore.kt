@@ -56,17 +56,35 @@ class WhatsAppStore constructor(private val provider: () -> SharedPreferences) {
     @Synchronized fun savePilotResult(scope: WhatsAppScope, result: String) {
         check(prefs.edit().putString("pilot.${key(scope)}", result).commit()) { "Could not save device check" }
     }
-    @Synchronized fun saveBatch(batch: WhatsAppBatch) {
-        val previous = this.batch(batch.scope)
-        require(previous == null || previous.courseId == batch.courseId || previous.attempts.all {
-            it.state in setOf(WhatsAppAttemptState.SubmissionObserved, WhatsAppAttemptState.Skipped)
-        }) { "Another course has unfinished WhatsApp progress. Return to that course and review or discard its batch first." }
-        check(prefs.edit().putString("batch.${key(batch.scope)}", json.encodeToString(batch)).commit()) { "Could not save messaging progress" }
+    private fun batchKey(scope: WhatsAppScope, courseId: Int): String {
+        require(courseId > 0) { "Open a course first" }
+        return "batch.$courseId.${key(scope)}"
     }
-    @Synchronized fun batch(scope: WhatsAppScope): WhatsAppBatch? =
-        prefs.getString("batch.${key(scope)}", null)?.let { runCatching { json.decodeFromString<WhatsAppBatch>(it) }.getOrNull() }
-            ?.takeIf { it.scope == scope }?.interrupted()
-    @Synchronized fun clearBatch(scope: WhatsAppScope) { check(prefs.edit().remove("batch.${key(scope)}").commit()) }
+    /** Atomically move the pre-course storage slot into its recorded course. */
+    private fun migrateBatch(scope: WhatsAppScope) {
+        val legacyKey = "batch.${key(scope)}"
+        val raw = prefs.getString(legacyKey, null) ?: return
+        val legacy = json.decodeFromString<WhatsAppBatch>(raw)
+        check(legacy.scope == scope) { "Saved batch belongs to another centre" }
+        val target = batchKey(scope, legacy.courseId)
+        val existing = prefs.getString(target, null)
+        check(existing == null || existing == raw) { "Conflicting saved WhatsApp progress" }
+        check(prefs.edit().putString(target, raw).remove(legacyKey).commit()) { "Could not migrate messaging progress" }
+    }
+    @Synchronized fun saveBatch(batch: WhatsAppBatch) {
+        migrateBatch(batch.scope)
+        check(prefs.edit().putString(batchKey(batch.scope, batch.courseId), json.encodeToString(batch)).commit()) { "Could not save messaging progress" }
+    }
+    @Synchronized fun batch(scope: WhatsAppScope, courseId: Int): WhatsAppBatch? {
+        migrateBatch(scope)
+        return prefs.getString(batchKey(scope, courseId), null)
+            ?.let { runCatching { json.decodeFromString<WhatsAppBatch>(it) }.getOrNull() }
+            ?.takeIf { it.scope == scope && it.courseId == courseId }?.interrupted()
+    }
+    @Synchronized fun clearBatch(scope: WhatsAppScope, courseId: Int) {
+        migrateBatch(scope)
+        check(prefs.edit().remove(batchKey(scope, courseId)).commit()) { "Could not discard messaging progress" }
+    }
     @Synchronized fun remove(scope: WhatsAppScope) {
         val suffix = ".${key(scope)}"
         val edit = prefs.edit()

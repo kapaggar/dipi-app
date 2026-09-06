@@ -207,7 +207,7 @@ private fun personBlock(
 private fun roomAge(room: String, age: String): String =
     "ROOM ${printable(room)} · AGE ${printable(age)}"
 
-private fun printable(value: String): String = esc(value.trim().ifEmpty { "—" })
+private fun printable(value: String): String = esc(value.trim().ifEmpty { "-" })
 
 private fun esc(s: String): String =
     s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")

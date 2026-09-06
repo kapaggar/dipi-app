@@ -47,7 +47,7 @@ class ApplicantStatusTest {
 
     @Test
     fun confNoDisplayShowsDashWhenEmpty() {
-        assertEquals("—", ConfNo("").display())
+        assertEquals("-", ConfNo("").display())
     }
 
     @Test

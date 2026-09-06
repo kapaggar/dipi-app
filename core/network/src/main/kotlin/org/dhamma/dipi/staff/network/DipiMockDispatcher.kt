@@ -111,7 +111,7 @@ class DipiMockDispatcher : Dispatcher() {
     private fun sheet(path: String): MockResponse {
         if (query(path).containsKey("r")) {
             return MockResponse().setResponseCode(500)
-                .setBody("""{"msg":"r param triggers server-side bulk seat auto-allocation — the app must never send it"}""")
+                .setBody("""{"msg":"r param triggers server-side bulk seat auto-allocation - the app must never send it"}""")
         }
         val parts = path.substringBefore("?").trim('/').split("/")
         val slug = parts[0]

@@ -1,7 +1,7 @@
 <resources>
     <string name="app_name">DIPI Staff</string>
-    <string name="test_mode_banner">TEST MODE — DHAMMA GIRI SANDBOX</string>
-    <string name="offline_strip">◍ Offline — showing cached list</string>
+    <string name="test_mode_banner">TEST MODE - DHAMMA GIRI SANDBOX</string>
+    <string name="offline_strip">◍ Offline - showing cached list</string>
     <string name="retry_sync">RETRY</string>
     <plurals name="changes_waiting">
         <item quantity="one">change waiting to sync</item>

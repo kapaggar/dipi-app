@@ -43,14 +43,14 @@ class RoomSyncTest {
             ),
         )
         assertTrue(snack.error)
-        assertEquals("2 synced · 1 failed — Room has already been alloted", snack.text)
+        assertEquals("2 synced · 1 failed - Room has already been alloted", snack.text)
     }
 
     @Test
     fun offlineStopSnackPromisesARetry() {
         val snack = roomSyncSnack(RoomSyncResult(attempted = 2, synced = 1, offline = true))
         assertTrue(snack.error)
-        assertEquals("1 synced · connection lost — the rest will sync when online", snack.text)
+        assertEquals("1 synced · connection lost - the rest will sync when online", snack.text)
     }
 
     @Test

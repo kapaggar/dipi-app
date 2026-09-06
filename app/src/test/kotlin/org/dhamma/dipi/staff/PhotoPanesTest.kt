@@ -125,7 +125,7 @@ class PhotoPanesTest {
         rule.waitForIdle()
         rule.onNodeWithText("Queue upload (1)").assertIsDisplayed().performClick()
         assertEquals(1, uploads)
-        rule.onNodeWithText("Fixes stay on this device — live upload isn't available on the desk")
+        rule.onNodeWithText("Photo fixes stay on this tablet.")
             .assertIsDisplayed()
         rule.onAllNodesWithText("▣").assertCountEquals(2)
     }

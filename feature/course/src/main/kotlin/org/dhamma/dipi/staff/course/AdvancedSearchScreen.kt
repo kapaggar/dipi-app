@@ -78,7 +78,7 @@ fun AdvancedSearchScreen(
         Text("Advanced Search", fontFamily = DipiCondensed, fontSize = 22.sp, color = c.foreground)
         Text(
             if (rows.isEmpty()) {
-                "Nothing cached yet — open a course once to search its applicants here."
+                "Open a course to search its cached applicants."
             } else {
                 "Searches the ${rows.size} applicants cached on this device " +
                     "($courseCount course${if (courseCount == 1) "" else "s"} loaded so far)."
@@ -155,7 +155,7 @@ fun AdvancedSearchScreen(
                             Text(card.status.value, color = c.muted, fontSize = 12.sp)
                         }
                         Text(
-                            card.confNo?.display() ?: "—",
+                            card.confNo?.display() ?: "-",
                             fontFamily = DipiMono,
                             fontWeight = FontWeight.Medium,
                             fontSize = 13.sp,

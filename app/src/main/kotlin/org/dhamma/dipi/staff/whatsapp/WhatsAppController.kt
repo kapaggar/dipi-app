@@ -59,7 +59,7 @@ class WhatsAppController @Inject constructor(
             if (next != null) {
                 val profile = store.profile(next.second)
                 mutable.value = WhatsAppUi(profile = profile, configured = store.configured(next.second),
-                    batch = store.batch(next.second)?.takeIf { it.courseId == next.third })
+                    batch = next.third?.let { store.batch(next.second, it) })
             }
         }
         roll = state.rows
@@ -248,7 +248,7 @@ class WhatsAppController @Inject constructor(
         store.saveBatch(interrupted)
         mutable.value = mutable.value.copy(batch = interrupted)
     }
-    fun discard() { pause("Batch stopped. Observed submissions cannot be undone."); mutable.value.profile?.let { store.clearBatch(it.scope) }; mutable.value = mutable.value.copy(batch = null) }
+    fun discard() { pause("Batch stopped. Observed submissions cannot be undone."); mutable.value.batch?.let { store.clearBatch(it.scope, it.courseId) }; mutable.value = mutable.value.copy(batch = null) }
     fun skip(id: Int) { if (!mutable.value.running && mutable.value.batch?.attempts?.any { it.applicantId == id && it.state != WhatsAppAttemptState.SubmissionObserved } == true) mark(id, WhatsAppAttemptState.Skipped) }
     fun retryFailed(id: Int) { if (!mutable.value.running && mutable.value.batch?.attempts?.any { it.applicantId == id && it.state == WhatsAppAttemptState.Failed } == true) mark(id, WhatsAppAttemptState.Pending) }
     private fun mark(id: Int, state: WhatsAppAttemptState) {

@@ -76,7 +76,7 @@ fun PinDialog(
             Column {
                 Text(
                     "Settings are locked while this tablet is in course ops. " +
-                        "This is the tablet's own four-digit PIN — not the account password.",
+                        "Use this tablet’s four-digit PIN.",
                     fontSize = 13.sp,
                     lineHeight = 19.5.sp,
                     color = industry.neutral600,

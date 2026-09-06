@@ -392,7 +392,7 @@ class SheetTransport(
         if (!formResp.isSuccessful) return refusal(formResp.code(), formHtml)
         val form = CourseReportFormParser.parse(formHtml)
             ?: return SheetPayload.NotAvailable(
-                "Could not read the Course report form — open /centre/$centreId/course-report in a desk browser",
+                "Could not read the Course report form - open /centre/$centreId/course-report in a desk browser",
             )
         return save(
             title = SheetExport.CourseReport.label,
@@ -422,7 +422,7 @@ class SheetTransport(
         if (!formResp.isSuccessful) return@guarded refusal(formResp.code(), formHtml)
         val form = CourseReportFormParser.parse(formHtml)
             ?: return@guarded SheetPayload.NotAvailable(
-                "Could not read the Course report form — open /centre/$centreId/course-report in a desk browser",
+                "Could not read the Course report form - open /centre/$centreId/course-report in a desk browser",
             )
         val fields = form.fields.toMutableMap().apply {
             if (from.isNotBlank()) put("report_from_date[date]", from)
@@ -498,7 +498,7 @@ class SheetTransport(
 
 /** IOException → the offline sentence; any other throwable keeps e.message. */
 internal fun sheetFailureMessage(label: String, e: Throwable): String = when (e) {
-    is java.io.IOException -> "Offline — could not reach the desk for $label"
+    is java.io.IOException -> "Offline - could not reach the desk for $label"
     else -> e.message?.takeIf { it.isNotBlank() } ?: "Could not fetch $label"
 }
 

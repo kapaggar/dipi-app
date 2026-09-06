@@ -111,8 +111,8 @@ class SeatingPrintTest {
         )
 
         val out = seatingPlanPrintHtml(blank) { HallGrid() }
-        assertTrue(out.contains("ROOM —"))
-        assertTrue(out.contains("AGE —"))
+        assertTrue(out.contains("ROOM -"))
+        assertTrue(out.contains("AGE -"))
     }
 
     @Test

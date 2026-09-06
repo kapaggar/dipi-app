@@ -169,7 +169,7 @@ fun CourseOpsOfflineStrip(cachedAt: String? = null) {
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text("◍ Offline — $age", color = Industry.neutral800, fontSize = 14.sp)
+            Text("◍ Offline - $age", color = Industry.neutral800, fontSize = 14.sp)
             Text(
                 "nothing is waiting to send; this mode never writes",
                 color = Industry.neutral600,
@@ -423,10 +423,10 @@ private fun HeaderCell(label: String, modifier: Modifier, align: TextAlign = Tex
     )
 }
 
-/** Occupation · education · languages as the page sends them; em-dash for blanks. */
+/** Occupation · education · languages as the page sends them; hyphen for blank placeholders. */
 private fun foldedLine(row: RollRow): String =
     listOf(row.occupation, row.education, row.languages)
-        .joinToString(" · ") { it.ifBlank { "—" } }
+        .joinToString(" · ") { if (it.isBlank() || it == "\u2014") "-" else it }
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -692,7 +692,7 @@ private fun CoursesCollapsedNotice() {
     ) {
         Spacer(Modifier.weight(1f))
         Text(
-            "NO COURSE HISTORY IN THIS GROUP — COURSES COLLAPSED",
+            "NO COURSE HISTORY IN THIS GROUP",
             fontFamily = DipiMono,
             fontWeight = FontWeight.Medium,
             fontSize = 10.sp,
@@ -736,8 +736,7 @@ private fun FilterEmptyBody(
                 color = Industry.text,
             )
             Text(
-                "The desk returned the group with no students in it. That is the desk's answer, " +
-                    "not a fetch that failed — the roll below is unchanged and still cached.",
+                "Choose another group or show all students.",
                 fontSize = 13.5.sp,
                 lineHeight = 20.sp,
                 color = Industry.neutral600,

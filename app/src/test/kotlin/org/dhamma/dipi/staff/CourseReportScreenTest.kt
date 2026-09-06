@@ -169,7 +169,7 @@ class CourseReportScreenTest {
             ),
         )
         rule.onNodeWithText(
-            "The dates are the wrong way round — FROM is later than TO. Swap them and run again.",
+            "FROM must be before TO. Swap the dates.",
         ).assertIsDisplayed()
     }
 

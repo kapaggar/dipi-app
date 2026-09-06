@@ -62,7 +62,7 @@ fun AuditPane(
         ) {
             Column(Modifier.padding(bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 DeskH2("$total findings")
-                DeskSub("Grouped by the check that fired, not by person — fix one kind of mistake at a time.")
+                DeskSub("Grouped by issue")
             }
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 FINDING_SECTIONS.forEach { (severity, kicker) ->
@@ -224,7 +224,7 @@ private fun FindingDetail(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        person.card.confNo?.display() ?: "—",
+                        person.card.confNo?.display() ?: "-",
                         fontFamily = DipiMono,
                         fontWeight = FontWeight.Medium,
                         fontSize = 12.5.sp,

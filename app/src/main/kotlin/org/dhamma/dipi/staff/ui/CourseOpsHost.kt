@@ -135,7 +135,7 @@ fun CourseOpsRollError(message: String) {
                 .padding(horizontal = 14.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text("◍ No cached roll on this tablet for this course", fontSize = 13.5.sp, color = Industry.neutral800)
+            Text("◍ No cached roll for this course", fontSize = 13.5.sp, color = Industry.neutral800)
         }
         Column(
             Modifier
@@ -164,13 +164,7 @@ fun CourseOpsRollError(message: String) {
                     .padding(horizontal = 14.dp, vertical = 13.dp)
                     .testTag("course-ops-roll-error-body"),
             )
-            Text(
-                "Printed exactly as it arrived — no rewording, no friendly summary.",
-                fontSize = 12.5.sp,
-                lineHeight = 19.sp,
-                color = Color(0xFF7A5450),
-                modifier = Modifier.padding(top = 11.dp),
-            )
+
         }
     }
 }
@@ -223,8 +217,7 @@ fun CourseOpsRollPending(hasCourse: Boolean) {
                     textAlign = TextAlign.Center,
                 )
                 Text(
-                    "The roll follows the course whose dates contain today, and the desk has no such course for this centre. " +
-                        "This is what the tablet looks like between courses — nothing is broken and nothing needs fetching.",
+                    "The running course will appear here.",
                     fontSize = 13.5.sp,
                     lineHeight = 21.sp,
                     color = Industry.neutral600,

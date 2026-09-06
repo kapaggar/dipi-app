@@ -55,7 +55,7 @@ class WhatsAppRecoveryTest {
         assertNull(controller.ui.value.batch)
         controller.erase()
         assertFalse(store.configured(scope))
-        assertNull(store.batch(scope))
+        assertNull(store.batch(scope, 100))
     }
     @Test @Config(qualifiers = "sw360dp")
     fun `phone sessions do not expose an automation profile`() {
@@ -89,6 +89,24 @@ class WhatsAppRecoveryTest {
         assertEquals("Batch paused · review progress", batchProgressTitle(controller.ui.value.batch!!, false))
         controller.retryFailed(1)
         assertEquals(WhatsAppAttemptState.OutcomeUnknown, controller.ui.value.batch!!.attempts.single().state)
+    }
+
+    @Test fun `switching courses preserves separate batches and discard affects only current course`() {
+        val old = WhatsAppBatch(scope, 100, 44, listOf(WhatsAppAttempt(1, "919000000001", WhatsAppAttemptState.OutcomeUnknown)))
+        val other = WhatsAppBatch(scope, 101, 44, listOf(WhatsAppAttempt(2, "919000000002")))
+        store.saveBatch(old)
+        store.saveBatch(other)
+        val controller = controller()
+        controller.bind(state())
+        assertEquals(old, controller.ui.value.batch)
+        controller.bind(state(course = 101))
+        assertEquals(other, controller.ui.value.batch)
+        assertFalse(controller.ui.value.running)
+        controller.discard()
+        assertNull(store.batch(scope, 101))
+        controller.bind(state())
+        assertEquals(old, controller.ui.value.batch)
+        assertFalse(controller.ui.value.running)
     }
 
 }

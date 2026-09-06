@@ -76,7 +76,7 @@ fun ApplicantRow(
             }
         }
         Column(horizontalAlignment = Alignment.End) {
-            Text(card.confNo?.display() ?: "—", fontFamily = DipiMono, fontSize = 13.sp, color = c.foreground)
+            Text(card.confNo?.display() ?: "-", fontFamily = DipiMono, fontSize = 13.sp, color = c.foreground)
             StatusBadge(card.status.value, dark = dark)
         }
     }

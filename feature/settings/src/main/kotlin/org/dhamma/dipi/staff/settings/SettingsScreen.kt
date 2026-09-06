@@ -131,7 +131,7 @@ fun SettingsScreen(
         }
         if (session?.modeTest == true) {
             Text(
-                "TEST MODE — sandbox. Status changes hit the mock (or a sandbox host). The strip stays on every screen.",
+                "TEST MODE - sandbox data",
                 color = c.muted,
                 fontSize = 13.sp,
                 modifier = Modifier.padding(bottom = 12.dp),
@@ -196,7 +196,7 @@ fun SettingsScreen(
             onDismissRequest = { confirmReset = false },
             title = { Text("Erase everything on this tablet?") },
             text = {
-                Text("This is a factory reset of the app. You will need to sign in again.")
+                Text("Deletes all local data. Sign-in required afterwards.")
             },
             confirmButton = {
                 Button(
@@ -265,8 +265,7 @@ private fun ModeChoiceColumn(mode: TabletMode, onMode: (TabletMode) -> Unit, com
     )
     ModeRadioCard(
         title = "Desk ops · registration",
-        description = "Board, applications, calling, check-in, rooms & seats, exports. " +
-            "What the registrar uses on day 0.",
+        description = "Registration, calling, check-in and exports.",
         selected = mode == TabletMode.DESK,
         onSelect = { onMode(TabletMode.DESK) },
         testTag = "mode-desk",
@@ -274,8 +273,7 @@ private fun ModeChoiceColumn(mode: TabletMode, onMode: (TabletMode) -> Unit, com
     )
     ModeRadioCard(
         title = "Course ops · teacher",
-        description = "Teacher list and seating plan only, for the running course. " +
-            "Desk destinations are hidden until the mode is switched back.",
+        description = "Teacher list and seating plan for the running course.",
         selected = mode == TabletMode.COURSE_OPS,
         onSelect = { onMode(TabletMode.COURSE_OPS) },
         testTag = "mode-course-ops",
@@ -296,10 +294,10 @@ private fun ModeChoiceColumn(mode: TabletMode, onMode: (TabletMode) -> Unit, com
     )
     ConsequenceRow("✓", "Teacher list", "seniority + seating plan")
     ConsequenceRow("✓", "Student card", "application, read-only", Modifier.padding(top = 6.dp))
-    ConsequenceRow("✓", "Nothing writes", "no attendance, notes or export", Modifier.padding(top = 6.dp))
+    ConsequenceRow("✓", "Read-only", "No attendance or status changes", Modifier.padding(top = 6.dp))
     ConsequenceRow("✓", "Health answers", "on screen, encrypted, wiped on course change", Modifier.padding(top = 6.dp))
-    ConsequenceRow("—", "Board, applications, calling, check-in", "hidden", Modifier.padding(top = 6.dp))
-    ConsequenceRow("—", "Exports, rooms & seats, bulk mail", "hidden", Modifier.padding(top = 6.dp))
+    ConsequenceRow("-", "Board, applications, calling, check-in", "hidden", Modifier.padding(top = 6.dp))
+    ConsequenceRow("-", "Exports, rooms & seats", "hidden", Modifier.padding(top = 6.dp))
 }
 
 /**
@@ -486,8 +484,7 @@ private fun CourseBeingTaughtCard(
             Text(courseDates, fontSize = 14.sp, lineHeight = 21.sp, color = ModeKeyText)
         }
         Text(
-            "Locked to the course that is running. The teacher never picks a course; " +
-                "the roll follows the dates.",
+            "Uses the course running today.",
             fontSize = 12.5.sp,
             lineHeight = 19.sp,
             color = Color(0xFF7A7A7D),
@@ -554,14 +551,13 @@ private fun AppearanceCard(
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 Text(
-                    "Dark runs the Steel night ramp.",
+                    "Dark theme uses Steel.",
                     fontSize = 13.5.sp,
                     fontWeight = FontWeight.Medium,
                     color = NightAccentText,
                 )
                 Text(
-                    "${skin.label} is remembered and comes back the moment you switch to Light. " +
-                        "One night ramp keeps contrast and the fixed status hexes honest.",
+                    "${skin.label} returns in Light mode.",
                     fontSize = 13.sp,
                     lineHeight = 19.sp,
                     color = c.muted,
@@ -590,13 +586,7 @@ private fun AppearanceCard(
                 SkinButton(s, selected = s == skin, dark = dark, onClick = { onSkin(s) })
             }
         }
-        Text(
-            "Accent ramp, paper, neutrals and the lotus wash all move together.",
-            fontSize = 13.sp,
-            lineHeight = 18.sp,
-            color = c.muted,
-            modifier = Modifier.padding(top = 11.dp),
-        )
+
         FlowRow(
             Modifier.padding(top = 14.dp),
             horizontalArrangement = Arrangement.spacedBy(26.dp),
@@ -636,7 +626,7 @@ private fun AppearanceCard(
             testTag = "toggle-lotus",
         )
         Text(
-            "Status colours stay put; they carry meaning, not mood.",
+            "Status colours stay fixed.",
             fontSize = 13.sp,
             lineHeight = 18.sp,
             color = c.muted,
@@ -823,7 +813,7 @@ private fun AccountCard(
     SettingsCard(modifier) {
         DeskKicker("ACCOUNT & SESSION", c.muted)
         Text(
-            session?.displayName ?: "—",
+            session?.displayName ?: "-",
             fontFamily = DipiCondensed,
             fontWeight = FontWeight.SemiBold,
             fontSize = 20.sp,
@@ -972,11 +962,11 @@ private val NightAccentText = IndustryPalette.Steel.accent300
  */
 private val NightAccentRamp = listOf(
     IndustryPalette.Steel.accent900,
-    Color(0xFF25384B), // no token — frame interpolation between accent900/800
+    Color(0xFF25384B), // no token - frame interpolation between accent900/800
     IndustryPalette.Steel.accent800,
-    Color(0xFF365670), // no token — frame interpolation between accent800/700
+    Color(0xFF365670), // no token - frame interpolation between accent800/700
     IndustryPalette.Steel.accent700,
-    Color(0xFF4E7195), // no token — frame interpolation between accent700/accent
+    Color(0xFF4E7195), // no token - frame interpolation between accent700/accent
     IndustryPalette.Steel.accent,
     IndustryPalette.Steel.accent500,
     IndustryPalette.Steel.accent300,

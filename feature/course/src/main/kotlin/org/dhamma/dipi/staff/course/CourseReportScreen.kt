@@ -280,9 +280,8 @@ private fun DateField(label: String, value: String, tag: String, onChange: (Stri
 @Composable
 private fun FirstOpen() {
     Message(
-        title = "Nothing has been asked for yet.",
-        body = "Set the range and press RUN. The desk builds this report from " +
-            "scratch every time, so nothing is fetched until you ask.",
+        title = "Choose report dates",
+        body = "Choose dates, then tap RUN.",
         tag = "report-first-open",
     )
 }
@@ -291,8 +290,7 @@ private fun FirstOpen() {
 private fun Running(state: CourseReportUi) {
     Message(
         title = "Asking the desk for ${displayDeskDate(state.from)} → ${displayDeskDate(state.to)}.",
-        body = "A wide range takes the desk a while — it walks every course " +
-            "in the window. The range above stays editable if you want to narrow it.",
+        body = "Large date ranges take longer.",
         tag = "report-running",
     )
 }
@@ -304,11 +302,9 @@ private fun EmptyRange(state: CourseReportUi) {
     Message(
         title = "No course started between ${displayDeskDate(state.from)} and ${displayDeskDate(state.to)}.",
         body = if (reversed) {
-            "The dates are the wrong way round — FROM is later than TO. " +
-                "Swap them and run again."
+            "FROM must be before TO. Swap the dates."
         } else {
-            "That is the answer, not a failure. Widen the range and run again " +
-                "if you expected something here."
+            "Try a wider date range."
         },
         tag = "report-empty",
     )

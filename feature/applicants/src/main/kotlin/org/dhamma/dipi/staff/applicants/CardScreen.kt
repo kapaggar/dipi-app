@@ -57,7 +57,7 @@ fun CardScreen(
             StatusBadge(card.status.value, dark = dark)
             Text("  ${card.confNo?.display() ?: "no conf no"}", fontFamily = DipiMono, color = c.muted)
         }
-        Text("${card.age ?: "—"} ${card.gender.name}", color = c.muted, modifier = Modifier.padding(top = 4.dp))
+        Text("${card.age ?: "-"} ${card.gender.name}", color = c.muted, modifier = Modifier.padding(top = 4.dp))
         if (card.monk) Text("Monk/Nun", color = c.accent, fontFamily = DipiCondensed)
         TextButton(onPhoto) { Text(photoNote, color = c.accent) }
         val health = sensitive?.health.orEmpty()
@@ -123,7 +123,7 @@ fun CardScreen(
         }
         if (card.flags.isEmpty()) {
             Text("Audit clean", fontFamily = DipiCondensed, color = c.muted)
-            Text("No audit flags. Identity, contact, emergency and cross-course checks all pass.", color = c.muted, fontSize = 13.sp)
+            Text("No audit flags.", color = c.muted, fontSize = 13.sp)
         } else {
             Text(
                 "Needs attention · ${card.flags.size}",
@@ -143,16 +143,16 @@ fun CardScreen(
         }
         Spacer(Modifier.height(16.dp))
         Fact("Location", card.locationLine)
-        Fact("Mobile", card.mobile ?: "—")
-        Fact("Email", card.email ?: "—")
-        Fact("Home phone", card.phoneHome ?: "—")
-        Fact("Date of birth", card.dob ?: "—")
-        Fact("Application date", card.createdAt ?: "—")
+        Fact("Mobile", card.mobile ?: "-")
+        Fact("Email", card.email ?: "-")
+        Fact("Home phone", card.phoneHome ?: "-")
+        Fact("Date of birth", card.dob ?: "-")
+        Fact("Application date", card.createdAt ?: "-")
         if (card.oldStudent && card.history != null) {
             Spacer(Modifier.height(12.dp))
             Text("Courses completed · course audit", fontFamily = DipiCondensed, fontSize = 16.sp)
-            Fact("First", card.history!!.first ?: "—")
-            Fact("Most recent", card.history!!.recent ?: "—")
+            Fact("First", card.history!!.first ?: "-")
+            Fact("Most recent", card.history!!.recent ?: "-")
             Text(
                 card.history!!.counts.joinToString(" · ") { "${it.label} ${it.n}" },
                 color = c.muted,

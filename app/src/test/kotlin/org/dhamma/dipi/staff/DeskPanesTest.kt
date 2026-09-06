@@ -747,7 +747,7 @@ class DeskPanesTest {
                 )
             }
         }
-        rule.onNodeWithText("0 of 1 logged · log the outcome as you go, the list empties itself").assertIsDisplayed()
+        rule.onNodeWithText("0 of 1 logged").assertIsDisplayed()
         // Segmented labels carry the pile sizes.
         rule.onNodeWithText("To call 1").assertIsDisplayed()
         rule.onNodeWithText("Confirmed 0").assertIsDisplayed()
@@ -787,7 +787,7 @@ class DeskPanesTest {
                 )
             }
         }
-        rule.onNodeWithText("1 of 1 logged · log the outcome as you go, the list empties itself").assertIsDisplayed()
+        rule.onNodeWithText("1 of 1 logged").assertIsDisplayed()
         rule.onNodeWithText("NF1 · Confirmed · ×2 · just now").assertIsDisplayed()
         rule.onNodeWithText("NO ANSWER").assertIsDisplayed()
         rule.onNodeWithText("Priya Nair").performClick()
@@ -817,7 +817,7 @@ class DeskPanesTest {
         }
         rule.onNodeWithText("Priya Nair").assertIsDisplayed()
         rule.onNodeWithText("CONFIRMED").assertIsDisplayed()
-        rule.onNodeWithText("1 of 1 logged · log the outcome as you go, the list empties itself").assertIsDisplayed()
+        rule.onNodeWithText("1 of 1 logged").assertIsDisplayed()
     }
 
     @Test
@@ -958,7 +958,7 @@ class DeskPanesTest {
         rule.onNodeWithText("Priya Nair").assertDoesNotExist()
         rule.onNodeWithText("Meera Shah").assertDoesNotExist()
         rule.onNodeWithText("Arun Kale").assertDoesNotExist()
-        rule.onNodeWithText("0 of 1 logged · log the outcome as you go, the list empties itself").assertIsDisplayed()
+        rule.onNodeWithText("0 of 1 logged").assertIsDisplayed()
         rule.onNodeWithText("To call 1").assertIsDisplayed()
     }
 

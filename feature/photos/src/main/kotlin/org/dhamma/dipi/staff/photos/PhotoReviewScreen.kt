@@ -72,7 +72,7 @@ fun PhotoReviewScreen(
             Button(onUpload) { Text("Queue upload ($pendingUploads)") }
         }
         Text(
-            "Fixes stay on this device — live upload isn't available on the desk",
+            "Photo fixes stay on this tablet.",
             color = c.muted,
             fontSize = 11.sp,
         )
@@ -99,7 +99,7 @@ fun PhotoReviewScreen(
                     ReviewPhotoFrame(p.id, p.displayName, e, loadPhoto, c)
                     Column {
                         Text(p.displayName, fontFamily = DipiCondensed)
-                        Text("${p.confNo?.display() ?: "—"}  $badge", color = c.muted, fontSize = 12.sp)
+                        Text("${p.confNo?.display() ?: "-"}  $badge", color = c.muted, fontSize = 12.sp)
                         Row {
                             TextButton({ onRotate(p.id, -90) }) { Text("↺") }
                             TextButton({ onRotate(p.id, 90) }) { Text("↻") }

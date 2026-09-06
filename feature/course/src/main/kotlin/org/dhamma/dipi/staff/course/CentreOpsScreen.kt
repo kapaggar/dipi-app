@@ -90,29 +90,28 @@ fun CentreOpsScreen(
         }
         Spacer(Modifier.height(14.dp))
         Text(
-            "Three switches change what check-in asks for. " +
-                "The line at the bottom shows the result.",
+            "Check-in options",
             color = c.muted,
             fontSize = 13.sp,
             modifier = Modifier.padding(top = 2.dp, bottom = 14.dp),
         )
         ToggleRow(
             title = "Laundry",
-            note = "Check-in asks whether laundry was issued.",
+            note = "Laundry at check-in",
             on = prefs.laundry,
             onClick = onToggleLaundry,
             testTag = "toggle-laundry",
         )
         ToggleRow(
             title = "Valuables",
-            note = "Check-in asks whether valuables were deposited.",
+            note = "Valuables at check-in",
             on = prefs.valuables,
             onClick = onToggleValuables,
             testTag = "toggle-valuables",
         )
         ToggleRow(
             title = "Groups",
-            note = "Check-in assigns a sitting group; Zero Day shows group chips.",
+            note = "Sitting groups at check-in",
             on = prefs.groups,
             onClick = onToggleGroups,
             testTag = "toggle-groups",
@@ -143,7 +142,7 @@ fun CentreOpsScreen(
         Spacer(Modifier.height(14.dp))
         Text("Accommodation", fontFamily = DipiCondensed, fontSize = 16.sp, modifier = Modifier.padding(top = 8.dp))
         Text(
-            "Room list comes from the desk site (Centre → Edit) and refreshes on sign-in.",
+            "Edit rooms on the desk site. Refreshes at sign-in.",
             color = c.muted,
             fontSize = 12.sp,
             modifier = Modifier.padding(bottom = 6.dp),
@@ -220,8 +219,7 @@ private fun WhatsAppTemplateCard(template: String, onTemplate: (String) -> Unit)
     ) {
         Text("WhatsApp message", fontFamily = DipiCondensed, fontSize = 18.sp, color = c.foreground)
         Text(
-            "Sent by the calling round's WhatsApp button. " +
-                WHATSAPP_TOKENS.joinToString(" ") + " are filled in per applicant.",
+            "Fields: " + WHATSAPP_TOKENS.joinToString(" "),
             color = c.muted,
             fontSize = 12.sp,
         )
@@ -246,7 +244,7 @@ private fun WhatsAppTemplateCard(template: String, onTemplate: (String) -> Unit)
             fontSize = 13.sp,
         )
         if (template.isNotBlank()) {
-            TextButton(onClick = { onTemplate("") }) { Text("Reset to the default message") }
+            TextButton(onClick = { onTemplate("") }) { Text("Reset message") }
         }
     }
 }
@@ -281,8 +279,7 @@ private fun HallChartCard(
     ) {
         Text("Hall chart", fontFamily = DipiCondensed, fontSize = 18.sp, color = c.foreground)
         Text(
-            "Columns and rows deep for the seating plan, per hall. " +
-                "Seat labels beyond the grid extend it.",
+            "Seat labels outside these dimensions extend the grid.",
             color = c.muted,
             fontSize = 12.sp,
         )
@@ -303,7 +300,7 @@ private fun HallChartCard(
                 contentLabel = "columns · $label",
             ) { n -> staged = staged + (g to grid.copy(columns = n)) }
             HallStepperRow(
-                label = "Rows deep (1 sits nearest the teacher)",
+                label = "Rows (1 nearest teacher)",
                 value = grid.depth,
                 min = HallGrid.MIN_DEPTH,
                 max = HallGrid.MAX_DEPTH,
@@ -318,7 +315,7 @@ private fun HallChartCard(
             modifier = Modifier.padding(top = 10.dp),
         )
         Text(
-            "Vertical stack puts CW-A1 nearest the Dhamma seat, then chairs above.",
+            "CW-A1 is nearest the Dhamma seat.",
             color = c.muted,
             fontSize = 12.sp,
         )

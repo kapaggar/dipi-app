@@ -87,7 +87,7 @@ class SettingsScreenTest {
         DeskSkin.entries.forEach { s ->
             rule.onNodeWithText(s.label.uppercase()).assertIsDisplayed()
         }
-        rule.onNodeWithText("Status colours stay put; they carry meaning, not mood.").assertIsDisplayed()
+        rule.onNodeWithText("Status colours stay fixed.").assertIsDisplayed()
         rule.onNodeWithText("BLOSSOM").performClick()
         assertEquals(DeskSkin.Blossom, picked)
     }
@@ -247,7 +247,7 @@ class SettingsScreenTest {
                 )
             }
         }
-        rule.onNodeWithText("Dark runs the Steel night ramp.").assertIsDisplayed()
+        rule.onNodeWithText("Dark theme uses Steel.").assertIsDisplayed()
         rule.onNodeWithText("APPLIES IN LIGHT").assertIsDisplayed()
         rule.onNodeWithText("SAVED").assertIsDisplayed()
         rule.onNodeWithText("NIGHT ACCENT").assertIsDisplayed()
@@ -270,7 +270,7 @@ class SettingsScreenTest {
                 )
             }
         }
-        rule.onNodeWithText("Dark runs the Steel night ramp.").assertDoesNotExist()
+        rule.onNodeWithText("Dark theme uses Steel.").assertDoesNotExist()
         rule.onNodeWithText("APPLIES IN LIGHT").assertDoesNotExist()
         rule.onNodeWithText("SAVED").assertDoesNotExist()
         rule.onNodeWithText("ACCENT 100–900").assertIsDisplayed()

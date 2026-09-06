@@ -422,9 +422,9 @@ fun roomPullSnack(n: Int): FlushSnack =
 /** Snack for a bulk allocation sync: successes first, then the first refusal verbatim. */
 fun roomSyncSnack(result: RoomSyncResult): FlushSnack = when {
     result.offline ->
-        FlushSnack("${result.synced} synced · connection lost — the rest will sync when online", error = true)
+        FlushSnack("${result.synced} synced · connection lost - the rest will sync when online", error = true)
     result.failures.isNotEmpty() ->
-        FlushSnack("${result.synced} synced · ${result.failed} failed — ${result.failures.first().reason}", error = true)
+        FlushSnack("${result.synced} synced · ${result.failed} failed - ${result.failures.first().reason}", error = true)
     else -> FlushSnack("✓ Synced ${result.synced} room allocation(s) to the desk", error = false)
 }
 
@@ -729,7 +729,7 @@ class DeskViewModel @Inject constructor(
         val course = s.course ?: return
         if (s.offline) {
             if (userInitiated) {
-                _state.update { it.copy(snack = FlushSnack("offline — will pull when online", error = false)) }
+                _state.update { it.copy(snack = FlushSnack("offline - will pull when online", error = false)) }
             }
             return
         }
@@ -767,7 +767,7 @@ class DeskViewModel @Inject constructor(
             return
         }
         if (s.offline) {
-            _state.update { it.copy(snack = FlushSnack("offline — will sync when online", error = false)) }
+            _state.update { it.copy(snack = FlushSnack("offline - will sync when online", error = false)) }
             return
         }
         viewModelScope.launch {
@@ -1758,7 +1758,7 @@ class DeskViewModel @Inject constructor(
                 cur.copy(
                     teacherPrefetch = null,
                     snack = if (missing > 0) {
-                        FlushSnack("$missing application(s) not fetched — will retry on the next entry", error = false)
+                        FlushSnack("$missing application(s) not fetched - will retry on the next entry", error = false)
                     } else {
                         cur.snack
                     },

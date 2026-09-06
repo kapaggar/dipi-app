@@ -951,3 +951,16 @@ Saved progress replaces the preparation form until staff finish or discard that 
 Completed batches display a completion summary; uncertain outcomes remain paused for
 review. A finished run returns to the existing DIPI activity. Exact recipient/composer
 verification and no automatic retry of unknown sends remain unchanged.
+
+### Course batch isolation and concise copy - 1.43.4 (2026-09-06)
+
+Owner amendment: WhatsApp batches belong to their course. Another course's unfinished
+batch must not block preparation or sending. Current-course Discard batch sits above
+the bounded progress list and confirms before deleting local progress. The letter,
+key and enablement profile remain centre-specific.
+
+Reduce explanatory copy across desk, Calling, Settings, course reports, teacher and
+student views, photos and WhatsApp. Keep actionable errors, destructive-action and
+uncertain-send notices. Replace app-authored em dashes and missing-value labels with
+hyphens; server messages and applicant content remain verbatim. This owner amendment
+supersedes the older design's verbose captions.

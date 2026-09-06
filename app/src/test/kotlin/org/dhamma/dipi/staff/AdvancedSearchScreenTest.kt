@@ -90,7 +90,7 @@ class AdvancedSearchScreenTest {
                 AdvancedSearchScreen(rows = emptyList(), onOpen = {}, onOpenDesk = { desk = true })
             }
         }
-        rule.onNodeWithText("Nothing cached yet — open a course once to search its applicants here.")
+        rule.onNodeWithText("Open a course to search its cached applicants.")
             .assertIsDisplayed()
         rule.onNodeWithText("Full Advanced Search on the desk site ↗").performClick()
         assertTrue(desk)

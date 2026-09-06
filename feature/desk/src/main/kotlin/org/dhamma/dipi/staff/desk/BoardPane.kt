@@ -78,8 +78,7 @@ fun BoardPane(
             .padding(horizontal = 20.dp, vertical = 14.dp),
     ) {
         Text(
-            "$total on the roll, $inCount already in their rooms. " +
-                "Everything below is a number you can act on — tap it.",
+            "$total on the roll · $inCount checked in",
             fontSize = 15.sp,
             lineHeight = 20.sp,
             color = Industry.neutral700,

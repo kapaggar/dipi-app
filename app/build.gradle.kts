@@ -24,8 +24,8 @@ android {
         applicationId = "org.dhamma.dipi.staff"
         minSdk = 26
         targetSdk = 35
-        versionCode = 84
-        versionName = "1.43.3"
+        versionCode = 85
+        versionName = "1.43.4"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "BASE_URL", "\"${overrideUrl.trimEnd('/')}\"")
         val useMock = ((findProperty("dipi.useMock") as String?)

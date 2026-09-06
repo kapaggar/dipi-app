@@ -1,6 +1,8 @@
 package org.dhamma.dipi.staff.datastore
 
 import android.content.Context
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import org.junit.Assert.*
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -34,10 +36,10 @@ class WhatsAppStoreTest {
         val centre=WhatsAppScope("https://one.example.test",91)
         first.saveBatch(WhatsAppBatch(centre,100,44,listOf(WhatsAppAttempt(1,"919000000001",WhatsAppAttemptState.SendStarted)),paused=false))
         val restarted=WhatsAppStore { prefs }
-        val recovered=restarted.batch(centre)!!
+        val recovered=restarted.batch(centre, 100)!!
         assertTrue(recovered.paused); assertEquals(WhatsAppAttemptState.OutcomeUnknown,recovered.attempts.single().state)
-        assertNull(restarted.batch(WhatsAppScope("https://one.example.test",92)))
-        restarted.remove(centre); assertNull(restarted.batch(centre))
+        assertNull(restarted.batch(WhatsAppScope("https://one.example.test",92), 100))
+        restarted.remove(centre); assertNull(restarted.batch(centre, 100))
         assertFalse(prefs.all.keys.any { it.contains("body") || it.contains("url") })
     }
     @Test fun `migrates pilot secrets to one code and removes legacy entries`() {
@@ -57,19 +59,53 @@ class WhatsAppStoreTest {
         assertEquals(before, prefs.all)
     }
 
-    @Test fun `another course cannot overwrite unresolved messaging progress`() {
+    @Test fun `another course can start while earlier progress is unresolved`() {
         val prefs = RuntimeEnvironment.getApplication().getSharedPreferences("wa-course-conflict", Context.MODE_PRIVATE)
         prefs.edit().clear().commit()
         val store = WhatsAppStore { prefs }
         val centre = WhatsAppScope("https://one.example.test", 91)
-        val uncertain = WhatsAppBatch(centre, 100, 44, listOf(WhatsAppAttempt(1, "919000000001", WhatsAppAttemptState.OutcomeUnknown)))
-        store.saveBatch(uncertain)
-        try { store.saveBatch(WhatsAppBatch(centre, 101, 44, listOf(WhatsAppAttempt(2, "919000000002")))); fail("Unresolved progress was overwritten") }
-        catch (_: IllegalArgumentException) { }
-        assertEquals(uncertain, store.batch(centre))
-        store.clearBatch(centre)
+        store.saveBatch(WhatsAppBatch(centre, 100, 44, listOf(WhatsAppAttempt(1, "919000000001", WhatsAppAttemptState.OutcomeUnknown))))
         store.saveBatch(WhatsAppBatch(centre, 101, 44, listOf(WhatsAppAttempt(2, "919000000002"))))
-        assertEquals(101, store.batch(centre)!!.courseId)
+    }
+    @Test fun `independent course batches survive restart and targeted discard`() {
+        val prefs = RuntimeEnvironment.getApplication().getSharedPreferences("wa-separated", Context.MODE_PRIVATE)
+        prefs.edit().clear().commit()
+        val store = WhatsAppStore { prefs }
+        val centre = WhatsAppScope("https://one.example.test", 91)
+        val otherCentre = centre.copy(centreId = 92)
+        val otherServer = centre.copy(origin = "https://two.example.test")
+        val old = WhatsAppBatch(centre, 100, 44, listOf(WhatsAppAttempt(1, "919000000001", WhatsAppAttemptState.OutcomeUnknown)))
+        val next = WhatsAppBatch(centre, 101, 44, listOf(WhatsAppAttempt(2, "919000000002")))
+        store.saveBatch(old); store.saveBatch(next)
+        store.saveBatch(old.copy(scope = otherCentre)); store.saveBatch(old.copy(scope = otherServer))
+        val restarted = WhatsAppStore { prefs }
+        assertEquals(old, restarted.batch(centre, 100)); assertEquals(next, restarted.batch(centre, 101))
+        restarted.clearBatch(centre, 101)
+        assertNull(restarted.batch(centre, 101)); assertEquals(old, restarted.batch(centre, 100))
+        restarted.remove(centre)
+        assertNull(restarted.batch(centre, 100))
+        assertNotNull(restarted.batch(otherCentre, 100)); assertNotNull(restarted.batch(otherServer, 100))
+        restarted.wipeAll(); assertNull(restarted.batch(otherCentre, 100)); assertNull(restarted.batch(otherServer, 100))
+    }
+
+    @Test fun `legacy batch migrates atomically when another course opens first`() {
+        val prefs = RuntimeEnvironment.getApplication().getSharedPreferences("wa-batch-migration", Context.MODE_PRIVATE)
+        prefs.edit().clear().commit()
+        val centre = WhatsAppScope("https://one.example.test", 91)
+        val old = WhatsAppBatch(centre, 100, 44, listOf(WhatsAppAttempt(1, "919000000001", WhatsAppAttemptState.SendStarted)))
+        val suffix = java.security.MessageDigest.getInstance("SHA-256")
+            .digest("${centre.origin}\n${centre.centreId}".toByteArray()).joinToString("") { "%02x".format(it) }
+        prefs.edit().putString("batch.$suffix", Json.encodeToString(old)).commit()
+        val store = WhatsAppStore { prefs }
+        assertNull(store.batch(centre, 101))
+        assertFalse(prefs.contains("batch.$suffix"))
+        assertTrue(prefs.contains("batch.100.$suffix"))
+        assertEquals(WhatsAppAttemptState.OutcomeUnknown, store.batch(centre, 100)!!.attempts.single().state)
+        store.saveBatch(WhatsAppBatch(centre, 101, 44, listOf(WhatsAppAttempt(2, "919000000002"))))
+        assertNotNull(store.batch(centre, 100)); assertNotNull(store.batch(centre, 101))
+        store.clearBatch(centre, 100)
+        assertNull(WhatsAppStore { prefs }.batch(centre, 100))
+        assertNotNull(store.batch(centre, 101))
     }
 
 }

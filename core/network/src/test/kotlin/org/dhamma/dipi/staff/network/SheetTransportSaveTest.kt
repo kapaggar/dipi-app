@@ -83,7 +83,7 @@ class SheetTransportSaveTest {
     @Test
     fun guardedIoExceptionIsTheOfflineSentence() {
         assertEquals(
-            "Offline — could not reach the desk for Laundry list",
+            "Offline - could not reach the desk for Laundry list",
             sheetFailureMessage("Laundry list", IOException("timeout")),
         )
     }

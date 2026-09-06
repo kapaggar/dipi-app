@@ -65,7 +65,7 @@ data class HallCell(val id: String, val seated: PlacedSeat?)
 data class UnseatedRow(val row: RollRow, val reason: String)
 
 /** The only "reason" the page carries besides the name-suffix role tag. */
-const val UNSEATED_NO_REASON = "—"
+const val UNSEATED_NO_REASON = "-"
 
 /**
  * The drawn seating plan for one hall, derived purely from the roll's seat

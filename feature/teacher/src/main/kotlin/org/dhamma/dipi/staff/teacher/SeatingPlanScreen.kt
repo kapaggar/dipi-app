@@ -198,7 +198,7 @@ fun HallBody(
                     if (visibleUnseated.isNotEmpty()) UnseatedSection(visibleUnseated)
                 }
                 Text(
-                    "Read and print only — seats are set on the desk.",
+                    "Seat changes are made on the desk site.",
                     fontSize = 12.sp,
                     color = Industry.neutral400,
                     modifier = Modifier.padding(top = 10.dp, bottom = 8.dp).testTag("hall-read-only"),

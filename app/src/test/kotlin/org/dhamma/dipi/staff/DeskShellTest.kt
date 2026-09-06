@@ -175,7 +175,7 @@ class DeskShellTest {
         rule.onNodeWithText("Dhamma Sudha").assertDoesNotExist()
         // The subtitle survives and is now the block's first line.
         rule.onNodeWithText(
-            "0 on the roll, 0 already in their rooms. Everything below is a number you can act on — tap it.",
+            "0 on the roll · 0 checked in",
         ).assertIsDisplayed()
     }
 }

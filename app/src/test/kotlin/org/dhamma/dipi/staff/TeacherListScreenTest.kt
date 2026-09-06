@@ -161,7 +161,7 @@ class TeacherListScreenTest {
         rule.onAllNodesWithTag("course-chip-10D", useUnmergedTree = true).assertCountEquals(1)
         rule.onAllNodesWithTag("course-chip-STP", useUnmergedTree = true).assertCountEquals(1)
         // Folded line keeps the page's own blanks as em-dashes.
-        rule.onNodeWithText("— · — · Gujarati").assertIsDisplayed()
+        rule.onNodeWithText("- · - · Gujarati").assertIsDisplayed()
         rule.onNodeWithText("Doctor · MBBS · Marathi").assertIsDisplayed()
     }
 
@@ -200,7 +200,7 @@ class TeacherListScreenTest {
             }
         }
         rule.onNodeWithTag("offline-strip").assertIsDisplayed()
-        rule.onNodeWithText("◍ Offline — showing cached list", substring = true).assertIsDisplayed()
+        rule.onNodeWithText("◍ Offline - showing cached list", substring = true).assertIsDisplayed()
         // Pushed down, not floated: the header title starts below the strip.
         val strip = rule.onNodeWithTag("offline-strip").getUnclippedBoundsInRoot()
         val title = rule.onNodeWithTag("teacher-list-title").getUnclippedBoundsInRoot()
@@ -258,7 +258,7 @@ class TeacherListScreenTest {
             }
         }
         rule.onNodeWithTag("courses-collapsed").assertIsDisplayed()
-        rule.onNodeWithText("NO COURSE HISTORY IN THIS GROUP — COURSES COLLAPSED").assertIsDisplayed()
+        rule.onNodeWithText("NO COURSE HISTORY IN THIS GROUP").assertIsDisplayed()
         rule.onNodeWithText("COURSES").assertDoesNotExist()
     }
 

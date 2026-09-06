@@ -39,12 +39,12 @@ fun DaySummaryScreen(course: Course, rows: List<ApplicantCard>) {
         Text("Expected today", color = c.muted, modifier = Modifier.padding(top = 16.dp))
         Text("$expected = ${students.size} + ${servers.size}", fontFamily = DipiCondensed, fontSize = 36.sp)
         Text("Arrived  $arrived of $expected · $pct%", modifier = Modifier.padding(top = 12.dp))
-        Text("Registration desk opens 14:00 · no one marked attended yet", color = c.muted, fontSize = 13.sp)
+        Text("Registration opens 14:00", color = c.muted, fontSize = 13.sp)
         Text("Confirmed · old / new", fontFamily = DipiCondensed, modifier = Modifier.padding(top = 16.dp))
         Text(bar(Gender.M), fontSize = 13.sp)
         Text(bar(Gender.F), fontSize = 13.sp)
         Text("Seating requests · not assigned", fontFamily = DipiCondensed, modifier = Modifier.padding(top = 16.dp))
-        Text("Chowky / Chair / Backrest  ·  M —   F —", color = c.muted)
+        Text("Chowky / Chair / Backrest  ·  M -   F -", color = c.muted)
     }
 }
 

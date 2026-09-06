@@ -77,7 +77,7 @@ private fun Modifier.bottomHairline(color: Color): Modifier = drawBehind {
  *   colour-code an answer.
  *
  * [card] == null is the not-yet-landed state: offline it reads honestly
- * "Not cached — connect once to fetch"; online the prefetch is still in
+ * "Not cached - connect to load"; online the prefetch is still in
  * flight.
  */
 @Composable
@@ -229,7 +229,7 @@ private fun NotCachedBody(offline: Boolean) {
     Box(Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
         if (offline) {
             Text(
-                "Not cached — connect once to fetch",
+                "Not cached - connect to load",
                 fontSize = 14.sp,
                 color = Industry.neutral700,
                 modifier = Modifier.testTag("card-not-cached"),
@@ -443,7 +443,6 @@ private fun RightColumn(card: ApplicationCard, gender: Gender, cameFrom: String?
                     color = Industry.neutral500,
                 )
                 Text(cameFrom, fontSize = 12.5.sp, color = Industry.neutral700, modifier = Modifier.weight(1f))
-                Text("same record as the roll row", fontSize = 12.sp, color = Industry.neutral400)
             }
         }
         Spacer(Modifier.height(16.dp))
