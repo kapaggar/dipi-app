@@ -927,3 +927,17 @@ GET, no search, no writes.
 - Data flow and safety are unchanged: `seatingPlanPrintHtml` uses the
   in-memory roll and shared `hallLayout`, never `GET /seating` and never
   sends `?r=`.
+
+
+### 1.43.1 - centre-specific WhatsApp automation
+
+Owner-approved Android-only opt-in. Centre settings now accepts one separately
+provided, masked provisioning code and offers an explicit self-chat device check.
+Calling retains its manual handoff while off; the batch action uses the current
+Calling filters and Expected/Confirmed population. Recipients and active letters
+have bounded scroll lists, while the dialog heading, Close action and current
+status remain visible. Review includes numbers, shared-number consent and one
+server-rendered personalised sample. Pause/Stop float over WhatsApp during a run.
+Saved recovery never resumes automatically; an uncertain Send is not retried.
+Names alone cannot verify a recipient, so saved-name-only chats stop for manual
+handling. Automation defaults off and must be retested after a WhatsApp update.

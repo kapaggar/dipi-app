@@ -31,17 +31,36 @@ class WhatsAppStore constructor(private val provider: () -> SharedPreferences) {
     @Synchronized fun save(profile: CentreWhatsAppProfile) {
         check(prefs.edit().putString("profile.${key(profile.scope)}", json.encodeToString(profile)).commit()) { "Could not save WhatsApp settings" }
     }
-    @Synchronized fun provision(scope: WhatsAppScope, key: String, iv: String) {
-        require(key.isNotBlank() && iv.isNotBlank() && key.length <= 4096 && iv.length <= 4096) { "Enter both encryption values" }
-        check(prefs.edit().putString("secret.${this.key(scope)}", key).putString("iv.${this.key(scope)}", iv).commit()) { "Could not save letter key" }
+    @Synchronized fun provision(scope: WhatsAppScope, code: String) {
+        WhatsAppProvisioningCode.withMaterial(code) { _, _ -> }
+        check(prefs.edit().putString("code.${key(scope)}", code.trim())
+            .remove("secret.${key(scope)}").remove("iv.${key(scope)}").commit()) { "Could not save provisioning code" }
     }
-    @Synchronized fun configured(scope: WhatsAppScope) = prefs.contains("secret.${key(scope)}") && prefs.contains("iv.${key(scope)}")
-    @Synchronized fun <T> withSecrets(scope: WhatsAppScope, block: (ByteArray, ByteArray) -> T): T {
-        val secret = prefs.getString("secret.${key(scope)}", null)?.toByteArray() ?: error("Provision the centre letter key first")
-        val iv = prefs.getString("iv.${key(scope)}", null)?.toByteArray() ?: error("Provision the centre letter key first")
-        try { return block(secret, iv) } finally { secret.fill(0); iv.fill(0) }
+    /** Compatibility for a tablet provisioned during the two-field pilot. */
+    @Synchronized fun provision(scope: WhatsAppScope, secret: String, iv: String) {
+        val a = secret.toByteArray(); val b = iv.toByteArray()
+        try { provision(scope, WhatsAppProvisioningCode.fromLegacySecrets(a, b)) }
+        finally { a.fill(0); b.fill(0) }
+    }
+    @Synchronized fun configured(scope: WhatsAppScope) = prefs.contains("code.${key(scope)}") ||
+        (prefs.contains("secret.${key(scope)}") && prefs.contains("iv.${key(scope)}"))
+    @Synchronized fun <T> withMaterial(scope: WhatsAppScope, block: (ByteArray, ByteArray) -> T): T {
+        if (!prefs.contains("code.${key(scope)}")) {
+            val secret = prefs.getString("secret.${key(scope)}", null) ?: error("Provision the centre's code first")
+            val iv = prefs.getString("iv.${key(scope)}", null) ?: error("Provision the centre's code first")
+            provision(scope, secret, iv)
+        }
+        return WhatsAppProvisioningCode.withMaterial(prefs.getString("code.${key(scope)}", null) ?: error("Provision the centre's code first"), block)
+    }
+    @Synchronized fun pilotResult(scope: WhatsAppScope): String? = prefs.getString("pilot.${key(scope)}", null)
+    @Synchronized fun savePilotResult(scope: WhatsAppScope, result: String) {
+        check(prefs.edit().putString("pilot.${key(scope)}", result).commit()) { "Could not save device check" }
     }
     @Synchronized fun saveBatch(batch: WhatsAppBatch) {
+        val previous = this.batch(batch.scope)
+        require(previous == null || previous.courseId == batch.courseId || previous.attempts.all {
+            it.state in setOf(WhatsAppAttemptState.SubmissionObserved, WhatsAppAttemptState.Skipped)
+        }) { "Another course has unfinished WhatsApp progress. Return to that course and review or discard its batch first." }
         check(prefs.edit().putString("batch.${key(batch.scope)}", json.encodeToString(batch)).commit()) { "Could not save messaging progress" }
     }
     @Synchronized fun batch(scope: WhatsAppScope): WhatsAppBatch? =

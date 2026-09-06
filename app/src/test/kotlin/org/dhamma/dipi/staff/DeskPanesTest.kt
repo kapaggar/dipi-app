@@ -86,6 +86,23 @@ class DeskPanesTest {
     val rule = createComposeRule()
 
     @Test
+    fun whatsappBatchReceivesOnlyTheCurrentlyFilteredCallingRows() {
+        var selected = emptyList<ApplicantCard>()
+        val rows = listOf(card(1, given = "First", gender = Gender.F),
+            card(2, given = "Second", gender = Gender.M, conf = "NM2"),
+            card(3, given = "Third", status = "Expected"))
+        rule.setContent {
+            DipiTheme {
+                CallingPane(roll = rows, outcomes = emptyMap(), filter = "To call",
+                    onFilter = {}, onOutcome = { _, _ -> }, onDial = {}, onWhatsApp = {}, onNote = { _, _ -> },
+                    gender = "Female", search = "First", onWhatsAppBatch = { selected = it })
+            }
+        }
+        rule.onNodeWithText("WhatsApp batch · 1 in this view").performClick()
+        assertEquals(listOf(ApplicantId(1)), selected.map { it.id })
+    }
+
+    @Test
     fun snackbarUsesActiveErrorTokenAndPreservesSuccessToneAndMessage() {
         val token = Color(0xFF123456)
         val wasInspectorEnabled = isDebugInspectorInfoEnabled

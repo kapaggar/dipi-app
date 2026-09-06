@@ -78,6 +78,7 @@ class WhatsAppController @Inject constructor(
     fun accessibilitySettings() {
         context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
     }
+    fun pilotResult(): String? = mutable.value.profile?.let { store.pilotResult(it.scope) }
     fun packageVersion(): String? = runCatching {
         context.packageManager.getPackageInfo(mutable.value.profile?.packageName ?: "com.whatsapp", 0).versionName
     }.getOrNull()
@@ -96,11 +97,11 @@ class WhatsAppController @Inject constructor(
         store.save(next)
         mutable.value = mutable.value.copy(profile = next, preview = null, message = "Settings saved for this centre.")
     }
-    fun provision(key: String, iv: String) {
+    fun provision(code: String) {
         val current = mutable.value.profile ?: return
         safe {
-            store.provision(current.scope, key, iv)
-            mutable.value = mutable.value.copy(configured = true, message = "Letter key stored on this device.")
+            store.provision(current.scope, code)
+            mutable.value = mutable.value.copy(configured = true, message = "Provisioning code stored on this device.")
         }
     }
     fun removeProfile() {
@@ -165,7 +166,7 @@ class WhatsAppController @Inject constructor(
         val current = session ?: error("Sign in again")
         val card = roll.firstOrNull { it.id.value == applicant } ?: error("Applicant is no longer in this course")
         check(card.centreId.value == current.second.centreId && card.courseId.value == current.third && card.status.value in setOf("Confirmed", "Expected")) { "Applicant eligibility changed; refresh the batch" }
-        val token = store.withSecrets(current.second) { key, iv -> LetterLinkCipher.encrypt(applicant, letter, key, iv) }
+        val token = store.withMaterial(current.second) { key, iv -> LetterLinkCipher.encryptMaterial(applicant, letter, key, iv) }
         val result = gateway.render(current.second, applicant, letter, token)
         currentCoroutineContext().ensureActive()
         check(session == current) { "Centre session changed" }
@@ -230,6 +231,7 @@ class WhatsAppController @Inject constructor(
         job?.cancel(); job = null
         interruptBatch()
         mutable.value = mutable.value.copy(running = false, busy = false, preview = null, message = reason)
+        WhatsAppAccessibilityService.connected?.clear()
     }
     private fun interruptBatch() {
         val batch = mutable.value.batch ?: return
@@ -250,9 +252,14 @@ class WhatsAppController @Inject constructor(
         val profile = mutable.value.profile ?: return@task
         val service = WhatsAppAccessibilityService.connected ?: error("Enable the DIPI WhatsApp accessibility service first")
         val version = packageVersion() ?: error("WhatsApp is not installed")
+        val untested = profile.copy(enabled = false, testedVersion = null)
+        store.save(untested)
+        mutable.value = mutable.value.copy(profile = untested)
+        store.savePilotResult(profile.scope, "Device check interrupted before submission could be verified. Run a fresh labelled test.")
         val result = service.send(profile.packageName, phone, "DIPI automation SELF TEST ${UUID.randomUUID()}\nनमस्ते · https://example.com/?a=1&b=2", true) {}
+        store.savePilotResult(profile.scope, result.reason)
         check(result.state == WhatsAppAttemptState.SubmissionObserved) { result.reason }
-        val next = profile.copy(testedVersion = version)
+        val next = profile.copy(enabled = false, testedVersion = version)
         store.save(next)
         mutable.value = mutable.value.copy(profile = next, message = "Self-test passed for WhatsApp $version. Only submission was observed.")
     }

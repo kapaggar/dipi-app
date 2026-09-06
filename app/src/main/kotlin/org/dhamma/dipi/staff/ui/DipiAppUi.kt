@@ -547,6 +547,7 @@ private fun DeskHost(
     }
     val roll = deskRoll(state.rows)
     val whatsappController = LocalWhatsAppController.current
+    val whatsappProfile = whatsappController?.ui?.collectAsStateWithLifecycle()?.value?.profile
     // Both feed the calling round's WhatsApp template tokens.
     val centre = session.centres.firstOrNull()?.name.orEmpty()
     val courseDates = listOf(course.start, course.end).filter { it.isNotBlank() }.joinToString(" – ")
@@ -638,7 +639,7 @@ private fun DeskHost(
                     onPriority = vm::toggleCallPriority,
                     statusChoices = state.statusChoices,
                     onChangeStatus = vm::changeStatusFor,
-                    onWhatsAppBatch = whatsappController?.let { it::openBatch },
+                    onWhatsAppBatch = whatsappController?.takeIf { whatsappProfile != null }?.let { it::openBatch },
                 )
                 DeskSection.Rooms -> RoomsPane(
                     roll = roll,

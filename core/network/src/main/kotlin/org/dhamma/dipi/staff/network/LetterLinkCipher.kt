@@ -29,6 +29,15 @@ object LetterLinkCipher {
         }
     }
 
+    /** Uses the effective material decoded from the separately provisioned single code. */
+    fun encryptMaterial(applicantId: Int, letterId: Int, key: ByteArray, iv: ByteArray): String {
+        require(applicantId > 0 && letterId > 0 && key.size == 32 && iv.size == 16) { "Invalid letter encryption material" }
+        val cipher = Cipher.getInstance("AES/CBC/PKCS5Padding")
+        cipher.init(Cipher.ENCRYPT_MODE, SecretKeySpec(key, "AES"), IvParameterSpec(iv))
+        val ciphertext = cipher.doFinal("$applicantId-$letterId".toByteArray(Charsets.US_ASCII))
+        return Base64.getEncoder().encodeToString(Base64.getEncoder().encode(ciphertext))
+    }
+
     private fun sha256Hex(input: ByteArray): ByteArray =
         MessageDigest.getInstance("SHA-256").digest(input)
             .joinToString("") { "%02x".format(it.toInt() and 0xff) }

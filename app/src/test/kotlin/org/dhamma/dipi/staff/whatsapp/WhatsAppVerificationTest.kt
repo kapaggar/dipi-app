@@ -24,4 +24,13 @@ class WhatsAppVerificationTest {
         assertTrue(submissionObserved("", 1, 0))
         assertTrue(submissionObserved("Message", 2, 1))
     }
+    @Test fun `launch grace never permits another app or dialog`() {
+        assertFalse(interruptsWhatsAppLaunch("desk", "wa", "desk", false, 100))
+        assertFalse(interruptsWhatsAppLaunch("wa", "wa", "desk", true, 10000))
+        assertTrue(interruptsWhatsAppLaunch("launcher", "wa", "desk", false, 100))
+        assertTrue(interruptsWhatsAppLaunch("android", "wa", "desk", false, 100))
+        assertTrue(interruptsWhatsAppLaunch("desk", "wa", "desk", true, 100))
+        assertTrue(interruptsWhatsAppLaunch("desk", "wa", "desk", false, 8001))
+    }
+
 }

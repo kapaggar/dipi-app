@@ -32,5 +32,11 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+    override fun onStop() {
+        if (whatsapp.ui.value.running && WhatsAppAccessibilityService.connected?.hasRequest != true) {
+            whatsapp.pause("DIPI left the foreground before WhatsApp opened. Review progress before resuming.")
+        }
+        super.onStop()
+    }
     override fun onDestroy() { whatsapp.endSession(); super.onDestroy() }
 }

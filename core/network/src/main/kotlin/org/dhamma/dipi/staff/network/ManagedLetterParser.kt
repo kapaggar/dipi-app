@@ -12,7 +12,7 @@ import java.net.URI
 object ManagedLetterParser {
     private const val MAX_HTML_LENGTH = 512_000
     private const val MAX_MESSAGE_LENGTH = 16_000
-    private val unresolved = Regex("\\[[\\p{L}_][\\p{L}\\p{N}_ -]*]|\\{[\\p{L}_][\\p{L}\\p{N}_]*}")
+    private val unresolved = Regex("\\[[\\p{L}_][\\p{L}\\p{N}_ -]*\\]|\\{[\\p{L}_][\\p{L}\\p{N}_]*\\}")
 
     fun activeLetters(html: String, serverOrigin: String, centreId: Int): List<ManagedLetter> {
         require(centreId > 0) { "Invalid centre" }

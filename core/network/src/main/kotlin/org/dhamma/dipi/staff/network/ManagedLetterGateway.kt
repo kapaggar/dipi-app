@@ -2,6 +2,7 @@ package org.dhamma.dipi.staff.network
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import okhttp3.ConnectionPool
 import okhttp3.CookieJar
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
@@ -12,14 +13,16 @@ import javax.inject.Inject
 import javax.inject.Named
 import javax.inject.Singleton
 
-/** Existing GETs only. The portal client has no desk cookies, cache, interceptors or retries. */
+/** Existing GETs only. Fresh pools avoid stale server-closed sockets without replaying requests.
+ * The portal client has no desk cookies, cache, interceptors or retries. */
 @Singleton
 class ManagedLetterGateway @Inject constructor(private val desk: OkHttpClient, @Named("baseUrl") private val baseUrl: String) {
     private val publicClient = OkHttpClient.Builder().cookieJar(CookieJar.NO_COOKIES)
+        .connectionPool(ConnectionPool(0, 1, TimeUnit.SECONDS))
         .followRedirects(false).followSslRedirects(false).retryOnConnectionFailure(false)
-        .callTimeout(30, TimeUnit.SECONDS).build()
-    private val deskClient by lazy { desk.newBuilder().followRedirects(false).followSslRedirects(false)
-        .retryOnConnectionFailure(false).callTimeout(30, TimeUnit.SECONDS).build() }
+        .connectTimeout(30, TimeUnit.SECONDS).readTimeout(60, TimeUnit.SECONDS).callTimeout(90, TimeUnit.SECONDS).build()
+    private val deskClient by lazy { desk.newBuilder().connectionPool(ConnectionPool(0, 1, TimeUnit.SECONDS)).followRedirects(false).followSslRedirects(false)
+        .retryOnConnectionFailure(false).connectTimeout(30, TimeUnit.SECONDS).readTimeout(60, TimeUnit.SECONDS).callTimeout(90, TimeUnit.SECONDS).build() }
 
     suspend fun letters(scope: WhatsAppScope): List<ManagedLetter> = withContext(Dispatchers.IO) {
         require(scope.origin == baseUrl.trimEnd('/')) { "Centre session changed" }

@@ -18,74 +18,110 @@ Do not invent an endpoint, change status, call server delivery functions, or vis
 confirm/cancel links. Fetching the existing applicant letter viewer is not strictly
 read-only: `dh_get_letter` can initialise missing applicant login/auth-code fields.
 
-## Implementation status - prerequisite work only
+## Implementation
 
-Branch: `codex/whatsapp-automation`. No runtime feature or release is enabled.
+Implemented in Android; the backend is unchanged.
 
-- Added metadata-only `ManagedLetter` and a non-serializable, redacted
-  `RenderedLetter` holding personalised text in memory.
-- Added `LetterLinkCipher`: matches Drupal's hexadecimal SHA-256 derivation,
-  OpenSSL AES-256-CBC padding, and double Base64 using synthetic PHP vectors.
-  It takes caller-provided secrets; it neither loads nor provisions real secrets.
-- Added `ManagedLetterParser`: selects only `table-letters`, binds letter links
-  to the requested origin/centre, rejects ambiguous identities, and extracts only
-  the applicant viewer's `div.container > div.main > pre` body. Preserves Unicode,
-  paragraph/list boundaries and full HTTP(S) links. Rejects empty/unresolved,
-  oversized, interactive or unsupported content. It performs no network requests.
-- Added jsoup 1.23.2 and NIO core-library desugaring for Android compatibility.
+- Centre/server-scoped, disabled-by-default profile and separately provisioned
+  shared key in Keystore-backed encrypted preferences. Erase-all removes them.
+- Active managed-letter discovery through the authenticated desk session, with
+  centre/origin validation and active membership rechecked before every render.
+- PHP-compatible applicant-link encryption verified with synthetic keys. The
+  public applicant viewer uses a separate client with no desk cookies, redirects,
+  caching or request logging. HTML and personalised text stay in memory.
+- Calling selection follows its existing filters and Expected/Confirmed scope.
+  Invalid numbers cannot be selected. Shared numbers require explicit consent
+  to separate messages, or staff can deselect individual applicants.
+- A selected active letter, recipient/number review and personalised sample are
+  required before Start. Existing manual messaging remains available when off.
+- Accessibility sending verifies the full numeric recipient and exact composer,
+  persists SendStarted before one click, then requires a new outgoing message.
+  A saved contact name alone fails closed. No fixed coordinates are used.
+- The body is written through the composer accessibility action, not the launch
+  URL, to avoid putting personalised text or bearer links in activity logs.
+- Pause/Stop controls, interruption detection and encrypted metadata recovery.
+  Unfinished progress cannot be overwritten by a batch from another course.
+  Unknown outcomes never retry automatically; recovery is always explicitly
+  initiated. Messaging progress does not change calls, attendance or desk status.
+- A labelled Message yourself check gates enablement for the installed WhatsApp
+  version. Updating WhatsApp invalidates readiness until another successful check.
 
-These components are not connected to Calling or Settings. Profile storage,
-provisioning UI, authenticated fetching, batch selection/recovery and the
-accessibility sender remain pending behind the pilot gate.
+## Validation
+
+The required regression command passes: 723 tests, zero failures/errors/skips
+(model 131, audit 27, network 155, datastore 17, app 393). Coverage includes
+synthetic PHP vectors, Unicode/links, unresolved templates, active-letter and
+origin checks, invalid/duplicate phones, filtered Calling selection, encrypted
+scope isolation, restart/logout/course changes and interruption after Send.
+
+Android 8 uses a stricter regex parser: literal closing brackets/braces are
+escaped. Applicant HTML reads use bounded buffered reads instead of Java's newer
+InputStream.readNBytes. Release APKs are tested on the actual Pixel C.
 
 ## Pixel C pilot - 2026-09-06
 
-Read-only inspection on Pixel C, Android 8.1, WhatsApp 2.26.34.81:
+Device: Pixel C, Android 8.1, WhatsApp 2.26.34.81. Only labelled messages to the
+owner's Message yourself conversation were sent. No applicant was messaged.
 
-- The official Android CLI layout probe returned an unrecognized instrumentation
-  response. ADB UI Automator could inspect the accessibility hierarchy instead.
-- The currently open chat exposes exactly one numeric
-  `com.whatsapp:id/conversation_contact_name`, one full-text `entry`, and one
-  enabled/clickable `send` node. The tablet uses a split conversation layout.
-- This is evidence for the current unsaved-contact screen only, not proof of
-  recipient verification for saved contacts, sending, or post-send observation.
-- No Send button was pressed. No student was messaged. No live applicant letter
-  was retrieved. Personal UI text and phone numbers are excluded from this file.
+The actual accessibility service verified self-chat identity, set and re-read the
+exact composer text (Hindi, paragraphs and a complete query-string URL), pressed
+Send once and observed the new outgoing message. The successful check is stored
+against the installed WhatsApp version. Existing numeric unsaved-contact headers
+were inspected without sending. Saved-name-only chats remain unsupported and stop
+for manual review; a display name is never treated as phone-number proof.
 
-**Pending input:** a WhatsApp number controlled by the owner, explicitly designated
-to receive a few labelled pilot messages. Do not substitute a student number.
+Android 8 cached recycled WhatsApp text nodes after Send. The observer now refreshes
+row/child nodes and includes non-important container views before comparing text
+and outgoing status evidence. UI Automator inspection disconnects accessibility
+services, so no UI Automator probe runs during the successful self-test. Earlier
+interrupted tests correctly stopped without automatic retries.
 
-## Pilot acceptance and remaining implementation
+## Single-code provisioning (owner refinement)
 
-1. On the designated recipient, prove both numeric identity verification and exact
-   composer text before sending. A saved contact requires verified phone identity;
-   a display name or successful deep link alone is insufficient.
-2. Send a unique labelled test message once, using the UI node action. Observe a
-   newly added outgoing message with that exact text. Distinguish old matching
-   messages and incoming messages. Record submission observed, never delivered.
-3. Test lock, app switching, dialogs, unsupported hierarchy, disconnection and
-   interruption after Send. Ambiguous send results must stop as outcome unknown
-   without an automatic retry. If these observations are unreliable, stop the
-   unattended implementation.
-4. After the gate passes, implement a package-restricted accessibility service,
-   centre-scoped protected profiles, memory-only letter fetching/preview, explicit
-   batch selection and encrypted metadata recovery. Never resume on startup or
-   logout. Messaging outcomes remain separate from calls and server status.
-5. Verify the authenticated letter listing and applicant viewer against deployed
-   behaviour before enabling real batches. Confirm active membership again before
-   rendering; explicit-ID rendering does not itself exclude inactive letters.
-6. Test centre isolation, duplicate/invalid numbers, disabled letters, Unicode,
-   interruption and process death. Amend the user-facing design ledger only when
-   UI exists. Bump a minor version and ship only after the successful pilot.
+Eligible desk admins receive one constant `DIPI-WA1` provisioning code separately.
+It packages the existing effective AES key and IV, with a version and typo checksum;
+it does not invent a replacement server key or change PHP. Two distinct secrets
+cannot be replaced by hashing an arbitrary new password without changing the server.
+The existing two-field pilot storage migrates when first used, removing its old
+entries. Neither the code nor its decoded material belongs in an APK or Git commit.
 
-## Validation commands
+An authorised administrator can create an owner-only file outside the repository:
 
 ```bash
-./gradlew :core:network:testDebugUnitTest --tests '*ManagedLetterParserTest' --tests '*LetterLinkCipherTest'
+python3 scripts/create-whatsapp-provisioning-code.py --output /private/tmp/dipi-whatsapp-code.txt
 ```
 
-The 10 targeted tests pass with synthetic data. The full required regression
-command also passes: 693 tests across model (127), audit (27), network (150),
-datastore (13), and app (376), with zero failures, errors or skipped tests.
-This includes Android app compilation with the desugaring configuration. It does
-not constitute the live pilot or verification of deployed routes.
+The helper prompts privately for the existing values. It can instead read a trusted
+local backend source with `--legacy-php /path/to/dh_manageapp.module`, without
+executing or changing it. It never prints the code or sends email. Distribution
+is handled separately by the administrator; possession grants the same shared-key
+access as the previous key/IV pair. The Android app has no code export function.
+
+## Deployed route verification
+
+The Pixel C loaded 45 active letters from its own centre listing, selected that
+centre's existing confirmation/cancellation letter and rendered one eligible
+applicant's personalised sample with its complete HTTP link. The review showed
+one recipient; Start was never pressed. The sample was closed and discarded.
+No applicant identifiers, phone numbers, body text or bearer URLs are recorded here.
+
+The desk can close an idle pooled connection before the next GET. Letter clients
+use their own fresh-connection pools, with the existing desk timeout budget, so
+this does not require automatically replaying a letter request. Certificate and
+hostname verification remain enabled. No desk cookies enter the applicant client.
+
+## Release validation
+
+DIPI Staff 1.43.1 (`versionCode` 80), signed arm64 release APK. All 723 required
+regression tests pass with no failures, errors or skips. The release build passed
+its controlled self-test on Pixel C / Android 8.1 / WhatsApp 2.26.34.81. Screen lock
+and switching apps stopped the run and invalidated the test until staff explicitly
+started another successful check. The successful device check survived a cold
+start, and automation remained off.
+
+The first live letter preview succeeded with fresh connections. No applicant was
+messaged. The separately provisioned code and both original secret values were
+checked to be absent from the APK. The release assets `dipi-staff-1.43.1.apk` and
+`dipi-staff.apk` are identical, with SHA-256:
+
+`1348b5272a15c47a4f9533e0aa7d46a6ed193892056b523067a1b2e12b9fbf8f`
