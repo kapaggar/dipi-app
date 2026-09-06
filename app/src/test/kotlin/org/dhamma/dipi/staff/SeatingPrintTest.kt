@@ -28,8 +28,10 @@ class SeatingPrintTest {
         seat: String,
         roleTag: String? = null,
         backrest: Boolean = false,
+        room: String = "Mbk-$sn",
+        age: String = "40",
     ) = RollRow(
-        sn = sn, name = name, roleTag = roleTag, room = "Mbk-$sn", age = "40", city = "Pune",
+        sn = sn, name = name, roleTag = roleTag, room = room, age = age, city = "Pune",
         courses = emptyList(), cell = "", seat = seat,
         seatKind = when {
             seat.startsWith("CW-", ignoreCase = true) -> SeatKind.CELL
@@ -64,6 +66,72 @@ class SeatingPrintTest {
     )
 
     private val html = seatingPlanPrintHtml(roll) { HallGrid() }
+
+    @Test
+    fun printUsesTheFullLandscapePageBox() {
+        assertTrue(html.contains("size:A4 landscape"))
+        assertTrue(html.contains("height:198mm"))
+        assertTrue(html.contains("class=\"grid-wrap\""))
+        assertTrue(html.contains("grid-template-columns:repeat(4,minmax(0,1fr))"))
+    }
+
+    @Test
+    fun floorSeatShowsOperationalDetails() {
+        assertTrue(html.contains("SEAT A1"))
+        assertTrue(html.contains("ROOM Mbk-1"))
+        assertTrue(html.contains("AGE 40"))
+    }
+
+    @Test
+    fun railSeatShowsOperationalDetails() {
+        assertTrue(html.contains("SEAT CW-A1"))
+        assertTrue(html.contains("ROOM Mbk-3"))
+        assertTrue(html.contains("AGE 40"))
+    }
+
+    @Test
+    fun visibleUnseatedStudentShowsOperationalDetails() {
+        assertTrue(html.contains("Deepak Nair"))
+        assertTrue(html.contains("ROOM Mbk-4"))
+        assertTrue(html.contains("UNSEATED"))
+    }
+
+    @Test
+    fun blankOperationalDetailsUseADash() {
+        val blank = TeacherRoll(
+            groups = listOf(
+                group(
+                    Gender.M,
+                    RollSeniority.OLD,
+                    listOf(row(1, "Blank Details", "A1", room = "", age = "")),
+                ),
+            ),
+        )
+
+        val out = seatingPlanPrintHtml(blank) { HallGrid() }
+        assertTrue(out.contains("ROOM —"))
+        assertTrue(out.contains("AGE —"))
+    }
+
+    @Test
+    fun operationalFieldsRemainHtmlEscaped() {
+        val marked = TeacherRoll(
+            groups = listOf(
+                group(
+                    Gender.M,
+                    RollSeniority.OLD,
+                    listOf(row(1, "A&B <C>", "A1", room = "M&<1>", age = "4<0")),
+                ),
+            ),
+        )
+
+        val out = seatingPlanPrintHtml(marked) { HallGrid() }
+        assertTrue(out.contains("A&amp;B &lt;C&gt;"))
+        assertTrue(out.contains("ROOM M&amp;&lt;1&gt;"))
+        assertTrue(out.contains("AGE 4&lt;0"))
+        assertFalse(out.contains("A&B <C>"))
+        assertFalse(out.contains("M&<1>"))
+    }
 
     @Test
     fun seatedStudentsPrintWithTheirSeatLabels() {
@@ -125,8 +193,8 @@ class SeatingPrintTest {
         val out = seatingPlanPrintHtml(marked) { HallGrid() }
         // The flagged seated cell's seat id carries the glyph prefix …
         assertTrue(out.contains(backrestSeatLabel("A1", true)))
-        // … the flagged CW rail <li> carries it …
-        assertTrue(out.contains("<li>${backrestSeatLabel("CW-A1", true)}"))
+        // … the flagged CW rail card carries it …
+        assertTrue(out.contains("SEAT ${backrestSeatLabel("CW-A1", true)}"))
         // … and the header earns the legend line.
         assertTrue(out.contains("$BACKREST_GLYPH = backrest"))
         // The unflagged seat stays plain.
