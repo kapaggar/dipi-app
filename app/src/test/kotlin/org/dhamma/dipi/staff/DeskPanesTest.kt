@@ -25,6 +25,8 @@ import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.platform.InspectableValue
+import androidx.compose.ui.platform.isDebugInspectorInfoEnabled
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.height
 import androidx.compose.ui.unit.width
@@ -36,7 +38,6 @@ import org.dhamma.dipi.staff.desk.CheckInDialog
 import org.dhamma.dipi.staff.desk.CheckInPane
 import org.dhamma.dipi.staff.desk.DeskSection
 import org.dhamma.dipi.staff.desk.DeskSnackbar
-import org.dhamma.dipi.staff.desk.DeskSnackbarBackground
 import org.dhamma.dipi.staff.desk.RoomsPane
 import org.dhamma.dipi.staff.model.AccoRoom
 import org.dhamma.dipi.staff.model.ApplicantCard
@@ -87,6 +88,7 @@ class DeskPanesTest {
     @Test
     fun snackbarUsesActiveErrorTokenAndPreservesSuccessToneAndMessage() {
         val token = Color(0xFF123456)
+        isDebugInspectorInfoEnabled = true
         rule.setContent {
             DipiTheme {
                 CompositionLocalProvider(LocalDipi provides LightDipi.copy(snackError = token)) {
@@ -96,12 +98,25 @@ class DeskPanesTest {
             }
         }
         rule.onNodeWithText("server says: choose Area teacher").assertIsDisplayed()
-        val error = rule.onNodeWithTag("error-snack").fetchSemanticsNode().config[DeskSnackbarBackground]
-        assertEquals(token, error)
+        assertEquals(token, rule.onNodeWithText("server says: choose Area teacher").snackbarBackground())
 
-        val success = rule.onNodeWithTag("success-snack").fetchSemanticsNode().config[DeskSnackbarBackground]
+        val success = rule.onNodeWithText("success stays verbatim").snackbarBackground()
         assertEquals(Industry.accent800, success)
         rule.onNodeWithText("success stays verbatim").assertIsDisplayed()
+    }
+
+    private fun SemanticsNodeInteraction.snackbarBackground(): Color {
+        return fetchSemanticsNode().layoutInfo.getModifierInfo()
+                .asSequence()
+                .map { it.modifier }
+                .filterIsInstance<InspectableValue>()
+                .filter { it.nameFallback == "background" }
+                .flatMap { modifier ->
+                    @Suppress("UNCHECKED_CAST")
+                    (InspectableValue::class.java.getMethod("getInspectableElements").invoke(modifier) as Sequence<Any>).asIterable()
+                }
+                .first { it.javaClass.getMethod("getName").invoke(it) == "color" }
+                .let { it.javaClass.getMethod("getValue").invoke(it) as Color }
     }
 
     private fun card(
