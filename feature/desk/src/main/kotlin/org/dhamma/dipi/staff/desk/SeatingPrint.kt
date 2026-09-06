@@ -1,11 +1,13 @@
 package org.dhamma.dipi.staff.desk
 
+import org.dhamma.dipi.staff.model.BACKREST_GLYPH
 import org.dhamma.dipi.staff.model.Gender
 import org.dhamma.dipi.staff.model.HallGrid
 import org.dhamma.dipi.staff.model.HallPlan
 import org.dhamma.dipi.staff.model.RollGroup
 import org.dhamma.dipi.staff.model.TeacherRoll
 import org.dhamma.dipi.staff.model.UNSEATED_NO_REASON
+import org.dhamma.dipi.staff.model.backrestSeatLabel
 import org.dhamma.dipi.staff.model.hallLayout
 
 /**
@@ -74,7 +76,7 @@ private fun hallSection(gender: Gender, plan: HallPlan, breakAfter: Boolean): St
                 if (seated != null) {
                     val oldNew = if (seated.old) "OLD" else "NEW"
                     append(
-                        "<td><span class=\"id\">${esc(cell.id)}</span>" +
+                        "<td><span class=\"id\">${esc(backrestSeatLabel(cell.id, seated.row.backrest))}</span>" +
                             "<span class=\"nm\">${esc(seated.row.name)}</span>" +
                             "<span class=\"on\">$oldNew</span></td>",
                     )
@@ -94,7 +96,7 @@ private fun hallSection(gender: Gender, plan: HallPlan, breakAfter: Boolean): St
     } else {
         val items = plan.chowkyChair.joinToString("") { s ->
             val oldNew = if (s.old) "OLD" else "NEW"
-            "<li>${esc(s.row.seat.trim())} — ${esc(s.row.name)} ($oldNew)</li>"
+            "<li>${esc(backrestSeatLabel(s.row.seat.trim(), s.row.backrest))} — ${esc(s.row.name)} ($oldNew)</li>"
         }
         "<h2>Chowky / Chair</h2><ul class=\"list\">$items</ul>"
     }
@@ -109,10 +111,17 @@ private fun hallSection(gender: Gender, plan: HallPlan, breakAfter: Boolean): St
         "<h2>Unseated</h2><ul class=\"list\">$items</ul>"
     }
 
+    // The legend only earns its line when a drawn seat (hall cell or rail)
+    // actually carries the glyph on this page.
+    val hasBackrest = plan.cells.any { r -> r.any { it.seated?.row?.backrest == true } } ||
+        plan.chowkyChair.any { it.row.backrest }
+    val legend =
+        if (hasBackrest) "\n          <p class=\"sub\">${esc(BACKREST_GLYPH)} = backrest</p>" else ""
+
     return """
         <section$style>
           <h1>$genderWord hall</h1>
-          <p class="sub">${plan.seatedCount} seated · ${plan.oldCount} old, ${plan.newCount} new</p>
+          <p class="sub">${plan.seatedCount} seated · ${plan.oldCount} old, ${plan.newCount} new</p>$legend
           <table class="grid"><tbody>$gridRows</tbody></table>
           <div class="teacher">TEACHER · DHAMMA SEAT</div>
           $rail

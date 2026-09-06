@@ -8,6 +8,8 @@ import org.dhamma.dipi.staff.model.RollRow
 import org.dhamma.dipi.staff.model.RollSeniority
 import org.dhamma.dipi.staff.model.SeatKind
 import org.dhamma.dipi.staff.model.TeacherRoll
+import org.dhamma.dipi.staff.model.BACKREST_GLYPH
+import org.dhamma.dipi.staff.model.backrestSeatLabel
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -20,7 +22,13 @@ import org.junit.Test
  */
 class SeatingPrintTest {
 
-    private fun row(sn: Int, name: String, seat: String, roleTag: String? = null) = RollRow(
+    private fun row(
+        sn: Int,
+        name: String,
+        seat: String,
+        roleTag: String? = null,
+        backrest: Boolean = false,
+    ) = RollRow(
         sn = sn, name = name, roleTag = roleTag, room = "Mbk-$sn", age = "40", city = "Pune",
         courses = emptyList(), cell = "", seat = seat,
         seatKind = when {
@@ -28,7 +36,7 @@ class SeatingPrintTest {
             seat.startsWith("CH-", ignoreCase = true) -> SeatKind.CHAIR
             else -> SeatKind.FLOOR
         },
-        backrest = false, occupation = "", education = "", languages = "",
+        backrest = backrest, occupation = "", education = "", languages = "",
     )
 
     private fun group(gender: Gender, seniority: RollSeniority, rows: List<RollRow>) = RollGroup(
@@ -98,5 +106,38 @@ class SeatingPrintTest {
         // One gender, one page: no female hall and no page break.
         assertFalse(out.contains("Female"))
         assertFalse(out.contains("page-break"))
+    }
+
+    @Test
+    fun backrestSeatsPrintTheGlyphAndTheHeaderLegend() {
+        val marked = TeacherRoll(
+            groups = listOf(
+                group(
+                    Gender.M, RollSeniority.OLD,
+                    listOf(
+                        row(1, "Alice Kumar", "A1", backrest = true),
+                        row(2, "Chandra Rao", "CW-A1", backrest = true),
+                        row(3, "Bob Singh", "B2"),
+                    ),
+                ),
+            ),
+        )
+        val out = seatingPlanPrintHtml(marked) { HallGrid() }
+        // The flagged seated cell's seat id carries the glyph prefix …
+        assertTrue(out.contains(backrestSeatLabel("A1", true)))
+        // … the flagged CW rail <li> carries it …
+        assertTrue(out.contains("<li>${backrestSeatLabel("CW-A1", true)}"))
+        // … and the header earns the legend line.
+        assertTrue(out.contains("$BACKREST_GLYPH = backrest"))
+        // The unflagged seat stays plain.
+        assertFalse(out.contains(backrestSeatLabel("B2", true)))
+    }
+
+    @Test
+    fun aRollWithoutBackrestsPrintsNoGlyphAndNoLegend() {
+        // The class fixture carries zero backrests: no glyph, and the legend
+        // only earns its line when used.
+        assertFalse(html.contains(BACKREST_GLYPH))
+        assertFalse(html.contains("= backrest"))
     }
 }

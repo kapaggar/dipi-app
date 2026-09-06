@@ -42,6 +42,7 @@ import androidx.compose.ui.unit.sp
 import org.dhamma.dipi.staff.model.RollGroup
 import org.dhamma.dipi.staff.model.RollRow
 import org.dhamma.dipi.staff.model.TeacherRoll
+import org.dhamma.dipi.staff.model.backrestSeatLabel
 import org.dhamma.dipi.staff.ui.theme.DipiCondensed
 import org.dhamma.dipi.staff.ui.theme.DipiMono
 import org.dhamma.dipi.staff.ui.theme.Industry
@@ -521,7 +522,7 @@ private fun RollRowLine(
             }
         }
         Text(
-            row.seat,
+            backrestSeatLabel(row.seat, row.backrest),
             fontFamily = DipiMono,
             fontWeight = FontWeight.SemiBold,
             fontSize = 14.sp,

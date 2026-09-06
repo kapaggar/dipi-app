@@ -19,6 +19,7 @@ import org.dhamma.dipi.staff.model.RollRow
 import org.dhamma.dipi.staff.model.RollSeniority
 import org.dhamma.dipi.staff.model.SeatKind
 import org.dhamma.dipi.staff.model.TeacherRoll
+import org.dhamma.dipi.staff.model.backrestSeatLabel
 import org.dhamma.dipi.staff.teacher.TeacherListScreen
 import org.dhamma.dipi.staff.ui.theme.DipiTheme
 import org.junit.Assert.assertEquals
@@ -301,5 +302,19 @@ class TeacherListScreenTest {
         // Clickable rows merge descendants; the bar tag lives on the FLAGS cell.
         rule.onAllNodesWithTag("flags-pending", useUnmergedTree = true).onFirst().assertIsDisplayed()
         rule.onNodeWithText("MED").assertIsDisplayed()
+    }
+
+    @Test
+    fun backrestRowsMarkTheSeatCellWithTheGlyph() {
+        rule.setContent {
+            DipiTheme { TeacherListScreen(roll = roll, courseLine = "Dhamma Sudha / 10 Day / 2026") }
+        }
+        // Rakesh Iyer carries backrest = true on CH-12: the seat cell shows
+        // the shared glyphed label (assert through the constant, never a
+        // hard-coded glyph literal — the tofu fallback is a one-line swap).
+        rule.onNodeWithText(backrestSeatLabel("CH-12", true)).assertIsDisplayed()
+        // Zara Bhosale's CW-B1 has no backrest — plain seat, no glyph.
+        rule.onNodeWithText("CW-B1").assertIsDisplayed()
+        rule.onNodeWithText(backrestSeatLabel("CW-B1", true)).assertDoesNotExist()
     }
 }

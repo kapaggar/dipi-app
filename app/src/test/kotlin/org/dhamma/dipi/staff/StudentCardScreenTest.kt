@@ -23,6 +23,8 @@ import org.dhamma.dipi.staff.model.RollRow
 import org.dhamma.dipi.staff.model.RollSeniority
 import org.dhamma.dipi.staff.model.SeatKind
 import org.dhamma.dipi.staff.model.TeacherRoll
+import org.dhamma.dipi.staff.model.BACKREST_GLYPH
+import org.dhamma.dipi.staff.model.backrestSeatLabel
 import org.dhamma.dipi.staff.teacher.StudentCardScreen
 import org.dhamma.dipi.staff.ui.TeacherCardRef
 import org.dhamma.dipi.staff.ui.teacherCardStep
@@ -203,7 +205,11 @@ class StudentCardScreenTest {
             DipiTheme { StudentCardScreen(row = row(), group = group(), card = card()) }
         }
         rule.onNodeWithText("OLD · OM42").assertIsDisplayed()
-        rule.onNodeWithText("Mbk-8 · seat CW-A3 · Group 1 · TAM · 1 of 1 in this group").assertIsDisplayed()
+        // 1.40.0: the fixture row carries backrest = true, so the seat
+        // segment is glyphed through the shared backrestSeatLabel.
+        rule.onNodeWithText(
+            "Mbk-8 · seat ${backrestSeatLabel("CW-A3", true)} · Group 1 · TAM · 1 of 1 in this group",
+        ).assertIsDisplayed()
         rule.onNodeWithText("Teacher list").assertIsDisplayed()
         rule.onNodeWithTag("answer-summary").assertIsDisplayed()
     }
@@ -275,5 +281,28 @@ class StudentCardScreenTest {
         // Backward walks the same order in reverse and stops at the start.
         assertEquals(start, teacherCardStep(walkRoll, TeacherCardRef(key, 2), -1))
         assertNull(teacherCardStep(walkRoll, start, -1))
+    }
+
+    @Test
+    fun placementLineMarksABackrestSeatWithTheGlyph() {
+        // The fixture row carries backrest = true on CW-A3 — the placement
+        // line seat segment goes through the one shared label fn.
+        rule.setContent {
+            DipiTheme { StudentCardScreen(row = row(), group = group(), card = card()) }
+        }
+        rule.onNodeWithText("seat ${backrestSeatLabel("CW-A3", true)}", substring = true)
+            .assertIsDisplayed()
+    }
+
+    @Test
+    fun placementLineLeavesANonBackrestSeatPlain() {
+        val plain = row().copy(seat = "E1", seatKind = SeatKind.FLOOR, backrest = false)
+        rule.setContent {
+            DipiTheme {
+                StudentCardScreen(row = plain, group = group(rows = listOf(plain)), card = card())
+            }
+        }
+        rule.onNodeWithText("seat E1", substring = true).assertIsDisplayed()
+        rule.onNodeWithText(BACKREST_GLYPH, substring = true).assertDoesNotExist()
     }
 }

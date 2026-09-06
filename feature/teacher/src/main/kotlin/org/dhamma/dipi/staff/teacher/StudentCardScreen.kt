@@ -44,6 +44,7 @@ import org.dhamma.dipi.staff.model.Gender
 import org.dhamma.dipi.staff.model.HealthRow
 import org.dhamma.dipi.staff.model.RollGroup
 import org.dhamma.dipi.staff.model.RollRow
+import org.dhamma.dipi.staff.model.backrestSeatLabel
 import org.dhamma.dipi.staff.ui.theme.DipiCondensed
 import org.dhamma.dipi.staff.ui.theme.DipiMono
 import org.dhamma.dipi.staff.ui.theme.Industry
@@ -194,10 +195,13 @@ private fun StatusChip(group: RollGroup, card: ApplicationCard?) {
     )
 }
 
-/** `Mbk-37 · seat E1 · Group 1 · TAM · 1 of 18 in this group` — roll facts only. */
+/**
+ * `Mbk-37 · seat E1 · Group 1 · TAM · 1 of 18 in this group` — roll facts
+ * only. A backrest row's seat carries the shared [backrestSeatLabel] glyph.
+ */
 private fun placementLine(row: RollRow, group: RollGroup): String = listOfNotNull(
     row.room.takeIf { it.isNotBlank() },
-    row.seat.takeIf { it.isNotBlank() }?.let { "seat $it" },
+    row.seat.takeIf { it.isNotBlank() }?.let { "seat ${backrestSeatLabel(it, row.backrest)}" },
     "Group ${group.group}",
     group.code,
     "${row.sn} of ${group.total} in this group",

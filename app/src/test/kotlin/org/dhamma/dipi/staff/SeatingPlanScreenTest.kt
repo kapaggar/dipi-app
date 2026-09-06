@@ -24,6 +24,7 @@ import org.dhamma.dipi.staff.model.RollSeniority
 import org.dhamma.dipi.staff.model.SeatKind
 import org.dhamma.dipi.staff.model.TabletMode
 import org.dhamma.dipi.staff.model.TeacherRoll
+import org.dhamma.dipi.staff.model.backrestSeatLabel
 import org.dhamma.dipi.staff.network.DipiMockDispatcher
 import org.dhamma.dipi.staff.teacher.SeatingPlanScreen
 import org.dhamma.dipi.staff.teacher.TeacherView
@@ -62,6 +63,7 @@ class SeatingPlanScreenTest {
         name: String,
         seat: String,
         roleTag: String? = null,
+        backrest: Boolean = false,
     ) = RollRow(
         sn = sn, name = name, roleTag = roleTag, room = "Mbk-$sn", age = "40", city = "Pune",
         courses = emptyList(), cell = "",
@@ -71,7 +73,7 @@ class SeatingPlanScreenTest {
             seat.startsWith("CH-", ignoreCase = true) -> SeatKind.CHAIR
             else -> SeatKind.FLOOR
         },
-        backrest = false, occupation = "", education = "", languages = "",
+        backrest = backrest, occupation = "", education = "", languages = "",
     )
 
     private val maleOld = RollGroup(
@@ -393,5 +395,32 @@ class SeatingPlanScreenTest {
         val unseated = rule.onNodeWithText("UNSEATED").getUnclippedBoundsInRoot()
         assertTrue("UNSEATED stays below the hall", unseated.top.value >= marker.bottom.value - 0.5f)
         assertTrue("rail is a narrow column, not 852dp full width", (section.right - section.left).value < 200f)
+    }
+
+    @Test
+    fun backrestSeatsAreGlyphedInTheHallCellAndTheRail() {
+        // Assert through the shared backrestSeatLabel, never a hard-coded
+        // glyph literal — the tofu fallback swap is a one-line change.
+        val marked = TeacherRoll(
+            listOf(
+                RollGroup(
+                    at = "Trainee-A-M Teacher", code = "TAM", gender = Gender.M,
+                    seniority = RollSeniority.OLD, group = "1", total = 3,
+                    rows = listOf(
+                        row(1, "Suresh Nair", "A1", backrest = true),
+                        row(2, "Vikram Joshi", "CW-A3", backrest = true),
+                        row(3, "Rakesh Iyer", "B2"),
+                    ),
+                ),
+            ),
+        )
+        rule.setContent { DipiTheme { SeatingPlanScreen(roll = marked) } }
+        // Hall cell: the flagged seat id carries the glyph prefix.
+        rule.onNodeWithText(backrestSeatLabel("A1", true), useUnmergedTree = true).assertExists()
+        // Rail: the flagged chowky row is glyphed too.
+        rule.onNodeWithText(backrestSeatLabel("CW-A3", true), useUnmergedTree = true).assertExists()
+        // The unflagged neighbour stays plain — no glyph anywhere near B2.
+        rule.onNodeWithText("B2", useUnmergedTree = true).assertExists()
+        rule.onNodeWithText(backrestSeatLabel("B2", true), useUnmergedTree = true).assertDoesNotExist()
     }
 }

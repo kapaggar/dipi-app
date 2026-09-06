@@ -45,6 +45,7 @@ import org.dhamma.dipi.staff.model.PlacedSeat
 import org.dhamma.dipi.staff.model.RollRow
 import org.dhamma.dipi.staff.model.TeacherRoll
 import org.dhamma.dipi.staff.model.UnseatedRow
+import org.dhamma.dipi.staff.model.backrestSeatLabel
 import org.dhamma.dipi.staff.model.hallLayout
 import org.dhamma.dipi.staff.model.railPaintOrder
 import org.dhamma.dipi.staff.ui.theme.DipiCondensed
@@ -486,7 +487,9 @@ private fun SeatCellBox(cell: HallCell, modifier: Modifier, onOpen: (RollRow) ->
         verticalArrangement = Arrangement.SpaceBetween,
     ) {
         Text(
-            cell.id,
+            // A seated backrest row glyphs its seat id (owner ruling
+            // 2026-09-05); empty cells always stay plain.
+            backrestSeatLabel(cell.id, seated?.row?.backrest == true),
             fontFamily = DipiMono,
             fontWeight = FontWeight.Medium,
             fontSize = 10.sp,
@@ -649,7 +652,7 @@ private fun RailRun(
                     verticalArrangement = Arrangement.SpaceBetween,
                 ) {
                     Text(
-                        seat.row.seat.trim(),
+                        backrestSeatLabel(seat.row.seat.trim(), seat.row.backrest),
                         fontFamily = DipiMono,
                         fontWeight = FontWeight.Medium,
                         fontSize = 11.sp,
