@@ -909,3 +909,16 @@ GET, no search, no writes.
   layouts continue to stack the same four controls.
 - Course discovery remains the centre-page scrape in server order. No
   endpoint, parser, or client-side sort changed.
+
+### PATCH 1.42.1 / 70 (2026-09-05) — full-page landscape seating print
+
+- Native seating print requests `ISO_A4.asLandscape()` and declares A4
+  landscape in CSS with 6 mm margins. The gender page consumes the full
+  printable area; its hall grid expands into the space left by the compact
+  header, teacher marker, and lower cards.
+- Occupied hall and chowky/chair blocks show Dhamma seat, name, room, age,
+  and old/new. Visible unseated cards show name, room, and age; blank room or
+  age uses a dash. The print remains monochrome and HTML-escaped.
+- Data flow and safety are unchanged: `seatingPlanPrintHtml` uses the
+  in-memory roll and shared `hallLayout`, never `GET /seating` and never
+  sends `?r=`.
