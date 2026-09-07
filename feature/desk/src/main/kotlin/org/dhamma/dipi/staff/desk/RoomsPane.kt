@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
@@ -54,6 +55,7 @@ fun RoomsPane(
     checkIns: Map<ApplicantId, CheckInRecord>,
     rooms: List<AccoRoom>,
     layout: RoomLayout = RoomLayout(),
+    readOnly: Boolean = false,
     pendingSync: Int = 0,
     syncBusy: Boolean = false,
     pullBusy: Boolean = false,
@@ -72,8 +74,8 @@ fun RoomsPane(
             verticalAlignment = Alignment.Top,
         ) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                DeskH2("Rooms & seats")
-                DeskSub("Filled cells are occupied tonight.")
+                DeskH2("Room Chart")
+                if (readOnly) DeskSub("Finalized course · Read only")
                 AmenityLegend()
                 if (syncFailures.isNotEmpty()) {
                     SyncRefusals(roll, syncFailures)
@@ -86,24 +88,32 @@ fun RoomsPane(
             ) {
                 RoomPullButton(pullBusy, actionsEnabled, onPullRooms)
                 if (pendingSync > 0 || syncBusy) {
-                    RoomSyncButton(pendingSync, syncBusy, actionsEnabled, onSyncRooms)
+                    RoomSyncButton(pendingSync, syncBusy, actionsEnabled && !readOnly, onSyncRooms)
                 }
             }
         }
 
-        val occupantByRoom = buildMap {
-            roll.forEach { card ->
-                val rec = deskRecord(card, checkIns)
-                if (rec?.checkedIn == true && rec.room.isNotBlank()) put(rec.room, card.displayName)
-            }
-        }
+        val occupantByRoom = roll.filter { card ->
+            val rec = deskRecord(card, checkIns)
+            rec?.checkedIn == true && rec.room.isNotBlank()
+        }.groupBy { deskRecord(it, checkIns)!!.room }
+
+        // Older courses may reference rooms removed from today's inventory.
+        val chartRooms = rooms + if (readOnly) roll.filter {
+            it.courseFinalized && it.status.normalize() == "attended" && it.historicalRoom.isNotBlank()
+        }.map { student ->
+            val code = student.historicalRoom
+            AccoRoom(code, student.gender, code.substringBeforeLast(" "),
+                number = code.substringAfterLast(" "))
+        }.distinctBy { it.code }.filter { historical -> rooms.none { it.code == historical.code } }
+        else emptyList()
 
         // Stacked full-width, one block per gender+section — matching RoomLayout's
         // own keying — inside the pane's single verticalScroll above. No side-by-side
         // columns, so each block's grid gets the pane's full width.
         Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(24.dp)) {
             listOf(Gender.F to "Female", Gender.M to "Male").forEach { (gender, label) ->
-                val genderRooms = rooms.filter { it.gender == gender }
+                val genderRooms = chartRooms.filter { it.gender == gender }
                 val sections = genderRooms.map { it.section }.distinct().ifEmpty { listOf("") }
                 sections.forEach { section ->
                     val block = genderRooms.filter { it.section == section }
@@ -113,6 +123,7 @@ fun RoomsPane(
                         block = block,
                         columns = layout.columnsFor(gender, section),
                         occupantByRoom = occupantByRoom,
+                        readOnly = readOnly,
                     )
                 }
             }
@@ -131,7 +142,8 @@ private fun RoomBlock(
     section: String,
     block: List<AccoRoom>,
     columns: Int,
-    occupantByRoom: Map<String, String>,
+    occupantByRoom: Map<String, List<ApplicantCard>>,
+    readOnly: Boolean,
 ) {
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         val free = block.count { it.code !in occupantByRoom }
@@ -154,7 +166,7 @@ private fun RoomBlock(
             // The ratio is why the registrar opened this pane, so it leads at
             // the same weight as a Board stat — not as a 12sp grey sub-line.
             Text(
-                "$occupied occupied · $free free of ${block.size}",
+                if (readOnly) "$occupied assigned · $free unassigned of ${block.size}" else "$occupied occupied · $free free of ${block.size}",
                 fontFamily = DipiMono,
                 fontWeight = FontWeight.SemiBold,
                 fontSize = 21.sp,
@@ -233,7 +245,7 @@ private fun RoomSyncButton(pending: Int, busy: Boolean, enabled: Boolean, onClic
         modifier = Modifier
             .deskCard(
                 shape = DeskStyle.controlShape,
-                fill = if (busy) Industry.accent700 else Industry.accent,
+                fill = if (!enabled) Industry.neutral400 else if (busy) Industry.accent700 else Industry.accent,
                 border = if (busy) Industry.accent700 else Industry.accent,
             )
             .clickable(enabled = enabled, onClick = onClick)
@@ -289,11 +301,11 @@ private fun SyncRefusals(roll: List<ApplicantCard>, failures: List<RoomSyncFailu
  * weight and number contrast; the accent tint is a bonus, not the carrier.
  */
 @Composable
-private fun RoomCell(room: AccoRoom, occupant: String?, modifier: Modifier = Modifier) {
+private fun RoomCell(room: AccoRoom, occupant: List<ApplicantCard>?, modifier: Modifier = Modifier) {
     val taken = occupant != null
     Column(
         modifier
-            .height(64.dp)
+            .heightIn(min = 88.dp)
             .deskCard(
                 shape = DeskStyle.tileShape,
                 fill = if (taken) Industry.accent100 else FreeCellFill,
@@ -327,14 +339,16 @@ private fun RoomCell(room: AccoRoom, occupant: String?, modifier: Modifier = Mod
                 color = if (taken) Industry.accent500 else Industry.neutral300,
             )
         }
-        if (taken) {
+        occupant.orEmpty().forEach { student ->
+            Text(student.displayName, fontSize = 13.sp, lineHeight = 15.sp,
+                maxLines = 2, overflow = TextOverflow.Ellipsis, color = Industry.neutral700)
             Text(
-                occupant.orEmpty(),
-                fontSize = 13.sp,
-                lineHeight = 15.sp,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                color = Industry.neutral700,
+                listOfNotNull(student.age?.let { "Age $it" },
+                    if (student.oldStudent) "OLD" else "NEW").joinToString(" · "),
+                fontFamily = DipiMono, fontWeight = FontWeight.SemiBold, fontSize = 10.sp,
+                color = if (student.oldStudent) Industry.accent800 else Industry.neutral700,
+                modifier = Modifier.background(if (student.oldStudent) Industry.accent100 else Industry.neutral100)
+                    .padding(horizontal = 4.dp, vertical = 2.dp),
             )
         }
     }

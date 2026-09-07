@@ -37,6 +37,8 @@ data class ApplicantCard(
     val type: ApplicantType,
     val oldStudent: Boolean,
     val attended: Boolean,
+    val courseFinalized: Boolean = false,
+    val historicalRoom: String = "",
     val confNo: ConfNo? = null,
     val email: String? = null,
     val mobile: String? = null,

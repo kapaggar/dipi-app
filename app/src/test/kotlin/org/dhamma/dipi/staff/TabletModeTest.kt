@@ -183,7 +183,7 @@ class TabletModeTest {
         rule.onNodeWithText("Student card").assertIsDisplayed()
         rule.onNodeWithText("application, read-only").assertIsDisplayed()
         rule.onNodeWithText("Board, applications, calling, check-in").assertIsDisplayed()
-        rule.onNodeWithText("Exports, rooms & seats").assertIsDisplayed()
+        rule.onNodeWithText("Exports, Room Chart").assertIsDisplayed()
         assertEquals(2, rule.onAllNodesWithText("hidden").fetchSemanticsNodes().size)
         // The right column: the course lock and the static PIN row (no switch).
         rule.onNodeWithText("Course being taught").assertIsDisplayed()

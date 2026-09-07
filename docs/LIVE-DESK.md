@@ -964,3 +964,10 @@ get the login form and reach the same edit route after sign-in. Deployed anonymo
 GET verified HTTP 200 and destination preservation; no application was submitted.
 Browser session state remains separate from app credentials/cookies. The app makes
 a single normal worklist refresh after returning to the same course and session.
+
+
+## Finalized allocations and sign-in sequencing (1.44.0)
+
+The existing unfiltered `/search-course/{cid}/{courseId}?s=&t=&g=&d=a` response includes the same allocation fields as its Attended and Left filters. `dh_manageapp/inc/search.inc` selects `c.c_finalized`, joins `dh_applicant_attended`, and emits `finalized`, `section`, `acc` (missing values as NA). Preserve only these non-NPI fields alongside the existing worklist DTO. Finalized Attended rows supply historical rooms; Left rows have no occupancy. Avoid `/zero-day` for finalized courses. No additional transport or backend modifications.
+
+Native authentication serializes startup restoration and manual login. An expired restore already clears its cookies in the repository and must not schedule a second cleanup over a new login. Duplicate taps share one active attempt; the progress indicator covers centre/course loading too. The delayed-403 regression records the reproduction in `plans/2026-09-06-login-finalized-room-chart.md`.

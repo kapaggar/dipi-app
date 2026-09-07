@@ -78,6 +78,7 @@ fun CheckInPane(
     scan: String,
     filter: String,
     flaggedIds: Set<ApplicantId>,
+    readOnly: Boolean = false,
     gender: String = "Both",
     seniority: String = "Both",
     onScan: (String) -> Unit,
@@ -95,6 +96,8 @@ fun CheckInPane(
                 .weight(1f)
                 .fillMaxHeight(),
         ) {
+            if (readOnly) Text("Finalized course · Read only", color = Industry.neutral600,
+                modifier = Modifier.padding(start = 24.dp, top = 16.dp))
             CheckInHeader(
                 scoped, checkIns, scan, filter, gender, seniority,
                 onScan, onFilter, onGender, onSeniority,
@@ -112,6 +115,7 @@ fun CheckInPane(
                             card = card,
                             record = deskRecord(card, checkIns),
                             hasFinding = card.id in flaggedIds,
+                            readOnly = readOnly,
                             onClick = { onOpen(card) },
                         )
                     }
@@ -322,13 +326,14 @@ private fun RosterRow(
     card: ApplicantCard,
     record: CheckInRecord?,
     hasFinding: Boolean,
+    readOnly: Boolean = false,
     onClick: () -> Unit,
 ) {
     val isIn = record?.checkedIn == true
     Row(
         Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .clickable(enabled = !readOnly, onClick = onClick)
             .bottomHairline(Industry.neutral200)
             .padding(horizontal = 24.dp, vertical = 11.dp),
         horizontalArrangement = Arrangement.spacedBy(14.dp),
@@ -392,11 +397,14 @@ private fun RosterRow(
             contentAlignment = Alignment.Center,
         ) {
             Text(
-                if (isIn) "${record?.room} · ${record?.seat}" else "Mark attended",
+                if (card.status.normalize() == "left") "Left"
+                else if (isIn) listOfNotNull(record?.room?.takeIf { it.isNotBlank() },
+                    record?.seat?.takeIf { it.isNotBlank() }).joinToString(" · ").ifBlank { "Attended" }
+                else if (readOnly) card.status.value else "Mark attended",
                 fontSize = 13.5.sp,
                 textAlign = TextAlign.Center,
                 maxLines = 1,
-                color = if (isIn) Industry.neutral700 else Industry.accent800,
+                color = if (readOnly) Industry.neutral500 else if (isIn) Industry.neutral700 else Industry.accent800,
             )
         }
     }

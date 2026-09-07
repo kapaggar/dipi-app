@@ -596,11 +596,12 @@ private fun DeskHost(
                     onExport = vm::openSheet,
                 )
                 DeskSection.CheckIn -> CheckInPane(
+                    readOnly = state.courseFinalized,
                     roll = roll,
                     checkIns = state.checkIns,
                     rooms = state.centreOps.rooms,
                     scan = state.deskScan,
-                    filter = state.deskZeroFilter,
+                    filter = if (state.courseFinalized && state.deskZeroFilter == "To arrive") "All" else state.deskZeroFilter,
                     flaggedIds = flagsById.keys,
                     gender = state.deskGender,
                     seniority = state.deskSeniority,
@@ -659,11 +660,12 @@ private fun DeskHost(
                     onWhatsAppBatch = whatsappController?.takeIf { whatsappProfile != null }?.let { it::openBatch },
                 )
                 DeskSection.Rooms -> RoomsPane(
+                    readOnly = state.courseFinalized,
                     roll = roll,
                     checkIns = state.checkIns,
                     rooms = state.centreOps.rooms,
                     layout = state.centreOps.roomLayout,
-                    pendingSync = deskRoomSyncPending(state.checkIns),
+                    pendingSync = deskRoomSyncPending(state.checkIns.filterKeys { id -> roll.any { it.id == id } }),
                     syncBusy = state.roomSyncBusy,
                     pullBusy = state.roomPullBusy,
                     syncFailures = state.roomSync?.failures.orEmpty(),
@@ -698,7 +700,7 @@ private fun DeskHost(
         }
 
         val markCard = state.deskMarkId?.let { id -> state.rows.firstOrNull { it.id == id } }
-        if (markCard != null) {
+        if (markCard != null && !state.courseFinalized && !markCard.courseFinalized) {
             CheckInDialog(
                 card = markCard,
                 record = vm.deskMarkRecord(),

@@ -297,7 +297,7 @@ private fun ModeChoiceColumn(mode: TabletMode, onMode: (TabletMode) -> Unit, com
     ConsequenceRow("✓", "Read-only", "No attendance or status changes", Modifier.padding(top = 6.dp))
     ConsequenceRow("✓", "Health answers", "on screen, encrypted, wiped on course change", Modifier.padding(top = 6.dp))
     ConsequenceRow("-", "Board, applications, calling, check-in", "hidden", Modifier.padding(top = 6.dp))
-    ConsequenceRow("-", "Exports, rooms & seats", "hidden", Modifier.padding(top = 6.dp))
+    ConsequenceRow("-", "Exports, Room Chart", "hidden", Modifier.padding(top = 6.dp))
 }
 
 /**

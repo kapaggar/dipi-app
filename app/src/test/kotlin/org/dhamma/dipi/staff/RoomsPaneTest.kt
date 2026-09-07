@@ -3,6 +3,7 @@ package org.dhamma.dipi.staff
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -251,6 +252,37 @@ class RoomsPaneTest {
     )
 
     /** Same row: tops within rounding noise (sub-pixel/sub-dp), not literally equal. */
+    @Test
+    fun finalizedChartUsesHistoricalAssignmentAndShowsAgeAndSeniority() {
+        val student = occupantCard(1, "Meera", "Deshpande").copy(
+            courseFinalized = true, historicalRoom = "Mbk 01", age = 61, oldStudent = true,
+            status = ApplicantStatus("Attended"),
+        )
+        rule.setContent {
+            DipiTheme {
+                RoomsPane(roll = listOf(student), checkIns = emptyMap(),
+                    rooms = listOf(AccoRoom("Mbk 01", Gender.M, "Mbk")),
+                    readOnly = true, pendingSync = 1,
+                    onSyncRooms = { error("Finalized course cannot sync") })
+            }
+        }
+        rule.onNodeWithText("Age 61 · OLD").assertIsDisplayed()
+        rule.onNodeWithText("SYNC 1 TO SERVER").assertIsNotEnabled()
+        rule.onAllNodesWithTag("room-cell-occupied").assertCountEquals(1)
+    }
+
+    @Test
+    fun historicalRoomStillAppearsWhenRemovedFromCurrentInventory() {
+        val student = occupantCard(1, "Meera", "Deshpande").copy(
+            courseFinalized = true, historicalRoom = "OldBlock 12",
+            status = ApplicantStatus("Attended"),
+        )
+        rule.setContent { DipiTheme { RoomsPane(roll = listOf(student),
+            checkIns = emptyMap(), rooms = emptyList(), readOnly = true) } }
+        rule.onNodeWithText("Meera Deshpande").assertIsDisplayed()
+        rule.onAllNodesWithTag("room-cell-occupied").assertCountEquals(1)
+    }
+
     private fun assertSameRow(a: Dp, b: Dp) {
         assertTrue("expected same row: $a vs $b", abs(a.value - b.value) < 1f)
     }

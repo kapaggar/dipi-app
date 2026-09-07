@@ -62,7 +62,15 @@ fun deskRoll(
  * `attended` flag seeds one for anyone already in.
  */
 fun deskRecord(card: ApplicantCard, checkIns: Map<ApplicantId, CheckInRecord>): CheckInRecord? =
-    checkIns[card.id] ?: if (card.attended) CheckInRecord(checkedIn = true) else null
+    when {
+        card.status.normalize() == "left" -> CheckInRecord(synced = true)
+        card.courseFinalized -> CheckInRecord(
+            checkedIn = card.status.normalize() == "attended",
+            room = if (card.status.normalize() == "attended") card.historicalRoom else "",
+            synced = true,
+        )
+        else -> checkIns[card.id] ?: if (card.attended) CheckInRecord(checkedIn = true) else null
+    }
 
 fun deskCheckedIn(card: ApplicantCard, checkIns: Map<ApplicantId, CheckInRecord>): Boolean =
     deskRecord(card, checkIns)?.checkedIn == true

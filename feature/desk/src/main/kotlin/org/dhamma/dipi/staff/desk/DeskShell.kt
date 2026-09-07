@@ -44,7 +44,7 @@ enum class DeskSection(val label: String, val crumb: String) {
     Audit("Audit", "AUDIT"),
     Calling("Calling", "CALLING ROUND"),
     CheckIn("Check-in", "ZERO DAY · CHECK-IN"),
-    Rooms("Rooms & seats", "ROOMS & SEATS"),
+    Rooms("Room Chart", "ROOM CHART"),
 }
 
 /** Everything the persistent rail displays. Counts are derived by the caller, never stored. */

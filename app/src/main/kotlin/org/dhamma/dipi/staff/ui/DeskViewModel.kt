@@ -206,6 +206,7 @@ data class DeskUiState(
     val password: String = "",
     val loginError: String? = null,
     val loginLoading: Boolean = false,
+    val courseFinalized: Boolean = false,
     val remember: Boolean = false,
     val session: Session? = null,
     val courses: List<Course> = emptyList(),
@@ -329,6 +330,7 @@ fun deskOpenCourse(state: DeskUiState, course: Course): DeskUiState = state.copy
     screen = deskAfterPickCourse(),
     deskSection = DeskSection.Board,
     rows = emptyList(),
+    courseFinalized = false,
     visible = emptyList(),
     counts = emptyMap(),
     selected = emptySet(),
@@ -464,6 +466,9 @@ class DeskViewModel @Inject constructor(
     private var searchJob: Job? = null
     private var observeJob: Job? = null
     private var keepAliveJob: Job? = null
+    private var startupJob: Job? = null
+    private var signInJob: Job? = null
+    private var authCleanupJob: Job? = null
     private var lastOffline: Boolean? = null
     private var returnTo: DeskScreen? = null
 
@@ -541,7 +546,7 @@ class DeskViewModel @Inject constructor(
                 }
             }
         }
-        viewModelScope.launch {
+        startupJob = viewModelScope.launch {
             // Reading remember-me touches EncryptedSharedPreferences; guard it
             // so a keystore that cannot be read never crashes desk startup.
             val saved = runCatching { sessionStore.remembered() }.getOrNull()
@@ -559,13 +564,19 @@ class DeskViewModel @Inject constructor(
     fun onRemember(v: Boolean) { _state.update { it.copy(remember = v) } }
 
     fun signIn() {
+        if (signInJob?.isActive == true) return
         val s = _state.value
-        viewModelScope.launch {
+        _state.update { it.copy(loginLoading = true, loginError = null) }
+        signInJob = viewModelScope.launch {
+            // Restoration can clear expired cookies. Finish it before creating a new session.
+            startupJob?.join()
+            authCleanupJob?.join()
             _state.update { it.copy(loginLoading = true, loginError = null) }
             runCatching { repo.login(s.username, s.password) }
                 .onSuccess { session ->
                     sessionStore.setRemembered(s.remember, s.username, s.password)
                     afterLogin(session)
+                    _state.update { it.copy(loginLoading = false) }
                 }
                 .onFailure { e ->
                     _state.update {
@@ -628,8 +639,10 @@ class DeskViewModel @Inject constructor(
         viewModelScope.launch { sessionStore.setDeskSeniority(s) }
     }
 
-    fun openDeskMark(card: ApplicantCard) =
+    fun openDeskMark(card: ApplicantCard) {
+        if (_state.value.courseFinalized || card.courseFinalized) return
         _state.update { it.copy(deskMarkId = card.id, deskRoomOpen = false) }
+    }
 
     fun closeDeskMark() = _state.update { it.copy(deskMarkId = null, deskRoomOpen = false) }
 
@@ -647,6 +660,7 @@ class DeskViewModel @Inject constructor(
     }
 
     private fun patchDeskRecord(patch: (CheckInRecord) -> CheckInRecord) {
+        if (_state.value.courseFinalized || _state.value.rows.any { it.courseFinalized }) return
         val card = markCard() ?: return
         val cur = deskRecord(card, _state.value.checkIns) ?: CheckInRecord()
         // Any material edit clears the record's synced flag so it re-queues.
@@ -666,6 +680,7 @@ class DeskViewModel @Inject constructor(
 
     /** Blocked with an error snackbar if no room; otherwise checks in, in place. */
     fun saveDeskMark() {
+        if (_state.value.courseFinalized || _state.value.rows.any { it.courseFinalized }) return
         val card = markCard() ?: return
         val record = deskRecord(card, _state.value.checkIns) ?: CheckInRecord()
         val (text, err) = deskSaveSnack(record, card)
@@ -690,6 +705,7 @@ class DeskViewModel @Inject constructor(
     }
 
     fun undoDeskMark() {
+        if (_state.value.courseFinalized || _state.value.rows.any { it.courseFinalized }) return
         val card = markCard() ?: return
         val record = deskRecord(card, _state.value.checkIns) ?: CheckInRecord()
         persistCheckIns(
@@ -727,6 +743,10 @@ class DeskViewModel @Inject constructor(
         val s = _state.value
         if (s.roomPullBusy || s.roomSyncBusy) return
         val course = s.course ?: return
+        if (s.courseFinalized || s.rows.any { it.courseFinalized }) {
+            if (userInitiated) refresh()
+            return
+        }
         if (s.offline) {
             if (userInitiated) {
                 _state.update { it.copy(snack = FlushSnack("offline - will pull when online", error = false)) }
@@ -760,9 +780,10 @@ class DeskViewModel @Inject constructor(
      * an expired session boots to sign-in via the usual auth path.
      */
     fun syncRooms() {
+        if (_state.value.courseFinalized || _state.value.rows.any { it.courseFinalized }) return
         val s = _state.value
         if (s.roomSyncBusy || s.roomPullBusy) return
-        if (deskRoomSyncPending(s.checkIns) == 0) {
+        if (deskRoomSyncPending(s.checkIns.filterKeys { id -> s.rows.any { it.id == id } }) == 0) {
             _state.update { it.copy(snack = FlushSnack("All room allocations are synced", error = false)) }
             return
         }
@@ -772,7 +793,7 @@ class DeskViewModel @Inject constructor(
         }
         viewModelScope.launch {
             _state.update { it.copy(roomSyncBusy = true) }
-            runCatching { repo.syncRoomAllocations(_state.value.checkIns) }
+            runCatching { repo.syncRoomAllocations(s.checkIns.filterKeys { id -> s.rows.any { it.id == id && !it.courseFinalized && it.status.normalize() != "left" } }) }
                 .onSuccess { result ->
                     _state.update {
                         it.copy(roomSyncBusy = false, roomSync = result, snack = roomSyncSnack(result))
@@ -1867,7 +1888,7 @@ class DeskViewModel @Inject constructor(
     }
 
     private suspend fun afterLogin(session: Session) {
-        _state.update { it.copy(session = session, loginLoading = false, loginError = null) }
+        _state.update { it.copy(session = session, loginError = null) }
         startKeepAlive()
         val centre = session.centres.firstOrNull()
         if (centre != null) {
@@ -1926,7 +1947,11 @@ class DeskViewModel @Inject constructor(
     private suspend fun restore() {
         runCatching { repo.restoreSession() }.onSuccess { session ->
             if (session != null) afterLogin(session)
-        }.onFailure { handleAuth(it) }
+        }.onFailure { e ->
+            // restoreSession already clears the expired session. Do not launch a second
+            // asynchronous cleanup that could erase a subsequently successful login.
+            if (e !is ApiException || !e.unauthorized) handleAuth(e)
+        }
     }
 
     private fun ensureWorklist(course: Course) {
@@ -1937,6 +1962,7 @@ class DeskViewModel @Inject constructor(
                     _state.update { cur ->
                         cur.copy(
                             rows = rows,
+                            courseFinalized = rows.any { it.courseFinalized } || cur.courseFinalized,
                             visible = WorklistFilter.visible(rows, cur.selected, cur.query),
                             auditRows = flagAudit(rows),
                             loading = false,
@@ -1964,9 +1990,11 @@ class DeskViewModel @Inject constructor(
         val status = if (unfiltered || s.selected.isEmpty()) null else s.selected.joinToString(",")
         val q = if (unfiltered) null else s.query.takeIf { it.isNotBlank() }
         runCatching { repo.refreshApplicants(course.id, status, q, course.centreId) }
-            .onSuccess { (_, counts) ->
+            .onSuccess { (rows, counts) ->
+                if (_state.value.course?.id != course.id) return@onSuccess
                 _state.update {
-                    it.copy(counts = counts, sensitiveById = repo.sensitiveSnapshot(), loading = false)
+                    it.copy(counts = counts, courseFinalized = rows.any { row -> row.courseFinalized } || it.courseFinalized,
+                        sensitiveById = repo.sensitiveSnapshot(), loading = false)
                 }
             }
             .onFailure { e ->
@@ -2009,7 +2037,7 @@ class DeskViewModel @Inject constructor(
     private fun handleAuth(e: Throwable) {
         if (e is ApiException && e.unauthorized) {
             pendingAppEdit = null
-            viewModelScope.launch {
+            authCleanupJob = viewModelScope.launch {
                 keepAliveJob?.cancel()
                 returnTo = null
                 // Session timeout, not a logout: drop only the dead cookies so

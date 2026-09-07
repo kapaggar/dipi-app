@@ -973,7 +973,7 @@ class DeskPanesTest {
                 RoomsPane(roll = roll, checkIns = checkIns, rooms = rooms)
             }
         }
-        rule.onNodeWithText("Rooms & seats").assertIsDisplayed()
+        rule.onNodeWithText("Room Chart").assertIsDisplayed()
         rule.onNodeWithText("1 occupied · 1 free of 2").assertIsDisplayed()
         rule.onNodeWithText("Priya Nair").assertIsDisplayed()
         rule.onNodeWithText("G IC").assertIsDisplayed()

@@ -972,3 +972,8 @@ Replace the display-only embedded form with **Edit on desk site ↗**, using the
 system browser’s sign-in/edit flow. No confirmation dialog or copied app session.
 On return, refresh the same course once, retaining selection and recomputing audit.
 The sheet viewer remains for exports, not application editing.
+
+
+## Owner amendment: Room Chart (1.44.0)
+
+Rename the desk rail and pane to **Room Chart**. Occupied cells show name, age and OLD/NEW text cues; cells grow for wrapped names/shared rooms. Finalized courses show **Finalized course · Read only**, historical assigned/unassigned counts, disabled allocation edits and sync. Left students retain their label in Check-in and never occupy a room. Include historical rooms removed from the current inventory. Active-course layout and pull/sync behavior remain available.

@@ -298,6 +298,12 @@ object SearchPageParser {
             type = if (typeRaw.equals("sevak", true)) ApplicantType.Sevak.name else ApplicantType.Student.name,
             oldStudent = old,
             attended = false,
+            courseFinalized = o.int("finalized") == 1,
+            historicalRoom = listOf("section", "acc").map { key ->
+                o.str(key)?.let(::stripTags)?.takeUnless { it.equals("NA", true) || it == "-" }.orEmpty()
+            }.let { (section, room) ->
+                if (section.isNotBlank() && room.isNotBlank()) "$section $room" else ""
+            },
             confNo = o.str("confno"),
             email = o.str("contact_email"),
             mobile = o.str("contact_mobile"),
