@@ -22,4 +22,6 @@ Centre settings are global (Centre screen), no longer a desk section.
 
 See `AGENTS.md` (current assumptions), `docs/LIVE-DESK.md` and `docs/DESIGN.md`.
 
+**Java desktop twin (planned, sibling repo — not this codebase):** a JavaFX 21 desktop port of the staff desk is specced and planned in `docs/superpowers/specs/2026-09-05-java-desktop-design.md` + `docs/superpowers/plans/2026-09-05-java-desktop.md`; to start it, paste `docs/handovers/2026-09-05-java-desktop-handover.md` into a fresh session. It reuses the same live-desk transport rules; nothing in this repo changes for it.
+
 SemVer: bump `versionName` + `versionCode` on every shippable change (MAJOR/MINOR/PATCH). After a major (and any tablet-facing minor), install the debug APK on the Pixel C over Wi-Fi ADB (`10.0.0.144:5555`). Details in `AGENTS.md`.

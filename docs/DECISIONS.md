@@ -364,4 +364,8 @@ are preserved because code comments cite them.
 dashboard · 1.22.0/35 desk polish · 1.23.0/36 v4 design pass · 1.24.0/37 centre
 trim · 1.25.0/40 room layout + reach · 1.27.0/42 Day-11 transport ·
 1.28.0/43 T1+T3 · 1.29.0/44 T2 · 1.29.1/45 T4+T7 · 1.30.0/46 T5 · 1.30.1/47 T6+T8
-· now shipping 1.30.5/51.
+· 1.34.0 Sheets v5 · 1.36.0/58 Reach v5 · 1.37.2/62 Course ops v6 + Board 3×3 ·
+1.38.0/63 seating print + report empty-state · 1.39.0/64–1.40.2/67 ui-gaps M1–M4 ·
+1.41.0/68 desk resilience · 1.42.0/69 four-course grid · 1.42.1/70 landscape
+seating print · 1.43.1–1.43.4 WhatsApp automation + QA + batch isolation ·
+now shipping 1.43.5/86 (application Edit via browser session).
