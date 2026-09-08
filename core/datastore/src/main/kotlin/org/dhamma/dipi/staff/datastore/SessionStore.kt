@@ -11,6 +11,7 @@ import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKeys
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.serialization.encodeToString
@@ -136,7 +137,10 @@ class SessionStore @Inject constructor(
         ds.edit { it[OFFLINE] = value }
     }
 
-    val forceOffline: Flow<Boolean> = ds.data.map { it[OFFLINE] ?: false }
+    /** One-shot read so a tap can flip the stored flag, not the combined offline strip. */
+    suspend fun forceOfflineOnce(): Boolean = ds.data.first()[OFFLINE] ?: false
+
+    val forceOffline: Flow<Boolean> = ds.data.map { it[OFFLINE] ?: false }.distinctUntilChanged()
 
     val centreOps: Flow<CentreOpsPrefs> = ds.data.map { decodeCentreOps(it[CENTRE_OPS]) }
 

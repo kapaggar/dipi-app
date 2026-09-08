@@ -4,16 +4,18 @@ import org.dhamma.dipi.staff.model.ApplicantCard
 import org.dhamma.dipi.staff.model.ApplicantType
 import org.dhamma.dipi.staff.model.AuditFlag
 import org.dhamma.dipi.staff.model.AuditSeverity
+import org.dhamma.dipi.staff.model.SensitiveInfo
 
 /**
  * Client-side port of the course-audit rule engine (callconfirm/course-audit
  * audit.js). RuleIds are contractual — they must match audit.js check names
  * exactly, because server flags merge on ruleId.
  *
- * Rules that need raw ID values (aadhar_masked, aadhar_length, pan_invalid,
- * id_type_*) are NOT ported: the app never parses-and-stores NPI. The only
- * ID-derived signal is the parse-time presence boolean behind id_missing.
- * cross_course_duplicate needs cross-course caching and is server-only here.
+ * ID-shape rules (aadhar_length, aadhar_masked, pan_invalid, id_type_mismatch)
+ * read in-memory [SensitiveInfo] only. Finding text records length or shape,
+ * never the raw Aadhaar/PAN. id_type_concatenated / id_type_unknown need the
+ * raw ID-type string the parser does not keep. pan_missing is opt-in in
+ * audit.js and stays off. cross_course_duplicate needs other courses.
  */
 object ClientAudit {
     /** audit.js dates against courseStart; the card carries no course dates, so year-of-writing. */
@@ -63,10 +65,16 @@ object ClientAudit {
         .sortedByDescending { it.split(" ").size }
 
     private val EMAIL_RE = Regex("""^[^@\s]+@[^@\s]+\.[^@\s]+$""")
+    private val PAN_RE = Regex("^[A-Z]{5}[0-9]{4}[A-Z]$")
+    private val MASK_RE = Regex("X{4,}", RegexOption.IGNORE_CASE)
 
     fun isActive(card: ApplicantCard): Boolean = card.status.normalize() in ACTIVE
 
-    fun evaluate(card: ApplicantCard, courseMates: List<ApplicantCard> = emptyList()): List<AuditFlag> {
+    fun evaluate(
+        card: ApplicantCard,
+        courseMates: List<ApplicantCard> = emptyList(),
+        sensitive: SensitiveInfo? = null,
+    ): List<AuditFlag> {
         val out = mutableListOf<AuditFlag>()
         statusUnknown(card)?.let(out::add)
         if (!isActive(card)) return out
@@ -77,6 +85,10 @@ object ClientAudit {
         phonePrefix(card)?.let(out::add)
         email(card)?.let(out::add)
         idMissing(card)?.let(out::add)
+        aadharMasked(sensitive)?.let(out::add)
+        idTypeMismatch(sensitive)?.let(out::add)
+        aadharLength(sensitive)?.let(out::add)
+        panInvalid(sensitive)?.let(out::add)
         ageDob(card)?.let(out::add)
         ageRange(card)?.let(out::add)
         confGender(card)?.let(out::add)
@@ -191,6 +203,84 @@ object ClientAudit {
         )
     }
 
+    /** audit.js aadhar_masked — X-runs in the in-memory Aadhaar, never the value. */
+    fun aadharMasked(sensitive: SensitiveInfo?): AuditFlag? {
+        val info = sensitive ?: return null
+        if (!isAadhaarLabel(info.idLabel)) return null
+        val raw = info.idNumber?.trim().orEmpty()
+        if (raw.isEmpty() || !MASK_RE.containsMatchIn(raw)) return null
+        return flag(
+            AuditSeverity.HARD,
+            "Aadhaar number is masked",
+            "aadhar_masked · digits hidden",
+            "aadhar_masked",
+        )
+    }
+
+    /**
+     * audit.js aadhar_length. Finding text is the digit count only — the raw
+     * number never leaves this function (Room stores [AuditFlag.detail]).
+     */
+    fun aadharLength(sensitive: SensitiveInfo?): AuditFlag? {
+        val info = sensitive ?: return null
+        if (!isAadhaarLabel(info.idLabel)) return null
+        val raw = info.idNumber?.trim().orEmpty()
+        if (raw.isEmpty() || MASK_RE.containsMatchIn(raw)) return null
+        val compact = raw.replace(Regex("""\s+"""), "").uppercase()
+        if (PAN_RE.matches(compact)) return null
+        val n = raw.filter { it.isDigit() }.length
+        if (n == 12) return null
+        return flag(
+            AuditSeverity.HARD,
+            "Aadhaar is the wrong length",
+            "aadhar_length · $n digits, expected 12",
+            "aadhar_length",
+        )
+    }
+
+    /** audit.js id_type_mismatch — label vs shape, no raw identifier in the flag. */
+    fun idTypeMismatch(sensitive: SensitiveInfo?): AuditFlag? {
+        val info = sensitive ?: return null
+        val raw = info.idNumber?.trim().orEmpty()
+        if (raw.isEmpty()) return null
+        val compact = raw.replace(Regex("""\s+"""), "").uppercase()
+        if (isAadhaarLabel(info.idLabel) && PAN_RE.matches(compact)) {
+            return flag(
+                AuditSeverity.HARD,
+                "ID type does not match the document",
+                "id_type_mismatch · labelled Aadhaar, looks like PAN",
+                "id_type_mismatch",
+            )
+        }
+        val digits = raw.filter { it.isDigit() }
+        if (isPanLabel(info.idLabel) && digits.length == 12 && compact.all { it.isDigit() }) {
+            return flag(
+                AuditSeverity.HARD,
+                "ID type does not match the document",
+                "id_type_mismatch · labelled PAN, looks like Aadhaar",
+                "id_type_mismatch",
+            )
+        }
+        return null
+    }
+
+    /** audit.js pan_invalid — format only. 12-digit PAN slots are id_type_mismatch. */
+    fun panInvalid(sensitive: SensitiveInfo?): AuditFlag? {
+        val info = sensitive ?: return null
+        if (!isPanLabel(info.idLabel)) return null
+        val raw = info.idNumber?.trim().orEmpty()
+        if (raw.isEmpty()) return null
+        val compact = raw.replace(Regex("""\s+"""), "").uppercase()
+        if (compact.all { it.isDigit() } && compact.length == 12) return null
+        if (PAN_RE.matches(compact)) return null
+        return flag(
+            AuditSeverity.HARD,
+            "PAN format is invalid",
+            "pan_invalid · expected 5 letters, 4 digits, 1 letter",
+            "pan_invalid",
+        )
+    }
+
     fun ageDob(card: ApplicantCard): AuditFlag? {
         val age = card.age ?: return null
         val computed = dobAge(card.dob) ?: return null
@@ -292,8 +382,8 @@ object ClientAudit {
             if (hit != null) {
                 return flag(
                     AuditSeverity.HARD,
-                    "Same person may be entered twice",
-                    "within_file_duplicate · phone · also ${hit.displayName}",
+                    "Two people share the same phone",
+                    "within_file_duplicate · ${card.displayName} and ${hit.displayName} share the same phone: $phone",
                     "within_file_duplicate",
                 )
             }
@@ -434,6 +524,14 @@ object ClientAudit {
 
     private fun surname(name: String): String =
         name.trim().split(Regex("""\s+""")).last().lowercase()
+
+    private fun isAadhaarLabel(label: String?): Boolean {
+        val s = label?.lowercase() ?: return false
+        return s.contains("aadhaar") || s.contains("aadhar")
+    }
+
+    private fun isPanLabel(label: String?): Boolean =
+        label?.contains("pan", ignoreCase = true) == true
 
     /** Year-only age from the free-text DOB string — the card carries no parsed date. */
     private fun dobAge(dob: String?): Int? {

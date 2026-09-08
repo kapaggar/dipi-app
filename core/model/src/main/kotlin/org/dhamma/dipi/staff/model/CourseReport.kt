@@ -32,10 +32,21 @@ data class CourseReport(
 data class CourseReportRow(
     val course: String,
     val counts: CourseReportCounts = CourseReportCounts(),
-    /** Teacher names, wrapped across continuation lines in the CSV. Print only. */
+    /** Combined teacher names when the CSV has a single Teachers column. */
     val teacherNames: List<String> = emptyList(),
+    val conductingTeachers: List<String> = emptyList(),
+    val assistingTeachers: List<String> = emptyList(),
+    val traineeTeachers: List<String> = emptyList(),
 ) {
     val parsed: CourseName get() = CourseName.parse(course)
+
+    /** Names as the CSV wrote them — conducting, then assisting, then trainee. */
+    fun displayTeacherNames(): List<String> = buildList {
+        addAll(conductingTeachers)
+        addAll(assistingTeachers)
+        addAll(traineeTeachers)
+        if (isEmpty()) addAll(teacherNames)
+    }
 }
 
 /**

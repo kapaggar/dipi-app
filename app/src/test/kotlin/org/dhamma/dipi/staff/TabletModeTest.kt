@@ -194,6 +194,10 @@ class TabletModeTest {
         rule.onNodeWithText("Settings and logout need the device PIN").performScrollTo().assertIsDisplayed()
         rule.onNodeWithText("Read-only").performScrollTo().assertIsDisplayed()
         rule.onNodeWithText("Health answers").performScrollTo().assertIsDisplayed()
+        rule.onNodeWithText("encrypted, wiped on course change").assertIsDisplayed()
+        rule.onNodeWithText("on screen, encrypted, wiped on course change").assertDoesNotExist()
+        rule.onNodeWithText("⌐").assertDoesNotExist()
+        rule.onNodeWithText("€").assertDoesNotExist()
     }
 
     /** The dashed card binds the running course when one is resolved. */

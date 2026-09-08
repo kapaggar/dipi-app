@@ -1,8 +1,12 @@
 package org.dhamma.dipi.staff.datastore
 
+import kotlinx.coroutines.async
+import kotlinx.coroutines.flow.dropWhile
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -35,5 +39,19 @@ class SessionStoreTest {
         assertEquals("Old", store.deskSeniority.first())
         store.setDeskSeniority("Both")
         assertEquals("Both", store.deskSeniority.first())
+    }
+
+    @Test
+    fun forceOfflineFlowEmitsLiveWritesOnTheSameStore() = runBlocking {
+        val store = store()
+        assertFalse(store.forceOfflineOnce())
+        val becameOn = async { store.forceOffline.dropWhile { !it }.first() }
+        store.setForceOffline(true)
+        assertTrue(becameOn.await())
+        assertTrue(store.forceOfflineOnce())
+        val becameOff = async { store.forceOffline.dropWhile { it }.first() }
+        store.setForceOffline(false)
+        assertFalse(becameOff.await())
+        assertFalse(store.forceOfflineOnce())
     }
 }

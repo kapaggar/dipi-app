@@ -1,18 +1,22 @@
 package org.dhamma.dipi.staff.desk
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -22,10 +26,19 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
@@ -70,7 +83,7 @@ fun RoomsPane(
             .padding(horizontal = 26.dp, vertical = 24.dp),
     ) {
         Row(
-            Modifier.fillMaxWidth().padding(bottom = 20.dp),
+            Modifier.fillMaxWidth().padding(bottom = 12.dp),
             verticalAlignment = Alignment.Top,
         ) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -91,6 +104,13 @@ fun RoomsPane(
                     RoomSyncButton(pendingSync, syncBusy, actionsEnabled && !readOnly, onSyncRooms)
                 }
             }
+        }
+
+        Row(
+            Modifier.fillMaxWidth().padding(bottom = 16.dp),
+            horizontalArrangement = Arrangement.End,
+        ) {
+            OccupancyTypeLegend()
         }
 
         val occupantByRoom = roll.filter { card ->
@@ -180,18 +200,21 @@ private fun RoomBlock(
         // Centre Settings room-chart layout), alternate rows on a soft rounded
         // band of the neutral ground.
         block.chunked(columns).forEachIndexed { i, rowRooms ->
+            val rowOccupied = rowRooms.any { occupantByRoom[it.code].orEmpty().isNotEmpty() }
             Row(
                 Modifier
                     .fillMaxWidth()
+                    .height(IntrinsicSize.Max)
                     .clip(DeskStyle.tileShape)
                     .background(if (i % 2 == 1) Industry.neutral100 else Color.Transparent),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.Top,
             ) {
                 rowRooms.forEach { room ->
                     val who = occupantByRoom[room.code]
-                    RoomCell(room, who, Modifier.weight(1f))
+                    RoomCell(room, who, compactRow = !rowOccupied, Modifier.weight(1f).fillMaxHeight())
                 }
-                repeat(columns - rowRooms.size) { Spacer(Modifier.weight(1f)) }
+                repeat(columns - rowRooms.size) { Spacer(Modifier.weight(1f).fillMaxHeight()) }
             }
         }
         if (block.isEmpty()) {
@@ -294,71 +317,226 @@ private fun SyncRefusals(roll: List<ApplicantCard>, failures: List<RoomSyncFailu
 }
 
 /**
- * A free room is the absence of ink: near-white fill, a hairline you have to
- * look for, the number in `neutral400`. The word "free" is gone — 68 grey
- * repetitions of it were the loudest thing on a pane whose whole job is to
- * show where the occupied cells are. Occupancy survives greyscale on border
- * weight and number contrast; the accent tint is a bonus, not the carrier.
+ * Occupied cells keep the accent fill. Old is a solid accent border; New is
+ * the same stroke, short-dashed. Age is the number only — muted 12sp — at
+ * both top-right and bottom-right on reserved corners. A row with no
+ * allocated rooms uses the compact height (room number only); width stays
+ * the column weight. Empty cells stay the near-white hairline they were.
  */
 @Composable
-private fun RoomCell(room: AccoRoom, occupant: List<ApplicantCard>?, modifier: Modifier = Modifier) {
-    val taken = occupant != null
-    Column(
+private fun RoomCell(
+    room: AccoRoom,
+    occupant: List<ApplicantCard>?,
+    compactRow: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    val who = occupant.orEmpty()
+    val taken = who.isNotEmpty()
+    val isNew = taken && who.any { !it.oldStudent }
+    val ages = who.mapNotNull { it.age }
+    val hasAge = ages.isNotEmpty()
+    Box(
         modifier
-            .heightIn(min = 88.dp)
-            .deskCard(
-                shape = DeskStyle.tileShape,
-                fill = if (taken) Industry.accent100 else FreeCellFill,
-                border = if (taken) Industry.accent400 else FreeCellHairline,
-                elevation = 0.dp,
+            .heightIn(min = if (compactRow) RoomCellCompactHeight else RoomCellMinHeight)
+            .fillMaxHeight()
+            .then(
+                if (taken) {
+                    Modifier.roomChartOutline(Industry.accent100, Industry.accent, dashed = isNew)
+                } else {
+                    Modifier.deskCard(
+                        shape = DeskStyle.tileShape,
+                        fill = FreeCellFill,
+                        border = FreeCellHairline,
+                        elevation = 0.dp,
+                    )
+                },
             )
-            .padding(horizontal = 11.dp, vertical = 8.dp)
+            .semantics {
+                contentDescription = when {
+                    !taken -> "Available room"
+                    isNew -> "New student room"
+                    else -> "Old student room"
+                }
+            }
             .testTag(if (taken) "room-cell-occupied" else "room-cell-free"),
-        verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
-            Text(
-                room.displayNo,
-                fontFamily = DipiCondensed,
-                fontWeight = FontWeight.Bold,
-                fontSize = 19.sp,
-                lineHeight = 20.sp,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                color = if (taken) Industry.accent800 else Industry.neutral400,
-                modifier = Modifier.weight(1f),
-            )
-            // Top-right, out of the number's line, so the two never collide.
-            Text(
-                room.amenityMark,
-                fontFamily = DipiMono,
-                fontWeight = FontWeight.Medium,
-                fontSize = 9.5.sp,
-                lineHeight = 12.sp,
-                letterSpacing = 0.1.em,
-                color = if (taken) Industry.accent500 else Industry.neutral300,
-            )
+        Column(
+            Modifier
+                .fillMaxSize()
+                .padding(start = 11.dp, top = 8.dp, end = 11.dp, bottom = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(end = if (hasAge) AgeReserveEnd else 0.dp),
+                verticalAlignment = Alignment.Top,
+            ) {
+                Text(
+                    room.displayNo,
+                    fontFamily = DipiCondensed,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 19.sp,
+                    lineHeight = 20.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    color = if (taken) Industry.accent800 else Industry.neutral400,
+                )
+                if (room.amenityMark.isNotBlank()) {
+                    Text(
+                        room.amenityMark,
+                        fontFamily = DipiMono,
+                        fontWeight = FontWeight.Medium,
+                        fontSize = 9.5.sp,
+                        lineHeight = 12.sp,
+                        letterSpacing = 0.1.em,
+                        color = if (taken) Industry.accent500 else Industry.neutral300,
+                        modifier = Modifier.padding(start = 6.dp),
+                    )
+                }
+            }
+            if (!compactRow) {
+                Column(
+                    Modifier.padding(
+                        end = if (hasAge) AgeReserveEnd else 0.dp,
+                        top = if (hasAge) AgeReserveTop else 0.dp,
+                        bottom = if (hasAge) AgeReserveBottom else 0.dp,
+                    ),
+                    verticalArrangement = Arrangement.spacedBy(2.dp),
+                ) {
+                    who.forEach { student ->
+                        Text(
+                            student.displayName,
+                            fontSize = 13.sp,
+                            lineHeight = 15.sp,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                            color = Industry.neutral700,
+                        )
+                    }
+                }
+            }
         }
-        occupant.orEmpty().forEach { student ->
-            Text(student.displayName, fontSize = 13.sp, lineHeight = 15.sp,
-                maxLines = 2, overflow = TextOverflow.Ellipsis, color = Industry.neutral700)
+        if (hasAge) {
+            AgeCorner(ages, Alignment.TopEnd, "room-cell-age-top")
+            AgeCorner(ages, Alignment.BottomEnd, "room-cell-age")
+        }
+    }
+}
+
+@Composable
+private fun BoxScope.AgeCorner(
+    ages: List<Int>,
+    align: Alignment,
+    tag: String,
+) {
+    Column(
+        Modifier
+            .align(align)
+            .padding(AgeEdgePad)
+            .testTag(tag),
+        horizontalAlignment = Alignment.End,
+    ) {
+        ages.forEach { years ->
             Text(
-                listOfNotNull(student.age?.let { "Age $it" },
-                    if (student.oldStudent) "OLD" else "NEW").joinToString(" · "),
-                fontFamily = DipiMono, fontWeight = FontWeight.SemiBold, fontSize = 10.sp,
-                color = if (student.oldStudent) Industry.accent800 else Industry.neutral700,
-                modifier = Modifier.background(if (student.oldStudent) Industry.accent100 else Industry.neutral100)
-                    .padding(horizontal = 4.dp, vertical = 2.dp),
+                years.toString(),
+                fontSize = 12.sp,
+                lineHeight = 14.sp,
+                color = Industry.neutral600,
             )
         }
     }
 }
+
+/** Solid or short-dashed accent outline — same colour and thickness. */
+private fun Modifier.roomChartOutline(
+    fill: Color,
+    border: Color,
+    dashed: Boolean,
+    corner: Dp = DeskStyle.tileRadius,
+): Modifier = this
+    .background(fill, RoundedCornerShape(corner))
+    .clip(RoundedCornerShape(corner))
+    .drawWithContent {
+        drawContent()
+        val strokeWidth = RoomChartStroke.toPx()
+        val inset = strokeWidth / 2f
+        drawRoundRect(
+            color = border,
+            topLeft = Offset(inset, inset),
+            size = Size(size.width - strokeWidth, size.height - strokeWidth),
+            cornerRadius = CornerRadius((corner.toPx() - inset).coerceAtLeast(0f)),
+            style = Stroke(
+                width = strokeWidth,
+                pathEffect = if (dashed) {
+                    PathEffect.dashPathEffect(
+                        floatArrayOf(RoomChartDashOn.toPx(), RoomChartDashOff.toPx()),
+                        0f,
+                    )
+                } else {
+                    null
+                },
+            ),
+        )
+    }
 
 /** Near-white ground for a free cell — emptiness reads as absence of ink. */
 private val FreeCellFill = Color(0xFFFAFAFB)
 
 /** The nearly-invisible hairline a free cell carries instead of a card border. */
 private val FreeCellHairline = Color(0xFFEDEDF1)
+
+/** Occupied Old/New share this stroke so the dash is the only difference. */
+private val RoomChartStroke = 1.5.dp
+
+/** Short dashes — visible on the Pixel C, not a dotted hairline. */
+private val RoomChartDashOn = 6.dp
+private val RoomChartDashOff = 4.dp
+
+private val RoomCellMinHeight = 96.dp
+/** Room number only — used when every cell in the row is empty. Width unchanged. */
+private val RoomCellCompactHeight = 42.dp
+private val AgeEdgePad = 8.dp
+private val AgeReserveEnd = 28.dp
+private val AgeReserveTop = 22.dp
+private val AgeReserveBottom = 22.dp
+
+/** Border samples once above the grid: solid Old, short-dashed New, faint Available. */
+@Composable
+private fun OccupancyTypeLegend() {
+    Row(
+        Modifier.testTag("room-chart-type-legend"),
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        TypeLegendItem("Old", fill = Industry.accent100, border = Industry.accent, dashed = false)
+        TypeLegendItem("New", fill = Industry.accent100, border = Industry.accent, dashed = true)
+        TypeLegendItem("Available", fill = FreeCellFill, border = FreeCellHairline, dashed = false)
+    }
+}
+
+@Composable
+private fun TypeLegendItem(label: String, fill: Color, border: Color, dashed: Boolean) {
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            Modifier
+                .size(14.dp)
+                .then(
+                    if (border == FreeCellHairline) {
+                        Modifier
+                            .background(fill, RoundedCornerShape(3.dp))
+                            .border(1.dp, border, RoundedCornerShape(3.dp))
+                    } else {
+                        Modifier.roomChartOutline(fill, border, dashed = dashed, corner = 3.dp)
+                    },
+                ),
+        )
+        Text(label, fontSize = 12.sp, color = Industry.neutral600)
+    }
+}
 
 /**
  * The block's occupancy as a 6dp bar, capped at 280dp so a 60-room block and

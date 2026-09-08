@@ -464,7 +464,7 @@ class DeskViewModel @Inject constructor(
     private val photoStore: PhotoEditStore,
     private val photoLoader: PhotoLoader,
     private val photoCorrections: PhotoCorrectionStore,
-    connectivity: ConnectivityMonitor,
+    private val connectivity: ConnectivityMonitor,
 ) : ViewModel() {
     internal var onWhatsAppSessionExit: () -> Unit = {}
     internal var onWhatsAppErase: () -> Unit = {}
@@ -502,6 +502,8 @@ class DeskViewModel @Inject constructor(
     private var signInJob: Job? = null
     private var authCleanupJob: Job? = null
     private var lastOffline: Boolean? = null
+    /** Stored Simulate-offline flag — not the combined strip (`offline`). */
+    private var forceOffline: Boolean = false
     private var returnTo: DeskScreen? = null
 
     /** Where centre settings were opened from (Centre screen or phone course hub). */
@@ -510,14 +512,9 @@ class DeskViewModel @Inject constructor(
     init {
         viewModelScope.launch {
             combine(connectivity.online, sessionStore.forceOffline) { net, force ->
-                !net || force
-            }.collect { offline ->
-                val was = lastOffline
-                lastOffline = offline
-                _state.update { it.copy(offline = offline) }
-                if (was == true && !offline) {
-                    flush()
-                }
+                net to force
+            }.collect { (net, force) ->
+                applyOffline(net, force)
             }
         }
         viewModelScope.launch {
@@ -1674,7 +1671,20 @@ class DeskViewModel @Inject constructor(
     }
 
     fun toggleOffline() {
-        viewModelScope.launch { sessionStore.setForceOffline(!_state.value.offline) }
+        val next = !forceOffline
+        applyOffline(connectivity.online.value, next)
+        viewModelScope.launch { sessionStore.setForceOffline(next) }
+    }
+
+    private fun applyOffline(net: Boolean, force: Boolean) {
+        forceOffline = force
+        val offline = !net || force
+        val was = lastOffline
+        lastOffline = offline
+        _state.update { it.copy(offline = offline) }
+        if (was == true && !offline) {
+            viewModelScope.launch { flush() }
+        }
     }
 
     /* ── Course ops · mode + device PIN (spec 2a) ───────────────────── */
@@ -1917,6 +1927,8 @@ class DeskViewModel @Inject constructor(
             photoLoader.clear()
             photoReview.resetSession(clearPixels = true)
             val saved = sessionStore.remembered()
+            forceOffline = false
+            lastOffline = null
             _state.value = DeskUiState(
                 dark = _state.value.dark,
                 skin = _state.value.skin,
@@ -1939,6 +1951,8 @@ class DeskViewModel @Inject constructor(
             photoCorrections.wipeAll()
             photoLoader.clear()
             photoReview.resetSession(clearPixels = true)
+            forceOffline = false
+            lastOffline = null
             _state.value = DeskUiState()
         }
     }
@@ -2093,11 +2107,18 @@ class DeskViewModel @Inject constructor(
             .onFailure { handleAuth(it) }
     }
 
-    private fun flagAudit(rows: List<ApplicantCard>): List<ApplicantCard> =
-        rows.map { card ->
-            card.copy(flags = ClientAudit.merge(ClientAudit.evaluate(card, rows), card.flags))
+    private fun flagAudit(rows: List<ApplicantCard>): List<ApplicantCard> {
+        val sensitive = _state.value.sensitiveById
+        return rows.map { card ->
+            card.copy(
+                flags = ClientAudit.merge(
+                    ClientAudit.evaluate(card, rows, sensitive[card.id]),
+                    card.flags,
+                ),
+            )
         }.filter { it.flags.isNotEmpty() }
             .sortedWith(compareByDescending<ApplicantCard> { it.hardFlagCount }.thenBy { it.displayName })
+    }
 
     private fun handleAuth(e: Throwable) {
         if (e is ApiException && e.unauthorized) {

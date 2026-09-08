@@ -52,7 +52,12 @@ class CourseReportScreenTest {
 
     private val loaded = CourseReport(
         rows = listOf(
-            CourseReportRow("Dhamma Sudha / 10 Day / 2026 / 03 Jan - 14 Jan", counts(119)),
+            CourseReportRow(
+                "Dhamma Sudha / 10 Day / 2026 / 03 Jan - 14 Jan",
+                counts(119),
+                conductingTeachers = listOf("Maya Sharma (F)", "Arun Sharma (M)"),
+                assistingTeachers = listOf("Neel Joshi (F)"),
+            ),
             CourseReportRow("Long weekend for old students", counts(46)),
         ),
         grandTotal = counts(165),
@@ -217,6 +222,13 @@ class CourseReportScreenTest {
         rule.onNodeWithTag("report-run-strip")
             .assertTextEquals("2 COURSES · 165 STUDENTS · RAN 09:41")
         rule.onNodeWithText("every course the desk has in this range").assertIsDisplayed()
+    }
+
+    @Test
+    fun teacherNamesFromTheCsvRenderNextToTheCounts() {
+        screen(CourseReportUi(ran = true, report = loaded))
+        rule.onNodeWithText("Maya Sharma (F) · Arun Sharma (M) · Neel Joshi (F)").assertIsDisplayed()
+        rule.onAllNodesWithTag("report-teacher-names").assertCountEquals(1)
     }
 
     /** Every tap target on this screen clears the 48dp floor. */

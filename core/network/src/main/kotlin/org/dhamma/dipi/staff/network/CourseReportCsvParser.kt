@@ -33,12 +33,31 @@ object CourseReportCsvParser {
         "sevakfemale" to { c, v -> c.copy(sevakFemale = v) },
         "sevaktotal" to { c, v -> c.copy(sevakTotal = v) },
         "conductingteacher" to { c, v -> c.copy(teacherConducting = v) },
+        "conductingteachers" to { c, v -> c.copy(teacherConducting = v) },
         "assistantteacher" to { c, v -> c.copy(teacherAssistant = v) },
+        "assistantteachers" to { c, v -> c.copy(teacherAssistant = v) },
+        "assistingteacher" to { c, v -> c.copy(teacherAssistant = v) },
+        "assistingteachers" to { c, v -> c.copy(teacherAssistant = v) },
         "teachertrainee" to { c, v -> c.copy(teacherTrainee = v) },
+        "teachertrainees" to { c, v -> c.copy(teacherTrainee = v) },
+    )
+
+    private enum class TeacherSlot { CONDUCTING, ASSISTING, TRAINEE, ALL }
+
+    /** Live CSV uses ConductingTeachers / AssistingTeachers as name lists. */
+    private val NAME_SLOTS: Map<String, TeacherSlot> = mapOf(
+        "conductingteacher" to TeacherSlot.CONDUCTING,
+        "conductingteachers" to TeacherSlot.CONDUCTING,
+        "assistantteacher" to TeacherSlot.ASSISTING,
+        "assistantteachers" to TeacherSlot.ASSISTING,
+        "assistingteacher" to TeacherSlot.ASSISTING,
+        "assistingteachers" to TeacherSlot.ASSISTING,
+        "teachertrainee" to TeacherSlot.TRAINEE,
+        "teachertrainees" to TeacherSlot.TRAINEE,
+        "teachers" to TeacherSlot.ALL,
     )
 
     private const val COURSE = "course"
-    private const val TEACHERS = "teachers"
 
     fun parse(csv: String, from: String = "", to: String = ""): CourseReport {
         val records = records(csv)
@@ -46,7 +65,6 @@ object CourseReportCsvParser {
 
         val header = records.first().map { it.normalise() }
         val courseAt = header.indexOfFirst { it == COURSE }.takeIf { it >= 0 } ?: 0
-        val teachersAt = header.indexOfFirst { it.startsWith(TEACHERS) }
 
         val rows = mutableListOf<CourseReportRow>()
         var desksTotal: CourseReportCounts? = null
@@ -58,9 +76,32 @@ object CourseReportCsvParser {
             // would show a ghost row and suppress the empty-range guidance.
             if (course.isBlank()) return@forEach
             var counts = CourseReportCounts()
+            val conducting = mutableListOf<String>()
+            val assisting = mutableListOf<String>()
+            val trainees = mutableListOf<String>()
+            val combined = mutableListOf<String>()
             header.forEachIndexed { i, name ->
-                val fill = COLUMNS[name] ?: return@forEachIndexed
-                counts = fill(counts, record.getOrNull(i).toCount())
+                val cell = record.getOrNull(i)
+                val fill = COLUMNS[name]
+                if (fill != null && cell.looksNumeric()) {
+                    counts = fill(counts, cell.toCount())
+                }
+                when (NAME_SLOTS[name]) {
+                    TeacherSlot.CONDUCTING -> conducting += splitTeacherNames(cell)
+                    TeacherSlot.ASSISTING -> assisting += splitTeacherNames(cell)
+                    TeacherSlot.TRAINEE -> trainees += splitTeacherNames(cell)
+                    TeacherSlot.ALL -> combined += splitTeacherNames(cell)
+                    null -> Unit
+                }
+            }
+            if (counts.teacherConducting == 0 && conducting.isNotEmpty()) {
+                counts = counts.copy(teacherConducting = conducting.size)
+            }
+            if (counts.teacherAssistant == 0 && assisting.isNotEmpty()) {
+                counts = counts.copy(teacherAssistant = assisting.size)
+            }
+            if (counts.teacherTrainee == 0 && trainees.isNotEmpty()) {
+                counts = counts.copy(teacherTrainee = trainees.size)
             }
             // The desk's own trailing Total line is the grand total, not a course.
             if (course.equals("total", ignoreCase = true)) {
@@ -70,25 +111,48 @@ object CourseReportCsvParser {
             rows += CourseReportRow(
                 course = course,
                 counts = counts,
-                teacherNames = teacherNames(record.getOrNull(teachersAt)),
+                teacherNames = combined.ifEmpty { conducting + assisting + trainees },
+                conductingTeachers = conducting,
+                assistingTeachers = assisting,
+                traineeTeachers = trainees,
             )
         }
 
+        val derived = rows.fold(CourseReportCounts()) { acc, r -> acc + r.counts }
+        val total = desksTotal?.let { desk ->
+            val deskTeachers = desk.teacherConducting + desk.teacherAssistant + desk.teacherTrainee
+            val rowTeachers = derived.teacherConducting + derived.teacherAssistant + derived.teacherTrainee
+            if (deskTeachers == 0 && rowTeachers > 0) {
+                desk.copy(
+                    teacherConducting = derived.teacherConducting,
+                    teacherAssistant = derived.teacherAssistant,
+                    teacherTrainee = derived.teacherTrainee,
+                )
+            } else {
+                desk
+            }
+        } ?: derived
+
         return CourseReport(
             rows = rows,
-            grandTotal = desksTotal
-                ?: rows.fold(CourseReportCounts()) { acc, r -> acc + r.counts },
+            grandTotal = total,
             from = from,
             to = to,
         )
     }
 
-    /** `"Anil Kale\nSuma Rao"` → two names. Blank entries are dropped. */
-    private fun teacherNames(cell: String?): List<String> =
-        cell.orEmpty()
-            .split('\n', ';', '|')
+    /**
+     * `"Anil Kale\nSuma Rao"` or `"Maya Sharma (F) Arun Sharma (M)"` → names.
+     * A bare integer (the older count columns) is not a name.
+     */
+    private fun splitTeacherNames(cell: String?): List<String> {
+        val raw = cell.orEmpty().trim()
+        if (raw.isEmpty() || raw.looksNumeric()) return emptyList()
+        return raw
+            .split(Regex("""\r?\n|;|\|(?=\s)|(?<=\([MF]\))\s+"""))
             .map { it.trim() }
-            .filter { it.isNotEmpty() }
+            .filter { it.isNotEmpty() && !it.looksNumeric() }
+    }
 
     /**
      * A quote-aware CSV scanner. `"` opens a quoted field in which `,` and
@@ -143,4 +207,9 @@ object CourseReportCsvParser {
 
     private fun String?.toCount(): Int =
         this?.trim()?.let { Regex("""-?\d+""").find(it)?.value?.toIntOrNull() } ?: 0
+
+    private fun String?.looksNumeric(): Boolean {
+        val t = this?.trim().orEmpty()
+        return t.isEmpty() || t.matches(Regex("""-?\d+"""))
+    }
 }

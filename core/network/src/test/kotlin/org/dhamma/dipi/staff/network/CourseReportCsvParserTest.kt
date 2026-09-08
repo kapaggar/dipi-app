@@ -177,4 +177,43 @@ class CourseReportCsvParserTest {
         assertEquals("Dhamma Sudha / 10 Day, special / 2026 / 03 Jan - 14 Jan", row.course)
         assertEquals(listOf("""Anil "AT" Kale"""), row.teacherNames)
     }
+
+    /**
+     * Live desk CSV (2026-09-08): ConductingTeachers / AssistingTeachers hold
+     * names with (F)/(M) markers, not integer C/A/TR counts. Synthetic names only.
+     */
+    @Test
+    fun liveNameColumnsBecomeNamesAndDerivedCounts() {
+        val csv = """
+            Course,NewMale,NewFemale,NewTotal,OldMale,OldFemale,OldTotal,StudentTotal,SevakMale,SevakFemale,SevakTotal,ConductingTeachers,AssistingTeachers
+            "Dhamma Test / 10 Day / 2026 / 1st-Apr to 12th-Apr",10,8,18,4,3,7,25,1,1,2,"Maya Sharma (F) Arun Sharma (M)","Neel Joshi (F)"
+            Total,10,8,18,4,3,7,25,1,1,2,,
+        """.trimIndent()
+
+        val report = CourseReportCsvParser.parse(csv)
+        val row = report.rows.single()
+
+        assertEquals(listOf("Maya Sharma (F)", "Arun Sharma (M)"), row.conductingTeachers)
+        assertEquals(listOf("Neel Joshi (F)"), row.assistingTeachers)
+        assertEquals(2, row.counts.teacherConducting)
+        assertEquals(1, row.counts.teacherAssistant)
+        assertEquals(0, row.counts.teacherTrainee)
+        assertEquals(
+            listOf("Maya Sharma (F)", "Arun Sharma (M)", "Neel Joshi (F)"),
+            row.displayTeacherNames(),
+        )
+        assertEquals(2, report.grandTotal.teacherConducting)
+        assertEquals(1, report.grandTotal.teacherAssistant)
+    }
+
+    @Test
+    fun numericTeacherCountsAreNotOverwrittenByAnEmptyNameCell() {
+        val csv = "$header\n" +
+            "\"Dhamma Test / 10 Day / 2026 / 03 Jan - 14 Jan\"," +
+            "1,1,2,0,0,0,2,0,0,0,3,0,0,\"\""
+
+        val c = CourseReportCsvParser.parse(csv).rows.single().counts
+        assertEquals(3, c.teacherConducting)
+        assertEquals(0, c.teacherAssistant)
+    }
 }

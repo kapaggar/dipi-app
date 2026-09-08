@@ -79,6 +79,7 @@ class TestVm(
     val sessionStore: SessionStore,
     val courseOpsStore: CourseOpsStore,
     val tokens: TestTokens,
+    val connectivity: ConnectivityMonitor,
 )
 
 /**
@@ -104,6 +105,7 @@ fun buildTestVm(
         .build()
     val sessionStore = SessionStore(app)
     val courseOpsStore = testCourseOpsStore(pinPrefsName)
+    val connectivity = ConnectivityMonitor(app)
     val repo = StaffRepository(
         auth = retrofit.create(DrupalAuthApi::class.java),
         api = retrofit.create(StaffApi::class.java),
@@ -127,9 +129,9 @@ fun buildTestVm(
         PhotoCorrectionStore {
             app.getSharedPreferences("pc_$pinPrefsName", Context.MODE_PRIVATE)
         },
-        ConnectivityMonitor(app),
+        connectivity,
     )
-    return TestVm(vm, sessionStore, courseOpsStore, tokens)
+    return TestVm(vm, sessionStore, courseOpsStore, tokens, connectivity)
 }
 
 /**

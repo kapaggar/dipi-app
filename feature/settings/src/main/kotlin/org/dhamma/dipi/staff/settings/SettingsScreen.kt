@@ -49,6 +49,8 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
@@ -295,7 +297,7 @@ private fun ModeChoiceColumn(mode: TabletMode, onMode: (TabletMode) -> Unit, com
     ConsequenceRow("✓", "Teacher list", "seniority + seating plan")
     ConsequenceRow("✓", "Student card", "application, read-only", Modifier.padding(top = 6.dp))
     ConsequenceRow("✓", "Read-only", "No attendance or status changes", Modifier.padding(top = 6.dp))
-    ConsequenceRow("✓", "Health answers", "on screen, encrypted, wiped on course change", Modifier.padding(top = 6.dp))
+    ConsequenceRow("✓", "Health answers", "encrypted, wiped on course change", Modifier.padding(top = 6.dp))
     ConsequenceRow("-", "Board, applications, calling, check-in", "hidden", Modifier.padding(top = 6.dp))
     ConsequenceRow("-", "Exports, Room Chart", "hidden", Modifier.padding(top = 6.dp))
 }
@@ -413,7 +415,8 @@ private fun ModeRadioCard(
     }
 }
 
-/** A 48dp consequence row: centred index, key left, value right. */
+/** Icon + label + one description. The label keeps its width so a long
+ *  value cannot crush it into leftover glyphs the way a weighted key did. */
 @Composable
 private fun ConsequenceRow(index: String, key: String, value: String, modifier: Modifier = Modifier) {
     val industry = LocalIndustry.current
@@ -433,11 +436,21 @@ private fun ConsequenceRow(index: String, key: String, value: String, modifier: 
             key,
             fontSize = 14.sp,
             color = ModeKeyText,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(start = 8.dp),
+        )
+        Text(
+            value,
+            fontSize = 13.sp,
+            color = industry.neutral500,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            textAlign = TextAlign.End,
             modifier = Modifier
                 .padding(start = 8.dp)
                 .weight(1f),
         )
-        Text(value, fontSize = 13.sp, color = industry.neutral500)
     }
 }
 

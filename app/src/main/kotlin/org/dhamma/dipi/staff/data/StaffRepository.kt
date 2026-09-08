@@ -215,7 +215,12 @@ class StaffRepository @Inject constructor(
         applicants.observe(courseId.value).map { rows ->
             val cards = rows.map { json.decodeFromString(ApplicantDto.serializer(), it.payload).toModel() }
             cards.map { card ->
-                card.copy(flags = ClientAudit.merge(ClientAudit.evaluate(card, cards), card.flags))
+                card.copy(
+                    flags = ClientAudit.merge(
+                        ClientAudit.evaluate(card, cards, sensitive[card.id.value]),
+                        card.flags,
+                    ),
+                )
             }
         }
 

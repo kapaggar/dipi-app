@@ -5,12 +5,15 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
@@ -490,11 +493,16 @@ private fun headerWeight(i: Int): Float = if (i == 6) 1.2f else 1f
 @Composable
 private fun ReportRow(row: CourseReportRow) {
     val name = row.parsed
+    val teachers = row.displayTeacherNames()
     Row(
-        Modifier.fillMaxWidth().height(52.dp).bottomHairline(),
+        Modifier
+            .fillMaxWidth()
+            .height(IntrinsicSize.Min)
+            .heightIn(min = 52.dp)
+            .bottomHairline(),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Column(Modifier.weight(4f).padding(end = 10.dp)) {
+        Column(Modifier.weight(4f).padding(end = 10.dp, top = 8.dp, bottom = 8.dp)) {
             Text(
                 // A parse failure prints the raw string, never an error.
                 name.type,
@@ -522,6 +530,19 @@ private fun ReportRow(row: CourseReportRow) {
                         color = Industry.neutral600,
                     )
                 }
+            }
+            if (teachers.isNotEmpty()) {
+                Text(
+                    teachers.joinToString(" · "),
+                    fontSize = 12.sp,
+                    lineHeight = 15.sp,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    color = Industry.neutral600,
+                    modifier = Modifier
+                        .padding(top = 2.dp)
+                        .testTag("report-teacher-names"),
+                )
             }
         }
         CountCells(row.counts)
@@ -553,7 +574,7 @@ private fun RowScope.Figure(
     Box(
         Modifier
             .weight(weight)
-            .height(if (header) 28.dp else 52.dp)
+            .then(if (header) Modifier.height(28.dp) else Modifier.fillMaxHeight())
             .background(if (banded) Industry.neutral200 else Color.Transparent),
         contentAlignment = Alignment.CenterEnd,
     ) {
@@ -627,7 +648,8 @@ fun courseReportPrintHtml(report: CourseReport): String {
         c.teacherConducting, c.teacherAssistant, c.teacherTrainee,
     ).joinToString("") { "<td>$it</td>" }
     val rows = report.rows.joinToString("") { row ->
-        "<tr><td>${row.course}</td>${cells(row.counts)}</tr>"
+        val names = row.displayTeacherNames().joinToString("; ")
+        "<tr><td>${row.course}</td>${cells(row.counts)}<td>$names</td></tr>"
     }
     return """
         <!doctype html><html><head><meta charset="utf-8">
@@ -635,7 +657,7 @@ fun courseReportPrintHtml(report: CourseReport): String {
           body{font:12pt/1.35 sans-serif;color:#111;margin:12mm}
           table{width:100%;border-collapse:collapse}
           th,td{border-bottom:1px solid #ccc;padding:4px 6px;text-align:right}
-          th:first-child,td:first-child{text-align:left}
+          th:first-child,td:first-child,th:last-child,td:last-child{text-align:left}
         </style></head><body>
         <h1>Course report</h1>
         <p>${displayDeskDate(report.from)} → ${displayDeskDate(report.to)}</p>
@@ -646,9 +668,10 @@ fun courseReportPrintHtml(report: CourseReport): String {
             <th>Roll</th>
             <th>SM</th><th>SF</th><th>ST</th>
             <th>C</th><th>A</th><th>TR</th>
+            <th>Teachers</th>
           </tr></thead>
           <tbody>$rows</tbody>
-          <tfoot><tr><td>Grand total</td>${cells(report.grandTotal)}</tr></tfoot>
+          <tfoot><tr><td>Grand total</td>${cells(report.grandTotal)}<td></td></tr></tfoot>
         </table>
         </body></html>
     """.trimIndent()

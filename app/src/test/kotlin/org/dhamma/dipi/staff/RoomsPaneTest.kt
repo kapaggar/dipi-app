@@ -5,13 +5,19 @@ import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
+import androidx.compose.ui.test.hasContentDescription
+import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.height
+import androidx.compose.ui.unit.width
 import org.dhamma.dipi.staff.desk.RoomsPane
 import org.dhamma.dipi.staff.model.AccoRoom
 import org.dhamma.dipi.staff.model.ApplicantCard
@@ -266,9 +272,135 @@ class RoomsPaneTest {
                     onSyncRooms = { error("Finalized course cannot sync") })
             }
         }
-        rule.onNodeWithText("Age 61 · OLD").assertIsDisplayed()
+        rule.onAllNodesWithText("61").assertCountEquals(2)
+        rule.onNodeWithTag("room-cell-age").assertIsDisplayed()
+        rule.onNodeWithTag("room-cell-age-top").assertIsDisplayed()
+        rule.onNodeWithText("Age 61 · OLD").assertDoesNotExist()
+        rule.onNodeWithText("Age 61").assertDoesNotExist()
+        rule.onNodeWithText("OLD").assertDoesNotExist()
         rule.onNodeWithText("SYNC 1 TO SERVER").assertIsNotEnabled()
         rule.onAllNodesWithTag("room-cell-occupied").assertCountEquals(1)
+        rule.onNode(hasTestTag("room-cell-occupied").and(hasContentDescription("Old student room")))
+            .assertIsDisplayed()
+    }
+
+    @Test
+    fun occupancyLegendSitsAboveTheGrid() {
+        rule.setContent {
+            DipiTheme {
+                RoomsPane(
+                    roll = emptyList(),
+                    checkIns = emptyMap(),
+                    rooms = listOf(AccoRoom("Mbk 01", Gender.M, "Mbk")),
+                )
+            }
+        }
+        rule.onNodeWithTag("room-chart-type-legend").assertIsDisplayed()
+        rule.onNodeWithText("Old").assertIsDisplayed()
+        rule.onNodeWithText("New").assertIsDisplayed()
+        rule.onNodeWithText("Available").assertIsDisplayed()
+    }
+
+    @Test
+    fun occupiedCellShowsAgeNumberWithoutLabelOrSeniorityText() {
+        rule.setContent {
+            DipiTheme {
+                RoomsPane(
+                    roll = listOf(occupantCard(1, "Rahul", "Kumar").copy(age = 28, oldStudent = false)),
+                    checkIns = mapOf(ApplicantId(1) to CheckInRecord(checkedIn = true, room = "Mbk 01")),
+                    rooms = listOf(AccoRoom("Mbk 01", Gender.M, "Mbk"), AccoRoom("Mbk 02", Gender.M, "Mbk")),
+                )
+            }
+        }
+        rule.onAllNodesWithText("28").assertCountEquals(2)
+        rule.onNodeWithText("Age 28").assertDoesNotExist()
+        rule.onNodeWithText("NEW").assertDoesNotExist()
+        rule.onNode(hasTestTag("room-cell-occupied").and(hasContentDescription("New student room")))
+            .assertIsDisplayed()
+    }
+
+    @Test
+    fun ageSitsInTheReservedBottomRightCorner() {
+        rule.setContent {
+            DipiTheme {
+                RoomsPane(
+                    roll = listOf(occupantCard(1, "Priyadarshini", "Kulkarniswamy").copy(age = 34, oldStudent = true)),
+                    checkIns = mapOf(ApplicantId(1) to CheckInRecord(checkedIn = true, room = "Mbk 01")),
+                    rooms = listOf(AccoRoom("Mbk 01", Gender.M, "Mbk")),
+                )
+            }
+        }
+        val name = rule.onNodeWithText("Priyadarshini Kulkarniswamy").getBoundsInRoot()
+        val age = rule.onNodeWithTag("room-cell-age").getBoundsInRoot()
+        val ageTop = rule.onNodeWithTag("room-cell-age-top").getBoundsInRoot()
+        val cell = rule.onNodeWithTag("room-cell-occupied").getBoundsInRoot()
+        val noOverlap = name.right.value <= age.left.value + 1f ||
+            name.bottom.value <= age.top.value + 1f
+        assertTrue("name $name overlaps age $age", noOverlap)
+        val noTopOverlap = name.right.value <= ageTop.left.value + 1f ||
+            name.top.value >= ageTop.bottom.value - 1f
+        assertTrue("name $name overlaps top age $ageTop", noTopOverlap)
+        assertTrue("age is right of cell centre", age.left.value >= (cell.left.value + cell.right.value) / 2f)
+        assertTrue("age is below cell centre", age.top.value >= (cell.top.value + cell.bottom.value) / 2f)
+        assertTrue("top age is right of cell centre", ageTop.left.value >= (cell.left.value + cell.right.value) / 2f)
+        assertTrue("top age is above cell centre", ageTop.bottom.value <= (cell.top.value + cell.bottom.value) / 2f)
+        assertTrue("age stays inside the cell", age.right.value <= cell.right.value + 1f)
+        assertTrue("age stays inside the cell", age.bottom.value <= cell.bottom.value + 1f)
+        assertTrue("top age stays inside the cell", ageTop.right.value <= cell.right.value + 1f)
+        assertTrue("top age stays inside the cell", ageTop.top.value >= cell.top.value - 1f)
+    }
+
+    @Test
+    fun occupiedAndFreeCellsShareTheRowHeight() {
+        rule.setContent {
+            DipiTheme {
+                RoomsPane(
+                    roll = listOf(occupantCard(1, "Meera", "Deshpande").copy(age = 61, oldStudent = true)),
+                    checkIns = mapOf(ApplicantId(1) to CheckInRecord(checkedIn = true, room = "Mbk 01")),
+                    rooms = listOf(AccoRoom("Mbk 01", Gender.M, "Mbk"), AccoRoom("Mbk 02", Gender.M, "Mbk")),
+                    layout = RoomLayout().withColumns(Gender.M, "Mbk", 2),
+                )
+            }
+        }
+        val occupied = rule.onNodeWithTag("room-cell-occupied").getUnclippedBoundsInRoot()
+        val free = rule.onNodeWithTag("room-cell-free").getUnclippedBoundsInRoot()
+        assertSameRow(occupied.top, free.top)
+        assertTrue(
+            "same row height: ${occupied.height} vs ${free.height}",
+            abs(occupied.height.value - free.height.value) < 1f,
+        )
+    }
+
+    @Test
+    fun aRowWithNoOccupantsIsShorterThanARowWithOne() {
+        val rooms = (1..8).map { AccoRoom("Fbk %02d".format(it), Gender.F, "Fbk") }
+        val layout = RoomLayout().withColumns(Gender.F, "Fbk", 4)
+        rule.setContent {
+            DipiTheme {
+                RoomsPane(
+                    roll = listOf(occupantCard(1, "Meera", "Deshpande").copy(age = 34)),
+                    checkIns = mapOf(ApplicantId(1) to CheckInRecord(checkedIn = true, room = "Fbk 05")),
+                    rooms = rooms,
+                    layout = layout,
+                )
+            }
+        }
+        rule.onNodeWithText("Fbk 08").performScrollTo()
+        val compact = rule.onAllNodesWithTag("room-cell-free")[0].getUnclippedBoundsInRoot()
+        val occupied = rule.onNodeWithTag("room-cell-occupied").getUnclippedBoundsInRoot()
+        val tallFree = rule.onAllNodesWithTag("room-cell-free")[4].getUnclippedBoundsInRoot()
+        assertTrue(
+            "empty row ${compact.height} should be shorter than occupied ${occupied.height}",
+            compact.height.value + 8f < occupied.height.value,
+        )
+        assertTrue(
+            "empty cell on an occupied row stays tall: ${tallFree.height} vs ${occupied.height}",
+            abs(tallFree.height.value - occupied.height.value) < 1f,
+        )
+        assertTrue(
+            "cell width stays the same: ${compact.width} vs ${occupied.width}",
+            abs(compact.width.value - occupied.width.value) < 2f,
+        )
     }
 
     @Test

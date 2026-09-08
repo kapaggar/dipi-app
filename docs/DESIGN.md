@@ -974,6 +974,14 @@ On return, refresh the same course once, retaining selection and recomputing aud
 The sheet viewer remains for exports, not application editing.
 
 
+## Course report teachers + audit parity (1.46.0)
+
+Owner 2026-09-08: the native Course report reads `ConductingTeachers` / `AssistingTeachers` name columns from the desk CSV (not only C/A/TR counts) and prints those names under the course title. Audit ports course-audit `aadhar_length` / `aadhar_masked` / `id_type_mismatch` / `pan_invalid` against in-memory `SensitiveInfo`; finding text is length or shape only — never the raw Aadhaar/PAN in Room. Duplicate-phone hard detail names both people and the public worklist number. Room Chart: a row with no allocated rooms uses a compact height (room number only, same cell width); occupied rows stay two-line+age. Age is muted 12sp at **top-right and bottom-right** on reserved corners. Settings course-ops "Health answers" is icon + one sentence; the long value no longer crushes the label into leftover glyphs.
+
+## Room Chart occupancy chrome (1.45.5)
+
+Owner mock 2026-09-08: occupied Room Chart cells keep the accent100 fill. Age is the number only — 12sp, muted `neutral600`, 8dp from the bottom-right, no label or badge — on a reserved corner so a two-line name never covers it. Old = solid accent border; New = the same colour and thickness, short-dashed. Empty cells keep the near-white fill and faint hairline. A single Old / New / Available border legend sits above the grid. Full border, not a left-edge stripe. No allocation write change. Age is also top-right since 1.46.0; empty-only rows compact since 1.46.0.
+
 ## Course ops student card teachers + chip (1.45.3)
 
 Owner follow-up 2026-09-08: Course History `Teacher(s)` under First Course / Most Recent Course map to first/last course teacher (verbatim, including `Unknown`). Live `/application-view` still prints date + location only, so opening a card may GET the edit form and keep only `ac_first_teacher_str` / `ac_last_teacher_str`. Long Course Details is never read. The `OLD · OM5` chip is 16sp. A-List leaves the card with the other hidden Personal rows. Course ops stays read-only (GET only).
@@ -992,4 +1000,4 @@ Replace preview-only Photo review with source-bound local rotation, 13:14 crop, 
 
 ## Owner amendment: Room Chart (1.44.0)
 
-Rename the desk rail and pane to **Room Chart**. Occupied cells show name, age and OLD/NEW text cues; cells grow for wrapped names/shared rooms. Finalized courses show **Finalized course · Read only**, historical assigned/unassigned counts, disabled allocation edits and sync. Left students retain their label in Check-in and never occupy a room. Include historical rooms removed from the current inventory. Active-course layout and pull/sync behavior remain available.
+Rename the desk rail and pane to **Room Chart**. Occupied cells show name and age; Old/New is the cell border (solid / short-dashed) since 1.45.5. Cells grow for wrapped names/shared rooms. Finalized courses show **Finalized course · Read only**, historical assigned/unassigned counts, disabled allocation edits and sync. Left students retain their label in Check-in and never occupy a room. Include historical rooms removed from the current inventory. Active-course layout and pull/sync behavior remain available.

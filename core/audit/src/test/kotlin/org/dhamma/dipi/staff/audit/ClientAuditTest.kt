@@ -9,7 +9,9 @@ import org.dhamma.dipi.staff.model.CentreId
 import org.dhamma.dipi.staff.model.ConfNo
 import org.dhamma.dipi.staff.model.CourseId
 import org.dhamma.dipi.staff.model.Gender
+import org.dhamma.dipi.staff.model.SensitiveInfo
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -190,7 +192,10 @@ class ClientAuditTest {
     fun withinFileDuplicateByPhoneAndByNameDob() {
         val a = card(id = 1, mobile = "+91 82330 90417")
         val byPhone = card(id = 2, given = "Rekha", family = "Kulkarni", mobile = "8233090417")
-        assertEquals("within_file_duplicate", ClientAudit.withinFileDuplicate(a, listOf(byPhone))!!.ruleId)
+        val phoneFlag = ClientAudit.withinFileDuplicate(a, listOf(byPhone))!!
+        assertEquals("within_file_duplicate", phoneFlag.ruleId)
+        assertTrue(phoneFlag.detail.contains("share the same phone: 8233090417"))
+        assertTrue(phoneFlag.detail.contains("Rekha Kulkarni"))
 
         val byNameDob = card(id = 3, mobile = "9000000001", dob = "11 Mar 1992")
         val self = card(id = 1, mobile = "9000000002", dob = "11 Mar 1992")
@@ -278,6 +283,52 @@ class ClientAuditTest {
         )
         assertNull(ClientAudit.sharedEmailUnrelated(a, listOf(sameSurname)))
         assertNull(ClientAudit.sharedEmailUnrelated(card(id = 4, email = null), listOf(otherSurname)))
+    }
+
+    /* ── ID shape (in-memory SensitiveInfo, never the raw number) ──── */
+
+    @Test
+    fun aadharLengthFlagsNonTwelveDigitsWithoutWritingTheNumber() {
+        val raw = "12345678901234"
+        val f = ClientAudit.aadharLength(SensitiveInfo(idLabel = "Aadhaar", idNumber = raw))!!
+        assertEquals("aadhar_length", f.ruleId)
+        assertEquals(AuditSeverity.HARD, f.severity)
+        assertTrue(f.detail.contains("14 digits, expected 12"))
+        assertFalse(f.detail.contains(raw))
+        assertFalse(f.label.contains(raw))
+        assertNull(ClientAudit.aadharLength(SensitiveInfo(idLabel = "Aadhaar", idNumber = "123456789012")))
+    }
+
+    @Test
+    fun aadharMaskedAndPanShapedSkipLength() {
+        assertEquals(
+            "aadhar_masked",
+            ClientAudit.aadharMasked(SensitiveInfo(idLabel = "Aadhaar", idNumber = "XXXX XXXX 4417"))!!.ruleId,
+        )
+        assertNull(ClientAudit.aadharLength(SensitiveInfo(idLabel = "Aadhaar", idNumber = "XXXX XXXX 4417")))
+        val pan = "ABCDE1234F"
+        val mismatch = ClientAudit.idTypeMismatch(SensitiveInfo(idLabel = "Aadhaar", idNumber = pan))!!
+        assertEquals("id_type_mismatch", mismatch.ruleId)
+        assertFalse(mismatch.detail.contains(pan))
+        assertNull(ClientAudit.aadharLength(SensitiveInfo(idLabel = "Aadhaar", idNumber = pan)))
+    }
+
+    @Test
+    fun panInvalidDoesNotEchoTheValue() {
+        val raw = "AB12E1234"
+        val f = ClientAudit.panInvalid(SensitiveInfo(idLabel = "PAN", idNumber = raw))!!
+        assertEquals("pan_invalid", f.ruleId)
+        assertFalse(f.detail.contains(raw))
+        assertNull(ClientAudit.panInvalid(SensitiveInfo(idLabel = "PAN", idNumber = "ABCDE1234F")))
+    }
+
+    @Test
+    fun evaluateRunsAadharLengthFromSensitiveInfo() {
+        val ids = ClientAudit.evaluate(
+            card(),
+            sensitive = SensitiveInfo(idLabel = "Aadhaar", idNumber = "12345678901234"),
+        ).map { it.ruleId }
+        assertTrue(ids.contains("aadhar_length"))
     }
 
     /* ── evaluate ──────────────────────────────────────────────────── */
