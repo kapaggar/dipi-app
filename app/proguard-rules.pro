@@ -17,3 +17,9 @@
 # Tink (via androidx.security:security-crypto) references optional annotations.
 -dontwarn com.google.errorprone.annotations.**
 -dontwarn javax.annotation.**
+
+# Bundled ML Kit face detection (com.google.mlkit:face-detection:16.1.7).
+-keep class com.google.mlkit.vision.face.** { *; }
+-keep class com.google.mlkit.vision.common.** { *; }
+-dontwarn com.google.mlkit.**
+-dontwarn com.google.android.gms.internal.mlkit_vision_face.**

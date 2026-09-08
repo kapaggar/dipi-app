@@ -200,6 +200,8 @@ private data class CardDto(
     val counts: List<CountDto> = emptyList(),
     val firstCourse: String = "",
     val lastCourse: String = "",
+    val firstCourseTeacher: String = "",
+    val lastCourseTeacher: String = "",
     val practiceDetails: String = "",
     val health: List<KvDto> = emptyList(),
 ) {
@@ -214,6 +216,8 @@ private data class CardDto(
         historyCounts = counts.map { it.k to it.n },
         firstCourse = firstCourse,
         lastCourse = lastCourse,
+        firstCourseTeacher = firstCourseTeacher,
+        lastCourseTeacher = lastCourseTeacher,
         practiceDetails = practiceDetails,
         health = health.map { HealthRow(it.k, it.v) },
     )
@@ -228,6 +232,8 @@ private fun ApplicationCard.toDto() = CardDto(
     counts = historyCounts.map { (k, n) -> CountDto(k, n) },
     firstCourse = firstCourse,
     lastCourse = lastCourse,
+    firstCourseTeacher = firstCourseTeacher,
+    lastCourseTeacher = lastCourseTeacher,
     practiceDetails = practiceDetails,
     health = health.map { KvDto(it.label, it.answer) },
 )

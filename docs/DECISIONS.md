@@ -48,6 +48,13 @@ are preserved because code comments cite them.
   for desk-side verification, but must never be persisted (no Room/DataStore/DTO
   fields) or logged — in-memory session map only (`SensitiveInfo`, wiped on
   course change / logout / erase-all).
+- **2026-09-07 · Full-form replay allowed for photo write only.** Local-only
+  photo correction is not enough. There is no photo-only backend write and PHP
+  stays unchanged. The app may `GET /app/{id}/edit`, keep NPI in memory for that
+  POST only, echo every current field, attach the corrected JPEG on the form's
+  file part, and `POST` the form action. Fail closed if tokens or the file field
+  are missing. Never invent field values, never send `Approved`, never add `?r=`.
+  Course ops stays read-only. No `/app/{aid}/photo` and no live `/staff/*`.
 - **2026-08-16 · Allocation-sync amendment (owner decision).** Room-allocation sync
   via the desk's existing update form (`POST /app-update-attended/{id}` with the
   dialog's own fields), bulk and user-initiated, IS allowed — the client still never
@@ -248,8 +255,9 @@ are preserved because code comments cite them.
 
 1. **Server-side Advanced Search (`POST /search-app`)** — gated on HAR
    re-verification of the live desk plus explicit owner sign-off. Never assume it.
-2. **Real photo upload** — no live desk route exists; exposing one is a product /
-   owner decision (backend immutable). Client flow exists mock-only.
+2. **Photo-only backend operation** (`/app/{aid}/photo`, `dh_photocorrection`) —
+   still gated. Owner 2026-09-07 allowed full-form replay for photo write
+   instead; PHP stays unchanged.
 3. **Centre-screen page-metric drift** (24 dp padding / 23 sp header / 12 dp grid
    gap vs frame 1a) — needs an owner on-device look before any change; `cardRows`
    itself is an accepted owner decision, not drift.

@@ -592,6 +592,8 @@ internal object MockFixtures {
         <form action="/app/$id/edit" method="post" id="dh-zero-app-form" accept-charset="UTF-8">
         <input type="text" name="a_f_name" value="Rakesh" />
         <input type="text" name="a_l_name" value="Iyer" />
+        <input type="text" name="ac_first_teacher_str" value="Unknown" />
+        <input type="text" name="ac_last_teacher_str" value="Mr. Example" />
         <input type="hidden" name="form_build_id" value="form-AppEdItBuIlD" />
         <input type="hidden" name="form_id" value="dh_zero_app_form" />
         <input type="submit" name="op" value="Save" />

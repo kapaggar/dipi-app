@@ -24,7 +24,6 @@ import org.dhamma.dipi.staff.model.RollSeniority
 import org.dhamma.dipi.staff.model.SeatKind
 import org.dhamma.dipi.staff.model.TabletMode
 import org.dhamma.dipi.staff.model.TeacherRoll
-import org.dhamma.dipi.staff.model.backrestSeatLabel
 import org.dhamma.dipi.staff.network.DipiMockDispatcher
 import org.dhamma.dipi.staff.teacher.SeatingPlanScreen
 import org.dhamma.dipi.staff.teacher.TeacherView
@@ -116,9 +115,11 @@ class SeatingPlanScreenTest {
             .onChildren()
             .assertCountEquals(1)
         rule.onNodeWithText("A2").assertIsDisplayed()
-        // Names render on their seats.
+        // Names render on their seats; age sits on occupied cells only.
         rule.onNodeWithText("Suresh Nair").assertIsDisplayed()
         rule.onNodeWithText("Rakesh Iyer").assertIsDisplayed()
+        rule.onNodeWithTag("seat-age-A1", useUnmergedTree = true).assertIsDisplayed()
+        rule.onNodeWithTag("seat-age-A2", useUnmergedTree = true).assertDoesNotExist()
     }
 
     @Test
@@ -398,9 +399,7 @@ class SeatingPlanScreenTest {
     }
 
     @Test
-    fun backrestSeatsAreGlyphedInTheHallCellAndTheRail() {
-        // Assert through the shared backrestSeatLabel, never a hard-coded
-        // glyph literal — the tofu fallback swap is a one-line change.
+    fun backrestSeatsDrawADarkTopBarOnHallAndRail() {
         val marked = TeacherRoll(
             listOf(
                 RollGroup(
@@ -415,12 +414,11 @@ class SeatingPlanScreenTest {
             ),
         )
         rule.setContent { DipiTheme { SeatingPlanScreen(roll = marked) } }
-        // Hall cell: the flagged seat id carries the glyph prefix.
-        rule.onNodeWithText(backrestSeatLabel("A1", true), useUnmergedTree = true).assertExists()
-        // Rail: the flagged chowky row is glyphed too.
-        rule.onNodeWithText(backrestSeatLabel("CW-A3", true), useUnmergedTree = true).assertExists()
-        // The unflagged neighbour stays plain — no glyph anywhere near B2.
+        rule.onNodeWithTag("seat-backrest-A1", useUnmergedTree = true).assertExists()
+        rule.onNodeWithTag("seat-backrest-CW-A3", useUnmergedTree = true).assertExists()
+        rule.onNodeWithText("A1", useUnmergedTree = true).assertExists()
         rule.onNodeWithText("B2", useUnmergedTree = true).assertExists()
-        rule.onNodeWithText(backrestSeatLabel("B2", true), useUnmergedTree = true).assertDoesNotExist()
+        rule.onNodeWithTag("seat-backrest-B2", useUnmergedTree = true).assertDoesNotExist()
+        rule.onNodeWithTag("seat-backrest-A2", useUnmergedTree = true).assertDoesNotExist()
     }
 }

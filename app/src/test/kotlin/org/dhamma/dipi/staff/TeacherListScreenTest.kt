@@ -19,10 +19,10 @@ import org.dhamma.dipi.staff.model.RollRow
 import org.dhamma.dipi.staff.model.RollSeniority
 import org.dhamma.dipi.staff.model.SeatKind
 import org.dhamma.dipi.staff.model.TeacherRoll
-import org.dhamma.dipi.staff.model.backrestSeatLabel
 import org.dhamma.dipi.staff.teacher.TeacherListScreen
 import org.dhamma.dipi.staff.ui.theme.DipiTheme
 import org.junit.Assert.assertEquals
+import androidx.compose.ui.unit.dp
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -305,16 +305,22 @@ class TeacherListScreenTest {
     }
 
     @Test
-    fun backrestRowsMarkTheSeatCellWithTheGlyph() {
+    fun backrestRowsMarkTheSeatCellWithADarkBar() {
         rule.setContent {
             DipiTheme { TeacherListScreen(roll = roll, courseLine = "Dhamma Sudha / 10 Day / 2026") }
         }
-        // Rakesh Iyer carries backrest = true on CH-12: the seat cell shows
-        // the shared glyphed label (assert through the constant, never a
-        // hard-coded glyph literal — the tofu fallback is a one-line swap).
-        rule.onNodeWithText(backrestSeatLabel("CH-12", true)).assertIsDisplayed()
-        // Zara Bhosale's CW-B1 has no backrest — plain seat, no glyph.
+        rule.onNodeWithTag("list-backrest-CH-12", useUnmergedTree = true).assertIsDisplayed()
+        rule.onNodeWithText("CH-12").assertIsDisplayed()
+        rule.onNodeWithTag("list-backrest-CW-B1", useUnmergedTree = true).assertDoesNotExist()
         rule.onNodeWithText("CW-B1").assertIsDisplayed()
-        rule.onNodeWithText(backrestSeatLabel("CW-B1", true)).assertDoesNotExist()
+    }
+
+    @Test
+    fun destinationChipsAreLargerThanTheOld48dpPair() {
+        rule.setContent {
+            DipiTheme { TeacherListScreen(roll = roll, courseLine = "Sudha") }
+        }
+        val dest = rule.onNodeWithTag("dest-teacher-list").getUnclippedBoundsInRoot()
+        assertTrue("dest height ${dest.bottom - dest.top}", dest.bottom - dest.top >= 52.dp)
     }
 }

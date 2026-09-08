@@ -73,6 +73,12 @@ object ApplicationViewParser {
         fun historyValue(key: String): String =
             historyRows.firstOrNull { it.first.equals(key, ignoreCase = true) }?.second.orEmpty()
 
+        val lastCourse = historyValue("Last Course").ifEmpty {
+            historyRows.firstOrNull { it.first.startsWith("Most Recent", ignoreCase = true) }
+                ?.second.orEmpty()
+        }
+        val teachers = CourseHistoryTeachers.fromHistory(historyRows)
+
         return ApplicationCard(
             name = name,
             conf = conf,
@@ -84,7 +90,9 @@ object ApplicationViewParser {
                 key to (historyValue(key).toIntOrNull() ?: 0)
             },
             firstCourse = historyValue("First Course"),
-            lastCourse = historyValue("Last Course"),
+            lastCourse = lastCourse,
+            firstCourseTeacher = teachers.first,
+            lastCourseTeacher = teachers.second,
             practiceDetails = historyValue("Practice Details"),
             // All six labels, verbatim, in server order — a missing row keeps
             // its label with an empty answer (absence is information).

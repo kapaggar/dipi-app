@@ -16,9 +16,11 @@ import kotlinx.coroutines.launch
 import org.dhamma.dipi.staff.audit.ClientAudit
 import org.dhamma.dipi.staff.data.ApiException
 import org.dhamma.dipi.staff.data.ConnectivityMonitor
+import org.dhamma.dipi.staff.BuildConfig
 import org.dhamma.dipi.staff.data.PhotoEditStore
 import org.dhamma.dipi.staff.data.StaffRepository
 import org.dhamma.dipi.staff.datastore.CourseOpsStore
+import org.dhamma.dipi.staff.datastore.PhotoCorrectionStore
 import org.dhamma.dipi.staff.datastore.SessionStore
 import org.dhamma.dipi.staff.desk.DeskSection
 import org.dhamma.dipi.staff.desk.deskCallList
@@ -53,8 +55,18 @@ import org.dhamma.dipi.staff.model.Course
 import org.dhamma.dipi.staff.model.FlushSnack
 import org.dhamma.dipi.staff.model.Gender
 import org.dhamma.dipi.staff.model.HallGrid
+import org.dhamma.dipi.staff.model.PhotoDrafts
 import org.dhamma.dipi.staff.model.PhotoEdit
+import org.dhamma.dipi.staff.model.PhotoKey
+import org.dhamma.dipi.staff.model.PhotoOrigins
 import org.dhamma.dipi.staff.model.PhotoReviewItem
+import org.dhamma.dipi.staff.model.PhotoReviewState
+import org.dhamma.dipi.staff.model.PhotoScope
+import org.dhamma.dipi.staff.photos.PhotoDeskWrite
+import org.dhamma.dipi.staff.photos.PhotoRenderer
+import org.dhamma.dipi.staff.photos.PhotoReviewAction
+import org.dhamma.dipi.staff.photos.PhotoReviewController
+import org.dhamma.dipi.staff.photos.PhotoSourceGateway
 import org.dhamma.dipi.staff.model.RoomAllocSync
 import org.dhamma.dipi.staff.model.RoomSyncResult
 import org.dhamma.dipi.staff.model.DaySummary
@@ -451,6 +463,7 @@ class DeskViewModel @Inject constructor(
     private val courseOpsStore: CourseOpsStore,
     private val photoStore: PhotoEditStore,
     private val photoLoader: PhotoLoader,
+    private val photoCorrections: PhotoCorrectionStore,
     connectivity: ConnectivityMonitor,
 ) : ViewModel() {
     internal var onWhatsAppSessionExit: () -> Unit = {}
@@ -459,6 +472,25 @@ class DeskViewModel @Inject constructor(
     /** Clock seam for the course lock — tests pin "today"; production is the device date. */
     @androidx.annotation.VisibleForTesting
     internal var todayProvider: () -> java.time.LocalDate = { java.time.LocalDate.now() }
+
+    private val photoRenderer = PhotoRenderer()
+    val photoReview = PhotoReviewController(
+        store = photoCorrections,
+        scope = viewModelScope,
+        sources = PhotoSourceGateway { key, force -> photoLoader.loadSource(key, force) },
+        renderer = photoRenderer,
+    ).also { photos ->
+        photos.deskWrite = PhotoDeskWrite { id, jpeg, name ->
+            if (_state.value.mode == TabletMode.COURSE_OPS) {
+                return@PhotoDeskWrite org.dhamma.dipi.staff.network.PhotoDeskWriteResult.Failed(
+                    "Course ops cannot update applications",
+                )
+            }
+            repo.updateApplicantPhoto(ApplicantId(id), jpeg, name)
+        }
+        photos.invalidateSource = { photoLoader.invalidate(it) }
+        photos.allowDeskWrite = true
+    }
 
     private val _state = MutableStateFlow(DeskUiState())
     val state: StateFlow<DeskUiState> = _state.asStateFlow()
@@ -508,7 +540,7 @@ class DeskViewModel @Inject constructor(
             sessionStore.lastSync.collect { sync -> _state.update { it.copy(lastSync = sync) } }
         }
         viewModelScope.launch {
-            photoStore.edits.collect { edits -> _state.update { it.copy(edits = edits) } }
+            if (photoStore.discardUnscopedLegacy()) photoCorrections.markLegacyDiscarded()
         }
         viewModelScope.launch {
             sessionStore.centreOps.collect { prefs -> _state.update { it.copy(centreOps = prefs) } }
@@ -607,6 +639,9 @@ class DeskViewModel @Inject constructor(
     fun pickCourse(course: Course) {
         observeJob?.cancel()
         observeJob = null
+        if (_state.value.course?.id != course.id) {
+            photoReview.resetSession(clearPixels = true)
+        }
         _state.update { deskOpenCourse(it, course) }
     }
 
@@ -1474,14 +1509,23 @@ class DeskViewModel @Inject constructor(
     }
 
     fun openPhotos() {
+        if (_state.value.mode == TabletMode.COURSE_OPS) return
+        photoReview.allowDeskWrite = true
         val course = _state.value.course
         _state.update { it.copy(screen = DeskScreen.Photos) }
         if (course != null) {
             ensureWorklist(course)
+            val origin = PhotoOrigins.canonicalize(BuildConfig.BASE_URL)
+            val scope = PhotoScope(origin, course.centreId.value, course.id.value)
+            photoReview.dispatch(
+                PhotoReviewAction.Open(
+                    scope = scope,
+                    applicants = _state.value.rows,
+                    focusApplicantId = _state.value.card?.id?.value ?: _state.value.deskAppId?.value,
+                ),
+            )
             viewModelScope.launch {
-                runCatching { repo.photoReview(course.id) }
-                    .onSuccess { list -> _state.update { it.copy(photos = list) } }
-                    .onFailure { handleAuth(it) }
+                photoReview.offerNotice(photoStore.consumeLegacyNotice())
             }
         }
     }
@@ -1590,42 +1634,30 @@ class DeskViewModel @Inject constructor(
      * authenticated client, ≤6 concurrent, memory-cached only. Null (403/404/
      * offline) keeps the initials placeholder.
      */
-    suspend fun loadPhoto(id: ApplicantId): ImageBitmap? =
-        photoLoader.load(id.value)?.asImageBitmap()
-
-    fun rotatePhoto(id: ApplicantId, delta: Int) {
-        viewModelScope.launch {
-            val cur = photoStore.snapshot()[id] ?: seedEdit(id)
-            photoStore.put(id, cur.copy(rotate = ((cur.rotate + delta) % 360 + 360) % 360, done = false, uploaded = false))
+    suspend fun loadPhoto(id: ApplicantId): ImageBitmap? {
+        if (_state.value.mode == TabletMode.COURSE_OPS) {
+            return photoLoader.load(id.value)?.asImageBitmap()
         }
+        return loadDisplayPhoto(id)
     }
 
-    fun cropPhoto(id: ApplicantId) {
-        viewModelScope.launch {
-            val cur = photoStore.snapshot()[id] ?: seedEdit(id)
-            photoStore.put(id, cur.copy(cropped = true, done = false, uploaded = false))
+    suspend fun loadDisplayPhoto(id: ApplicantId): ImageBitmap? {
+        val course = _state.value.course ?: return photoLoader.load(id.value)?.asImageBitmap()
+        val key = PhotoKey(
+            PhotoScope(PhotoOrigins.canonicalize(BuildConfig.BASE_URL), course.centreId.value, course.id.value),
+            id.value,
+        )
+        val draft = photoCorrections.drafts(key.scope).firstOrNull { it.key == key }
+        if (draft == null || draft.review != PhotoReviewState.APPROVED) {
+            return photoLoader.load(id.value)?.asImageBitmap()
         }
-    }
-
-    fun markPhotoDone(id: ApplicantId) {
-        viewModelScope.launch {
-            val cur = photoStore.snapshot()[id] ?: seedEdit(id)
-            photoStore.put(id, cur.copy(done = true, uploaded = false))
-        }
-    }
-
-    fun uploadPhotos() {
-        viewModelScope.launch {
-            runCatching { repo.uploadPhotos(_state.value.edits) }
-                .onSuccess { (n, msg) ->
-                    if (n > 0) {
-                        _state.value.edits.filter { it.value.done && !it.value.uploaded }.forEach { (id, e) ->
-                            photoStore.put(id, e.copy(uploaded = true))
-                        }
-                    }
-                    _state.update { it.copy(snack = FlushSnack(msg, error = n == 0)) }
-                }
-                .onFailure { handleAuth(it) }
+        return when (val result = photoLoader.loadSource(key, false)) {
+            is org.dhamma.dipi.staff.network.PhotoSourceResult.Ready -> {
+                val source = result.source
+                if (!PhotoDrafts.isReady(draft, source.stamp)) source.bitmap.asImageBitmap()
+                else photoRenderer.render(source.bitmap, draft.recipe).asImageBitmap()
+            }
+            else -> photoLoader.load(id.value)?.asImageBitmap()
         }
     }
 
@@ -1669,6 +1701,7 @@ class DeskViewModel @Inject constructor(
                 if (pinSet) enterCourseOps() else _state.update { it.copy(pinSetup = true) }
             } else {
                 sessionStore.setTabletMode(TabletMode.DESK)
+                photoReview.allowDeskWrite = true
                 returnTo = DeskScreen.Centre
                 _state.update { it.copy(mode = TabletMode.DESK, course = null) }
             }
@@ -1707,6 +1740,8 @@ class DeskViewModel @Inject constructor(
     /** Flip the mode key and lock to the running course (null → empty state). */
     private suspend fun enterCourseOps() {
         sessionStore.setTabletMode(TabletMode.COURSE_OPS)
+        photoReview.allowDeskWrite = false
+        photoReview.resetSession(clearPixels = true)
         val running = runningCourseToday()
         returnTo = DeskScreen.TeacherRoll
         _state.update { it.copy(mode = TabletMode.COURSE_OPS, course = running) }
@@ -1831,6 +1866,7 @@ class DeskViewModel @Inject constructor(
                 _state.update {
                     it.copy(screen = DeskScreen.TeacherCard, teacherCard = TeacherCardRef(group.key, i))
                 }
+                fillMissingCourseTeachers(row.applicantId)
                 return
             }
         }
@@ -1840,6 +1876,33 @@ class DeskViewModel @Inject constructor(
     fun stepTeacherCard(delta: Int) {
         val next = teacherCardStep(_state.value.teacherRoll, _state.value.teacherCard, delta) ?: return
         _state.update { it.copy(teacherCard = next) }
+        val stepped = _state.value.teacherRoll
+            ?.groups?.firstOrNull { it.key == next.groupKey }
+            ?.rows?.getOrNull(next.index)
+        fillMissingCourseTeachers(stepped?.applicantId)
+    }
+
+    /**
+     * Live `/application-view` Course History omits Teacher(s). When the
+     * cached card has neither teacher, GET the edit form for those two
+     * inputs only. Fail silent; never POST.
+     */
+    private fun fillMissingCourseTeachers(applicantId: ApplicantId?) {
+        val id = applicantId?.value ?: return
+        val courseId = _state.value.course?.id?.value ?: return
+        val existing = _state.value.teacherCards[id]
+        if (existing != null &&
+            (existing.firstCourseTeacher.isNotBlank() || existing.lastCourseTeacher.isNotBlank())
+        ) return
+        viewModelScope.launch {
+            val (first, last) = repo.loadCourseHistoryTeachers(id)
+            if (first.isBlank() && last.isBlank()) return@launch
+            val base = _state.value.teacherCards[id] ?: return@launch
+            if (base.firstCourseTeacher.isNotBlank() || base.lastCourseTeacher.isNotBlank()) return@launch
+            val updated = base.copy(firstCourseTeacher = first, lastCourseTeacher = last)
+            runCatching { courseOpsStore.saveCard(courseId, id, updated) }
+            _state.update { it.copy(teacherCards = it.teacherCards + (id to updated)) }
+        }
     }
 
     fun logout() {
@@ -1850,6 +1913,9 @@ class DeskViewModel @Inject constructor(
             returnTo = null
             repo.logout()
             photoStore.clear()
+            photoCorrections.wipeAll()
+            photoLoader.clear()
+            photoReview.resetSession(clearPixels = true)
             val saved = sessionStore.remembered()
             _state.value = DeskUiState(
                 dark = _state.value.dark,
@@ -1870,20 +1936,24 @@ class DeskViewModel @Inject constructor(
             returnTo = null
             repo.factoryReset()
             photoStore.clear()
+            photoCorrections.wipeAll()
+            photoLoader.clear()
+            photoReview.resetSession(clearPixels = true)
             _state.value = DeskUiState()
         }
     }
 
-    fun pendingUploads(): Int =
-        _state.value.edits.values.count { it.done && !it.uploaded }
-
     fun photoNote(card: ApplicantCard): String {
-        val edit = _state.value.edits[card.id]
-        val sug = _state.value.photos.firstOrNull { it.applicantId == card.id }
+        val course = _state.value.course ?: return "◎ Photo"
+        val scope = runCatching {
+            PhotoScope(PhotoOrigins.canonicalize(BuildConfig.BASE_URL), course.centreId.value, course.id.value)
+        }.getOrNull() ?: return "◎ Photo"
+        val draft = photoCorrections.drafts(scope).firstOrNull { it.key.applicantId == card.id.value }
         return when {
-            edit?.done == true -> "◎ Photo fixed"
-            sug != null && sug.kind != "auto" && sug.kind != "good" -> "◎ Photo needs review"
-            else -> "◎ Photo looks fine"
+            draft != null && PhotoDrafts.isReady(draft, draft.source) -> "◎ Photo ready"
+            draft?.review == PhotoReviewState.DRAFT -> "◎ Photo draft"
+            draft?.review == PhotoReviewState.SOURCE_CHANGED -> "◎ Photo needs review"
+            else -> "◎ Photo"
         }
     }
 
@@ -2023,11 +2093,6 @@ class DeskViewModel @Inject constructor(
             .onFailure { handleAuth(it) }
     }
 
-    private fun seedEdit(id: ApplicantId): PhotoEdit {
-        val sug = _state.value.photos.firstOrNull { it.applicantId == id }
-        return PhotoEdit(rotate = sug?.suggestedRotate ?: 0, cropped = sug?.suggestedCrop == true)
-    }
-
     private fun flagAudit(rows: List<ApplicantCard>): List<ApplicantCard> =
         rows.map { card ->
             card.copy(flags = ClientAudit.merge(ClientAudit.evaluate(card, rows), card.flags))
@@ -2044,6 +2109,8 @@ class DeskViewModel @Inject constructor(
                 // queued outbox rows, check-ins, and room-sync progress survive
                 // the re-login (owner amendment: partial sync progress persists).
                 runCatching { repo.sessionExpired() }
+                photoLoader.clear()
+                photoReview.releasePixels()
                 val saved = sessionStore.remembered()
                 _state.value = DeskUiState(
                     dark = _state.value.dark,

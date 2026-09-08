@@ -32,7 +32,6 @@ import org.dhamma.dipi.staff.model.Course
 import org.dhamma.dipi.staff.model.CourseId
 import org.dhamma.dipi.staff.model.FlushSnack
 import org.dhamma.dipi.staff.model.OutboxReconciler
-import org.dhamma.dipi.staff.model.PhotoEdit
 import org.dhamma.dipi.staff.model.PhotoReviewItem
 import org.dhamma.dipi.staff.model.RoomAllocSync
 import org.dhamma.dipi.staff.model.RoomPostOutcome
@@ -47,15 +46,16 @@ import org.dhamma.dipi.staff.model.TeacherRoll
 import org.dhamma.dipi.staff.model.UserCentreMap
 import org.dhamma.dipi.staff.model.ApplicationCard
 import org.dhamma.dipi.staff.network.AccoHandlerParser
+import org.dhamma.dipi.staff.network.ApplicantPhotoWriter
+import org.dhamma.dipi.staff.network.PhotoDeskWriteResult
 import org.dhamma.dipi.staff.network.ApplicantDto
 import org.dhamma.dipi.staff.network.ApplicationViewParser
 import org.dhamma.dipi.staff.network.ApplicantHistoryParser
+import org.dhamma.dipi.staff.network.CourseHistoryTeachers
 import org.dhamma.dipi.staff.network.AttendedTableParser
 import org.dhamma.dipi.staff.network.CentrePageParser
-import org.dhamma.dipi.staff.network.CropDto
 import org.dhamma.dipi.staff.network.DrupalAuthApi
 import org.dhamma.dipi.staff.network.LoginBody
-import org.dhamma.dipi.staff.network.PhotoUploadBody
 import org.dhamma.dipi.staff.network.SearchPageParser
 import org.dhamma.dipi.staff.network.SessionCookieJar
 import org.dhamma.dipi.staff.network.SheetTransport
@@ -194,6 +194,7 @@ class StaffRepository @Inject constructor(
      * expiry, and (below) any stale files on repository (re)start.
      */
     private val sheets = SheetTransport(api, baseUrl) { File(context.cacheDir, "sheets") }
+    private val photoWriter = ApplicantPhotoWriter(api, baseUrl)
 
     init {
         sheets.wipe()
@@ -619,6 +620,24 @@ class StaffRepository @Inject constructor(
     }
 
     /**
+     * Course ops teacher fallback: live `/application-view` Course History
+     * has date + location only (search.inc). When that page prints no
+     * Teacher(s), GET the edit form and keep only the two teacher inputs.
+     * GET only — never POST. The body stays in memory; never logged.
+     */
+    suspend fun loadCourseHistoryTeachers(id: Int): Pair<String, String> = withContext(Dispatchers.IO) {
+        runCatching {
+            val resp = api.appEditPage(id)
+            val html = resp.html()
+            if (stillOnLogin(html) || resp.code() == 403 || !resp.isSuccessful) {
+                "" to ""
+            } else {
+                CourseHistoryTeachers.fromEditForm(html)
+            }
+        }.getOrDefault("" to "")
+    }
+
+    /**
      * Applicant-id mapping + snapshot persistence for one fetched roll
      * (spec 2d S2). Joins the id-less roll rows against the data this device
      * already fetched — the Room worklist cache (ids + names) and the
@@ -755,26 +774,14 @@ class StaffRepository @Inject constructor(
         )
     }
 
-    suspend fun uploadPhotos(
-        edits: Map<ApplicantId, PhotoEdit>,
-    ): Pair<Int, String> {
-        val ready = edits.filter { it.value.done && !it.value.uploaded }
-        if (ready.isEmpty()) return 0 to "No fixed, un-uploaded photos yet"
-        if (!useMock) return 0 to "Photo upload is not exposed on the live desk"
-        var n = 0
-        for ((id, edit) in ready) {
-            runCatching {
-                api.uploadPhoto(
-                    id.value,
-                    PhotoUploadBody(
-                        rotate = edit.rotate,
-                        crop = if (edit.cropped) CropDto() else null,
-                    ),
-                )
-            }.getOrElse { throw it.toApi() }
-            n += 1
-        }
-        return n to "✓ Uploaded $n photo(s), all other fields preserved"
+    suspend fun updateApplicantPhoto(
+        id: ApplicantId,
+        jpeg: ByteArray,
+        fileName: String,
+    ): PhotoDeskWriteResult = photoWriter.submit(id.value, jpeg, fileName)
+
+    fun clearApplicantEditForms() {
+        photoWriter.wipe()
     }
 
     suspend fun logout() {
@@ -787,6 +794,7 @@ class StaffRepository @Inject constructor(
         runCatching { courseOpsStore.wipeCourse() }
         sessionStore.clear()
         sensitive.clear()
+        photoWriter.wipe()
         sheets.wipe()
         lastCentreId = null
     }
@@ -803,6 +811,7 @@ class StaffRepository @Inject constructor(
         cookies.clear()
         tokens.saveSession(null, null)
         sensitive.clear()
+        photoWriter.wipe()
         sheets.wipe()
         lastCentreId = null
     }
@@ -817,6 +826,7 @@ class StaffRepository @Inject constructor(
         // (spec 2a S3); logout deliberately leaves it in place.
         courseOpsStore.wipeAll()
         sensitive.clear()
+        photoWriter.wipe()
         sheets.wipe()
         lastCentreId = null
     }

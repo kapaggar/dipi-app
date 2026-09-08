@@ -24,8 +24,8 @@ android {
         applicationId = "org.dhamma.dipi.staff"
         minSdk = 26
         targetSdk = 35
-        versionCode = 87
-        versionName = "1.44.0"
+        versionCode = 91
+        versionName = "1.45.3"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "BASE_URL", "\"${overrideUrl.trimEnd('/')}\"")
         val useMock = ((findProperty("dipi.useMock") as String?)
@@ -98,6 +98,7 @@ dependencies {
     implementation(libs.hilt.navigation.compose)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.kotlinx.coroutines.android)
+    implementation("com.google.mlkit:face-detection:16.1.7")
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.retrofit)
     implementation(libs.okhttp)

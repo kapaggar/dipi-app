@@ -1,5 +1,7 @@
 package org.dhamma.dipi.staff
 
+import androidx.activity.OnBackPressedDispatcher
+import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -10,6 +12,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.runBlocking
 import okhttp3.mockwebserver.MockWebServer
+import org.dhamma.dipi.staff.model.ApplicantId
 import org.dhamma.dipi.staff.model.Centre
 import org.dhamma.dipi.staff.model.CentreId
 import org.dhamma.dipi.staff.model.Course
@@ -23,9 +26,11 @@ import org.dhamma.dipi.staff.model.SeatKind
 import org.dhamma.dipi.staff.model.TabletMode
 import org.dhamma.dipi.staff.model.TeacherRoll
 import org.dhamma.dipi.staff.network.DipiMockDispatcher
+import org.dhamma.dipi.staff.teacher.TeacherView
 import org.dhamma.dipi.staff.ui.DeskScreen
 import org.dhamma.dipi.staff.ui.DeskUiState
 import org.dhamma.dipi.staff.ui.DipiAppUi
+import org.dhamma.dipi.staff.ui.TeacherCardRef
 import org.dhamma.dipi.staff.ui.deskBack
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -75,12 +80,17 @@ class CourseOpsNavTest {
         offline = offline,
     )
 
+    private var backDispatcher: OnBackPressedDispatcher? = null
+
     private fun composeCourseOps(state: DeskUiState, prefs: String): TestVm {
         server.start()
         val t = buildTestVm(server, pinPrefsName = prefs)
         runBlocking { t.sessionStore.setTabletMode(TabletMode.COURSE_OPS) }
         t.vm.seedForTest(state)
-        rule.setContent { DipiAppUi(t.vm) }
+        rule.setContent {
+            backDispatcher = LocalOnBackPressedDispatcherOwner.current?.onBackPressedDispatcher
+            DipiAppUi(t.vm)
+        }
         return t
     }
 
@@ -168,5 +178,39 @@ class CourseOpsNavTest {
         rule.onNodeWithTag("course-ops-roll-pending").assertDoesNotExist()
         rule.onNodeWithTag("dest-teacher-list").assertIsDisplayed()
         rule.onNodeWithText("Seniority").assertDoesNotExist()
+    }
+
+    @Test
+    fun systemBackFromSeatCardReturnsToSeatingNotExitDialog() {
+        val group = RollGroup(
+            at = "Trainee A M Teacher", code = "TAM", gender = Gender.M,
+            seniority = RollSeniority.OLD, group = "1", total = 1,
+            rows = listOf(
+                RollRow(
+                    sn = 1, applicantId = ApplicantId(4), name = "Ravikiran Dhulipala",
+                    roleTag = null, room = "Mbk-39", age = "34", city = "Eluru",
+                    courses = listOf("10D" to 14), cell = "",
+                    seat = "A1", seatKind = SeatKind.FLOOR, backrest = false,
+                    occupation = "", education = "", languages = "",
+                ),
+            ),
+        )
+        composeCourseOps(
+            courseOpsState().copy(
+                screen = DeskScreen.TeacherCard,
+                teacherView = TeacherView.SEATING,
+                teacherHall = Gender.M,
+                teacherRoll = TeacherRoll(listOf(group)),
+                teacherCard = TeacherCardRef(group.key, 0),
+            ),
+            "nav_card_back",
+        )
+        rule.onNodeWithText("Ravikiran Dhulipala").assertIsDisplayed()
+        rule.runOnIdle { backDispatcher!!.onBackPressed() }
+        rule.waitForIdle()
+        rule.onNodeWithText("Do you want to exit the app totally?").assertDoesNotExist()
+        rule.onNodeWithTag("dest-seating-plan").assertIsDisplayed()
+        rule.onNodeWithTag("hall-body").assertIsDisplayed()
+        rule.onNodeWithText("Ravikiran Dhulipala").assertIsDisplayed()
     }
 }

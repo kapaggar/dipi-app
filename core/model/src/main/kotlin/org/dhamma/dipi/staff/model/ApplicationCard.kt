@@ -36,6 +36,15 @@ data class ApplicationCard(
     val historyCounts: List<Pair<String, Int>> = emptyList(),
     val firstCourse: String = "",
     val lastCourse: String = "",
+    /**
+     * Course History teacher names. Prefer `Teacher(s)` under First Course /
+     * Most Recent (or Last) Course; also accept `First Course Teacher` /
+     * `Last Course Teacher`. Live `/application-view` currently omits them —
+     * the card may fill from the edit form's two teacher inputs. Never read
+     * Long Course Details.
+     */
+    val firstCourseTeacher: String = "",
+    val lastCourseTeacher: String = "",
     val practiceDetails: String = "",
     /** `Health` rows, labels verbatim in server order — [HEALTH_ORDER]. */
     val health: List<HealthRow> = emptyList(),
@@ -72,6 +81,14 @@ data class ApplicationCard(
         val PERSONAL_ALLOWLIST = listOf(
             "Gender", "Date of Birth", "Age", "Nationality",
             "Old / New", "Monk / Nun", "A-List", "Applied On",
+        )
+
+        /**
+         * Personal labels the student card hides (owner 2026-09-08). The
+         * parser still keeps them so FLAGS can read Monk / Nun.
+         */
+        val PERSONAL_CARD_HIDDEN = setOf(
+            "Gender", "Nationality", "Monk / Nun", "Applied On", "A-List",
         )
     }
 }

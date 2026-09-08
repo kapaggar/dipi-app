@@ -23,8 +23,6 @@ import org.dhamma.dipi.staff.model.RollRow
 import org.dhamma.dipi.staff.model.RollSeniority
 import org.dhamma.dipi.staff.model.SeatKind
 import org.dhamma.dipi.staff.model.TeacherRoll
-import org.dhamma.dipi.staff.model.BACKREST_GLYPH
-import org.dhamma.dipi.staff.model.backrestSeatLabel
 import org.dhamma.dipi.staff.teacher.StudentCardScreen
 import org.dhamma.dipi.staff.ui.TeacherCardRef
 import org.dhamma.dipi.staff.ui.teacherCardStep
@@ -32,6 +30,7 @@ import org.dhamma.dipi.staff.ui.theme.DipiTheme
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import androidx.compose.ui.unit.dp
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -205,11 +204,11 @@ class StudentCardScreenTest {
             DipiTheme { StudentCardScreen(row = row(), group = group(), card = card()) }
         }
         rule.onNodeWithText("OLD · OM42").assertIsDisplayed()
-        // 1.40.0: the fixture row carries backrest = true, so the seat
-        // segment is glyphed through the shared backrestSeatLabel.
-        rule.onNodeWithText(
-            "Mbk-8 · seat ${backrestSeatLabel("CW-A3", true)} · Group 1 · TAM · 1 of 1 in this group",
-        ).assertIsDisplayed()
+        rule.onNodeWithText("Group 1 · TAM · 1 of 1 in this group").assertIsDisplayed()
+        rule.onNodeWithTag("card-photo-room", useUnmergedTree = true).assertIsDisplayed()
+        rule.onNodeWithTag("card-photo-seat", useUnmergedTree = true).assertIsDisplayed()
+        rule.onNodeWithText("Mbk-8").assertIsDisplayed()
+        rule.onNodeWithText("CW-A3").assertIsDisplayed()
         rule.onNodeWithText("Teacher list").assertIsDisplayed()
         rule.onNodeWithTag("answer-summary").assertIsDisplayed()
     }
@@ -284,25 +283,53 @@ class StudentCardScreenTest {
     }
 
     @Test
-    fun placementLineMarksABackrestSeatWithTheGlyph() {
-        // The fixture row carries backrest = true on CW-A3 — the placement
-        // line seat segment goes through the one shared label fn.
+    fun roomAndSeatSitBesideThePhotoNotInTheHeader() {
         rule.setContent {
             DipiTheme { StudentCardScreen(row = row(), group = group(), card = card()) }
         }
-        rule.onNodeWithText("seat ${backrestSeatLabel("CW-A3", true)}", substring = true)
-            .assertIsDisplayed()
+        rule.onNodeWithTag("card-photo-room", useUnmergedTree = true).assertIsDisplayed()
+        rule.onNodeWithTag("card-photo-seat", useUnmergedTree = true).assertIsDisplayed()
+        rule.onNodeWithText("Mbk-8 · seat", substring = true).assertDoesNotExist()
+        rule.onNodeWithText("Group 1 · TAM · 1 of 1 in this group").assertIsDisplayed()
     }
 
     @Test
-    fun placementLineLeavesANonBackrestSeatPlain() {
-        val plain = row().copy(seat = "E1", seatKind = SeatKind.FLOOR, backrest = false)
+    fun hiddenPersonalFieldsStayOffTheCard() {
+        rule.setContent {
+            DipiTheme { StudentCardScreen(row = row(), group = group(), card = card()) }
+        }
+        rule.onNodeWithText("Gender").assertDoesNotExist()
+        rule.onNodeWithText("Nationality").assertDoesNotExist()
+        rule.onNodeWithText("Monk / Nun").assertDoesNotExist()
+        rule.onNodeWithText("Applied On").assertDoesNotExist()
+        rule.onNodeWithText("Date of Birth").assertIsDisplayed()
+        rule.onNodeWithText("Age").assertIsDisplayed()
+        rule.onNodeWithText("Old / New").assertIsDisplayed()
+        rule.onNodeWithText("A-List").assertDoesNotExist()
+        rule.onNodeWithText("First Course Teacher").assertIsDisplayed()
+        rule.onNodeWithText("Last Course Teacher").assertIsDisplayed()
+    }
+
+    @Test
+    fun statusChipIsReadableAtTabletDistance() {
+        rule.setContent {
+            DipiTheme { StudentCardScreen(row = row(), group = group(), card = card()) }
+        }
+        rule.onNodeWithText("OLD · OM42").assertIsDisplayed()
+        val chip = rule.onNodeWithTag("card-status-chip").getUnclippedBoundsInRoot()
+        assertTrue("chip height ${chip.bottom - chip.top}", chip.bottom - chip.top >= 26.dp)
+    }
+
+    @Test
+    fun walkButtonsAreLargerElevatedTargets() {
         rule.setContent {
             DipiTheme {
-                StudentCardScreen(row = plain, group = group(rows = listOf(plain)), card = card())
+                StudentCardScreen(row = row(), group = group(), card = card(), canNext = true)
             }
         }
-        rule.onNodeWithText("seat E1", substring = true).assertIsDisplayed()
-        rule.onNodeWithText(BACKREST_GLYPH, substring = true).assertDoesNotExist()
+        val next = rule.onNodeWithTag("card-next").getUnclippedBoundsInRoot()
+        assertTrue("walk height ${next.bottom - next.top}", next.bottom - next.top >= 56.dp)
+        val prev = rule.onNodeWithTag("card-prev").getUnclippedBoundsInRoot()
+        assertTrue("walk width ${prev.right - prev.left}", prev.right - prev.left >= 56.dp)
     }
 }

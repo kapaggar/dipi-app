@@ -9,7 +9,6 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
-import androidx.compose.ui.test.performClick
 import org.dhamma.dipi.staff.desk.ApplicationsPane
 import org.dhamma.dipi.staff.model.ApplicantCard
 import org.dhamma.dipi.staff.model.ApplicantId
@@ -19,10 +18,10 @@ import org.dhamma.dipi.staff.model.CentreId
 import org.dhamma.dipi.staff.model.ConfNo
 import org.dhamma.dipi.staff.model.CourseId
 import org.dhamma.dipi.staff.model.Gender
-import org.dhamma.dipi.staff.model.PhotoEdit
+import org.dhamma.dipi.staff.photos.PhotoCardUi
 import org.dhamma.dipi.staff.photos.PhotoReviewScreen
+import org.dhamma.dipi.staff.photos.PhotoReviewUiState
 import org.dhamma.dipi.staff.ui.theme.DipiTheme
-import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -57,7 +56,6 @@ class PhotoPanesTest {
         age = 34,
     )
 
-    /** Robolectric's legacy shadow lacks the overload ImageBitmap(w, h) uses. */
     private fun testPhoto(): ImageBitmap =
         Bitmap.createBitmap(8, 10, Bitmap.Config.ARGB_8888).asImageBitmap()
 
@@ -103,49 +101,49 @@ class PhotoPanesTest {
     }
 
     @Test
-    fun reviewIsHonestAboutLocalQueueAndKeepsPlaceholders() {
-        var uploads = 0
+    fun reviewIsHonestAboutLocalExportAndKeepsPlaceholders() {
+        val priya = card(1)
+        val arun = card(2, given = "Arun", family = "Kale")
         rule.setContent {
             DipiTheme {
                 PhotoReviewScreen(
-                    people = listOf(card(1), card(2, given = "Arun", family = "Kale")),
-                    suggestions = emptyList(),
-                    edits = mapOf(ApplicantId(1) to PhotoEdit(rotate = 90, done = true)),
-                    filter = "All",
-                    onFilter = {},
-                    onRotate = { _, _ -> },
-                    onCrop = {},
-                    onDone = {},
-                    onUpload = { uploads++ },
-                    pendingUploads = 1,
-                    loadPhoto = { null },
+                    state = PhotoReviewUiState(
+                        cards = listOf(
+                            PhotoCardUi(priya, "Draft"),
+                            PhotoCardUi(arun, "Unreviewed"),
+                        ),
+                        readyCount = 1,
+                    ),
+                    onAction = {},
+                    loadPreview = { null },
                 )
             }
         }
         rule.waitForIdle()
-        rule.onNodeWithText("Queue upload (1)").assertIsDisplayed().performClick()
-        assertEquals(1, uploads)
-        rule.onNodeWithText("Photo fixes stay on this tablet.")
-            .assertIsDisplayed()
+        rule.onNodeWithText("Export (1)").assertIsDisplayed()
+        rule.onNodeWithText("Update on desk (1)").assertIsDisplayed()
+        rule.onNodeWithText("Ready 1").assertIsDisplayed()
+        rule.onNodeWithText("Uploaded").assertDoesNotExist()
+        rule.onNodeWithText("Queue upload (1)").assertDoesNotExist()
+        rule.onNodeWithText(
+            "Update on desk posts the current application form with the corrected photo. " +
+                "The desk save can still change other fields if it transforms what was echoed.",
+            substring = true,
+        ).assertIsDisplayed()
         rule.onAllNodesWithText("▣").assertCountEquals(2)
     }
 
     @Test
     fun reviewShowsLivePhotoPerRow() {
+        val priya = card(1)
         rule.setContent {
             DipiTheme {
                 PhotoReviewScreen(
-                    people = listOf(card(1)),
-                    suggestions = emptyList(),
-                    edits = emptyMap(),
-                    filter = "All",
-                    onFilter = {},
-                    onRotate = { _, _ -> },
-                    onCrop = {},
-                    onDone = {},
-                    onUpload = {},
-                    pendingUploads = 0,
-                    loadPhoto = { testPhoto() },
+                    state = PhotoReviewUiState(
+                        cards = listOf(PhotoCardUi(priya, "Unreviewed")),
+                    ),
+                    onAction = {},
+                    loadPreview = { testPhoto() },
                 )
             }
         }

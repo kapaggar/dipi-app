@@ -29,6 +29,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.draw.drawBehind
@@ -42,7 +43,6 @@ import androidx.compose.ui.unit.sp
 import org.dhamma.dipi.staff.model.RollGroup
 import org.dhamma.dipi.staff.model.RollRow
 import org.dhamma.dipi.staff.model.TeacherRoll
-import org.dhamma.dipi.staff.model.backrestSeatLabel
 import org.dhamma.dipi.staff.ui.theme.DipiCondensed
 import org.dhamma.dipi.staff.ui.theme.DipiMono
 import org.dhamma.dipi.staff.ui.theme.Industry
@@ -191,7 +191,7 @@ private fun Header(
     onSettings: () -> Unit,
 ) {
     Row(
-        Modifier.fillMaxWidth().height(62.dp).padding(horizontal = 20.dp),
+        Modifier.fillMaxWidth().height(68.dp).padding(horizontal = 20.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(Modifier.weight(1f)) {
@@ -217,7 +217,11 @@ private fun Header(
             onView(TeacherView.SENIORITY)
         }
         Spacer(Modifier.width(8.dp))
-        DestinationButton("Seating plan", selected = view == TeacherView.SEATING) { onView(TeacherView.SEATING) }
+        DestinationButton(
+            "Seating plan",
+            selected = view == TeacherView.SEATING,
+            testTag = "dest-seating-plan",
+        ) { onView(TeacherView.SEATING) }
         Spacer(Modifier.width(8.dp))
         Box(
             Modifier
@@ -238,25 +242,27 @@ private fun DestinationButton(
     testTag: String? = null,
     onClick: () -> Unit,
 ) {
-    val shape = RoundedCornerShape(6.dp)
+    val shape = RoundedCornerShape(8.dp)
     Row(
         Modifier
-            .height(48.dp)
+            .height(52.dp)
+            .shadow(3.dp, shape, clip = false)
+            .background(Color.White, shape)
             .then(
                 if (selected) {
-                    Modifier.background(Color.White, shape).border(1.5.dp, Industry.accent, shape)
+                    Modifier.border(1.5.dp, Industry.accent, shape)
                 } else {
                     Modifier.border(1.dp, Industry.neutral300, shape)
                 },
             )
             .clickable(onClick = onClick, role = Role.Button)
             .then(if (testTag != null) Modifier.testTag(testTag) else Modifier)
-            .padding(horizontal = 20.dp),
+            .padding(horizontal = 18.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
             label,
-            fontSize = 14.sp,
+            fontSize = 14.5.sp,
             fontWeight = if (selected) FontWeight.Medium else FontWeight.Normal,
             color = if (selected) Industry.accent800 else Industry.neutral600,
         )
@@ -500,9 +506,9 @@ private fun RollRowLine(
             row.age,
             fontFamily = DipiMono,
             fontSize = 14.sp,
-            color = Industry.neutral800,
+            color = Color(0xFF8A8A8E),
             textAlign = TextAlign.End,
-            modifier = Modifier.width(AgeW),
+            modifier = Modifier.width(AgeW).testTag("list-age"),
         )
         Text(
             row.city,
@@ -521,17 +527,24 @@ private fun RollRowLine(
                 row.courses.forEach { (key, count) -> CourseChip(key, count) }
             }
         }
-        Text(
-            backrestSeatLabel(row.seat, row.backrest),
-            fontFamily = DipiMono,
-            fontWeight = FontWeight.SemiBold,
-            fontSize = 14.sp,
-            color = Industry.text,
-            textAlign = TextAlign.End,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.width(SeatW),
-        )
+        Column(
+            Modifier.width(SeatW),
+            horizontalAlignment = Alignment.End,
+            verticalArrangement = Arrangement.Center,
+        ) {
+            BackrestSeatMark(visible = row.backrest && row.seat.isNotBlank(), tag = "list-backrest-${row.seat}")
+            if (row.backrest && row.seat.isNotBlank()) Spacer(Modifier.height(3.dp))
+            Text(
+                row.seat,
+                fontFamily = DipiMono,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 14.sp,
+                color = Industry.text,
+                textAlign = TextAlign.End,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
         val pending = !flagsReady(row)
         Row(
             Modifier

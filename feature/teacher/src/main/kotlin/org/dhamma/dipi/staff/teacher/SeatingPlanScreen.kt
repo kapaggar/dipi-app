@@ -23,6 +23,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
@@ -45,7 +47,6 @@ import org.dhamma.dipi.staff.model.PlacedSeat
 import org.dhamma.dipi.staff.model.RollRow
 import org.dhamma.dipi.staff.model.TeacherRoll
 import org.dhamma.dipi.staff.model.UnseatedRow
-import org.dhamma.dipi.staff.model.backrestSeatLabel
 import org.dhamma.dipi.staff.model.hallLayout
 import org.dhamma.dipi.staff.model.railPaintOrder
 import org.dhamma.dipi.staff.ui.theme.DipiCondensed
@@ -60,6 +61,8 @@ private val UnseatedText = Color(0xFF424244)
 private val CellShape = RoundedCornerShape(5.dp)
 private val RailCardFill = Color(0xFFFAFAFB)
 private val RailCardBorder = Color(0xFFDEDEE1)
+/** Age on a seat cell — lighter than the name, still readable on Old/New fills. */
+private val SeatAge = Color(0xFF8A8A8E)
 
 private fun Modifier.bottomHairline(color: Color): Modifier = drawBehind {
     val y = size.height - 0.5.dp.toPx()
@@ -220,7 +223,7 @@ private fun Header(
     onSettings: () -> Unit,
 ) {
     Row(
-        Modifier.fillMaxWidth().height(62.dp).padding(horizontal = 24.dp),
+        Modifier.fillMaxWidth().height(68.dp).padding(horizontal = 24.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(Modifier.weight(1f)) {
@@ -244,7 +247,9 @@ private fun Header(
             onView(TeacherView.SENIORITY)
         }
         Spacer(Modifier.width(8.dp))
-        SeatingDestinationButton("Seating plan", selected = true) { onView(TeacherView.SEATING) }
+        SeatingDestinationButton("Seating plan", selected = true, testTag = "dest-seating-plan") {
+            onView(TeacherView.SEATING)
+        }
         Spacer(Modifier.width(8.dp))
         Box(
             Modifier
@@ -258,7 +263,7 @@ private fun Header(
     }
 }
 
-/** Same 48dp destination pair as the teacher list — a two-way switch over one response. */
+/** Elevated destination pair — a two-way switch over one response. */
 @Composable
 private fun SeatingDestinationButton(
     label: String,
@@ -266,25 +271,27 @@ private fun SeatingDestinationButton(
     testTag: String? = null,
     onClick: () -> Unit,
 ) {
-    val shape = RoundedCornerShape(6.dp)
+    val shape = RoundedCornerShape(8.dp)
     Row(
         Modifier
-            .height(48.dp)
+            .height(52.dp)
+            .shadow(3.dp, shape, clip = false)
+            .background(Color.White, shape)
             .then(
                 if (selected) {
-                    Modifier.background(Color.White, shape).border(1.5.dp, Industry.accent, shape)
+                    Modifier.border(1.5.dp, Industry.accent, shape)
                 } else {
                     Modifier.border(1.dp, Industry.neutral300, shape)
                 },
             )
             .clickable(onClick = onClick, role = Role.Button)
             .then(if (testTag != null) Modifier.testTag(testTag) else Modifier)
-            .padding(horizontal = 20.dp),
+            .padding(horizontal = 18.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
             label,
-            fontSize = 14.sp,
+            fontSize = 14.5.sp,
             fontWeight = if (selected) FontWeight.Medium else FontWeight.Normal,
             color = if (selected) Industry.accent800 else Industry.neutral600,
         )
@@ -465,9 +472,11 @@ private fun SeatCellBox(cell: HallCell, modifier: Modifier, onOpen: (RollRow) ->
         seated.old -> "old"
         else -> "new"
     }
-    Column(
+    val backrest = seated?.row?.backrest == true
+    Box(
         modifier
             .height(66.dp)
+            .clip(CellShape)
             .then(
                 when {
                     seated == null -> Modifier
@@ -482,30 +491,68 @@ private fun SeatCellBox(cell: HallCell, modifier: Modifier, onOpen: (RollRow) ->
                 },
             )
             .then(if (seated != null) Modifier.clickable { onOpen(seated.row) } else Modifier)
-            .padding(horizontal = 8.dp, vertical = 6.dp)
             .testTag("seat-cell-${cell.id}-$kind"),
-        verticalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Column(
+            Modifier
+                .fillMaxSize()
+                .padding(horizontal = 8.dp, vertical = 6.dp),
+            verticalArrangement = Arrangement.SpaceBetween,
+        ) {
+            SeatIdAndAge(
+                id = cell.id,
+                age = seated?.row?.age,
+                empty = seated == null,
+                ageTag = "seat-age-${cell.id}",
+            )
+            if (seated != null) {
+                Text(
+                    seated.row.name,
+                    fontSize = 12.5.sp,
+                    lineHeight = 14.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = Industry.text,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+        if (backrest) {
+            Box(Modifier.align(Alignment.TopCenter)) {
+                BackrestTopBar(visible = true, tag = "seat-backrest-${cell.id}")
+            }
+        }
+    }
+}
+
+@Composable
+private fun SeatIdAndAge(id: String, age: String?, empty: Boolean, ageTag: String) {
+    Row(
+        Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
     ) {
         Text(
             // A seated backrest row glyphs its seat id (owner ruling
             // 2026-09-05); empty cells always stay plain.
-            backrestSeatLabel(cell.id, seated?.row?.backrest == true),
+            id,
             fontFamily = DipiMono,
             fontWeight = FontWeight.Medium,
             fontSize = 10.sp,
             letterSpacing = 0.8.sp,
-            color = if (seated == null) Industry.neutral400 else Industry.accent700,
+            color = if (empty) Industry.neutral400 else Industry.accent700,
             maxLines = 1,
         )
-        if (seated != null) {
+        val shown = age?.trim().orEmpty()
+        if (!empty && shown.isNotEmpty()) {
             Text(
-                seated.row.name,
-                fontSize = 12.5.sp,
-                lineHeight = 14.sp,
+                shown,
+                fontFamily = DipiMono,
                 fontWeight = FontWeight.Medium,
-                color = Industry.text,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
+                fontSize = 10.sp,
+                color = SeatAge,
+                maxLines = 1,
+                modifier = Modifier.testTag(ageTag),
             )
         }
     }
@@ -635,10 +682,11 @@ private fun RailRun(
         ) {
             line.forEach { seat ->
                 val old = seat.old
-                Column(
+                Box(
                     Modifier
                         .weight(1f)
                         .height(66.dp)
+                        .clip(CellShape)
                         .then(
                             if (old) {
                                 Modifier.background(Industry.accent100, CellShape).border(1.dp, Industry.accent300, CellShape)
@@ -647,28 +695,36 @@ private fun RailRun(
                             },
                         )
                         .clickable { onOpen(seat.row) }
-                        .padding(horizontal = 9.dp, vertical = 7.dp)
                         .testTag("chowky-seat-${seat.row.seat.trim()}"),
-                    verticalArrangement = Arrangement.SpaceBetween,
                 ) {
-                    Text(
-                        backrestSeatLabel(seat.row.seat.trim(), seat.row.backrest),
-                        fontFamily = DipiMono,
-                        fontWeight = FontWeight.Medium,
-                        fontSize = 11.sp,
-                        letterSpacing = 0.8.sp,
-                        color = if (old) Industry.accent700 else Industry.accent600,
-                        maxLines = 1,
+                    Column(
+                        Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 9.dp, vertical = 7.dp),
+                        verticalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                    SeatIdAndAge(
+                        id = seat.row.seat.trim(),
+                        age = seat.row.age,
+                        empty = false,
+                        ageTag = "seat-age-${seat.row.seat.trim()}",
                     )
-                    Text(
-                        seat.row.name,
-                        fontSize = 12.5.sp,
-                        lineHeight = 14.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = Industry.text,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                    )
+                        Text(
+                            seat.row.name,
+                            fontSize = 12.5.sp,
+                            lineHeight = 14.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Industry.text,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                    Box(Modifier.align(Alignment.TopCenter)) {
+                        BackrestTopBar(
+                            visible = seat.row.backrest,
+                            tag = "seat-backrest-${seat.row.seat.trim()}",
+                        )
+                    }
                 }
             }
             repeat(perRow.coerceAtLeast(1) - line.size) { Spacer(Modifier.weight(1f)) }

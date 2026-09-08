@@ -21,6 +21,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
+import androidx.compose.ui.draw.shadow
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
@@ -44,7 +45,6 @@ import org.dhamma.dipi.staff.model.Gender
 import org.dhamma.dipi.staff.model.HealthRow
 import org.dhamma.dipi.staff.model.RollGroup
 import org.dhamma.dipi.staff.model.RollRow
-import org.dhamma.dipi.staff.model.backrestSeatLabel
 import org.dhamma.dipi.staff.ui.theme.DipiCondensed
 import org.dhamma.dipi.staff.ui.theme.DipiMono
 import org.dhamma.dipi.staff.ui.theme.Industry
@@ -63,11 +63,12 @@ private fun Modifier.bottomHairline(color: Color): Modifier = drawBehind {
  * Frame 2d — the read-only student card: what the applicant wrote, in the
  * applicant's own words. Fully prop-driven, no ViewModel.
  *
- * - Header 60dp: back, name + status chip, placement line, and the 48dp
- *   `‹ ›` pair walking the current group (disabled ends at 38% alpha — no
- *   drawn spec).
- * - Left 404dp FIXED: photo 132×158, the eight Personal rows verbatim, ten
- *   50dp history tiles in SERVER order (zeros stay), history meta.
+ * - Header 68dp: back, name + status chip, group placement line (room and
+ *   seat live next to the photo), and the 56dp elevated `‹ ›` pair walking
+ *   the current group (disabled ends at 38% alpha — no drawn spec).
+ * - Left 404dp FIXED: photo 132×158, Room/Seat plus the kept Personal rows
+ *   and roll facts, ten 50dp history tiles in SERVER order (zeros stay),
+ *   history meta including first/last course teacher when the page has them.
  * - Right column SCROLLS: one card per Health row in order, labels
  *   verbatim, `YES` tag + 14.5sp/1.5 body NEVER truncated; answered rows
  *   tint `accent100` on `accent300` with a 2dp `accent500` left rule; empty
@@ -130,7 +131,7 @@ private fun Header(
     backLabel: String,
 ) {
     Row(
-        Modifier.fillMaxWidth().height(60.dp).padding(start = 12.dp, end = 20.dp),
+        Modifier.fillMaxWidth().height(68.dp).padding(start = 12.dp, end = 20.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Row(
@@ -183,25 +184,23 @@ private fun StatusChip(group: RollGroup, card: ApplicationCard?) {
     Text(
         text,
         fontFamily = DipiMono,
-        fontWeight = FontWeight.Medium,
-        fontSize = 10.sp,
-        letterSpacing = 1.2.sp,
+        fontWeight = FontWeight.SemiBold,
+        fontSize = 16.sp,
+        letterSpacing = 0.6.sp,
         color = Industry.accent700,
         modifier = Modifier
             .padding(start = 10.dp)
-            .background(Industry.accent100, RoundedCornerShape(3.dp))
-            .padding(horizontal = 7.dp, vertical = 5.dp)
+            .background(Industry.accent100, RoundedCornerShape(4.dp))
+            .padding(horizontal = 10.dp, vertical = 6.dp)
             .testTag("card-status-chip"),
     )
 }
 
 /**
- * `Mbk-37 · seat E1 · Group 1 · TAM · 1 of 18 in this group` — roll facts
- * only. A backrest row's seat carries the shared [backrestSeatLabel] glyph.
+ * `Group 1 · TAM · 1 of 18 in this group` — room and seat sit next to the
+ * photo (owner 2026-09-08), not in this kicker.
  */
 private fun placementLine(row: RollRow, group: RollGroup): String = listOfNotNull(
-    row.room.takeIf { it.isNotBlank() },
-    row.seat.takeIf { it.isNotBlank() }?.let { "seat ${backrestSeatLabel(it, row.backrest)}" },
     "Group ${group.group}",
     group.code,
     "${row.sn} of ${group.total} in this group",
@@ -209,16 +208,18 @@ private fun placementLine(row: RollRow, group: RollGroup): String = listOfNotNul
 
 @Composable
 private fun WalkButton(glyph: String, enabled: Boolean, onClick: () -> Unit, tag: String) {
-    val shape = RoundedCornerShape(6.dp)
+    val shape = RoundedCornerShape(8.dp)
     Box(
         Modifier
-            .size(48.dp)
+            .size(56.dp)
+            .shadow(4.dp, shape, clip = false)
+            .background(Color.White, shape)
             .border(1.dp, if (enabled) Industry.neutral300 else Industry.neutral200, shape)
             .then(if (enabled) Modifier.clickable(role = Role.Button, onClick = onClick) else Modifier)
             .testTag(tag),
         contentAlignment = Alignment.Center,
     ) {
-        Text(glyph, fontSize = 20.sp, color = if (enabled) Industry.neutral700 else Industry.neutral300)
+        Text(glyph, fontSize = 22.sp, color = if (enabled) Industry.neutral700 else Industry.neutral300)
     }
 }
 
@@ -270,7 +271,9 @@ private fun LeftColumn(
         Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
             PhotoBox(row.applicantId, card.hasPhoto, loadPhoto)
             Column(Modifier.weight(1f)) {
-                card.personal.forEach { (key, value) -> PersonalRow(key, value) }
+                photoSideFacts(row, card).forEach { (key, value) ->
+                    PersonalRow(key, value, tag = photoFactTag(key))
+                }
             }
         }
         Spacer(Modifier.height(14.dp))
@@ -283,9 +286,11 @@ private fun LeftColumn(
             }
         }
         Spacer(Modifier.height(8.dp))
-        MetaRow("First Course", card.firstCourse)
-        MetaRow("Last Course", card.lastCourse)
-        MetaRow("Practice Details", card.practiceDetails)
+        MetaRow("First Course", historyMeta(card.firstCourse))
+        MetaRow("First Course Teacher", historyMeta(card.firstCourseTeacher))
+        MetaRow("Last Course", historyMeta(card.lastCourse))
+        MetaRow("Last Course Teacher", historyMeta(card.lastCourseTeacher))
+        MetaRow("Practice Details", historyMeta(card.practiceDetails))
     }
 }
 
@@ -329,10 +334,37 @@ private fun PhotoBox(
     }
 }
 
+/** Room and seat sit beside the photo; Gender / Nationality / Monk / Applied On / A-List stay off the card. */
+private fun photoSideFacts(row: RollRow, card: ApplicationCard): List<Pair<String, String>> = buildList {
+    row.room.takeIf { it.isNotBlank() }?.let { add("Room" to it) }
+    row.seat.takeIf { it.isNotBlank() }?.let { add("Seat" to it) }
+    card.personal
+        .filter { (key, _) ->
+            ApplicationCard.PERSONAL_CARD_HIDDEN.none { hidden -> hidden.equals(key, ignoreCase = true) }
+        }
+        .forEach { add(it) }
+    row.city.takeIf { it.isNotBlank() }?.let { add("City" to it) }
+    row.occupation.takeIf { it.isNotBlank() }?.let { add("Occupation" to it) }
+    row.education.takeIf { it.isNotBlank() }?.let { add("Education" to it) }
+    row.languages.takeIf { it.isNotBlank() }?.let { add("Languages" to it) }
+}
+
+private fun photoFactTag(key: String): String? = when (key.lowercase()) {
+    "room" -> "card-photo-room"
+    "seat" -> "card-photo-seat"
+    else -> null
+}
+
+private fun historyMeta(value: String): String = value.trim().ifBlank { "-" }
+
 @Composable
-private fun PersonalRow(key: String, value: String) {
+private fun PersonalRow(key: String, value: String, tag: String? = null) {
     Row(
-        Modifier.fillMaxWidth().height(22.5.dp).bottomHairline(RowHairline),
+        Modifier
+            .fillMaxWidth()
+            .height(22.5.dp)
+            .bottomHairline(RowHairline)
+            .then(if (tag != null) Modifier.testTag(tag) else Modifier),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(key, fontSize = 12.sp, color = Industry.neutral500)

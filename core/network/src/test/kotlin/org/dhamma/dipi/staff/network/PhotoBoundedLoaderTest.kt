@@ -3,8 +3,10 @@ package org.dhamma.dipi.staff.network
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
@@ -107,5 +109,52 @@ class PhotoBoundedLoaderTest {
         assertNull(loader.get(5)) // the thrown fetch also resolves null
         assertEquals("recovered-5", loader.get(5))
         assertEquals(3, calls.get())
+    }
+
+    @Test fun clearPreventsOldSessionCacheInsertion() = runBlocking {
+        val first = CompletableDeferred<Unit>()
+        val entered = CompletableDeferred<Unit>()
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        val loader = BoundedLoader<Int, String>(
+            1, 1024, scope, { 1L }
+        ) { entered.complete(Unit); first.await(); "old-session" }
+        val pending = async { runCatching { loader.get(1) } }
+        entered.await()
+        loader.clear()
+        first.complete(Unit)
+        pending.await()
+        assertEquals(0L, loader.cachedBytes())
+        scope.cancel()
+    }
+
+    @Test
+    fun getAfterClearFetchesAgain() = runBlocking {
+        val calls = AtomicInteger(0)
+        val loader = BoundedLoader<Int, String>(1, 1024, scope(), { 1L }) {
+            calls.incrementAndGet()
+            "v"
+        }
+        assertEquals("v", loader.get(1))
+        assertEquals(1L, loader.cachedBytes())
+        loader.clear()
+        assertEquals(0L, loader.cachedBytes())
+        assertEquals("v", loader.get(1))
+        assertEquals(2, calls.get())
+    }
+
+    @Test
+    fun invalidateDropsOnlyThatLruEntry() = runBlocking {
+        val fetches = AtomicInteger(0)
+        val loader = BoundedLoader<Int, String>(1, 1024, scope(), { 1L }) {
+            fetches.incrementAndGet()
+            "v$it"
+        }
+        loader.get(1)
+        loader.get(2)
+        loader.invalidate(1)
+        assertEquals(1L, loader.cachedBytes())
+        loader.get(1)
+        loader.get(2)
+        assertEquals(3, fetches.get())
     }
 }

@@ -27,7 +27,7 @@ class ApplicationViewParserTest {
             .filter { !java.lang.reflect.Modifier.isStatic(it.modifiers) }
             .onEach { it.isAccessible = true }
             .sortedBy { it.name }
-        assertEquals("ApplicationCard grew — re-verify the NPI sweep", 10, props.size)
+        assertEquals("ApplicationCard grew — re-verify the NPI sweep", 12, props.size)
         return buildString {
             props.forEach { p ->
                 when (val v = p.get(card)) {
@@ -96,6 +96,10 @@ class ApplicationViewParserTest {
         assertEquals(3, card.historyCounts.first { it.first == "STP" }.second)
         assertEquals(0, card.historyCounts.first { it.first == "Teen" }.second)
         assertEquals("2015-1-15, Dhamma sota sohna", card.firstCourse)
+        assertEquals("2025-12-12, Dhamma Sudha", card.lastCourse)
+        // Live /application-view Course History has date+location only.
+        assertEquals("", card.firstCourseTeacher)
+        assertEquals("", card.lastCourseTeacher)
         assertEquals("1 hr daily, both sittings", card.practiceDetails)
 
         // Six health rows, labels verbatim, answers verbatim.
@@ -128,5 +132,58 @@ class ApplicationViewParserTest {
         // Empty history: all ten zeros, meta verbatim `-`.
         assertTrue(card.historyCounts.all { it.second == 0 })
         assertEquals("-", card.firstCourse)
+        assertEquals("", card.firstCourseTeacher)
+        assertEquals("", card.lastCourseTeacher)
+    }
+
+    @Test
+    fun firstAndLastCourseTeacherParseWhenCourseHistoryPrintsThem() {
+        val live = MockFixtures.applicationViewHtml(4)
+        val html = live.replace(
+            """<span class="av-label">Practice Details</span>""",
+            """<span class="av-label">First Course Teacher</span><span class="av-val">S.N. Goenka</span></div>""" +
+                """<div class="av-row"><span class="av-label">Last Course Teacher</span><span class="av-val">Uma Rangan</span></div>""" +
+                """<div class="av-row"><span class="av-label">Practice Details</span>""",
+        )
+        val card = ApplicationViewParser.parse(html)
+        assertEquals("S.N. Goenka", card.firstCourseTeacher)
+        assertEquals("Uma Rangan", card.lastCourseTeacher)
+        assertEquals("1 hr daily, both sittings", card.practiceDetails)
+        assertFalse(card.toString().contains("S.N. Goenka"))
+    }
+
+    @Test
+    fun teacherParenSUnderFirstAndMostRecentCourse() {
+        val live = MockFixtures.applicationViewHtml(4)
+        val html = live.replace(
+            """<span class="av-label">Last Course</span><span class="av-val">2025-12-12, Dhamma Sudha</span></div>""" +
+                """<div class="av-row"><span class="av-label">Practice Details</span>""",
+            """<span class="av-label">Teacher(s)</span><span class="av-val">Unknown</span></div>""" +
+                """<div class="av-row"><span class="av-label">Most Recent Course (Sat)</span>""" +
+                """<span class="av-val">2026-2-1, Example Place</span></div>""" +
+                """<div class="av-row"><span class="av-label">Teacher(s)</span>""" +
+                """<span class="av-val">Mr. Example</span></div>""" +
+                """<div class="av-row"><span class="av-label">Practice Details</span>""",
+        )
+        val card = ApplicationViewParser.parse(html)
+        assertEquals("Unknown", card.firstCourseTeacher)
+        assertEquals("Mr. Example", card.lastCourseTeacher)
+        assertEquals("2026-2-1, Example Place", card.lastCourse)
+        assertEquals("1 hr daily, both sittings", card.practiceDetails)
+    }
+
+    @Test
+    fun longCourseDetailsTeacherNeverBecomesCourseHistoryTeacher() {
+        val live = MockFixtures.applicationViewHtml(4)
+        val html = live.replace(
+            """<span class="av-label">Personal tragedy</span>""",
+            """<span class="av-label">Teacher</span><span class="av-val">LC decoy teacher</span></div>""" +
+                """<div class="av-row"><span class="av-label">Personal tragedy</span>""",
+        )
+        val card = ApplicationViewParser.parse(html)
+        assertEquals("", card.firstCourseTeacher)
+        assertEquals("", card.lastCourseTeacher)
+        val flat = flatten(card)
+        assertFalse(flat.contains("LC decoy teacher"))
     }
 }

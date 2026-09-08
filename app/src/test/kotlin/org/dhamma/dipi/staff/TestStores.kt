@@ -13,6 +13,7 @@ import okhttp3.mockwebserver.MockWebServer
 import org.dhamma.dipi.staff.data.ConnectivityMonitor
 import org.dhamma.dipi.staff.data.PhotoEditStore
 import org.dhamma.dipi.staff.data.StaffRepository
+import org.dhamma.dipi.staff.datastore.PhotoCorrectionStore
 import org.dhamma.dipi.staff.database.ApplicantDao
 import org.dhamma.dipi.staff.database.ApplicantEntity
 import org.dhamma.dipi.staff.database.OutboxDao
@@ -123,6 +124,9 @@ fun buildTestVm(
         courseOpsStore,
         PhotoEditStore(app, json),
         PhotoLoader(OkHttpClient(), true, base, server),
+        PhotoCorrectionStore {
+            app.getSharedPreferences("pc_$pinPrefsName", Context.MODE_PRIVATE)
+        },
         ConnectivityMonitor(app),
     )
     return TestVm(vm, sessionStore, courseOpsStore, tokens)

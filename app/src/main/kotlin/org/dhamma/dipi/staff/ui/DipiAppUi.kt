@@ -6,6 +6,8 @@ import org.dhamma.dipi.staff.whatsapp.WhatsAppSettingsEntry
 import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -79,6 +81,7 @@ import org.dhamma.dipi.staff.desk.deskWaNumber
 import org.dhamma.dipi.staff.model.SheetPayload
 import org.dhamma.dipi.staff.model.TabletMode
 import org.dhamma.dipi.staff.model.whatsAppMessage
+import org.dhamma.dipi.staff.photos.PhotoReviewAction
 import org.dhamma.dipi.staff.photos.PhotoReviewScreen
 import org.dhamma.dipi.staff.settings.PinDialog
 import org.dhamma.dipi.staff.settings.PinSetupDialog
@@ -178,11 +181,12 @@ fun DipiAppUi(vm: DeskViewModel, deskSiteLauncher: DeskSiteLauncher? = null) {
                     )
                 }
                 Box(Modifier.weight(1f)) {
-                    // TeacherRoll joins Login/Centre as an exit-dialog root;
-                    // in course ops every non-Settings screen renders the
-                    // teacher surface, so only Settings can go back.
+                    // TeacherRoll (and the seating plan sitting on the same
+                    // teacherView) is an exit-dialog root. The student card
+                    // must pop first — otherwise Android Back asks to exit.
                     val canBack = if (courseOps) {
-                        state.screen == DeskScreen.Settings
+                        state.screen == DeskScreen.Settings ||
+                            state.screen == DeskScreen.TeacherCard
                     } else {
                         state.screen != DeskScreen.Login &&
                             state.screen != DeskScreen.Centre &&
@@ -849,19 +853,36 @@ private fun DeskBody(vm: DeskViewModel, state: DeskUiState, wide: Boolean) {
         when (state.screen) {
             DeskScreen.Today -> today(Modifier.fillMaxSize())
             DeskScreen.Card -> CardPane(vm, state)
-            DeskScreen.Photos -> PhotoReviewScreen(
-                people = state.rows,
-                suggestions = state.photos,
-                edits = state.edits,
-                filter = state.photoFilter,
-                onFilter = vm::setPhotoFilter,
-                onRotate = vm::rotatePhoto,
-                onCrop = vm::cropPhoto,
-                onDone = vm::markPhotoDone,
-                onUpload = vm::uploadPhotos,
-                pendingUploads = vm.pendingUploads(),
-                loadPhoto = vm::loadPhoto,
-            )
+            DeskScreen.Photos -> {
+                val photoState by vm.photoReview.state.collectAsStateWithLifecycle()
+                val photoContext = LocalContext.current
+                val exportMime = photoState.exportRequest?.mime ?: "image/jpeg"
+                val export = rememberLauncherForActivityResult(
+                    ActivityResultContracts.CreateDocument(exportMime),
+                ) { uri ->
+                    if (uri != null) {
+                        vm.photoReview.dispatch(PhotoReviewAction.ExportTo(uri.toString()))
+                    } else {
+                        vm.photoReview.dispatch(PhotoReviewAction.CancelExport)
+                    }
+                }
+                LaunchedEffect(vm) {
+                    vm.photoReview.openOutput = { raw ->
+                        photoContext.contentResolver.openOutputStream(Uri.parse(raw))
+                    }
+                }
+                LaunchedEffect(photoState.exportRequest) {
+                    val req = photoState.exportRequest ?: return@LaunchedEffect
+                    export.launch(req.name)
+                }
+                PhotoReviewScreen(
+                    state = photoState,
+                    onAction = vm.photoReview::dispatch,
+                    loadPreview = vm.photoReview::preview,
+                    loadOriginal = vm.photoReview::original,
+                    loadCorrected = vm.photoReview::corrected,
+                )
+            }
             DeskScreen.Summary -> DaySummaryScreen(course, state.rows)
             DeskScreen.Settings -> SettingsPane(vm, state)
             else -> today(Modifier.fillMaxSize())

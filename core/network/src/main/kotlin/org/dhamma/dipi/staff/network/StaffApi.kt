@@ -3,6 +3,7 @@ package org.dhamma.dipi.staff.network
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import okhttp3.RequestBody
 import okhttp3.ResponseBody
 import org.dhamma.dipi.staff.model.SheetExport
 import org.dhamma.dipi.staff.model.SheetPayload
@@ -183,11 +184,22 @@ interface StaffApi {
 
     /**
      * The desk's own application edit form (perm `edit application`,
-     * dh_manageapp.module:325). Display-only in the app: the page includes
-     * NPI, so the body must stay in memory — never persisted, never logged.
+     * dh_manageapp.module:325). Used to echo the current form for a photo
+     * write. The body includes NPI and must stay in memory — never persisted,
+     * never logged.
      */
     @GET("/app/{id}/edit")
     suspend fun appEditPage(@Path("id") id: Int): Response<ResponseBody>
+
+    /**
+     * Full applicant-form submit (`dh_ma_applicant_form_submit`). Action comes
+     * from the GET form. Multipart: echoed fields plus the form's file part.
+     */
+    @POST
+    suspend fun postApplicantEdit(
+        @Url action: String,
+        @Body body: RequestBody,
+    ): Response<ResponseBody>
 
     /**
      * The application as the applicant wrote it (course-ops student card,

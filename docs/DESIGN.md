@@ -516,7 +516,7 @@ Shared frame geometry for all three teacher screens: 1280×900dp window · statu
 
 **Purpose:** the whole reason the teacher has the tablet. What in this student's past or present could affect his meditation, in the student's own words.
 
-**Header band 60dp** — 44dp back `‹`; then name Barlow Condensed 600 24sp / ls 0.2 with a status chip 10dp right (mono 500 10sp / ls 1.2 / `accent700` on `accent100`, radius 3dp, padding 5/7dp, e.g. `OLD · OM7`); under it (4dp) the placement line Roboto 12.5sp `neutral600` — `Mbk-37 · seat E1 · Group 1 · TAM`. Right: prev/next pair, 8dp gap, **48dp** tall, min-width 48dp, padding 0 16dp, 1dp `neutral300`, radius 6dp, glyph Roboto 20sp `neutral600`. They walk the **current group in seniority order**, so a teacher can read one group through without returning to the list.
+**Header band 60dp** — 44dp back `‹`; then name Barlow Condensed 600 24sp / ls 0.2 with a status chip 10dp right (mono 600 16sp / ls 0.6 / `accent700` on `accent100`, radius 4dp, padding 6/10dp, e.g. `OLD · OM7`); under it (4dp) the placement line Roboto 12.5sp `neutral600` — `Mbk-37 · seat E1 · Group 1 · TAM`. Right: prev/next pair, 8dp gap, **48dp** tall, min-width 48dp, padding 0 16dp, 1dp `neutral300`, radius 6dp, glyph Roboto 20sp `neutral600`. They walk the **current group in seniority order**, so a teacher can read one group through without returning to the list.
 
 **Body** — two columns, 18dp gap: left **404dp fixed**, right flexes.
 
@@ -524,11 +524,11 @@ Shared frame geometry for all three teacher screens: 1280×900dp window · statu
 
 - Photo + personal, 14dp gap.
   - **Photo 132×158dp**, radius 6dp, `#E7E7EA` on 1dp `neutral300`. Placeholder text mono 500 9sp/1.5 / ls 1 / `neutral500`, centred. Real source: the photo on the application. Never cropped to a circle; never enlarged past 132dp.
-  - **Personal table**, flexes: rows 22.5dp, 1dp bottom `#EDEDF1`; key Roboto 12sp `neutral500` left, value **IBM Plex Mono 12.5sp** `text` right. Keys, in order, exactly as `/application-view` labels them: Gender · Date of Birth · Age · Nationality · Old / New · Monk / Nun · A-List · Applied On. Missing values render the page's own `-`.
+  - **Personal table**, flexes: rows 22.5dp, 1dp bottom `#EDEDF1`; key Roboto 12sp `neutral500` left, value **IBM Plex Mono 12.5sp** `text` right. Card hides Gender, Nationality, Monk / Nun, Applied On and A-List. Remaining Personal keys plus Room / Seat / City / Occupation / Education / Languages sit beside the photo. Missing values render the page's own `-`.
 - **COURSE HISTORY** kicker, 8dp below, then a `repeat(5, 1fr)` grid, 6dp gap, of 50dp count tiles: radius 5dp, 1dp border, centred column, 3dp gap — value IBM Plex Mono 600 18sp, key mono 500 8.5sp / ls 0.9 / `neutral500`. Ten tiles, in the page's order: `10-DAY TEEN STP SPECIAL TSC 20-DAY 30-DAY 45-DAY 60-DAY SERVICE`.
   - **Non-zero** tile: `accent100 #EEF6FF` on 1dp `accent300`, value `accent700`.
   - **Zero** tile: `#FAFAFB` on 1dp `#E7E7EA`, value `neutral400`. Zeros stay on screen — the shape of the history is the information.
-- **History meta** rows, 8dp below: min-height 26dp, 1dp bottom `#EDEDF1`, 10dp gap — key 104dp Roboto 12sp/1.3 `neutral500`, value Roboto 13sp/1.3 `text`, wrapping. Keys: First Course · Last Course · Practice Details. Values verbatim (`2025-1-15, Dhamma sota sohna`).
+- **History meta** rows, 8dp below: min-height 26dp, 1dp bottom `#EDEDF1`, 10dp gap — key 104dp Roboto 12sp/1.3 `neutral500`, value Roboto 13sp/1.3 `text`, wrapping. Keys: First Course · First Course Teacher · Last Course · Last Course Teacher · Practice Details. Teacher values come from Course History `Teacher(s)` (or the edit form's two teacher inputs when the view page omits them). Values verbatim.
 
 **Right column — what the applicant wrote**
 
@@ -973,6 +973,22 @@ system browser’s sign-in/edit flow. No confirmation dialog or copied app sessi
 On return, refresh the same course once, retaining selection and recomputing audit.
 The sheet viewer remains for exports, not application editing.
 
+
+## Course ops student card teachers + chip (1.45.3)
+
+Owner follow-up 2026-09-08: Course History `Teacher(s)` under First Course / Most Recent Course map to first/last course teacher (verbatim, including `Unknown`). Live `/application-view` still prints date + location only, so opening a card may GET the edit form and keep only `ac_first_teacher_str` / `ac_last_teacher_str`. Long Course Details is never read. The `OLD · OM5` chip is 16sp. A-List leaves the card with the other hidden Personal rows. Course ops stays read-only (GET only).
+
+## Course ops seating + student card polish (1.45.2)
+
+Owner review of Course ops seating → applicant (2026-09-08): seat-cell and Teacher-list AGE use a lighter readable shade; the student card keeps Room and Seat beside the photo and drops them from the header kicker; Gender, Nationality, Monk / Nun and Applied On leave the card; First / Last Course Teacher render from Course History when the page prints those labels (live `/application-view` currently has date + location only); dest chips and card ‹ › gain elevation and larger targets; Android Back pops the card to the seating plan. Occupied backrest seats draw a dark 3dp bar along the top edge instead of the faint `⌐` glyph. Course ops stays read-only.
+
+## Owner amendment: photo correction updates the desk (1.45.1)
+
+Local Track A rotate/crop/scan/export stays. Owner 2026-09-07: a corrected photo must update the remote application. There is no photo-only backend write. The app may replay the full applicant edit form: `GET /app/{id}/edit`, echo every current field, attach the JPEG on the form's file input (`files[upload_photo]`), `POST` the form action. Fail closed if tokens or the file field are missing. Never invent field values, never send `Approved`, never add `?r=`. UI says this updates the application on the desk. Course ops stays read-only. PHP unchanged; no `/app/{aid}/photo` and no live `/staff/*`.
+
+## Owner amendment: native photo correction (1.45.0)
+
+Replace preview-only Photo review with source-bound local rotation, 13:14 crop, conservative on-device suggestions (bundled ML Kit face-detection 16.1.7), explicit approval and document-picker export. Grid uses Fit until a correction is applied. No green Good badge before review. Export never reports Uploaded. Course ops remains read-only. Edit on desk site stays the browser handoff.
 
 ## Owner amendment: Room Chart (1.44.0)
 

@@ -443,7 +443,7 @@ Legend: **have** = live desk path already used; **stub** = screen exists but not
 | Applicant card | worklist expand `format(d)` + public `$rs` | **have** | Android card is narrower (no medical, no street, no edit, no NPI). |
 | Change-status sheet | worklist ChangeStatus → `GET /change-status/{id}?s=&l=0&c=` | **have** | Desk may prompt for letter; app always `l=0`. Desk offers `Approved` on LC rows; app must not send it. |
 | Day 0 summary | `#day-summary` inside `dh_zero_main` / `dh_manageapp_attended` | **stub** | App computes Expected/Arrived from worklist; seating request table is dashes. No `app-update-attended`. |
-| Photo review | `show-photo/%app_id` (read) only | **stub** | No live photo-upload route in `hook_menu`. `a_photo` is displayed; upload is on the full applicant form. |
+| Photo review | `show-photo/%app_id` (read) + `GET`/`POST /app/{id}/edit` | **have** | Native rotate/crop/scan/export, then Update on desk replays the full applicant form with the corrected file part. PHP unchanged. No `/app/{aid}/photo`. Course ops cannot upload. |
 | Settings | — (no desk settings page for theme/remember-me) | **have** (app-only) | Desk equivalent is Drupal user + `centre/{id}/edit` (centre config, not app chrome). |
 
 #### 4.2 Desk page / action → Android v1
@@ -469,7 +469,7 @@ Legend: **have** = live desk path already used; **stub** = screen exists but not
 | Bulk mail / SMS report / course report / daily activity | **out of scope** |
 | AT schedule + assign teacher | **out of scope** |
 | Referral + center-referral CRUD | **out of scope** (referral **flag** may appear on card if `referral` in dataset; guess) |
-| Photo upload / geometry review | **stub** (mock only) |
+| Photo upload / geometry review | **have** local geometry + export; **stub** shared write |
 | LC AT-review Approved path | **out of scope** (app never sends `Approved`) |
 | Logout / erase local | **have** |
 

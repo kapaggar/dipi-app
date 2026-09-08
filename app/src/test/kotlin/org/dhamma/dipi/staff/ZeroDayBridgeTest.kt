@@ -14,6 +14,7 @@ import org.dhamma.dipi.staff.database.ApplicantDao
 import org.dhamma.dipi.staff.database.ApplicantEntity
 import org.dhamma.dipi.staff.database.OutboxDao
 import org.dhamma.dipi.staff.database.OutboxEntity
+import org.dhamma.dipi.staff.datastore.PhotoCorrectionStore
 import org.dhamma.dipi.staff.datastore.SessionStore
 import org.dhamma.dipi.staff.model.ApplicantCard
 import org.dhamma.dipi.staff.model.ApplicantId
@@ -114,6 +115,9 @@ class ZeroDayBridgeTest {
             testCourseOpsStore(),
             PhotoEditStore(app, json),
             PhotoLoader(OkHttpClient(), true, base, server),
+            PhotoCorrectionStore {
+                app.getSharedPreferences("pc_zeroday", android.content.Context.MODE_PRIVATE)
+            },
             ConnectivityMonitor(app),
         )
     }

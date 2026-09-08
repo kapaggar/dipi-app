@@ -21,6 +21,7 @@ import okhttp3.OkHttpClient
 import okhttp3.mockwebserver.MockWebServer
 import org.dhamma.dipi.staff.data.ConnectivityMonitor
 import org.dhamma.dipi.staff.data.PhotoEditStore
+import org.dhamma.dipi.staff.datastore.PhotoCorrectionStore
 import org.dhamma.dipi.staff.desk.SheetStylesheet
 import org.dhamma.dipi.staff.desk.hardenForSheets
 import org.dhamma.dipi.staff.data.StaffRepository
@@ -156,6 +157,10 @@ class SheetViewerTest {
             testCourseOpsStore(),
             PhotoEditStore(app, json),
             PhotoLoader(OkHttpClient(), true, base, server),
+            PhotoCorrectionStore {
+                RuntimeEnvironment.getApplication()
+                    .getSharedPreferences("pc_sheet", android.content.Context.MODE_PRIVATE)
+            },
             ConnectivityMonitor(app),
         )
     }
