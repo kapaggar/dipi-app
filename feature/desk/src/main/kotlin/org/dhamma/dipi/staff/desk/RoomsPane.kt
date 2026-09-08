@@ -319,9 +319,9 @@ private fun SyncRefusals(roll: List<ApplicantCard>, failures: List<RoomSyncFailu
 /**
  * Occupied cells keep the accent fill. Old is a solid accent border; New is
  * the same stroke, short-dashed. Age is the number only — muted 12sp — at
- * both top-right and bottom-right on reserved corners. A row with no
- * allocated rooms uses the compact height (room number only); width stays
- * the column weight. Empty cells stay the near-white hairline they were.
+ * the reserved top-right corner. A row with no allocated rooms uses the
+ * compact height (room number only); width stays the column weight. Empty
+ * cells stay the near-white hairline they were.
  */
 @Composable
 private fun RoomCell(
@@ -400,7 +400,6 @@ private fun RoomCell(
                     Modifier.padding(
                         end = if (hasAge) AgeReserveEnd else 0.dp,
                         top = if (hasAge) AgeReserveTop else 0.dp,
-                        bottom = if (hasAge) AgeReserveBottom else 0.dp,
                     ),
                     verticalArrangement = Arrangement.spacedBy(2.dp),
                 ) {
@@ -418,23 +417,18 @@ private fun RoomCell(
             }
         }
         if (hasAge) {
-            AgeCorner(ages, Alignment.TopEnd, "room-cell-age-top")
-            AgeCorner(ages, Alignment.BottomEnd, "room-cell-age")
+            AgeCorner(ages)
         }
     }
 }
 
 @Composable
-private fun BoxScope.AgeCorner(
-    ages: List<Int>,
-    align: Alignment,
-    tag: String,
-) {
+private fun BoxScope.AgeCorner(ages: List<Int>) {
     Column(
         Modifier
-            .align(align)
+            .align(Alignment.TopEnd)
             .padding(AgeEdgePad)
-            .testTag(tag),
+            .testTag("room-cell-age-top"),
         horizontalAlignment = Alignment.End,
     ) {
         ages.forEach { years ->
@@ -499,7 +493,6 @@ private val RoomCellCompactHeight = 42.dp
 private val AgeEdgePad = 8.dp
 private val AgeReserveEnd = 28.dp
 private val AgeReserveTop = 22.dp
-private val AgeReserveBottom = 22.dp
 
 /** Border samples once above the grid: solid Old, short-dashed New, faint Available. */
 @Composable

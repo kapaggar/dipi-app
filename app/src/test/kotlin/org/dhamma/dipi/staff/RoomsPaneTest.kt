@@ -272,8 +272,8 @@ class RoomsPaneTest {
                     onSyncRooms = { error("Finalized course cannot sync") })
             }
         }
-        rule.onAllNodesWithText("61").assertCountEquals(2)
-        rule.onNodeWithTag("room-cell-age").assertIsDisplayed()
+        rule.onAllNodesWithText("61").assertCountEquals(1)
+        rule.onNodeWithTag("room-cell-age").assertDoesNotExist()
         rule.onNodeWithTag("room-cell-age-top").assertIsDisplayed()
         rule.onNodeWithText("Age 61 · OLD").assertDoesNotExist()
         rule.onNodeWithText("Age 61").assertDoesNotExist()
@@ -312,7 +312,7 @@ class RoomsPaneTest {
                 )
             }
         }
-        rule.onAllNodesWithText("28").assertCountEquals(2)
+        rule.onAllNodesWithText("28").assertCountEquals(1)
         rule.onNodeWithText("Age 28").assertDoesNotExist()
         rule.onNodeWithText("NEW").assertDoesNotExist()
         rule.onNode(hasTestTag("room-cell-occupied").and(hasContentDescription("New student room")))
@@ -320,7 +320,7 @@ class RoomsPaneTest {
     }
 
     @Test
-    fun ageSitsInTheReservedBottomRightCorner() {
+    fun ageSitsInTheReservedTopRightCorner() {
         rule.setContent {
             DipiTheme {
                 RoomsPane(
@@ -331,21 +331,14 @@ class RoomsPaneTest {
             }
         }
         val name = rule.onNodeWithText("Priyadarshini Kulkarniswamy").getBoundsInRoot()
-        val age = rule.onNodeWithTag("room-cell-age").getBoundsInRoot()
         val ageTop = rule.onNodeWithTag("room-cell-age-top").getBoundsInRoot()
         val cell = rule.onNodeWithTag("room-cell-occupied").getBoundsInRoot()
-        val noOverlap = name.right.value <= age.left.value + 1f ||
-            name.bottom.value <= age.top.value + 1f
-        assertTrue("name $name overlaps age $age", noOverlap)
+        rule.onNodeWithTag("room-cell-age").assertDoesNotExist()
         val noTopOverlap = name.right.value <= ageTop.left.value + 1f ||
             name.top.value >= ageTop.bottom.value - 1f
         assertTrue("name $name overlaps top age $ageTop", noTopOverlap)
-        assertTrue("age is right of cell centre", age.left.value >= (cell.left.value + cell.right.value) / 2f)
-        assertTrue("age is below cell centre", age.top.value >= (cell.top.value + cell.bottom.value) / 2f)
         assertTrue("top age is right of cell centre", ageTop.left.value >= (cell.left.value + cell.right.value) / 2f)
         assertTrue("top age is above cell centre", ageTop.bottom.value <= (cell.top.value + cell.bottom.value) / 2f)
-        assertTrue("age stays inside the cell", age.right.value <= cell.right.value + 1f)
-        assertTrue("age stays inside the cell", age.bottom.value <= cell.bottom.value + 1f)
         assertTrue("top age stays inside the cell", ageTop.right.value <= cell.right.value + 1f)
         assertTrue("top age stays inside the cell", ageTop.top.value >= cell.top.value - 1f)
     }

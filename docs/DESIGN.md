@@ -974,6 +974,10 @@ On return, refresh the same course once, retaining selection and recomputing aud
 The sheet viewer remains for exports, not application editing.
 
 
+## Room Chart top-right age only (1.46.1)
+
+Owner 2026-09-08: Room Chart age is the muted 12sp `neutral600` number at the **reserved top-right only**. The lower-right age is gone. Empty-row compact height, Old/New borders, and the occupancy legend are unchanged.
+
 ## Course report teachers + audit parity (1.46.0)
 
 Owner 2026-09-08: the native Course report reads `ConductingTeachers` / `AssistingTeachers` name columns from the desk CSV (not only C/A/TR counts) and prints those names under the course title. Audit ports course-audit `aadhar_length` / `aadhar_masked` / `id_type_mismatch` / `pan_invalid` against in-memory `SensitiveInfo`; finding text is length or shape only — never the raw Aadhaar/PAN in Room. Duplicate-phone hard detail names both people and the public worklist number. Room Chart: a row with no allocated rooms uses a compact height (room number only, same cell width); occupied rows stay two-line+age. Age is muted 12sp at **top-right and bottom-right** on reserved corners. Settings course-ops "Health answers" is icon + one sentence; the long value no longer crushes the label into leftover glyphs.
