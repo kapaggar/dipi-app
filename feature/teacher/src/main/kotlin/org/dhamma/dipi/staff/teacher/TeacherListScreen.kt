@@ -1,11 +1,15 @@
 package org.dhamma.dipi.staff.teacher
 
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -14,6 +18,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -34,6 +39,9 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -45,7 +53,7 @@ import org.dhamma.dipi.staff.model.RollRow
 import org.dhamma.dipi.staff.model.TeacherRoll
 import org.dhamma.dipi.staff.ui.theme.DipiCondensed
 import org.dhamma.dipi.staff.ui.theme.DipiMono
-import org.dhamma.dipi.staff.ui.theme.Industry
+import org.dhamma.dipi.staff.ui.theme.ThemeIndustry as Industry
 
 /** The header's two-way segmented control over the ONE fetched response. */
 enum class TeacherView { SENIORITY, SEATING }
@@ -53,9 +61,9 @@ enum class TeacherView { SENIORITY, SEATING }
 // Fixed hexes DESIGN.md § Course ops names outside the ramp tokens:
 // row hairline · card hairline · rules.
 private val PillFill = Color(0xFFFAFAFB)
-private val RowHairline = Color(0xFFEDEDF1)
-private val CardHairline = Color(0xFFDEDEE1)
-private val Rule = Color(0xFFE0E0E3)
+private val RowHairline: Color @Composable get() = Industry.neutral200
+private val CardHairline: Color @Composable get() = Industry.neutral300
+private val Rule: Color @Composable get() = Industry.neutral300
 
 private val SnW = 30.dp
 private val RoomW = 78.dp
@@ -130,13 +138,22 @@ fun TeacherListScreen(
             offline -> CourseOpsOfflineStrip(cachedAt)
             prefetch != null -> PullProgressStrip(prefetch.first, prefetch.second)
         }
-        Header(courseLine, roll.rollCount, view, onView, onSettings)
+        Header(
+            courseLine,
+            roll.rollCount,
+            groups.sumOf { it.rows.size },
+            groupFilter != null,
+            view,
+            onView,
+            onSettings,
+        )
         GroupFilterBand(roll.groups, groupFilter, onGroupFilter)
-        Box(Modifier.weight(1f)) {
+        BoxWithConstraints(Modifier.weight(1f)) {
+            val tableWidth = maxOf(maxWidth, 1100.dp)
             if (filterEmpty) {
                 FilterEmptyBody(groups.firstOrNull(), roll, onGroupFilter)
             } else {
-                LazyColumn(state = listState, modifier = Modifier.fillMaxSize().testTag("teacher-roll")) {
+                LazyColumn(state = listState, modifier = Modifier.horizontalScroll(rememberScrollState()).width(tableWidth).fillMaxHeight().testTag("teacher-roll")) {
                     groups.forEach { group ->
                         stickyHeader(key = "band-${group.key}") { GroupBand(group) }
                         item(key = "cols-${group.key}") { ColumnHeader(showCourses) }
@@ -160,41 +177,43 @@ fun TeacherListScreen(
  * structurally 0 here — nothing in course ops writes — so the offline half
  * is the whole strip.
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun CourseOpsOfflineStrip(cachedAt: String? = null) {
     val age = cachedAt?.let { "showing the roll cached at $it" } ?: "showing cached list"
     Column(Modifier.fillMaxWidth().testTag("offline-strip")) {
-        Row(
-            Modifier.fillMaxWidth().height(38.dp).background(Industry.neutral200).padding(horizontal = 20.dp),
-            verticalAlignment = Alignment.CenterVertically,
+        FlowRow(
+            Modifier.fillMaxWidth().heightIn(min = 38.dp).background(Industry.neutral200).padding(horizontal = 20.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Text("◍ Offline - $age", color = Industry.neutral800, fontSize = 14.sp)
             Text(
                 "nothing is waiting to send; this mode never writes",
-                color = Industry.neutral600,
+                color = Industry.secondary,
                 fontSize = 12.5.sp,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
+                    )
         }
         Box(Modifier.fillMaxWidth().height(1.dp).background(CardHairline))
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun Header(
     courseLine: String,
     rollCount: Int,
+    viewCount: Int,
+    filtered: Boolean,
     view: TeacherView,
     onView: (TeacherView) -> Unit,
     onSettings: () -> Unit,
 ) {
-    Row(
-        Modifier.fillMaxWidth().height(68.dp).padding(horizontal = 20.dp),
-        verticalAlignment = Alignment.CenterVertically,
+    FlowRow(
+        Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Column(Modifier.weight(1f)) {
+        Column(Modifier.widthIn(max = 360.dp)) {
             Text(
                 "Teacher list",
                 fontFamily = DipiCondensed,
@@ -206,9 +225,10 @@ private fun Header(
             )
             Spacer(Modifier.height(4.dp))
             Text(
-                "$courseLine · $rollCount on the roll",
+                if (filtered) "$viewCount in this view · $rollCount overall"
+                else "$courseLine · $rollCount on the roll",
                 fontSize = 12.5.sp,
-                color = Industry.neutral600,
+                color = Industry.secondary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -227,10 +247,10 @@ private fun Header(
             Modifier
                 .size(48.dp)
                 .clickable(onClick = onSettings, role = Role.Button)
-                .testTag("teacher-settings"),
+                .semantics { contentDescription = "Settings" }.testTag("teacher-settings"),
             contentAlignment = Alignment.Center,
         ) {
-            Text("⚙", fontSize = 18.sp, color = Industry.neutral600)
+            Text("⚙", fontSize = 18.sp, color = Industry.secondary)
         }
     }
 }
@@ -245,9 +265,9 @@ private fun DestinationButton(
     val shape = RoundedCornerShape(8.dp)
     Row(
         Modifier
-            .height(52.dp)
+            .heightIn(min = 52.dp)
             .shadow(3.dp, shape, clip = false)
-            .background(Color.White, shape)
+            .background(Industry.card, shape)
             .then(
                 if (selected) {
                     Modifier.border(1.5.dp, Industry.accent, shape)
@@ -264,7 +284,7 @@ private fun DestinationButton(
             label,
             fontSize = 14.5.sp,
             fontWeight = if (selected) FontWeight.Medium else FontWeight.Normal,
-            color = if (selected) Industry.accent800 else Industry.neutral600,
+            color = if (selected) Industry.accent800 else Industry.secondary,
         )
     }
 }
@@ -279,8 +299,9 @@ private fun GroupFilterBand(
     Row(
         Modifier
             .fillMaxWidth()
-            .height(44.dp)
-            .bottomHairline(Rule)
+            .heightIn(min = 48.dp)
+            .horizontalScroll(rememberScrollState())
+            .bottomHairline(Industry.neutral300)
             .padding(horizontal = 20.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -291,7 +312,7 @@ private fun GroupFilterBand(
             fontWeight = FontWeight.Medium,
             fontSize = 9.sp,
             letterSpacing = 1.7.sp,
-            color = Industry.neutral500,
+            color = Industry.caption,
             modifier = Modifier.padding(end = 2.dp),
         )
         groups.forEach { g ->
@@ -299,17 +320,17 @@ private fun GroupFilterBand(
             val shape = RoundedCornerShape(15.dp)
             Row(
                 Modifier
-                    .height(30.dp)
+                    .heightIn(min = 48.dp)
                     .then(
                         if (selected) {
                             Modifier.background(Industry.accent100, shape).border(1.5.dp, Industry.accent, shape)
                         } else {
-                            Modifier.background(PillFill, shape).border(1.dp, Rule, shape)
+                            Modifier.background(Industry.card, shape).border(1.dp, Rule, shape)
                         },
                     )
                     .clickable(role = Role.Button) { onGroupFilter(if (selected) null else g.key) }
                     .padding(horizontal = 12.dp)
-                    .testTag("group-pill-${g.key}"),
+                    .semantics { this.selected = selected }.testTag("group-pill-${g.key}"),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(7.dp),
             ) {
@@ -324,7 +345,7 @@ private fun GroupFilterBand(
                     fontFamily = DipiMono,
                     fontWeight = FontWeight.Medium,
                     fontSize = 11.sp,
-                    color = if (selected) Industry.accent700 else Industry.neutral500,
+                    color = if (selected) Industry.accent700 else Industry.caption,
                 )
             }
         }
@@ -333,7 +354,7 @@ private fun GroupFilterBand(
             val shape = RoundedCornerShape(15.dp)
             Row(
                 Modifier
-                    .height(30.dp)
+                    .heightIn(min = 48.dp)
                     .border(1.dp, Industry.neutral300, shape)
                     .clickable(role = Role.Button) { onGroupFilter(null) }
                     .padding(horizontal = 12.dp)
@@ -343,7 +364,7 @@ private fun GroupFilterBand(
                 Text(
                     "Clear filter ×",
                     fontSize = 12.5.sp,
-                    color = Industry.neutral600,
+                    color = Industry.secondary,
                 )
             }
         }
@@ -423,7 +444,7 @@ private fun HeaderCell(label: String, modifier: Modifier, align: TextAlign = Tex
         fontWeight = FontWeight.Medium,
         fontSize = 9.sp,
         letterSpacing = 1.4.sp,
-        color = Industry.neutral500,
+        color = Industry.caption,
         textAlign = align,
         modifier = modifier.padding(bottom = 4.dp),
     )
@@ -447,10 +468,10 @@ private fun RollRowLine(
         Modifier
             .fillMaxWidth()
             .padding(horizontal = 20.dp)
-            .height(52.dp)
+            .heightIn(min = 52.dp)
             .clickable { onOpen(row) }
-            .bottomHairline(RowHairline)
-            .padding(horizontal = 12.dp)
+            .bottomHairline(Industry.neutral300)
+            .padding(horizontal = 12.dp, vertical = 8.dp)
             .testTag("roll-row"),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -458,26 +479,24 @@ private fun RollRowLine(
             row.sn.toString(),
             fontFamily = DipiMono,
             fontSize = 12.5.sp,
-            color = Industry.neutral400,
+            color = Industry.caption,
             modifier = Modifier.width(SnW),
         )
-        Column(Modifier.weight(1f).width(0.dp).padding(end = 8.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.weight(1f).padding(end = 8.dp)) {
+            Column {
                 Text(
                     row.name,
                     fontSize = 15.5.sp,
                     lineHeight = 17.sp,
                     fontWeight = FontWeight.Medium,
                     color = Industry.text,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f, fill = false),
+                    modifier = Modifier.fillMaxWidth().testTag("roll-name-${row.sn}"),
                 )
                 row.roleTag?.let { tag ->
                     Text(
                         "($tag)",
                         fontSize = 12.sp,
-                        color = Industry.neutral500,
+                        color = Industry.caption,
                         maxLines = 1,
                         modifier = Modifier.padding(start = 7.dp),
                     )
@@ -488,7 +507,7 @@ private fun RollRowLine(
                 foldedLine(row),
                 fontSize = 11.5.sp,
                 lineHeight = 13.sp,
-                color = Industry.neutral500,
+                color = Industry.caption,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -506,7 +525,7 @@ private fun RollRowLine(
             row.age,
             fontFamily = DipiMono,
             fontSize = 14.sp,
-            color = Color(0xFF8A8A8E),
+            color = Industry.caption,
             textAlign = TextAlign.End,
             modifier = Modifier.width(AgeW).testTag("list-age"),
         )
@@ -573,7 +592,7 @@ private fun RollRowLine(
 private fun CourseChip(key: String, count: Int) {
     Row(
         Modifier
-            .height(20.dp)
+            .heightIn(min = 24.dp)
             .background(RowHairline, RoundedCornerShape(3.dp))
             .padding(horizontal = 6.dp)
             .testTag("course-chip-$key"),
@@ -592,7 +611,7 @@ private fun CourseChip(key: String, count: Int) {
             fontFamily = DipiMono,
             fontWeight = FontWeight.Medium,
             fontSize = 11.sp,
-            color = Industry.neutral600,
+            color = Industry.secondary,
         )
     }
 }
@@ -602,7 +621,7 @@ private fun FlagPill(label: String) {
     Row(
         Modifier
             .height(22.dp)
-            .background(Color.White, RoundedCornerShape(11.dp))
+            .background(Industry.card, RoundedCornerShape(11.dp))
             .border(1.dp, if (label == "HLTH") Industry.neutral400 else Industry.neutral300, RoundedCornerShape(11.dp))
             .padding(horizontal = 7.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -613,7 +632,7 @@ private fun FlagPill(label: String) {
             fontWeight = FontWeight.Medium,
             fontSize = 10.sp,
             letterSpacing = 0.8.sp,
-            color = Industry.neutral600,
+            color = Industry.secondary,
         )
     }
 }
@@ -625,7 +644,7 @@ private fun NextGroupFooter(group: RollGroup) {
         Modifier
             .fillMaxWidth()
             .height(40.dp)
-            .background(PillFill)
+            .background(Industry.card)
             .topHairline(Rule)
             .padding(horizontal = 32.dp)
             .testTag("next-group-footer"),
@@ -637,7 +656,7 @@ private fun NextGroupFooter(group: RollGroup) {
             fontFamily = DipiCondensed,
             fontWeight = FontWeight.SemiBold,
             fontSize = 15.sp,
-            color = Industry.neutral600,
+            color = Industry.secondary,
             maxLines = 1,
             modifier = Modifier.weight(1f, fill = false),
         )
@@ -646,9 +665,9 @@ private fun NextGroupFooter(group: RollGroup) {
             fontFamily = DipiMono,
             fontWeight = FontWeight.Medium,
             fontSize = 12.sp,
-            color = Industry.neutral600,
+            color = Industry.secondary,
         )
-        Text("›", fontSize = 15.sp, color = Industry.neutral400)
+        Text("›", fontSize = 15.sp, color = Industry.caption)
     }
 }
 
@@ -657,17 +676,17 @@ private fun NextGroupFooter(group: RollGroup) {
  * course store on entry so the hall reads offline. Same 38dp slot as the
  * offline strip (v6 C7) — tinted because it is live, gone when the pull ends.
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun PullProgressStrip(done: Int, total: Int) {
-    Row(
+    FlowRow(
         Modifier
             .fillMaxWidth()
-            .height(38.dp)
+            .heightIn(min = 38.dp)
             .background(Industry.accent100)
             .bottomHairline(Industry.accent300)
             .padding(horizontal = 20.dp)
             .testTag("pull-progress"),
-        verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Text(
@@ -678,10 +697,8 @@ private fun PullProgressStrip(done: Int, total: Int) {
         Text(
             "flags and health arrive as each one lands",
             fontSize = 12.5.sp,
-            color = Industry.accent600,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f),
+            color = Industry.accent700,
+
         )
         LinearProgressIndicator(
             progress = { if (total == 0) 0f else done.toFloat() / total },
@@ -710,7 +727,7 @@ private fun CoursesCollapsedNotice() {
             fontWeight = FontWeight.Medium,
             fontSize = 10.sp,
             letterSpacing = 1.2.sp,
-            color = Industry.neutral400,
+            color = Industry.caption,
         )
     }
 }
@@ -734,7 +751,7 @@ private fun FilterEmptyBody(
                 .fillMaxWidth()
                 .padding(top = 16.dp)
                 .height(236.dp)
-                .background(PillFill, RoundedCornerShape(8.dp))
+                .background(Industry.card, RoundedCornerShape(8.dp))
                 .border(1.dp, Industry.neutral300, RoundedCornerShape(8.dp))
                 .padding(horizontal = 60.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -752,13 +769,13 @@ private fun FilterEmptyBody(
                 "Choose another group or show all students.",
                 fontSize = 13.5.sp,
                 lineHeight = 20.sp,
-                color = Industry.neutral600,
+                color = Industry.secondary,
                 textAlign = TextAlign.Center,
             )
             Row(
                 Modifier
                     .height(48.dp)
-                    .background(Color.White, RoundedCornerShape(6.dp))
+                    .background(Industry.card, RoundedCornerShape(6.dp))
                     .border(1.dp, Industry.neutral300, RoundedCornerShape(6.dp))
                     .clickable(role = Role.Button) { onGroupFilter(null) }
                     .padding(horizontal = 22.dp)
@@ -779,7 +796,7 @@ private fun FilterEmptyBody(
                 fontWeight = FontWeight.Medium,
                 fontSize = 9.sp,
                 letterSpacing = 1.7.sp,
-                color = Industry.neutral500,
+                color = Industry.caption,
                 modifier = Modifier.padding(top = 18.dp, bottom = 9.dp),
             )
             others.forEach { g ->
@@ -787,8 +804,8 @@ private fun FilterEmptyBody(
                     Modifier
                         .fillMaxWidth()
                         .padding(bottom = 6.dp)
-                        .height(44.dp)
-                        .background(PillFill, RoundedCornerShape(6.dp))
+                        .heightIn(min = 48.dp)
+                        .background(Industry.card, RoundedCornerShape(6.dp))
                         .border(1.dp, Rule, RoundedCornerShape(6.dp))
                         .clickable(role = Role.Button) { onGroupFilter(g.key) }
                         .padding(horizontal = 14.dp)
@@ -809,9 +826,9 @@ private fun FilterEmptyBody(
                         fontFamily = DipiMono,
                         fontWeight = FontWeight.Medium,
                         fontSize = 12.5.sp,
-                        color = Industry.neutral600,
+                        color = Industry.secondary,
                     )
-                    Text("›", fontSize = 15.sp, color = Industry.neutral400, modifier = Modifier.padding(start = 14.dp))
+                    Text("›", fontSize = 15.sp, color = Industry.caption, modifier = Modifier.padding(start = 14.dp))
                 }
             }
         }

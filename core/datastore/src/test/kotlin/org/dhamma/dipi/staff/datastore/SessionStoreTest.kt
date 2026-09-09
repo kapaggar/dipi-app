@@ -54,4 +54,31 @@ class SessionStoreTest {
         assertFalse(becameOff.await())
         assertFalse(store.forceOfflineOnce())
     }
+
+    @Test
+    fun sheetReadingWidthRoundTripsAndClearsOnErase() = runBlocking {
+        val store = store()
+        assertTrue(store.sheetReadableNames.first().isEmpty())
+        store.setSheetScreenWidth(
+            org.dhamma.dipi.staff.model.SheetExport.StudentChit,
+            org.dhamma.dipi.staff.model.SheetScreenWidth.READABLE,
+        )
+        assertEquals(
+            setOf(org.dhamma.dipi.staff.model.SheetExport.StudentChit.name),
+            store.sheetReadableNames.first(),
+        )
+        store.setSheetScreenWidth(
+            org.dhamma.dipi.staff.model.SheetExport.StudentChit,
+            org.dhamma.dipi.staff.model.SheetScreenWidth.FIT,
+        )
+        assertTrue(store.sheetReadableNames.first().isEmpty())
+        store.setSheetScreenWidth(
+            org.dhamma.dipi.staff.model.SheetExport.Day0List,
+            org.dhamma.dipi.staff.model.SheetScreenWidth.READABLE,
+        )
+        assertEquals(
+            setOf(org.dhamma.dipi.staff.model.SheetExport.Day0List.name),
+            store.sheetReadableNames.first(),
+        )
+    }
 }

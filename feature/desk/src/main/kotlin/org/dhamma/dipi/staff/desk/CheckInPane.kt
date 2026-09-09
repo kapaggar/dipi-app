@@ -62,7 +62,7 @@ import org.dhamma.dipi.staff.ui.theme.DeskStyle
 import org.dhamma.dipi.staff.ui.theme.DipiCondensed
 import org.dhamma.dipi.staff.ui.theme.DipiMono
 import org.dhamma.dipi.staff.ui.theme.DipiSans
-import org.dhamma.dipi.staff.ui.theme.Industry
+import org.dhamma.dipi.staff.ui.theme.ThemeIndustry as Industry
 import org.dhamma.dipi.staff.ui.theme.deskCard
 
 /**
@@ -86,23 +86,31 @@ fun CheckInPane(
     onGender: (String) -> Unit = {},
     onSeniority: (String) -> Unit = {},
     onOpen: (ApplicantCard) -> Unit,
+    selectedBlock: RoomBlockKey? = null,
+    onSelectBlock: (RoomBlockKey) -> Unit = {},
 ) {
-    // Desk-level scope: a tablet on the new-female desk sees/counts that subset only.
+    val fullRoll = roll
     val genderScope = deskGenderScope(gender)
-    val scoped = deskRoll(roll, genderScope, deskSeniorityScope(seniority))
-    Row(Modifier.fillMaxSize()) {
+    val listScope = deskRoll(fullRoll, genderScope, deskSeniorityScope(seniority))
+    androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxSize()) {
+    val narrow = maxWidth < 800.dp
+    val content: @Composable (Modifier, Modifier) -> Unit = { listModifier, factsModifier ->
         Column(
-            Modifier
-                .weight(1f)
-                .fillMaxHeight(),
+            listModifier,
         ) {
             if (readOnly) Text("Finalized course · Read only", color = Industry.neutral600,
                 modifier = Modifier.padding(start = 24.dp, top = 16.dp))
             CheckInHeader(
-                scoped, checkIns, scan, filter, gender, seniority,
+                listScope, checkIns, scan, filter, gender, seniority,
                 onScan, onFilter, onGender, onSeniority,
             )
-            val shown = deskRosterRows(scoped, checkIns, scan, filter)
+            val shown = deskRosterRows(listScope, checkIns, scan, filter)
+            Text(
+                "Showing ${shown.size} in this view",
+                fontSize = 12.5.sp,
+                color = Industry.neutral600,
+                modifier = Modifier.padding(start = 24.dp, bottom = 8.dp),
+            )
             if (shown.isEmpty()) {
                 DeskEmpty(
                     "Nobody matches that. Clear the field to see the whole roll.",
@@ -122,7 +130,22 @@ fun CheckInPane(
                 }
             }
         }
-        CheckInSidebar(scoped, checkIns, rooms, genderScope)
+        CheckInSidebar(
+            modifier = factsModifier,
+            listScope = listScope,
+            fullRoll = fullRoll,
+            checkIns = checkIns,
+            rooms = rooms,
+            scope = genderScope,
+            selectedBlock = selectedBlock,
+            onSelectBlock = onSelectBlock,
+        )
+    }
+    if (narrow) {
+        Column(Modifier.fillMaxSize()) { content(Modifier.fillMaxWidth().weight(1f), Modifier.fillMaxWidth().height(220.dp)) }
+    } else {
+        Row(Modifier.fillMaxSize()) { content(Modifier.weight(1f).fillMaxHeight(), Modifier.width(296.dp).fillMaxHeight()) }
+    }
     }
 }
 
@@ -139,9 +162,16 @@ private fun CheckInHeader(
     onGender: (String) -> Unit,
     onSeniority: (String) -> Unit,
 ) {
-    val inCount = roll.count { deskCheckedIn(it, checkIns) }
-    val total = roll.size
-    val pct = if (total == 0) 0f else inCount.toFloat() / total
+    val q = scan.trim().lowercase()
+    val progressScope = roll.filter { card ->
+        q.isEmpty() ||
+            card.confNo?.value.orEmpty().lowercase().contains(q) ||
+            card.displayName.lowercase().contains(q)
+    }
+    val arrivals = deskArrivalCounts(progressScope, checkIns)
+    val inCount = arrivals.arrived
+    val eligible = arrivals.eligible
+    val pct = if (eligible == 0) 0f else inCount.toFloat() / eligible
 
     Column(
         Modifier.padding(start = 24.dp, end = 24.dp, top = 20.dp, bottom = 16.dp),
@@ -157,10 +187,11 @@ private fun CheckInHeader(
                 // The primary row matches the 52dp field; DeskSegmented has no
                 // height parameter, so the padding carries it.
                 DeskSegmented(
-                    listOf("To arrive", "Arrived", "All"),
+                    listOf("To arrive", "Arrived", "Left", "All"),
                     filter,
                     onFilter,
                     verticalPadding = 18.dp,
+                    optionTag = { if (it == "Left") "checkin-tab-left" else null },
                 )
             }
             Row(
@@ -189,19 +220,26 @@ private fun CheckInHeader(
                     color = Industry.accent800,
                 )
                 Text(
-                    " of $total checked in",
+                    " of $eligible arrived",
                     fontSize = 13.sp,
                     color = Industry.neutral600,
                     modifier = Modifier.padding(bottom = 2.dp),
                 )
                 Spacer(Modifier.weight(1f))
                 Text(
-                    "${total - inCount} to arrive",
+                    "${arrivals.pending} to arrive",
                     fontFamily = DipiMono,
                     fontWeight = FontWeight.Medium,
                     fontSize = 13.sp,
                     color = Industry.neutral600,
                     modifier = Modifier.padding(bottom = 2.dp),
+                )
+            }
+            if (arrivals.left > 0) {
+                Text(
+                    if (arrivals.left == 1) "1 Left excluded" else "${arrivals.left} Left excluded",
+                    fontSize = 12.5.sp,
+                    color = Industry.neutral600,
                 )
             }
             val fill by animateFloatAsState(pct, animationSpec = tween(250), label = "progress")
@@ -330,12 +368,14 @@ private fun RosterRow(
     onClick: () -> Unit,
 ) {
     val isIn = record?.checkedIn == true
+    val left = deskIsLeft(card)
     Row(
         Modifier
             .fillMaxWidth()
-            .clickable(enabled = !readOnly, onClick = onClick)
+            .clickable(enabled = !readOnly && !left, onClick = onClick)
             .bottomHairline(Industry.neutral200)
-            .padding(horizontal = 24.dp, vertical = 11.dp),
+            .padding(horizontal = 24.dp, vertical = 11.dp)
+            .then(if (left) Modifier.testTag("checkin-left-row-${card.id.value}") else Modifier),
         horizontalArrangement = Arrangement.spacedBy(14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -362,15 +402,24 @@ private fun RosterRow(
             horizontalArrangement = Arrangement.spacedBy(7.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(
-                card.displayName,
-                fontFamily = DipiSans,
-                fontWeight = FontWeight.Medium,
-                fontSize = 15.5.sp,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                color = Industry.text,
-            )
+            Column(Modifier.weight(1f)) {
+                Text(
+                    card.displayName,
+                    fontFamily = DipiSans,
+                    fontWeight = FontWeight.Medium,
+                    fontSize = 15.5.sp,
+                    maxLines = 3,
+                    overflow = TextOverflow.Ellipsis,
+                    color = Industry.text,
+                )
+                if (left) {
+                    Text(
+                        "Excluded from arrivals; holds no room.",
+                        fontSize = 12.sp,
+                        color = Industry.neutral600,
+                    )
+                }
+            }
             Box(
                 Modifier
                     .size(5.dp)
@@ -397,7 +446,7 @@ private fun RosterRow(
             contentAlignment = Alignment.Center,
         ) {
             Text(
-                if (card.status.normalize() == "left") "Left"
+                if (left) "Left"
                 else if (isIn) listOfNotNull(record?.room?.takeIf { it.isNotBlank() },
                     record?.seat?.takeIf { it.isNotBlank() }).joinToString(" · ").ifBlank { "Attended" }
                 else if (readOnly) card.status.value else "Mark attended",
@@ -412,69 +461,72 @@ private fun RosterRow(
 
 @Composable
 private fun CheckInSidebar(
-    roll: List<ApplicantCard>,
+    modifier: Modifier = Modifier,
+    listScope: List<ApplicantCard>,
+    fullRoll: List<ApplicantCard>,
     checkIns: Map<ApplicantId, CheckInRecord>,
     rooms: List<AccoRoom>,
     scope: Gender?,
+    selectedBlock: RoomBlockKey?,
+    onSelectBlock: (RoomBlockKey) -> Unit,
 ) {
     Column(
-        Modifier
-            .width(296.dp)
-            .fillMaxHeight()
+        modifier
             .background(Industry.surface)
             .leftHairline(Industry.neutral300)
+            .verticalScroll(rememberScrollState())
             .padding(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 24.dp),
         verticalArrangement = Arrangement.spacedBy(20.dp),
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
             DeskKicker("THE ROLL", Industry.neutral500)
-            RollTable(roll)
+            RollTable(listScope)
         }
 
         Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
             DeskKicker("ROOMS FREE", Industry.neutral500, Modifier.padding(bottom = 7.dp))
-            val occupied = deskOccupied(roll, checkIns)
-            listOf(
-                Gender.F to "Female",
-                Gender.M to "Male",
-            ).filter { scope == null || it.first == scope }.forEach { (g, label) ->
-                val block = rooms.filter { it.gender == g }
-                if (block.isEmpty()) return@forEach
-                val free = block.count { it.code !in occupied }
-                val sections = block.map { it.section }.distinct().filter { it.isNotBlank() }
-                Row(
-                    Modifier
-                        .fillMaxWidth()
-                        .bottomHairline(Industry.neutral200)
-                        .padding(vertical = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    // Label and count are separate columns: a long block name
-                    // ellipsises at the column edge instead of wrapping mid-label.
-                    Text(
-                        if (sections.isEmpty()) label else "$label · ${sections.joinToString("/")} block",
-                        fontSize = 12.5.sp,
-                        color = Industry.text,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f).padding(end = 8.dp),
-                    )
-                    Text(
-                        "$free / ${block.size}",
-                        fontFamily = DipiMono,
-                        fontWeight = FontWeight.Medium,
-                        fontSize = 14.sp,
-                        color = Industry.accent700,
-                        maxLines = 1,
-                        textAlign = TextAlign.End,
-                        modifier = Modifier.width(86.dp),
-                    )
+            val visibleRooms = rooms.filter { scope == null || it.gender == scope }
+            if (visibleRooms.isEmpty()) {
+                Text("Room inventory unavailable", fontSize = 12.5.sp, color = Industry.neutral600)
+            } else {
+                visibleRooms.map { RoomBlockKey(it.gender, it.section) }.distinct().forEach { key ->
+                    val avail = deskRoomAvailability(fullRoll, checkIns, rooms, key)
+                    val genderWord = if (key.gender == Gender.M) "Male" else "Female"
+                    val on = selectedBlock == key
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .clickable { onSelectBlock(key) }
+                            .bottomHairline(Industry.neutral200)
+                            .padding(vertical = 6.dp)
+                            .testTag("room-availability-${key.gender.name}-${key.section}"),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            "$genderWord · ${key.section}",
+                            fontSize = 12.5.sp,
+                            color = if (on) Industry.accent800 else Industry.text,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f).padding(end = 8.dp),
+                        )
+                        Text(
+                            "${avail.free} free of ${avail.total} rooms",
+                            fontFamily = DipiMono,
+                            fontWeight = FontWeight.Medium,
+                            fontSize = 12.sp,
+                            color = Industry.accent700,
+                            maxLines = 2,
+                            textAlign = TextAlign.End,
+                        )
+                    }
                 }
             }
         }
 
         Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
-            DeskKicker("SEATING ISSUED", Industry.neutral500, Modifier.padding(bottom = 7.dp))
+            DeskKicker("SEATING ISSUED", Industry.neutral500, Modifier.padding(bottom = 4.dp))
+            Text("Whole course", fontSize = 12.sp, color = Industry.neutral600, modifier = Modifier.padding(bottom = 7.dp))
             SEAT_TYPES.forEach { seat ->
                 Row(
                     Modifier
@@ -485,7 +537,7 @@ private fun CheckInSidebar(
                 ) {
                     Text(seat, fontSize = 12.5.sp, color = Industry.text, modifier = Modifier.weight(1f))
                     Text(
-                        "${deskSeatCount(roll, checkIns, seat)}",
+                        "${deskSeatCount(fullRoll, checkIns, seat)}",
                         fontFamily = DipiMono,
                         fontWeight = FontWeight.Medium,
                         fontSize = 13.sp,
@@ -587,7 +639,7 @@ fun CheckInDialog(
     Box(
         Modifier
             .fillMaxSize()
-            .background(Industry.scrim)
+            .background(org.dhamma.dipi.staff.ui.theme.Industry.scrim)
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,

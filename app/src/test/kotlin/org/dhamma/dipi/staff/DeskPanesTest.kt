@@ -200,7 +200,7 @@ class DeskPanesTest {
                 )
             }
         }
-        rule.onNodeWithText(" of 2 checked in").assertIsDisplayed()
+        rule.onNodeWithText(" of 2 arrived").assertIsDisplayed()
         rule.onNodeWithText("1 to arrive").assertIsDisplayed()
         rule.onNodeWithText("Mark attended").assertIsDisplayed()
         rule.onNodeWithText("M11 · Chair").assertIsDisplayed()
@@ -434,12 +434,12 @@ class DeskPanesTest {
         // Female tablet: the male applicant disappears from the roster…
         rule.onNodeWithText("Priya Nair").assertIsDisplayed()
         rule.onNodeWithText("Arun Kale").assertDoesNotExist()
-        // …from the progress card ("0 of 1 checked in", "1 to arrive")…
-        rule.onNodeWithText(" of 1 checked in").assertIsDisplayed()
+        // …from the progress card ("0 of 1 arrived", "1 to arrive")…
+        rule.onNodeWithText(" of 1 arrived").assertIsDisplayed()
         rule.onNodeWithText("1 to arrive").assertIsDisplayed()
         // …and ROOMS FREE lists the female block only.
-        rule.onNodeWithText("Female · Fbk block").assertIsDisplayed()
-        rule.onNodeWithText("Male · Mbk block").assertDoesNotExist()
+        rule.onNodeWithText("Female · Fbk").assertIsDisplayed()
+        rule.onNodeWithText("Male · Mbk").assertDoesNotExist()
     }
 
     @Test
@@ -497,7 +497,7 @@ class DeskPanesTest {
         rule.onNodeWithText("Meera Shah").assertDoesNotExist()
         rule.onNodeWithText("Arun Kale").assertDoesNotExist()
         rule.onNodeWithText("Vikram Rao").assertDoesNotExist()
-        rule.onNodeWithText(" of 1 checked in").assertIsDisplayed()
+        rule.onNodeWithText(" of 1 arrived").assertIsDisplayed()
         rule.onNodeWithText("1 to arrive").assertIsDisplayed()
     }
 
@@ -684,7 +684,7 @@ class DeskPanesTest {
         // The centre-name heading is gone (spec S3.3); the roll subtitle is
         // now the block's first line.
         rule.onNodeWithText("Day 0 at Dhamma Sudha").assertDoesNotExist()
-        rule.onNodeWithText("ARRIVING TODAY").assertIsDisplayed()
+        rule.onNodeWithText("ON THE ROLL").assertIsDisplayed()
         rule.onNodeWithText("STILL TO CALL").assertIsDisplayed()
         rule.onNodeWithText("2 numbers left").assertIsDisplayed()
         rule.onNodeWithText("NEEDS ATTENTION").performClick()
@@ -724,6 +724,35 @@ class DeskPanesTest {
         assertEquals("name_title_prefix" to "Strip 1 honorifics", batch)
         rule.onNodeWithText("Open").performClick()
         assertEquals(1, opened?.id?.value)
+    }
+
+    @Test
+    fun auditOpenOnEachRowNavigatesToThatApplicant() {
+        val opened = mutableListOf<Int>()
+        val flag = AuditFlag(
+            AuditSeverity.SOFT,
+            "Email shared across unrelated surnames",
+            "shared_email_unrelated · a@b.c",
+            "shared_email_unrelated",
+        )
+        val flagged = listOf(
+            card(11, given = "Kavita", family = "Rani", flags = listOf(flag)),
+            card(22, given = "Sunita", family = "Devi", flags = listOf(flag)),
+        )
+        rule.setContent {
+            DipiTheme {
+                AuditPane(
+                    flagged = flagged,
+                    selectedCode = "shared_email_unrelated",
+                    onSelect = {},
+                    onBatch = { _, _ -> },
+                    onOpen = { opened += it.id.value },
+                )
+            }
+        }
+        rule.onNodeWithTag("audit-open-11").performClick()
+        rule.onNodeWithTag("audit-open-22").performClick()
+        assertEquals(listOf(11, 22), opened)
     }
 
     /* ── Slice 5: calling ──────────────────────────────────────────── */
@@ -1344,6 +1373,33 @@ class DeskPanesTest {
         rule.onAllNodesWithText("Priya Nair").assertCountEquals(0)
         rule.onAllNodesWithText("Arun Kale").assertCountEquals(0)
         rule.onAllNodesWithText("Vikram Rao").assertCountEquals(0)
+    }
+
+    @Test
+    fun applicationsPinnedOpenShowsThatApplicantOutsideScope() {
+        val rows = listOf(
+            card(1, conf = "NF1", given = "Priya", family = "Nair"),
+            card(2, conf = "NM2", given = "Arun", family = "Kale", gender = Gender.M),
+        )
+        val pinned = rows[1]
+        rule.setContent {
+            DipiTheme {
+                ApplicationsPane(
+                    rows = rows,
+                    flagsById = emptyMap(),
+                    selectedId = ApplicantId(2),
+                    onSelect = {},
+                    onChangeStatus = {},
+                    onDial = {},
+                    onEdit = {},
+                    gender = "Female",
+                    pinnedCard = pinned,
+                )
+            }
+        }
+        // Male pin stays selected even though the tablet filter is Female.
+        rule.onAllNodesWithText("Arun Kale").onFirst().assertIsDisplayed()
+        rule.onAllNodesWithText("Priya Nair").onFirst().assertIsDisplayed()
     }
 
     /**

@@ -24,11 +24,14 @@ import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import org.dhamma.dipi.staff.model.ApplicantCard
 import org.dhamma.dipi.staff.model.ApplicantId
+import org.dhamma.dipi.staff.model.CallRecord
 import org.dhamma.dipi.staff.model.CheckInRecord
+import org.dhamma.dipi.staff.model.SheetExport
+import org.dhamma.dipi.staff.model.sheetPresentation
 import org.dhamma.dipi.staff.ui.theme.DeskKicker
 import org.dhamma.dipi.staff.ui.theme.DipiCondensed
 import org.dhamma.dipi.staff.ui.theme.DipiMono
-import org.dhamma.dipi.staff.ui.theme.Industry
+import org.dhamma.dipi.staff.ui.theme.ThemeIndustry as Industry
 import org.dhamma.dipi.staff.ui.theme.deskCard
 
 /**
@@ -61,15 +64,19 @@ fun BoardPane(
     onGoto: (DeskSection) -> Unit,
     onExport: (String) -> Unit,
 ) {
-    val total = roll.size
-    val inCount = roll.count { deskCheckedIn(it, checkIns) }
-    val pct = if (total == 0) 0 else (inCount * 100) / total
-    val callList = deskCallList(roll)
-    val logged = callList.count { it.id in callOutcomes }
-    val toCall = callList.size - logged
+    val arrivals = deskArrivalCounts(roll, checkIns)
+    val total = arrivals.roll
+    val (students, sevaks) = deskTypeCounts(roll)
+    val inCount = arrivals.arrived
+    val eligible = arrivals.eligible
+    val pct = if (eligible == 0) 0 else (inCount * 100) / eligible
+    val callRecords = callOutcomes.mapValues { CallRecord(outcome = it.value) }
+    val toCall = deskCallCounts(roll, callRecords)["To call"] ?: 0
+    val logged = deskCallRound(roll).count { deskCallLogged(callRecords[it.id]) }
     val findings = deskFindings(flagged)
     val fTotal = deskFindingCount(flagged)
     val mustFix = deskMustFixCount(flagged)
+    val affected = flagged.count { it.flags.isNotEmpty() }
 
     Column(
         Modifier
@@ -89,16 +96,21 @@ fun BoardPane(
             Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            BoardTile("$total", "ARRIVING TODAY", "$total confirmed", Modifier.weight(1f)) {
+            BoardTile("$total", "ON THE ROLL", "$students students + $sevaks sevaks", Modifier.weight(1f)) {
                 onGoto(DeskSection.CheckIn)
             }
-            BoardTile("$inCount", "CHECKED IN", "$pct% of the roll", Modifier.weight(1f)) {
+            BoardTile(
+                "$inCount",
+                "CHECKED IN",
+                if (eligible == 0) "No eligible arrivals" else "$pct% of $eligible eligible arrivals",
+                Modifier.weight(1f),
+            ) {
                 onGoto(DeskSection.CheckIn)
             }
             BoardTile("$toCall", "STILL TO CALL", "$logged logged this round", Modifier.weight(1f)) {
                 onGoto(DeskSection.Calling)
             }
-            BoardTile("$fTotal", "NEEDS ATTENTION", "across ${findings.size} checks", Modifier.weight(1f)) {
+            BoardTile("$fTotal", "NEEDS ATTENTION", "$fTotal findings · $affected applicants", Modifier.weight(1f)) {
                 onGoto(DeskSection.Audit)
             }
         }
@@ -108,7 +120,7 @@ fun BoardPane(
             Modifier.fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(7.dp),
         ) {
-            BoardAction("Check in arrivals", "${total - inCount} still to arrive") {
+            BoardAction("Check in arrivals", "${arrivals.pending} still to arrive") {
                 onGoto(DeskSection.CheckIn)
             }
             BoardAction("Clear audit findings", "$fTotal findings · $mustFix must fix") {
@@ -178,7 +190,18 @@ private fun ExportCell(label: String, modifier: Modifier, onExport: (String) -> 
             verticalAlignment = Alignment.CenterVertically,
         ) {
             DeskIcon(DeskIconKind.Download, 16.dp, Industry.accent300)
-            Text(label, fontSize = 14.sp, maxLines = 2, color = Industry.neutral700)
+            Column(Modifier.weight(1f)) {
+                Text(label, fontSize = 14.sp, maxLines = 2, color = Industry.neutral700)
+                SheetExport.fromLabel(label)?.let { export ->
+                    Text(
+                        sheetPresentation(export).formatLabel,
+                        fontSize = 10.sp,
+                        maxLines = 2,
+                        color = Industry.neutral600,
+                        modifier = Modifier.testTag("export-format"),
+                    )
+                }
+            }
         }
     }
 }

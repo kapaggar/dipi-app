@@ -55,16 +55,57 @@ class PhotoCorrectionFlowTest {
         attended = false,
     )
 
-    private fun controller(): PhotoReviewController {
+    private fun controller(enabled: Boolean = true): PhotoReviewController {
         val prefs = RuntimeEnvironment.getApplication()
             .getSharedPreferences("pc-flow", Context.MODE_PRIVATE)
         prefs.edit().clear().commit()
         val bitmap = Bitmap.createBitmap(8, 10, Bitmap.Config.ARGB_8888).apply { eraseColor(Color.RED) }
         return PhotoReviewController(
+            enabled = enabled,
             store = PhotoCorrectionStore { prefs },
             scope = CoroutineScope(Dispatchers.Main.immediate),
             sources = { _, _ -> PhotoSourceResult.Ready(PhotoSource(stamp, bitmap)) },
         )
+    }
+
+    @Test
+    fun productionControllerFollowsBuildCapability() {
+        val prefs = RuntimeEnvironment.getApplication()
+            .getSharedPreferences("pc-build-gate", Context.MODE_PRIVATE)
+        val photos = PhotoReviewController(
+            store = PhotoCorrectionStore { prefs },
+            scope = CoroutineScope(Dispatchers.Main.immediate),
+            sources = { _, _ -> error("Empty review must not load a source") },
+        )
+        photos.dispatch(PhotoReviewAction.Open(scope, emptyList(), null))
+        assertEquals(if (BuildConfig.PHOTO_REVIEW_ENABLED) scope else null, photos.state.value.scope)
+        photos.resetSession(clearPixels = true)
+    }
+
+    @Test
+    fun disabledControllerRejectsReviewExportAndUploadEvenWithWriteCallback() = runBlocking {
+        val photos = controller(enabled = false)
+        var writes = 0
+        var exports = 0
+        photos.deskWrite = PhotoDeskWrite { _, _, _ ->
+            writes++
+            error("Disabled controller attempted a live write")
+        }
+        photos.openOutput = { exports++; error("Disabled controller attempted export") }
+        val initial = photos.state.value
+        photos.dispatch(PhotoReviewAction.Open(scope, listOf(card()), 41))
+        photos.dispatch(PhotoReviewAction.Rotate(90))
+        photos.dispatch(PhotoReviewAction.Approve)
+        photos.dispatch(PhotoReviewAction.Scan)
+        photos.dispatch(PhotoReviewAction.PrepareExport)
+        photos.dispatch(PhotoReviewAction.ExportTo("content://test/output"))
+        photos.dispatch(PhotoReviewAction.PrepareUpdate)
+        photos.dispatch(PhotoReviewAction.StartUpdate)
+        assertEquals(initial, photos.state.value)
+        assertEquals(0, writes)
+        assertEquals(0, exports)
+        assertEquals(null, photos.corrected(41))
+        photos.resetSession(clearPixels = true)
     }
 
     @Test

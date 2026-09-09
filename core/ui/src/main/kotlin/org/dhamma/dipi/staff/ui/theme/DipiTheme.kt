@@ -161,7 +161,11 @@ fun DipiTheme(dark: Boolean = isSystemInDarkTheme(), content: @Composable () -> 
             onPrimary = Color.White,
         )
     }
-    CompositionLocalProvider(LocalDipi provides colors, LocalIndustry provides palette) {
+    CompositionLocalProvider(
+        LocalDipi provides colors,
+        LocalIndustry provides if (dark) SteelNightPalette else palette,
+        LocalReadableTokens provides readableTokens(palette, dark),
+    ) {
         MaterialTheme(colorScheme = scheme, content = content)
     }
 }

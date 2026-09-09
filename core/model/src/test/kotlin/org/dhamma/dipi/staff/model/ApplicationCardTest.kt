@@ -82,6 +82,16 @@ class ApplicationCardTest {
     }
 
     @Test
+    fun explicitNoStillSetsPresenceFlags() {
+        val noMed = card(mapOf("Medication" to "No"))
+        assertEquals(listOf("MED"), flagsFor(noMed, Gender.M))
+        assertEquals(
+            org.dhamma.dipi.staff.model.HealthAnswerKind.EXPLICIT_NO,
+            org.dhamma.dipi.staff.model.healthAnswerKind(noMed.healthRow("Medication")!!, Gender.M),
+        )
+    }
+
+    @Test
     fun toStringNeverCarriesAnswersOrPersonalValues() {
         val c = card(
             mapOf(

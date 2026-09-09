@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStoreFile
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKeys
@@ -19,6 +20,8 @@ import kotlinx.serialization.json.Json
 import org.dhamma.dipi.staff.model.CallRecord
 import org.dhamma.dipi.staff.model.CentreOpsPrefs
 import org.dhamma.dipi.staff.model.CheckInRecord
+import org.dhamma.dipi.staff.model.SheetExport
+import org.dhamma.dipi.staff.model.SheetScreenWidth
 import org.dhamma.dipi.staff.model.TabletMode
 import org.dhamma.dipi.staff.network.TokenStore
 import javax.inject.Inject
@@ -171,6 +174,20 @@ class SessionStore @Inject constructor(
 
     val deskSeniority: Flow<String> = ds.data.map { it[DESK_SENIORITY] ?: "Both" }
 
+    val sheetReadableNames: Flow<Set<String>> = ds.data.map { prefs ->
+        prefs[SHEET_READABLE].orEmpty().filter { name ->
+            SheetExport.entries.any { it.name == name }
+        }.toSet()
+    }
+
+    suspend fun setSheetScreenWidth(export: SheetExport, width: SheetScreenWidth) {
+        ds.edit { prefs ->
+            val cur = prefs[SHEET_READABLE]?.toMutableSet() ?: mutableSetOf()
+            if (width == SheetScreenWidth.READABLE) cur.add(export.name) else cur.remove(export.name)
+            prefs[SHEET_READABLE] = cur
+        }
+    }
+
     /** Day 0 check-in records, keyed by applicant id. Local truth until a server endpoint exists. */
     val checkIns: Flow<Map<Int, CheckInRecord>> = ds.data.map { decodeCheckIns(it[CHECK_INS]) }
 
@@ -226,6 +243,7 @@ class SessionStore @Inject constructor(
         private val DESK_GENDER = stringPreferencesKey("desk_gender")
         private val DESK_SENIORITY = stringPreferencesKey("desk_seniority")
         private val CALL_LOG = stringPreferencesKey("call_log")
+        private val SHEET_READABLE = stringSetPreferencesKey("sheet_readable")
         private val opsJson = Json { ignoreUnknownKeys = true; encodeDefaults = true }
     }
 }

@@ -27,7 +27,7 @@ class ApplicationViewParserTest {
             .filter { !java.lang.reflect.Modifier.isStatic(it.modifiers) }
             .onEach { it.isAccessible = true }
             .sortedBy { it.name }
-        assertEquals("ApplicationCard grew — re-verify the NPI sweep", 12, props.size)
+        assertEquals("ApplicationCard grew — re-verify the NPI sweep", 13, props.size)
         return buildString {
             props.forEach { p ->
                 when (val v = p.get(card)) {
@@ -39,6 +39,7 @@ class ApplicationViewParserTest {
                         }
                         append('\n')
                     }
+                    is Set<*> -> v.forEach { append(it).append('\n') }
                     else -> append(v).append('\n')
                 }
             }
@@ -95,6 +96,7 @@ class ApplicationViewParserTest {
         assertEquals(11, card.historyCounts.first { it.first == "10-Day" }.second)
         assertEquals(3, card.historyCounts.first { it.first == "STP" }.second)
         assertEquals(0, card.historyCounts.first { it.first == "Teen" }.second)
+        assertEquals(ApplicationCard.HISTORY_ORDER.toSet(), card.historyCountsPresent)
         assertEquals("2015-1-15, Dhamma sota sohna", card.firstCourse)
         assertEquals("2025-12-12, Dhamma Sudha", card.lastCourse)
         // Live /application-view Course History has date+location only.
@@ -131,6 +133,7 @@ class ApplicationViewParserTest {
         assertEquals("New", card.personalValue("Old / New"))
         // Empty history: all ten zeros, meta verbatim `-`.
         assertTrue(card.historyCounts.all { it.second == 0 })
+        assertEquals(ApplicationCard.HISTORY_ORDER.toSet(), card.historyCountsPresent)
         assertEquals("-", card.firstCourse)
         assertEquals("", card.firstCourseTeacher)
         assertEquals("", card.lastCourseTeacher)

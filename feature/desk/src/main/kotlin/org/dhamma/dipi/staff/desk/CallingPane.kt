@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
@@ -35,6 +36,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
@@ -51,7 +53,7 @@ import org.dhamma.dipi.staff.ui.theme.DeskStyle
 import org.dhamma.dipi.staff.ui.theme.DipiCondensed
 import org.dhamma.dipi.staff.ui.theme.DipiMono
 import org.dhamma.dipi.staff.ui.theme.DipiSans
-import org.dhamma.dipi.staff.ui.theme.Industry
+import org.dhamma.dipi.staff.ui.theme.ThemeIndustry as Industry
 import org.dhamma.dipi.staff.ui.theme.deskCard
 import org.dhamma.dipi.staff.ui.theme.statusColors
 
@@ -102,14 +104,38 @@ fun CallingPane(
                 DeskH2("Call round")
                 DeskSub("$logged of ${callList.size} logged")
             }
+            val heldOut = deskCallHeldOutCount(scoped)
             DeskSegmented(
-                listOf("To call") + CALL_OUTCOMES,
+                listOf("To call", "All") + CALL_OUTCOMES,
                 filter,
                 onFilter,
                 optionPadding = 12.dp,
                 verticalPadding = 9.dp,
                 counts = deskCallCounts(scoped, outcomes),
             )
+            if (heldOut > 0) {
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        "$heldOut Left held out of this call round. Status is unchanged.",
+                        fontSize = 12.5.sp,
+                        color = Industry.neutral600,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Text(
+                        "Show in All",
+                        fontSize = 13.sp,
+                        color = Industry.accent800,
+                        modifier = Modifier
+                            .clickable { onFilter("All") }
+                            .padding(12.dp)
+                            .testTag("call-show-all"),
+                    )
+                }
+            }
             Row(
                 Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -120,7 +146,7 @@ fun CallingPane(
             }
             CallSearchField(search, onSearch)
             onWhatsAppBatch?.let { open ->
-                androidx.compose.material3.OutlinedButton(onClick = { open(shown) }) {
+                androidx.compose.material3.OutlinedButton(onClick = { open(shown.filterNot(::deskIsLeft)) }) {
                     Text("WhatsApp batch · ${shown.size} in this view")
                 }
             }
@@ -285,6 +311,7 @@ private fun CallCard(
             Modifier
                 .fillMaxWidth()
                 .clickable(onClick = onToggle)
+                .heightIn(min = 88.dp)
                 .padding(horizontal = 14.dp, vertical = 11.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -308,7 +335,7 @@ private fun CallCard(
                     card.displayName,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Medium,
-                    maxLines = 1,
+                    maxLines = 3,
                     overflow = TextOverflow.Ellipsis,
                     color = Industry.text,
                 )

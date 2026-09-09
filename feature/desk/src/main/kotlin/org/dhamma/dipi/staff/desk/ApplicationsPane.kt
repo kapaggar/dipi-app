@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+
 package org.dhamma.dipi.staff.desk
 
 import androidx.compose.foundation.Image
@@ -13,6 +15,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -31,6 +34,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -49,7 +53,7 @@ import org.dhamma.dipi.staff.ui.theme.DeskKicker
 import org.dhamma.dipi.staff.ui.theme.DeskStyle
 import org.dhamma.dipi.staff.ui.theme.DipiCondensed
 import org.dhamma.dipi.staff.ui.theme.DipiMono
-import org.dhamma.dipi.staff.ui.theme.Industry
+import org.dhamma.dipi.staff.ui.theme.ThemeIndustry as Industry
 import org.dhamma.dipi.staff.ui.theme.deskCard
 import org.dhamma.dipi.staff.ui.theme.statusColors
 
@@ -82,17 +86,21 @@ fun ApplicationsPane(
     historyById: Map<ApplicantId, ApplicantDeskHistory> = emptyMap(),
     onExpandHistory: (ApplicantId, String) -> Unit = { _, _ -> },
     onOpenClarification: (ApplicantId, Int) -> Unit = { _, _ -> },
+    pinnedCard: ApplicantCard? = null,
+    auditOrigin: AuditOpenContext? = null,
+    onBackToAudit: () -> Unit = {},
 ) {
     val scoped = deskScoped(rows, deskGenderScope(gender), deskSeniorityScope(seniority))
-    val selected = scoped.firstOrNull { it.id == selectedId } ?: scoped.firstOrNull()
+    val selected = deskSelectedApplicant(scoped, selectedId, pinnedCard)
+    val list = deskApplicationList(scoped, selected)
     val chipCounts = counts.filterKeys { it != "All" }.toList()
         .ifEmpty { rows.groupingBy { it.status.value }.eachCount().toList() }
 
-    Row(Modifier.fillMaxSize()) {
+    androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxSize()) {
+    val narrow = maxWidth < 800.dp
+    val content: @Composable (Modifier, Modifier) -> Unit = { listModifier, detailModifier ->
         Column(
-            Modifier
-                .width(396.dp)
-                .fillMaxHeight()
+            listModifier
                 .rightHairline(Industry.neutral300),
         ) {
             if (chipCounts.isNotEmpty()) {
@@ -109,7 +117,7 @@ fun ApplicationsPane(
                     .padding(horizontal = 18.dp, vertical = 8.dp),
             )
             LazyColumn(Modifier.weight(1f)) {
-                items(scoped, key = { it.id.value }) { card ->
+                items(list, key = { it.id.value }) { card ->
                     AppListRow(
                         card = card,
                         flags = flagsById[card.id].orEmpty(),
@@ -132,11 +140,19 @@ fun ApplicationsPane(
                 historyById = historyById,
                 onExpandHistory = onExpandHistory,
                 onOpenClarification = onOpenClarification,
-                modifier = Modifier.weight(1f),
+                modifier = detailModifier,
+                auditOrigin = auditOrigin,
+                onBackToAudit = onBackToAudit,
             )
         } else {
-            DeskEmpty("No applications loaded.", Modifier.weight(1f).padding(vertical = 46.dp))
+            DeskEmpty("No applications loaded.", detailModifier.padding(vertical = 46.dp))
         }
+    }
+    if (narrow) {
+        Column(Modifier.fillMaxSize()) { content(Modifier.fillMaxWidth().height(300.dp), Modifier.fillMaxWidth().weight(1f)) }
+    } else {
+        Row(Modifier.fillMaxSize()) { content(Modifier.width(396.dp).fillMaxHeight(), Modifier.weight(1f)) }
+    }
     }
 }
 
@@ -233,7 +249,7 @@ private fun AppListRow(
                     card.displayName,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Medium,
-                    maxLines = 1,
+                    maxLines = 3,
                     overflow = TextOverflow.Ellipsis,
                     color = Industry.text,
                 )
@@ -307,8 +323,39 @@ private fun AppDetail(
     onExpandHistory: (ApplicantId, String) -> Unit = { _, _ -> },
     onOpenClarification: (ApplicantId, Int) -> Unit = { _, _ -> },
     modifier: Modifier = Modifier,
+    auditOrigin: AuditOpenContext? = null,
+    onBackToAudit: () -> Unit = {},
 ) {
     Column(modifier.fillMaxHeight()) {
+        if (auditOrigin != null) {
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .background(Industry.accent100)
+                    .padding(horizontal = 26.dp, vertical = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text("Opened from Audit", fontWeight = FontWeight.Medium, fontSize = 14.sp, color = Industry.accent800)
+                    Text(auditOrigin.ruleId, fontFamily = DipiMono, fontSize = 12.sp, color = Industry.neutral700)
+                    Text(
+                        "This applicant is visible despite the current filters.",
+                        fontSize = 12.sp,
+                        color = Industry.neutral600,
+                    )
+                }
+                Text(
+                    "Back to Audit",
+                    fontSize = 13.sp,
+                    color = Industry.accent800,
+                    modifier = Modifier
+                        .clickable(onClick = onBackToAudit)
+                        .padding(12.dp)
+                        .testTag("audit-back"),
+                )
+            }
+        }
         Column(
             Modifier
                 .weight(1f)
@@ -409,7 +456,7 @@ private fun AppDetail(
             )
         }
 
-        Row(
+        androidx.compose.foundation.layout.FlowRow(
             Modifier
                 .fillMaxWidth()
                 .topHairline(Industry.neutral300)
@@ -551,7 +598,7 @@ private fun FactRow(key: String, value: String) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(key, fontSize = 12.5.sp, color = Industry.neutral600, modifier = Modifier.weight(1f))
-        Text(value, fontSize = 13.sp, color = Industry.text)
+        Text(value, fontSize = 13.sp, color = Industry.text, modifier = Modifier.weight(2f))
     }
 }
 

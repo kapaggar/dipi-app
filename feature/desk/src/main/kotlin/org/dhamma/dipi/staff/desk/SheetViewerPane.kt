@@ -14,10 +14,12 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
@@ -49,7 +51,7 @@ import org.dhamma.dipi.staff.model.SheetSort
 import org.dhamma.dipi.staff.ui.NativePrint
 import org.dhamma.dipi.staff.ui.theme.DipiCondensed
 import org.dhamma.dipi.staff.ui.theme.DipiMono
-import org.dhamma.dipi.staff.ui.theme.Industry
+import org.dhamma.dipi.staff.ui.theme.ThemeIndustry as Industry
 import org.dhamma.dipi.staff.ui.theme.deskCard
 
 /**
@@ -91,6 +93,9 @@ fun SheetViewerPane(
     nativeHall: (@Composable () -> Unit)? = null,
     /** 5i: print-only HTML for the native hall (null = nothing to print). */
     nativeHallPrintHtml: String? = null,
+    screenWidth: org.dhamma.dipi.staff.model.SheetScreenWidth =
+        org.dhamma.dipi.staff.model.SheetScreenWidth.FIT,
+    onScreenWidth: (org.dhamma.dipi.staff.model.SheetScreenWidth) -> Unit = {},
 ) {
     val context = LocalContext.current
     // Below 600dp (the phone) the chrome and the sheet body pan instead of
@@ -115,6 +120,11 @@ fun SheetViewerPane(
             title = title,
             courseLine = courseLine,
             export = export,
+            formatLabel = export?.let { org.dhamma.dipi.staff.model.sheetPresentation(it).formatLabel }.orEmpty(),
+            screenWidth = screenWidth,
+            onScreenWidth = export
+                ?.takeIf { org.dhamma.dipi.staff.model.sheetPresentation(it).supportsReadingWidth }
+                ?.let { { width: org.dhamma.dipi.staff.model.SheetScreenWidth -> onScreenWidth(width) } },
             canPrint = (html != null && nativeHall == null) || summary != null ||
                 nativeHallPrintHtml != null,
             onPrint = {
@@ -159,11 +169,12 @@ fun SheetViewerPane(
                 page != null -> {
                     // The sheet body sits on its own white page inset in the
                     // surface ground; PRINT takes the page, never the chrome.
-                    val body = remember(page, hidden, export) {
+                    val body = remember(page, hidden, export, screenWidth) {
                         SheetStylesheet.render(
                             serverHtml = page.html,
                             hidden = columns.filter { it.name in hidden }.toSet(),
                             export = export,
+                            screenWidth = screenWidth,
                         )
                     }
                     AndroidView(
@@ -223,20 +234,25 @@ fun SheetViewerPane(
  * seating plan says `READ & PRINT` — the desk's own version of that page is
  * a drag-and-drop editor, and the chip is where we say so.
  */
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 private fun SheetHeader(
     title: String,
     courseLine: String,
     export: SheetExport?,
+    formatLabel: String = "",
+    screenWidth: org.dhamma.dipi.staff.model.SheetScreenWidth =
+        org.dhamma.dipi.staff.model.SheetScreenWidth.FIT,
+    onScreenWidth: ((org.dhamma.dipi.staff.model.SheetScreenWidth) -> Unit)? = null,
     canPrint: Boolean,
     onPrint: () -> Unit,
     onClose: () -> Unit,
 ) {
+    Column(Modifier.fillMaxWidth().bottomHairline(Industry.neutral300)) {
     Row(
         Modifier
             .fillMaxWidth()
-            .height(64.dp)
-            .bottomHairline(Industry.neutral300)
+            .heightIn(min = 64.dp)
             .padding(horizontal = 16.dp),
         horizontalArrangement = Arrangement.spacedBy(10.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -252,9 +268,8 @@ private fun SheetHeader(
             Text("‹", fontSize = 26.sp, color = Industry.neutral700)
         }
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
-            Row(
+            androidx.compose.foundation.layout.FlowRow(
                 horizontalArrangement = Arrangement.spacedBy(9.dp),
-                verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
                     title,
@@ -266,7 +281,7 @@ private fun SheetHeader(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     color = Industry.text,
-                    modifier = Modifier.testTag("sheet-title"),
+                    modifier = Modifier.fillMaxWidth().testTag("sheet-title"),
                 )
                 Text(
                     if (export == SheetExport.SeatingPlan) "READ & PRINT" else "VIEW ONLY",
@@ -294,12 +309,46 @@ private fun SheetHeader(
                 )
             }
         }
+    }
+    androidx.compose.foundation.layout.FlowRow(Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        if (formatLabel.isNotBlank()) {
+            Text(
+                formatLabel,
+                fontSize = 11.sp,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                color = Industry.neutral600,
+                modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp).testTag("sheet-format"),
+            )
+        }
+        onScreenWidth?.let { setWidth ->
+            Text(
+                if (screenWidth == org.dhamma.dipi.staff.model.SheetScreenWidth.READABLE) "Readable" else "Fit width",
+                fontSize = 13.sp,
+                color = Industry.accent800,
+                modifier = Modifier
+                    .clickable {
+                        setWidth(
+                            if (screenWidth == org.dhamma.dipi.staff.model.SheetScreenWidth.READABLE) {
+                                org.dhamma.dipi.staff.model.SheetScreenWidth.FIT
+                            } else {
+                                org.dhamma.dipi.staff.model.SheetScreenWidth.READABLE
+                            },
+                        )
+                    }
+                    .widthIn(min = 96.dp)
+                    .heightIn(min = 48.dp)
+                    .padding(12.dp)
+                    .testTag("sheet-width"),
+            )
+        }
         if (canPrint) {
             Box(Modifier.testTag("sheet-print")) {
                 DeskPrimaryButton("Print", onPrint)
             }
         }
         DeskOutlineButton("Close", onClose)
+    }
     }
 }
 

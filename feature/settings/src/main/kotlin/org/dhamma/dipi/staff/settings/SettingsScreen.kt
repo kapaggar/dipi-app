@@ -64,6 +64,7 @@ import org.dhamma.dipi.staff.ui.theme.DipiCondensed
 import org.dhamma.dipi.staff.ui.theme.DipiMono
 import org.dhamma.dipi.staff.ui.theme.IndustryPalette
 import org.dhamma.dipi.staff.ui.theme.LocalDipi
+import org.dhamma.dipi.staff.ui.theme.LocalReadableTokens
 import org.dhamma.dipi.staff.ui.theme.LocalIndustry
 import org.dhamma.dipi.staff.ui.theme.chipGradientColors
 import org.dhamma.dipi.staff.ui.theme.deskCard
@@ -104,9 +105,12 @@ fun SettingsScreen(
     onMode: (TabletMode) -> Unit = {},
     runningCourseName: String? = null,
     runningCourseDates: String? = null,
+    simulatedOffline: Boolean = offline,
+    diagnosticsOpen: Boolean = false,
 ) {
     val c = LocalDipi.current
     var confirmReset by remember { mutableStateOf(false) }
+    var diagnostics by remember { mutableStateOf(diagnosticsOpen) }
     // Two columns need room for both: the right column is a hard 428dp, and the
     // widest thing in the left one is a 258dp ramp strip beside its 36dp of card
     // padding. Below ~788dp the left column cannot hold that, so the whole page
@@ -161,8 +165,14 @@ fun SettingsScreen(
                     )
                 }
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                    AppearanceCard(dark, skin, lotus, onToggleTheme, onSkin, onToggleLotus)
-                    TestingCard(offline, onToggleOffline)
+                    AppearanceCard(dark, skin, lotus, onToggleTheme, onSkin, onToggleLotus, showRamps = false)
+                    DiagnosticsCard(
+                        open = diagnostics,
+                        onToggleOpen = { diagnostics = !diagnostics },
+                        dark = dark,
+                        offline = simulatedOffline,
+                        onToggleOffline = onToggleOffline,
+                    )
                 }
                 AccountCard(
                     session = session,
@@ -178,8 +188,14 @@ fun SettingsScreen(
         } else {
             Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 TabletModeCard(mode, onMode, runningCourseName, runningCourseDates, compact = true)
-                AppearanceCard(dark, skin, lotus, onToggleTheme, onSkin, onToggleLotus)
-                TestingCard(offline, onToggleOffline)
+                AppearanceCard(dark, skin, lotus, onToggleTheme, onSkin, onToggleLotus, showRamps = false)
+                DiagnosticsCard(
+                    open = diagnostics,
+                    onToggleOpen = { diagnostics = !diagnostics },
+                    dark = dark,
+                    offline = simulatedOffline,
+                    onToggleOffline = onToggleOffline,
+                )
                 AccountCard(
                     session = session,
                     dark = dark,
@@ -218,11 +234,11 @@ fun SettingsScreen(
 // --------------------------------------------------------------- TABLET MODE
 
 /** Frame 2a's fixed neutrals — the frame is drawn light; hexes win (DESIGN.md). */
-private val ModeCardFill = Color(0xFFFAFAFB)
-private val ModeCardBorder = Color(0xFFDEDEE1)
-private val ModeRule = Color(0xFFE0E0E3)
+private val ModeCardFill: Color @Composable get() = LocalDipi.current.field
+private val ModeCardBorder: Color @Composable get() = LocalDipi.current.hairline
+private val ModeRule: Color @Composable get() = LocalDipi.current.hairline
 private val ModeDash = Color(0xFFD4D4D7)
-private val ModeKeyText = Color(0xFF424244)
+private val ModeKeyText: Color @Composable get() = LocalReadableTokens.current.secondary
 
 /**
  * Frame 2a — the mode switch (spec 2a S4). Two radio cards, the consequence
@@ -324,7 +340,7 @@ private fun ModeRadioCard(
         modifier
             .fillMaxWidth()
             .clip(shape)
-            .background(if (selected) Color.White else ModeCardFill)
+            .background(if (selected) LocalDipi.current.tint else ModeCardFill)
             .border(
                 if (selected) 1.5.dp else 1.dp,
                 if (selected) industry.accent else ModeCardBorder,
@@ -407,7 +423,7 @@ private fun ModeRadioCard(
                     description,
                     fontSize = 13.5.sp,
                     lineHeight = 20.sp,
-                    color = LocalIndustry.current.neutral600,
+                    color = LocalReadableTokens.current.secondary,
                     modifier = Modifier.padding(top = 5.dp),
                 )
             }
@@ -423,33 +439,29 @@ private fun ConsequenceRow(index: String, key: String, value: String, modifier: 
     Row(
         modifier
             .fillMaxWidth()
-            .height(44.dp)
+            .heightIn(min = 48.dp)
             .background(ModeCardFill, RoundedCornerShape(6.dp))
             .border(1.dp, ModeRule, RoundedCornerShape(6.dp))
-            .padding(horizontal = 14.dp),
+            .padding(horizontal = 14.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(Modifier.width(18.dp), contentAlignment = Alignment.Center) {
-            Text(index, fontSize = 14.sp, color = industry.accent400)
+            Text(index, fontSize = 14.sp, color = LocalReadableTokens.current.caption)
         }
         Text(
             key,
             fontSize = 14.sp,
             color = ModeKeyText,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(start = 8.dp),
+            modifier = Modifier.padding(start = 8.dp).weight(0.4f),
         )
         Text(
             value,
             fontSize = 13.sp,
-            color = industry.neutral500,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
+            color = LocalReadableTokens.current.caption,
             textAlign = TextAlign.End,
             modifier = Modifier
                 .padding(start = 8.dp)
-                .weight(1f),
+                .weight(0.6f),
         )
     }
 }
@@ -465,7 +477,7 @@ private fun CourseBeingTaughtCard(
     Column(
         modifier
             .fillMaxWidth()
-            .background(Color.White, RoundedCornerShape(8.dp))
+            .background(LocalDipi.current.field, RoundedCornerShape(8.dp))
             .drawBehind {
                 drawRoundRect(
                     color = ModeDash,
@@ -500,7 +512,7 @@ private fun CourseBeingTaughtCard(
             "Uses the course running today.",
             fontSize = 12.5.sp,
             lineHeight = 19.sp,
-            color = Color(0xFF7A7A7D),
+            color = LocalReadableTokens.current.caption,
             modifier = Modifier.padding(top = 8.dp),
         )
     }
@@ -538,6 +550,7 @@ private fun AppearanceCard(
     onToggleTheme: () -> Unit,
     onSkin: (DeskSkin) -> Unit,
     onToggleLotus: () -> Unit,
+    showRamps: Boolean = true,
 ) {
     val c = LocalDipi.current
     val industry = LocalIndustry.current
@@ -600,7 +613,7 @@ private fun AppearanceCard(
             }
         }
 
-        FlowRow(
+        if (showRamps) FlowRow(
             Modifier.padding(top = 14.dp),
             horizontalArrangement = Arrangement.spacedBy(26.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -710,7 +723,7 @@ private fun RampStrip(label: String, ramp: List<Color>, dark: Boolean, tag: Stri
             fontWeight = FontWeight.Medium,
             fontSize = 9.sp,
             letterSpacing = 0.178.em,
-            color = if (dark) c.muted.copy(alpha = 0.7f) else industry.neutral500,
+            color = LocalReadableTokens.current.caption,
             modifier = Modifier.padding(bottom = 7.dp),
         )
         Row(Modifier.testTag(tag), horizontalArrangement = Arrangement.spacedBy(3.dp)) {
@@ -788,6 +801,82 @@ private fun SkinButton(skin: DeskSkin, selected: Boolean, dark: Boolean, onClick
 
 // ------------------------------------------------------------------- TESTING
 
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun DiagnosticsCard(
+    open: Boolean,
+    onToggleOpen: () -> Unit,
+    dark: Boolean,
+    offline: Boolean,
+    onToggleOffline: () -> Unit,
+) {
+    val c = LocalDipi.current
+    SettingsCard {
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .heightIn(min = 48.dp)
+                .clickable(onClick = onToggleOpen)
+                .testTag("settings-diagnostics"),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            DeskKicker("DIAGNOSTICS", c.muted, Modifier.weight(1f))
+            Text(if (open) "Hide" else "Show", fontSize = 13.sp, color = c.muted)
+        }
+        if (open) {
+            Text(
+                "Simulation does not change the physical network. Offline simulation is on is a separate label from the 38dp offline strip.",
+                fontSize = 13.sp,
+                lineHeight = 18.sp,
+                color = c.muted,
+                modifier = Modifier.padding(top = 8.dp, bottom = 10.dp),
+            )
+            SwitchRow(
+                label = "Simulate offline",
+                on = offline,
+                onToggle = onToggleOffline,
+                testTag = "toggle-offline",
+                height = 48.dp,
+            )
+            if (offline) {
+                Text("Offline simulation is on", fontSize = 13.sp, color = c.muted)
+            }
+            val industry = org.dhamma.dipi.staff.ui.theme.LocalIndustry.current
+            FlowRow(
+                Modifier.padding(top = 14.dp),
+                horizontalArrangement = Arrangement.spacedBy(26.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                if (dark) {
+                    RampStrip("NIGHT ACCENT", NightAccentRamp, dark, "ramp-accent")
+                    RampStrip("NIGHT NEUTRALS", nightNeutralRamp(), dark, "ramp-neutral")
+                } else {
+                    RampStrip(
+                        "ACCENT 100–900",
+                        listOf(
+                            industry.accent100, industry.accent200, industry.accent300,
+                            industry.accent400, industry.accent500, industry.accent600,
+                            industry.accent700, industry.accent800, industry.accent900,
+                        ),
+                        dark,
+                        "ramp-accent",
+                    )
+                    RampStrip(
+                        "NEUTRAL 100–900",
+                        listOf(
+                            industry.neutral100, industry.neutral200, industry.neutral300,
+                            industry.neutral400, industry.neutral500, industry.neutral600,
+                            industry.neutral700, industry.neutral800, industry.neutral900,
+                        ),
+                        dark,
+                        "ramp-neutral",
+                    )
+                }
+            }
+        }
+    }
+}
+
 @Composable
 private fun TestingCard(offline: Boolean, onToggleOffline: () -> Unit) {
     val c = LocalDipi.current
@@ -840,7 +929,7 @@ private fun AccountCard(
             modifier = Modifier.padding(top = 6.dp),
         )
         SettingsRule(dark, Modifier.padding(top = 14.dp, bottom = 2.dp))
-        SessionRow("Last synced", lastSync ?: "just now")
+        SessionRow("Last synced", lastSync ?: "Unknown")
         SessionRow("Queue", "$queued waiting")
         if (appVersion.isNotBlank()) SessionRow("App version", appVersion)
         Button(

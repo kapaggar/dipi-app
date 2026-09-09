@@ -23,9 +23,13 @@ import org.dhamma.dipi.staff.datastore.CourseOpsStore
 import org.dhamma.dipi.staff.datastore.PhotoCorrectionStore
 import org.dhamma.dipi.staff.datastore.SessionStore
 import org.dhamma.dipi.staff.desk.DeskSection
+import org.dhamma.dipi.staff.desk.AuditOpenContext
+import org.dhamma.dipi.staff.desk.RoomBlockKey
+import org.dhamma.dipi.staff.desk.resolveRoomJump
 import org.dhamma.dipi.staff.desk.deskCallList
 import org.dhamma.dipi.staff.desk.deskCallLogged
 import org.dhamma.dipi.staff.desk.deskCheckedIn
+import org.dhamma.dipi.staff.desk.deskIsLeft
 import org.dhamma.dipi.staff.desk.deskFindingCount
 import org.dhamma.dipi.staff.desk.deskOccupied
 import org.dhamma.dipi.staff.desk.deskRecord
@@ -71,6 +75,10 @@ import org.dhamma.dipi.staff.model.RoomAllocSync
 import org.dhamma.dipi.staff.model.RoomSyncResult
 import org.dhamma.dipi.staff.model.DaySummary
 import org.dhamma.dipi.staff.model.parseDeskDate
+import org.dhamma.dipi.staff.model.ReportPreset
+import org.dhamma.dipi.staff.model.SheetScreenWidth
+import org.dhamma.dipi.staff.model.reportPresetRange
+import org.dhamma.dipi.staff.model.reportRangeError
 import org.dhamma.dipi.staff.model.SensitiveInfo
 import org.dhamma.dipi.staff.model.clearSyncedIfChanged
 import org.dhamma.dipi.staff.model.Session
@@ -131,6 +139,7 @@ data class SheetViewUi(
     val nativeHall: Boolean = false,
     /** Device-local `HH:mm` of the successful fetch — hidden while [loading]. */
     val fetchedAt: String? = null,
+    val screenWidth: SheetScreenWidth = SheetScreenWidth.FIT,
 )
 
 fun deskBack(screen: DeskScreen, returnTo: DeskScreen?): DeskScreen = when (screen) {
@@ -262,6 +271,8 @@ data class DeskUiState(
     /** The open student card: group key + row index into the roll. */
     val teacherCard: TeacherCardRef? = null,
     val offline: Boolean = false,
+    val simulatedOffline: Boolean = false,
+    val networkOffline: Boolean = false,
     val queuedById: Map<ApplicantId, String> = emptyMap(),
     val queuedCount: Int = 0,
     /**
@@ -303,6 +314,17 @@ data class DeskUiState(
     val deskRoomOpen: Boolean = false,
     val deskFinding: String? = null,
     val deskAppId: ApplicantId? = null,
+    /**
+     * Audit Open pins [card] on Applications so gender / seniority / status
+     * filters cannot snap the detail to the first in-scope row.
+     */
+    val deskAppPinned: Boolean = false,
+    val selectedRoomBlock: RoomBlockKey? = null,
+    val roomsFocusCode: String? = null,
+    val roomsJumpError: String? = null,
+    val auditOpenContext: AuditOpenContext? = null,
+    val auditReturnNote: String? = null,
+    val sheetReadableNames: Set<String> = emptySet(),
     /**
      * Display-only ID + health disclosures by applicant, mirrored from the
      * repository's session-scoped in-memory map. Never persisted or logged.
@@ -348,6 +370,13 @@ fun deskOpenCourse(state: DeskUiState, course: Course): DeskUiState = state.copy
     selected = emptySet(),
     query = "",
     card = null,
+    deskAppId = null,
+    deskAppPinned = false,
+    selectedRoomBlock = null,
+    roomsFocusCode = null,
+    roomsJumpError = null,
+    auditOpenContext = null,
+    auditReturnNote = null,
     loading = false,
     sensitiveById = emptyMap(),
     sheetView = null,
@@ -481,7 +510,7 @@ class DeskViewModel @Inject constructor(
         renderer = photoRenderer,
     ).also { photos ->
         photos.deskWrite = PhotoDeskWrite { id, jpeg, name ->
-            if (_state.value.mode == TabletMode.COURSE_OPS) {
+            if (!BuildConfig.PHOTO_REVIEW_ENABLED || _state.value.mode == TabletMode.COURSE_OPS) {
                 return@PhotoDeskWrite org.dhamma.dipi.staff.network.PhotoDeskWriteResult.Failed(
                     "Course ops cannot update applications",
                 )
@@ -540,7 +569,18 @@ class DeskViewModel @Inject constructor(
             if (photoStore.discardUnscopedLegacy()) photoCorrections.markLegacyDiscarded()
         }
         viewModelScope.launch {
-            sessionStore.centreOps.collect { prefs -> _state.update { it.copy(centreOps = prefs) } }
+            sessionStore.centreOps.collect { prefs ->
+                _state.update { cur ->
+                    val stillValid = cur.selectedRoomBlock?.let { key ->
+                        prefs.rooms.any { it.gender == key.gender && it.section == key.section }
+                    } ?: true
+                    cur.copy(
+                        centreOps = prefs,
+                        selectedRoomBlock = cur.selectedRoomBlock.takeIf { stillValid },
+                        roomsFocusCode = cur.roomsFocusCode.takeIf { stillValid },
+                    )
+                }
+            }
         }
         viewModelScope.launch {
             sessionStore.checkIns.collect { records ->
@@ -554,6 +594,11 @@ class DeskViewModel @Inject constructor(
         }
         viewModelScope.launch {
             sessionStore.deskSeniority.collect { s -> _state.update { it.copy(deskSeniority = s) } }
+        }
+        viewModelScope.launch {
+            sessionStore.sheetReadableNames.collect { names ->
+                _state.update { it.copy(sheetReadableNames = names) }
+            }
         }
         viewModelScope.launch {
             sessionStore.callLog.collect { records ->
@@ -661,18 +706,44 @@ class DeskViewModel @Inject constructor(
 
     /** Which desk this tablet sits on — persists across restarts via SessionStore. */
     fun setDeskGender(g: String) {
-        _state.update { it.copy(deskGender = g) }
+        _state.update { it.copy(deskGender = g, deskAppPinned = false, auditOpenContext = null) }
         viewModelScope.launch { sessionStore.setDeskGender(g) }
     }
 
     /** New / old student scope for this tablet — persists with [setDeskGender]. */
     fun setDeskSeniority(s: String) {
-        _state.update { it.copy(deskSeniority = s) }
+        _state.update { it.copy(deskSeniority = s, deskAppPinned = false, auditOpenContext = null) }
         viewModelScope.launch { sessionStore.setDeskSeniority(s) }
+    }
+
+    fun selectRoomBlock(block: RoomBlockKey) {
+        _state.update {
+            it.copy(
+                selectedRoomBlock = block,
+                roomsFocusCode = null,
+                roomsJumpError = null,
+            )
+        }
+    }
+
+    fun focusRoom(code: String?) {
+        _state.update { it.copy(roomsFocusCode = code, roomsJumpError = null) }
+    }
+
+    fun jumpToRoom(query: String, rooms: List<AccoRoom>) {
+        val match = resolveRoomJump(rooms, query)
+        _state.update {
+            if (match == null) {
+                it.copy(roomsJumpError = "Room not found in this block")
+            } else {
+                it.copy(roomsFocusCode = match.code, roomsJumpError = null)
+            }
+        }
     }
 
     fun openDeskMark(card: ApplicantCard) {
         if (_state.value.courseFinalized || card.courseFinalized) return
+        if (deskIsLeft(card)) return
         _state.update { it.copy(deskMarkId = card.id, deskRoomOpen = false) }
     }
 
@@ -878,13 +949,41 @@ class DeskViewModel @Inject constructor(
      * applicant with health disclosures fires the desk snackbar once per
      * selection — a reminder, not a gate.
      */
-    fun selectDeskApp(card: ApplicantCard) {
+    fun selectDeskApp(card: ApplicantCard, pinned: Boolean = false) {
         _state.update { cur ->
             val hasHealth = cur.sensitiveById[card.id]?.health?.isNotEmpty() == true
             cur.copy(
                 deskAppId = card.id,
                 card = card,
+                deskAppPinned = pinned,
+                auditOpenContext = if (pinned) cur.auditOpenContext else null,
                 snack = deskHealthSnack(cur.deskAppId, card.id, hasHealth) ?: cur.snack,
+            )
+        }
+    }
+
+    fun openApplicantFromAudit(card: ApplicantCard, ruleId: String) {
+        _state.update {
+            it.copy(
+                deskSection = DeskSection.Applications,
+                deskFinding = ruleId,
+                auditOpenContext = AuditOpenContext(ruleId, card.id),
+                auditReturnNote = null,
+            )
+        }
+        selectDeskApp(card, pinned = true)
+    }
+
+    fun returnToAudit() {
+        val ctx = _state.value.auditOpenContext
+        val stillPresent = ctx != null &&
+            _state.value.auditRows.any { row -> row.flags.any { it.ruleId == ctx.ruleId } }
+        _state.update {
+            it.copy(
+                deskSection = DeskSection.Audit,
+                deskFinding = ctx?.ruleId,
+                deskAppPinned = false,
+                auditReturnNote = if (ctx != null && !stillPresent) "This finding is no longer present" else null,
             )
         }
     }
@@ -943,6 +1042,11 @@ class DeskViewModel @Inject constructor(
                     export = export,
                     courseLine = sheetCourseLine(course.name, deskRoll(it.rows).size),
                     sort = sort,
+                    screenWidth = if (export.name in it.sheetReadableNames) {
+                        SheetScreenWidth.READABLE
+                    } else {
+                        SheetScreenWidth.FIT
+                    },
                 ),
             )
         }
@@ -958,6 +1062,24 @@ class DeskViewModel @Inject constructor(
      * it. A no-op tap is filtered in the pane, so reaching here always means
      * a real change of order.
      */
+    fun setSheetScreenWidth(width: SheetScreenWidth) {
+        val current = _state.value.sheetView ?: return
+        val export = current.export ?: return
+        if (current.screenWidth == width) return
+        _state.update {
+            val names = if (width == SheetScreenWidth.READABLE) {
+                it.sheetReadableNames + export.name
+            } else {
+                it.sheetReadableNames - export.name
+            }
+            it.copy(
+                sheetReadableNames = names,
+                sheetView = current.copy(screenWidth = width),
+            )
+        }
+        viewModelScope.launch { sessionStore.setSheetScreenWidth(export, width) }
+    }
+
     fun setSheetSort(sort: SheetSort) {
         val current = _state.value.sheetView ?: return
         val export = current.export ?: return
@@ -1062,10 +1184,16 @@ class DeskViewModel @Inject constructor(
      * lands in [CourseReportUi.refusal] and prints verbatim; the range stays
      * editable throughout so a slow wide run can be narrowed without waiting.
      */
+    fun applyReportPreset(preset: ReportPreset) {
+        val (from, to) = reportPresetRange(preset, LocalDate.now())
+        _state.update { it.copy(courseReport = it.courseReport.copy(from = from, to = to)) }
+    }
+
     fun runCourseReport() {
         val cid = _state.value.session?.centres?.firstOrNull()?.id?.value ?: return
         val range = _state.value.courseReport
         if (range.running) return
+        if (reportRangeError(range.from, range.to) != null) return
         _state.update {
             it.copy(
                 courseReport = it.courseReport.copy(
@@ -1470,7 +1598,12 @@ class DeskViewModel @Inject constructor(
                 val k = cur.selected.firstOrNull { it.equals(key, true) }
                 if (k != null) cur.selected - k else cur.selected + key
             }
-            cur.copy(selected = next, visible = WorklistFilter.visible(cur.rows, next, cur.query))
+            cur.copy(
+                selected = next,
+                visible = WorklistFilter.visible(cur.rows, next, cur.query),
+                deskAppPinned = false,
+                auditOpenContext = null,
+            )
         }
         if (!_state.value.offline) {
             viewModelScope.launch { refreshWorklist(unfiltered = false) }
@@ -1506,6 +1639,7 @@ class DeskViewModel @Inject constructor(
     }
 
     fun openPhotos() {
+        if (!BuildConfig.PHOTO_REVIEW_ENABLED) return
         if (_state.value.mode == TabletMode.COURSE_OPS) return
         photoReview.allowDeskWrite = true
         val course = _state.value.course
@@ -1639,6 +1773,7 @@ class DeskViewModel @Inject constructor(
     }
 
     suspend fun loadDisplayPhoto(id: ApplicantId): ImageBitmap? {
+        if (!BuildConfig.PHOTO_REVIEW_ENABLED) return photoLoader.load(id.value)?.asImageBitmap()
         val course = _state.value.course ?: return photoLoader.load(id.value)?.asImageBitmap()
         val key = PhotoKey(
             PhotoScope(PhotoOrigins.canonicalize(BuildConfig.BASE_URL), course.centreId.value, course.id.value),
@@ -1681,7 +1816,13 @@ class DeskViewModel @Inject constructor(
         val offline = !net || force
         val was = lastOffline
         lastOffline = offline
-        _state.update { it.copy(offline = offline) }
+        _state.update {
+            it.copy(
+                offline = offline,
+                simulatedOffline = force,
+                networkOffline = !net,
+            )
+        }
         if (was == true && !offline) {
             viewModelScope.launch { flush() }
         }

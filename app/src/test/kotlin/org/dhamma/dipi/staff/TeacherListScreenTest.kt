@@ -4,6 +4,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -142,12 +143,13 @@ class TeacherListScreenTest {
     }
 
     @Test
-    fun rowsAre52dpTall() {
+    fun rowsKeepMinimumTargetAndGrowForWrappedContent() {
         rule.setContent {
             DipiTheme { TeacherListScreen(roll = roll, courseLine = "Dhamma Sudha / 10 Day / 2026") }
         }
         val bounds = rule.onAllNodesWithTag("roll-row").onFirst().getUnclippedBoundsInRoot()
-        assertEquals(52f, (bounds.bottom - bounds.top).value, 0.5f)
+        assertTrue((bounds.bottom - bounds.top).value >= 52f)
+        rule.onAllNodesWithTag("roll-row").onFirst().assertIsDisplayed().assertHasClickAction()
     }
 
     @Test

@@ -12,6 +12,7 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.semantics.SemanticsProperties
 import org.dhamma.dipi.staff.model.ApplicantId
@@ -142,13 +143,14 @@ class StudentCardScreenTest {
             rule.onNodeWithTag("answer-card-$label", useUnmergedTree = true).assertExists()
         }
         rule.onNodeWithText("Metformin 500mg twice daily").assertIsDisplayed()
-        rule.onNodeWithText("YES").assertIsDisplayed()
+        rule.onNodeWithText("Response recorded").assertIsDisplayed()
         // Physical is `-`: label shown, no body node.
         rule.onNodeWithText("Physical").assertIsDisplayed()
         rule.onNodeWithTag("answer-body-Physical", useUnmergedTree = true).assertDoesNotExist()
-        // Male: Pregnancy is N/A, the other four empties are NO.
-        rule.onAllNodesWithText("NO").assertCountEquals(4)
-        rule.onAllNodesWithText("N/A").assertCountEquals(1)
+        rule.onAllNodesWithText("Source value: -").assertCountEquals(4)
+        rule.onNodeWithTag("answer-badge-Physical", useUnmergedTree = true).assertExists()
+        rule.onNodeWithTag("answer-card-Pregnancy", useUnmergedTree = true).assertExists()
+        rule.onNodeWithText("Not applicable").assertExists()
     }
 
     @Test
@@ -161,8 +163,9 @@ class StudentCardScreenTest {
                 )
             }
         }
-        rule.onNodeWithText("Yes - 4 (months)").assertIsDisplayed()
-        rule.onAllNodesWithText("N/A").assertCountEquals(0)
+        rule.onNodeWithText("Yes - 4 (months)").performScrollTo().assertIsDisplayed()
+        rule.onNodeWithText("Response recorded").assertExists()
+        rule.onAllNodesWithText("Not applicable").assertCountEquals(0)
     }
 
     @Test
@@ -227,7 +230,7 @@ class StudentCardScreenTest {
             }
         }
         rule.onNodeWithText("Seating plan").assertIsDisplayed()
-        rule.onNodeWithTag("card-came-from").assertIsDisplayed()
+        rule.onNodeWithTag("card-came-from").performScrollTo().assertIsDisplayed()
         rule.onNodeWithText("Female hall · seat A1").assertIsDisplayed()
     }
 
@@ -307,7 +310,7 @@ class StudentCardScreenTest {
         rule.onNodeWithText("Old / New").assertIsDisplayed()
         rule.onNodeWithText("A-List").assertDoesNotExist()
         rule.onNodeWithText("First Course Teacher").assertIsDisplayed()
-        rule.onNodeWithText("Last Course Teacher").assertIsDisplayed()
+        rule.onNodeWithText("Last Course Teacher").performScrollTo().assertIsDisplayed()
     }
 
     @Test

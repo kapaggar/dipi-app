@@ -34,6 +34,25 @@ class CourseHubScreenTest {
     private val course = Course(CourseId(10), CentreId(1), "10-Day", "2026-08-20", "2026-08-31")
 
     @Test
+    fun compactHubHidesPhotoReview() {
+        rule.setContent {
+            DipiTheme {
+                CourseHubScreen(
+                    course = course,
+                    centreName = "Synthetic Centre",
+                    onBack = {},
+                    onApplications = {},
+                    onSummary = {},
+                    onPhotos = { error("Compact hub cannot open photo review") },
+                    photoReviewEnabled = false,
+                )
+            }
+        }
+        rule.onNodeWithText("Photo review").assertDoesNotExist()
+        rule.onNodeWithText("View Applications").performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
     fun catalogueKeepsPhotoReviewOmitsAssignTeacher() {
         val tiles = courseHubTiles(1, 10)
         val titles = tiles.map { it.title }

@@ -6,6 +6,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -24,7 +25,10 @@ import androidx.compose.material3.Text
 import androidx.compose.ui.draw.shadow
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
@@ -33,6 +37,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.disabled
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -42,12 +49,22 @@ import androidx.compose.ui.unit.sp
 import org.dhamma.dipi.staff.model.ApplicantId
 import org.dhamma.dipi.staff.model.ApplicationCard
 import org.dhamma.dipi.staff.model.Gender
+import org.dhamma.dipi.staff.model.HealthAnswerKind
 import org.dhamma.dipi.staff.model.HealthRow
+import org.dhamma.dipi.staff.model.completeZeroHistory
+import org.dhamma.dipi.staff.model.healthAnswerCounts
+import org.dhamma.dipi.staff.model.healthAnswerKind
+import org.dhamma.dipi.staff.model.healthAnswerPositions
+import org.dhamma.dipi.staff.model.healthBadgeLabel
+import org.dhamma.dipi.staff.model.healthSourceCaption
+import org.dhamma.dipi.staff.model.healthSummaryText
+import org.dhamma.dipi.staff.model.historyTileValue
 import org.dhamma.dipi.staff.model.RollGroup
 import org.dhamma.dipi.staff.model.RollRow
 import org.dhamma.dipi.staff.ui.theme.DipiCondensed
 import org.dhamma.dipi.staff.ui.theme.DipiMono
-import org.dhamma.dipi.staff.ui.theme.Industry
+import org.dhamma.dipi.staff.ui.theme.ThemeIndustry as Industry
+import org.dhamma.dipi.staff.ui.theme.LocalReadableTokens
 
 // Fixed hexes DESIGN.md § Course ops names outside the ramp tokens.
 private val PaleFill = Color(0xFFFAFAFB)
@@ -103,14 +120,28 @@ fun StudentCardScreen(
         if (card == null) {
             NotCachedBody(offline)
         } else {
-            Row(
+            BoxWithConstraints(
                 Modifier
                     .fillMaxSize()
                     .padding(horizontal = 20.dp, vertical = 12.dp),
-                horizontalArrangement = Arrangement.spacedBy(18.dp),
             ) {
-                LeftColumn(row, card, loadPhoto)
-                RightColumn(card, group.gender, cameFrom)
+                if (maxWidth < 800.dp) {
+                    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).testTag("card-phone-scroll")) {
+                        LeftColumn(row, card, loadPhoto)
+                        Spacer(Modifier.height(16.dp))
+                        RightColumn(card, group.gender, cameFrom)
+                    }
+                } else {
+                    Row(
+                        Modifier.fillMaxSize(),
+                        horizontalArrangement = Arrangement.spacedBy(18.dp),
+                    ) {
+                        Column(Modifier.width(404.dp).fillMaxHeight().verticalScroll(rememberScrollState()).testTag("card-facts-scroll")) {
+                            LeftColumn(row, card, loadPhoto)
+                        }
+                        RightColumn(card, group.gender, cameFrom, Modifier.weight(1f).fillMaxHeight().verticalScroll(rememberScrollState()))
+                    }
+                }
             }
         }
     }
@@ -118,6 +149,7 @@ fun StudentCardScreen(
 
 /* ── Header band 60dp ───────────────────────────────────────────────── */
 
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 private fun Header(
     row: RollRow,
@@ -130,50 +162,32 @@ private fun Header(
     onBack: () -> Unit,
     backLabel: String,
 ) {
-    Row(
-        Modifier.fillMaxWidth().height(68.dp).padding(start = 12.dp, end = 20.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Row(
-            Modifier
-                .height(48.dp)
-                .background(Color.White, RoundedCornerShape(6.dp))
-                .border(1.dp, Industry.neutral300, RoundedCornerShape(6.dp))
-                .clickable(role = Role.Button, onClick = onBack)
-                .padding(start = 10.dp, end = 14.dp)
-                .testTag("card-back"),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Text("‹", fontSize = 19.sp, color = Industry.neutral700)
-            Text(backLabel, fontSize = 13.sp, color = Industry.neutral700)
-        }
-        Column(Modifier.weight(1f).padding(start = 4.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    row.name,
-                    fontFamily = DipiCondensed,
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 24.sp,
-                    letterSpacing = 0.2.sp,
-                    color = Industry.text,
-                    maxLines = 1,
-                )
-                StatusChip(group, card)
+    Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp)) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                Modifier.weight(1f).heightIn(min = 48.dp)
+                    .clickable(role = Role.Button, onClick = onBack)
+                    .padding(horizontal = 10.dp).testTag("card-back"),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text("‹", fontSize = 18.sp, color = Industry.secondary)
+                Spacer(Modifier.width(8.dp))
+                Text(backLabel, fontSize = 14.sp, color = Industry.secondary)
             }
-            Spacer(Modifier.height(4.dp))
-            Text(
-                placementLine(row, group),
-                fontSize = 12.5.sp,
-                color = Industry.neutral600,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.testTag("card-placement"),
-            )
+            WalkButton("‹", canPrev, onPrev, "card-prev")
+            Spacer(Modifier.width(12.dp))
+            WalkButton("›", canNext, onNext, "card-next")
         }
-        WalkButton("‹", enabled = canPrev, onClick = onPrev, tag = "card-prev")
-        Spacer(Modifier.width(8.dp))
-        WalkButton("›", enabled = canNext, onClick = onNext, tag = "card-next")
+        Text(row.name, fontFamily = DipiCondensed, fontWeight = FontWeight.SemiBold,
+            fontSize = 24.sp, color = Industry.text, modifier = Modifier.fillMaxWidth().testTag("card-name"))
+        androidx.compose.foundation.layout.FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            StatusChip(group, card)
+            Text(placementLine(row, group), fontSize = 12.5.sp, color = Industry.secondary,
+                modifier = Modifier.testTag("card-placement"))
+        }
     }
 }
 
@@ -213,9 +227,10 @@ private fun WalkButton(glyph: String, enabled: Boolean, onClick: () -> Unit, tag
         Modifier
             .size(56.dp)
             .shadow(4.dp, shape, clip = false)
-            .background(Color.White, shape)
+            .background(Industry.card, shape)
             .border(1.dp, if (enabled) Industry.neutral300 else Industry.neutral200, shape)
             .then(if (enabled) Modifier.clickable(role = Role.Button, onClick = onClick) else Modifier)
+            .semantics { contentDescription = if (tag == "card-prev") "Previous applicant" else "Next applicant"; if (!enabled) disabled() }
             .testTag(tag),
         contentAlignment = Alignment.Center,
     ) {
@@ -250,7 +265,7 @@ private fun NotCachedBody(offline: Boolean) {
                         "Personal, course history and the six answers appear as soon as it lands.",
                     fontSize = 13.sp,
                     lineHeight = 19.5.sp,
-                    color = Industry.neutral600,
+                    color = Industry.secondary,
                     textAlign = TextAlign.Center,
                     modifier = Modifier.padding(top = 7.dp).width(480.dp),
                 )
@@ -279,12 +294,7 @@ private fun LeftColumn(
         Spacer(Modifier.height(14.dp))
         Kicker("COURSE HISTORY")
         Spacer(Modifier.height(8.dp))
-        card.historyCounts.chunked(5).forEachIndexed { i, chunk ->
-            if (i > 0) Spacer(Modifier.height(6.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                chunk.forEach { (key, n) -> HistoryTile(key, n, Modifier.weight(1f)) }
-            }
-        }
+        CourseHistoryBlock(card)
         Spacer(Modifier.height(8.dp))
         MetaRow("First Course", historyMeta(card.firstCourse))
         MetaRow("First Course Teacher", historyMeta(card.firstCourseTeacher))
@@ -327,7 +337,7 @@ private fun PhotoBox(
                 fontSize = 9.sp,
                 lineHeight = 13.5.sp,
                 letterSpacing = 1.sp,
-                color = Industry.neutral500,
+                color = Industry.caption,
                 textAlign = TextAlign.Center,
             )
         }
@@ -355,50 +365,98 @@ private fun photoFactTag(key: String): String? = when (key.lowercase()) {
     else -> null
 }
 
-private fun historyMeta(value: String): String = value.trim().ifBlank { "-" }
+private fun historyMeta(value: String): String = value.trim().ifBlank { "Not provided" }
+
+@Composable
+private fun CourseHistoryBlock(card: ApplicationCard) {
+    var expanded by remember(card.conf, card.historyCountsPresent) { mutableStateOf(false) }
+    val collapsed = card.completeZeroHistory() && !expanded
+    if (collapsed) {
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .background(Industry.neutral100, RoundedCornerShape(6.dp))
+                .border(1.dp, Industry.neutral200, RoundedCornerShape(6.dp))
+                .padding(12.dp)
+                .testTag("history-collapsed"),
+        ) {
+            Text("No prior courses recorded", fontSize = 13.sp, color = Industry.text)
+            Text(
+                "Show the ten course types",
+                fontSize = 12.sp,
+                color = Industry.accent700,
+                modifier = Modifier
+                    .padding(top = 6.dp)
+                    .heightIn(min = 48.dp).clickable { expanded = true }
+                    .testTag("history-expand"),
+            )
+        }
+        return
+    }
+    ApplicationCard.HISTORY_ORDER.chunked(5).forEachIndexed { i, chunk ->
+        if (i > 0) Spacer(Modifier.height(6.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            chunk.forEach { key ->
+                HistoryTile(key, card.historyTileValue(key), Modifier.weight(1f))
+            }
+        }
+    }
+    if (card.completeZeroHistory() && expanded) {
+        Text(
+            "Hide course types",
+            fontSize = 12.sp,
+            color = Industry.accent700,
+            modifier = Modifier
+                .padding(top = 6.dp)
+                .heightIn(min = 48.dp).clickable { expanded = false }
+                .testTag("history-collapse"),
+        )
+    }
+}
 
 @Composable
 private fun PersonalRow(key: String, value: String, tag: String? = null) {
     Row(
         Modifier
             .fillMaxWidth()
-            .height(22.5.dp)
-            .bottomHairline(RowHairline)
+            .heightIn(min = 26.dp)
+            .bottomHairline(Industry.neutral300)
             .then(if (tag != null) Modifier.testTag(tag) else Modifier),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(key, fontSize = 12.sp, color = Industry.neutral500)
-        Spacer(Modifier.weight(1f))
+        Text(key, fontSize = 12.sp, color = Industry.caption, modifier = Modifier.weight(1f))
+        Spacer(Modifier.width(8.dp))
         Text(
             value,
             fontFamily = DipiMono,
             fontSize = 12.5.sp,
             color = Industry.text,
-            maxLines = 1,
+            modifier = Modifier.weight(1f),
         )
     }
 }
 
-/** 50dp count tile — zeros STAY: the shape of the history is the information. */
+/** Count tile — zeros STAY when the source supplied them. Missing keys read Not provided. */
 @Composable
-private fun HistoryTile(key: String, n: Int, modifier: Modifier) {
+private fun HistoryTile(key: String, value: String, modifier: Modifier) {
     val shape = RoundedCornerShape(5.dp)
-    val nonZero = n > 0
+    val n = value.toIntOrNull()
+    val nonZero = n != null && n > 0
     Column(
         modifier
-            .height(50.dp)
-            .background(if (nonZero) Industry.accent100 else PaleFill, shape)
-            .border(1.dp, if (nonZero) Industry.accent300 else ZeroTileBorder, shape)
+            .heightIn(min = 50.dp)
+            .background(if (nonZero) Industry.accent100 else Industry.card, shape)
+            .border(1.dp, if (nonZero) Industry.accent300 else Industry.neutral300, shape)
             .testTag("history-tile-$key"),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
         Text(
-            n.toString(),
+            value,
             fontFamily = DipiMono,
             fontWeight = FontWeight.SemiBold,
-            fontSize = 18.sp,
-            color = if (nonZero) Industry.accent700 else Industry.neutral400,
+            fontSize = if (n != null) 18.sp else 9.sp,
+            color = if (nonZero) Industry.accent700 else Industry.caption,
         )
         Spacer(Modifier.height(3.dp))
         Text(
@@ -407,7 +465,7 @@ private fun HistoryTile(key: String, n: Int, modifier: Modifier) {
             fontWeight = FontWeight.Medium,
             fontSize = 8.5.sp,
             letterSpacing = 0.9.sp,
-            color = Industry.neutral500,
+            color = Industry.caption,
             maxLines = 1,
         )
     }
@@ -419,11 +477,11 @@ private fun MetaRow(key: String, value: String) {
         Modifier
             .fillMaxWidth()
             .heightIn(min = 26.dp)
-            .bottomHairline(RowHairline)
+            .bottomHairline(Industry.neutral300)
             .padding(vertical = 4.dp),
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        Text(key, fontSize = 12.sp, lineHeight = 15.6.sp, color = Industry.neutral500, modifier = Modifier.width(104.dp))
+        Text(key, fontSize = 12.sp, lineHeight = 15.6.sp, color = Industry.caption, modifier = Modifier.width(104.dp))
         Text(value, fontSize = 13.sp, lineHeight = 16.9.sp, color = Industry.text, modifier = Modifier.weight(1f))
     }
 }
@@ -431,15 +489,12 @@ private fun MetaRow(key: String, value: String) {
 /* ── Right column — what the applicant wrote ────────────────────────── */
 
 @Composable
-private fun RightColumn(card: ApplicationCard, gender: Gender, cameFrom: String?) {
-    val answered = card.health.count { healthAnswered(it, gender) }
-    val names = card.health.filter { healthAnswered(it, gender) }.map { it.label }
+private fun RightColumn(card: ApplicationCard, gender: Gender, cameFrom: String?, modifier: Modifier = Modifier) {
+    val positions = healthAnswerPositions(card)
+    val counts = healthAnswerCounts(positions, gender)
     val whose = if (gender == Gender.F) "her" else "his"
     Column(
-        Modifier
-            .fillMaxHeight()
-            .verticalScroll(rememberScrollState())
-            .testTag("card-answers"),
+        modifier.testTag("card-answers"),
         verticalArrangement = Arrangement.spacedBy(7.dp),
     ) {
         Column {
@@ -447,18 +502,18 @@ private fun RightColumn(card: ApplicationCard, gender: Gender, cameFrom: String?
             Text(
                 "page 2 of the application · in $whose own words",
                 fontSize = 11.5.sp,
-                color = Industry.neutral400,
+                color = Industry.caption,
                 modifier = Modifier.padding(top = 4.dp),
             )
         }
-        AnswerSummary(answered, names)
-        card.health.forEachIndexed { i, row -> AnswerCard(i + 1, row, gender) }
+        AnswerSummary(counts)
+        positions.forEachIndexed { i, row -> AnswerCard(i + 1, row, gender) }
         if (cameFrom != null) {
             Row(
                 Modifier
                     .fillMaxWidth()
                     .padding(top = 8.dp)
-                    .height(38.dp)
+                    .heightIn(min = 38.dp)
                     .background(Industry.neutral100, RoundedCornerShape(6.dp))
                     .border(1.dp, Industry.neutral200, RoundedCornerShape(6.dp))
                     .padding(horizontal = 14.dp)
@@ -472,7 +527,7 @@ private fun RightColumn(card: ApplicationCard, gender: Gender, cameFrom: String?
                     fontWeight = FontWeight.Medium,
                     fontSize = 9.sp,
                     letterSpacing = 1.4.sp,
-                    color = Industry.neutral500,
+                    color = Industry.caption,
                 )
                 Text(cameFrom, fontSize = 12.5.sp, color = Industry.neutral700, modifier = Modifier.weight(1f))
             }
@@ -481,76 +536,47 @@ private fun RightColumn(card: ApplicationCard, gender: Gender, cameFrom: String?
     }
 }
 
-private fun healthAnswered(row: HealthRow, gender: Gender): Boolean {
-    val notApplicable = row.label.equals("Pregnancy", ignoreCase = true) && gender == Gender.M
-    if (notApplicable) return false
-    if (row.label.equals("Pregnancy", ignoreCase = true) &&
-        !row.answer.trim().startsWith("Yes", ignoreCase = true)
-    ) return false
-    return row.answered
-}
-
 @Composable
-private fun AnswerSummary(answered: Int, names: List<String>) {
-    val flagged = answered > 0
-    val label = if (flagged) {
-        names.joinToString(" and ") + " have something written"
-    } else {
-        "Nothing written on any of the six questions"
-    }
+private fun AnswerSummary(counts: org.dhamma.dipi.staff.model.HealthAnswerCounts) {
+    val flagged = counts.recorded > 0
     Row(
         Modifier
             .fillMaxWidth()
-            .height(34.dp)
+            .heightIn(min = 34.dp)
             .background(if (flagged) Industry.accent100 else Industry.neutral100, RoundedCornerShape(6.dp))
             .border(1.dp, if (flagged) Industry.accent300 else Industry.neutral200, RoundedCornerShape(6.dp))
-            .padding(horizontal = 14.dp)
+            .padding(horizontal = 14.dp, vertical = 8.dp)
             .testTag("answer-summary"),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         Text(
-            label,
+            healthSummaryText(counts),
             fontSize = 13.sp,
             fontWeight = FontWeight.Medium,
             color = if (flagged) Industry.accent800 else Industry.neutral700,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f),
-        )
-        Text(
-            "$answered OF 6 ANSWERED",
-            fontFamily = DipiMono,
-            fontWeight = FontWeight.Medium,
-            fontSize = 10.sp,
-            letterSpacing = 1.2.sp,
-            color = if (flagged) Industry.accent700 else Industry.neutral500,
+            modifier = Modifier.fillMaxWidth(),
         )
     }
 }
 
 @Composable
 private fun AnswerCard(index: Int, row: HealthRow, gender: Gender) {
-    val notApplicable = row.label.equals("Pregnancy", ignoreCase = true) && gender == Gender.M
-    val answered = healthAnswered(row, gender)
+    val kind = healthAnswerKind(row, gender)
+    val recorded = kind == HealthAnswerKind.RECORDED ||
+        kind == HealthAnswerKind.EXPLICIT_YES ||
+        kind == HealthAnswerKind.EXPLICIT_NO
+    val tokens = LocalReadableTokens.current
     val shape = RoundedCornerShape(7.dp)
     Column(
         Modifier
             .fillMaxWidth()
-            .then(if (!answered) Modifier.height(56.dp) else Modifier)
-            .background(if (answered) Industry.accent100 else PaleFill, shape)
-            .border(1.dp, if (answered) Industry.accent300 else ZeroTileBorder, shape)
-            .padding(
-                start = 14.dp,
-                end = 14.dp,
-                top = if (answered) 11.dp else 0.dp,
-                bottom = if (answered) 13.dp else 0.dp,
-            )
+            .background(if (recorded) tokens.recordedFill else tokens.blankFill, shape)
+            .border(1.dp, if (recorded) Industry.accent300 else Industry.neutral300, shape)
+            .padding(horizontal = 15.dp, vertical = 13.dp)
             .testTag("answer-card-${row.label}"),
-        verticalArrangement = if (answered) Arrangement.Top else Arrangement.Center,
     ) {
         Row(
-            verticalAlignment = Alignment.CenterVertically,
+            verticalAlignment = Alignment.Top,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Text(
@@ -559,38 +585,31 @@ private fun AnswerCard(index: Int, row: HealthRow, gender: Gender) {
                 fontWeight = FontWeight.Medium,
                 fontSize = 12.sp,
                 lineHeight = 15.6.sp,
-                color = if (answered) Industry.accent400 else Industry.neutral400,
+                color = tokens.caption,
                 modifier = Modifier.width(20.dp),
             )
-            // The question label, verbatim — the teacher must see what was asked.
             Text(
                 row.label,
-                fontSize = if (answered) 15.5.sp else 14.sp,
-                fontWeight = if (answered) FontWeight.Medium else FontWeight.Normal,
+                fontSize = if (recorded) 15.5.sp else 14.sp,
+                fontWeight = if (recorded) FontWeight.Medium else FontWeight.Normal,
                 lineHeight = 18.2.sp,
-                color = if (answered) Industry.text else Industry.neutral700,
+                color = if (recorded) tokens.primary else tokens.secondary,
                 modifier = Modifier.weight(1f),
             )
             AnswerTag(
-                when {
-                    notApplicable -> "N/A"
-                    answered -> "YES"
-                    else -> "NO"
-                },
-                accent = answered,
+                healthBadgeLabel(kind),
+                accent = recorded,
+                tag = "answer-badge-${row.label}",
             )
         }
-        if (answered) {
-            // 2dp left rule + the answer, 14.5sp/1.5, NEVER truncated — the
-            // largest body type on any screen in the app, on purpose. The
-            // rule is drawn, not laid out, so nothing can constrain the
-            // text's height.
+        if (recorded) {
             val rule = Industry.accent500
             Text(
                 row.answer,
-                fontSize = 14.5.sp,
-                lineHeight = 21.75.sp,
-                color = Industry.text,
+                fontFamily = androidx.compose.ui.text.font.FontFamily.Default,
+                fontSize = 15.sp,
+                lineHeight = 23.25.sp,
+                color = tokens.bodyOnCard,
                 modifier = Modifier
                     .padding(top = 9.dp, start = 32.dp)
                     .drawBehind {
@@ -599,20 +618,32 @@ private fun AnswerCard(index: Int, row: HealthRow, gender: Gender) {
                     .padding(start = 14.dp)
                     .testTag("answer-body-${row.label}"),
             )
+        } else {
+            Text(
+                healthSourceCaption(row, kind),
+                fontFamily = androidx.compose.ui.text.font.FontFamily.Default,
+                fontSize = 12.sp,
+                lineHeight = 16.sp,
+                color = tokens.caption,
+                modifier = Modifier
+                    .padding(top = 6.dp, start = 32.dp)
+                    .testTag("answer-caption-${row.label}"),
+            )
         }
     }
 }
 
 @Composable
-private fun AnswerTag(text: String, accent: Boolean) {
+private fun AnswerTag(text: String, accent: Boolean, tag: String? = null) {
     Box(
         Modifier
-            .height(24.dp)
+            .heightIn(min = 24.dp)
             .background(
                 if (accent) Industry.accent200 else Industry.neutral200,
                 RoundedCornerShape(12.dp),
             )
-            .padding(horizontal = 10.dp),
+            .padding(horizontal = 10.dp, vertical = 4.dp)
+            .then(if (tag != null) Modifier.testTag(tag) else Modifier),
         contentAlignment = Alignment.Center,
     ) {
         Text(
@@ -634,6 +665,6 @@ private fun Kicker(text: String) {
         fontWeight = FontWeight.Medium,
         fontSize = 9.sp,
         letterSpacing = 1.7.sp,
-        color = Industry.neutral500,
+        color = Industry.caption,
     )
 }

@@ -180,6 +180,28 @@ class CourseOpsStoreTest {
     }
 
     @Test
+    fun legacyCardJsonWithoutProvenanceDecodesAsUnknown() {
+        val store = store()
+        store.saveCard(10, 4, sampleCard())
+        val raw = prefs().getString("card_4", null)!!
+        val legacy = raw
+            .replace(""",\"historyCountsPresent\":null""", "")
+            .replace(""",\"historyCountsPresent\":[]""", "")
+        prefs().edit().putString("card_4", legacy).commit()
+        val loaded = store.loadCards(10).getValue(4)
+        assertNull(loaded.historyCountsPresent)
+        assertFalse(loaded.toString().contains(healthText))
+    }
+
+    @Test
+    fun historyProvenanceRoundTrips() {
+        val store = store()
+        val present = sampleCard().copy(historyCountsPresent = ApplicationCard.HISTORY_ORDER.toSet())
+        store.saveCard(10, 4, present)
+        assertEquals(ApplicationCard.HISTORY_ORDER.toSet(), store.loadCards(10).getValue(4).historyCountsPresent)
+    }
+
+    @Test
     fun rawHealthTextNeverAppearsInAnyToString() {
         val store = store()
         store.saveCard(10, 4, sampleCard())

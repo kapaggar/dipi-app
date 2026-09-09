@@ -974,6 +974,28 @@ On return, refresh the same course once, retaining selection and recomputing aud
 The sheet viewer remains for exports, not application editing.
 
 
+## v7 UI completion and optional photo capability (1.48.0)
+
+Owner 2026-09-09: complete the compatible native v7 UI and repair the reviewed layout defects. Centre actions share one tablet row and hall settings have separate male/female cards. Room Chart keeps its title, scope, block navigation and jump above a bounded grid; Jump and Next occupied bring the target into view even when targeting the same room again. Audit keeps its heading visible and shows identified matching records with separate Open actions. Applications, Calling, Check-in, reports and sheet controls wrap or scroll within useful bounds.
+
+Course ops uses readable theme-aware text and card surfaces. Teacher names wrap; the table has a finite scrollable width. The loaded phone student card has one vertical scroll; tablet columns scroll independently. Hall geometry, teacher-at-bottom orientation and allocation rules remain intact. Dark mode uses Steel night while retaining the selected light skin. Verification includes synthetic Pixel C rendering and font scale 1.3.
+
+Native Android PrintManager acceptance also corrected chit/slip height overflow: 25 normal synthetic chits paginate 12/12/1 and five checking slips paginate 2/2/1. Print uses 69mm/138mm minimum heights with growth for long content and unchanged A4 10mm margins.
+
+Photo correction, review and live update are a build-time capability, disabled by default. The compact release excludes bundled face detection and hides/rejects correction/upload routes; ordinary photo display remains. The enabled APK retains the existing explicit applicant-edit-form workflow. See `docs/PHOTO-BUILDS.md` for exact build commands and measurements.
+
+## Compatible v7 refinements (1.47.0)
+
+Owner 2026-09-09 compatible subset: Steel night for every dark skin; exact Yes/No health classification with six positions; Left excluded from arrival/call rounds but visible in All; room availability from the full course’s effective occupancy; Audit related IDs from actual matches plus visible Opened-from-Audit / Back; Room Chart block chips, jump, and Next occupied; course-report presets fill only (Run stays explicit); last-sync Unknown instead of “just now”; Fit/Readable sheet width is `@media screen` only so printed output does not change with window width. Optional identity masking, legend unification, pre-arrival occupancy, new dark policy, and removed phone sheet controls stay excluded.
+
+## Audit Open pins the row (1.46.3)
+
+Owner 2026-09-08: Audit detail rows (including `shared_email_unrelated` × many) each Open **that** applicant’s Applications card. The row is keyed by applicant id. Open pins the card so the Applications gender / seniority / status filters cannot fall back to the first in-scope person.
+
+## Room Chart occupied name type (1.46.2)
+
+Owner 2026-09-08: on tall allocated Room Chart cells the meditator name is 17sp Medium so it reads against the room number; compact empty-only rows stay number-only; age stays muted 12sp top-right; `Male · Mbk` / `Female · Fbk` headings stay 22sp Bold condensed.
+
 ## Room Chart top-right age only (1.46.1)
 
 Owner 2026-09-08: Room Chart age is the muted 12sp `neutral600` number at the **reserved top-right only**. The lower-right age is gone. Empty-row compact height, Old/New borders, and the occupancy legend are unchanged.

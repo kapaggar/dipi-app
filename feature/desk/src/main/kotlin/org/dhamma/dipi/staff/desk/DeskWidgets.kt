@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -34,6 +35,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
@@ -42,7 +44,7 @@ import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import org.dhamma.dipi.staff.ui.theme.DeskStyle
 import org.dhamma.dipi.staff.ui.theme.DipiCondensed
-import org.dhamma.dipi.staff.ui.theme.Industry
+import org.dhamma.dipi.staff.ui.theme.ThemeIndustry as Industry
 import org.dhamma.dipi.staff.ui.theme.LocalDipi
 import org.dhamma.dipi.staff.ui.theme.deskCard
 
@@ -68,6 +70,7 @@ internal fun Modifier.topHairline(color: Color): Modifier = drawBehind {
 }
 
 /** Segmented control: rounded soft-bordered track on the card fill, accent fill on the selection. */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun DeskSegmented(
     options: List<String>,
@@ -76,8 +79,9 @@ fun DeskSegmented(
     optionPadding: Dp = 15.dp,
     verticalPadding: Dp = 11.dp,
     counts: Map<String, Int> = emptyMap(),
+    optionTag: (String) -> String? = { null },
 ) {
-    Row(
+    FlowRow(
         Modifier.deskCard(
             shape = DeskStyle.controlShape,
             elevation = 0.dp,
@@ -85,16 +89,19 @@ fun DeskSegmented(
     ) {
         options.forEachIndexed { i, label ->
             val on = label == selected
+            val tag = optionTag(label)
             Text(
                 counts[label]?.let { "$label $it" } ?: label,
                 fontSize = 12.5.sp,
                 maxLines = 1,
                 color = if (on) Color.White else Industry.neutral700,
                 modifier = Modifier
-                    .then(if (i > 0) Modifier.rightHairlineStart() else Modifier)
+                    .then(if (i > 0) Modifier.rightHairlineStart(Industry.neutral300) else Modifier)
                     .background(if (on) Industry.accent else Color.Transparent)
                     .clickable { onPick(label) }
-                    .padding(horizontal = optionPadding, vertical = verticalPadding),
+                    .heightIn(min = 48.dp)
+                    .padding(horizontal = optionPadding, vertical = verticalPadding)
+                    .then(if (tag != null) Modifier.testTag(tag) else Modifier),
             )
         }
     }
@@ -135,8 +142,8 @@ fun DeskScopeFilters(
     }
 }
 
-private fun Modifier.rightHairlineStart(): Modifier = drawBehind {
-    drawLine(Industry.neutral300, Offset(0.5.dp.toPx(), 0f), Offset(0.5.dp.toPx(), size.height), 1.dp.toPx())
+private fun Modifier.rightHairlineStart(color: Color): Modifier = drawBehind {
+    drawLine(color, Offset(0.5.dp.toPx(), 0f), Offset(0.5.dp.toPx(), size.height), 1.dp.toPx())
 }
 
 /** Toggle: rounded pill track, circular knob; accent when on, neutral-300 when off; .18s knob motion. */
@@ -188,6 +195,7 @@ fun DeskPrimaryButton(label: String, onClick: () -> Unit, fontSize: Float = 14f)
                 border = Industry.accent,
             )
             .clickable(onClick = onClick)
+            .heightIn(min = 48.dp)
             .padding(horizontal = 22.dp, vertical = 10.dp),
     )
 }
@@ -209,6 +217,7 @@ fun DeskOutlineButton(label: String, onClick: () -> Unit) {
                 elevation = 0.dp,
             )
             .clickable(onClick = onClick)
+            .heightIn(min = 48.dp)
             .padding(horizontal = 18.dp, vertical = 10.dp),
     )
 }
@@ -257,12 +266,14 @@ fun DeskProgressHairline(modifier: Modifier = Modifier) {
         animationSpec = infiniteRepeatable(tween(1100, easing = LinearEasing)),
         label = "sweep",
     )
+    val track = Industry.neutral200
+    val accent = Industry.accent
     androidx.compose.foundation.Canvas(modifier.fillMaxWidth().height(2.dp)) {
-        drawRect(Industry.neutral200)
+        drawRect(track)
         val bar = size.width * 0.28f
         val x = (size.width + bar) * sweep - bar
         drawRect(
-            Industry.accent,
+            accent,
             topLeft = Offset(x, 0f),
             size = androidx.compose.ui.geometry.Size(bar, size.height),
         )

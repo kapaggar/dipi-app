@@ -45,7 +45,7 @@ import org.dhamma.dipi.staff.model.cardRows
 import org.dhamma.dipi.staff.ui.theme.DeskStyle
 import org.dhamma.dipi.staff.ui.theme.DipiCondensed
 import org.dhamma.dipi.staff.ui.theme.DipiMono
-import org.dhamma.dipi.staff.ui.theme.Industry
+import org.dhamma.dipi.staff.ui.theme.ThemeIndustry as Industry
 import org.dhamma.dipi.staff.ui.theme.LocalDipi
 import org.dhamma.dipi.staff.ui.theme.LotusWatermark
 import org.dhamma.dipi.staff.ui.theme.deskCard
@@ -98,7 +98,7 @@ fun CentreScreen(
             // everything and non-interactive (owner feedback 2026-08-16).
             LotusWatermark(
                 size = 480.dp,
-                opacity = Industry.skin.markOpacity * 0.5f,
+                opacity = org.dhamma.dipi.staff.ui.theme.Industry.skin.markOpacity * 0.5f,
                 modifier = Modifier.align(Alignment.Center),
             )
         }
@@ -146,6 +146,7 @@ fun CentreScreen(
                         .verticalScroll(rememberScrollState()),
                 ) {
                     Column(Modifier.padding(horizontal = 20.dp)) {
+                        CentreActionRow(onCourseReport, onSettings, onCentreOps)
                         UpcomingCoursesBlock(courses, columns, onPick)
                     }
                     Box(
@@ -176,6 +177,7 @@ fun CentreScreen(
                     .padding(20.dp),
             ) {
                 CentreHeaderBlock(session, centre, onPickCentre)
+                CentreActionRow(onCourseReport, onSettings, onCentreOps)
                 UpcomingCoursesBlock(courses, columns, onPick)
                 NarrowLowerPane(
                     olderCourses = olderCourses,
@@ -191,6 +193,54 @@ fun CentreScreen(
             }
         }
     }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun CentreActionRow(
+    onCourseReport: () -> Unit,
+    onSettings: () -> Unit,
+    onCentreOps: () -> Unit,
+) {
+    val c = LocalDipi.current
+    androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxWidth()) {
+    val actionWidth = if (maxWidth >= 700.dp) (maxWidth - 18.dp) / 3 else maxWidth
+    FlowRow(
+        Modifier
+            .fillMaxWidth()
+            .padding(bottom = 14.dp)
+            .testTag("centre-actions"),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        listOf(
+            Triple("Course report", true, onCourseReport),
+            Triple("App Settings", false, onSettings),
+            Triple("Centre Settings", false, onCentreOps),
+        ).forEach { (title, isNew, action) ->
+            DeskTile(
+                title = title,
+                height = 64.dp,
+                modifier = Modifier.width(actionWidth).heightIn(min = 64.dp),
+                subLine = deskTileSubLine(
+                    when (title) {
+                        "Course report" -> DeskTileAction.CourseReport
+                        "App Settings" -> DeskTileAction.AppSettings
+                        else -> DeskTileAction.CentreOps
+                    },
+                ),
+                isNew = isNew,
+                onClick = action,
+            )
+        }
+    }
+    }
+    Text(
+        "NM new male · OM old male · M male total · NF new female · OF old female · F female total",
+        fontSize = 12.sp,
+        color = c.muted,
+        modifier = Modifier.padding(bottom = 12.dp).testTag("centre-matrix-legend"),
+    )
 }
 
 @Composable
@@ -456,7 +506,7 @@ private fun CentreDeskColumn(
     onSettings: () -> Unit,
 ) {
     val c = LocalDipi.current
-    val tiles = centreDeskTiles(cid)
+    val tiles = centreDeskTiles(cid).filter { it.action == DeskTileAction.AdvancedSearch }
     Column(Modifier.fillMaxWidth()) {
         Text("Centre desk", color = c.muted, modifier = Modifier.padding(bottom = 10.dp))
         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -531,7 +581,7 @@ private fun DeskTile(
     val c = LocalDipi.current
     Row(
         modifier
-            .height(height)
+            .heightIn(min = height)
             .deskCard(
                 shape = DeskStyle.controlShape,
                 fill = Color.Transparent,

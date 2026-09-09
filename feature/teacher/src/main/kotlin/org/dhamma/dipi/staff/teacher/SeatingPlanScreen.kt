@@ -1,8 +1,12 @@
 package org.dhamma.dipi.staff.teacher
 
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -11,6 +15,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -32,6 +37,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -51,18 +59,18 @@ import org.dhamma.dipi.staff.model.hallLayout
 import org.dhamma.dipi.staff.model.railPaintOrder
 import org.dhamma.dipi.staff.ui.theme.DipiCondensed
 import org.dhamma.dipi.staff.ui.theme.DipiMono
-import org.dhamma.dipi.staff.ui.theme.Industry
+import org.dhamma.dipi.staff.ui.theme.ThemeIndustry as Industry
 
 // Fixed hexes DESIGN.md § Course ops names outside the ramp tokens.
-private val NewFill = Color(0xFFFAFAFB)
+private val NewFill: Color @Composable get() = Industry.card
 private val Rule = Color(0xFFE0E0E3)
 private val UnseatedText = Color(0xFF424244)
 
 private val CellShape = RoundedCornerShape(5.dp)
-private val RailCardFill = Color(0xFFFAFAFB)
+private val RailCardFill: Color @Composable get() = Industry.card
 private val RailCardBorder = Color(0xFFDEDEE1)
 /** Age on a seat cell — lighter than the name, still readable on Old/New fills. */
-private val SeatAge = Color(0xFF8A8A8E)
+private val SeatAge: Color @Composable get() = Industry.caption
 
 private fun Modifier.bottomHairline(color: Color): Modifier = drawBehind {
     val y = size.height - 0.5.dp.toPx()
@@ -138,7 +146,7 @@ fun HallBody(
     val railLayout = grid.chowkyRail
     Column(modifier.fillMaxSize().background(Industry.bg).testTag("hall-body")) {
         HallAndLegendBand(roll, hall, gridFor, onHall)
-        BoxWithConstraints(Modifier.fillMaxSize()) {
+        BoxWithConstraints(Modifier.weight(1f)) {
             val columnRail = railLayout == ChowkyRailLayout.SINGLE_ROW
             val wrapSide = railLayout == ChowkyRailLayout.WRAP && maxWidth >= 1000.dp
             val visibleUnseated = plan.unseatedVisible
@@ -168,12 +176,12 @@ fun HallBody(
                             )
                         }
                     }
-                    if (visibleUnseated.isNotEmpty()) UnseatedSection(visibleUnseated)
+
                 } else if (wrapSide) {
                     Row(Modifier.fillMaxWidth()) {
                         Column(Modifier.weight(1f)) {
                             SeatGrid(plan, onOpen)
-                            if (visibleUnseated.isNotEmpty()) UnseatedSection(visibleUnseated)
+
                         }
                         if (plan.chowkyChair.isNotEmpty()) {
                             Spacer(Modifier.width(18.dp))
@@ -198,16 +206,20 @@ fun HallBody(
                             onOpen,
                         )
                     }
-                    if (visibleUnseated.isNotEmpty()) UnseatedSection(visibleUnseated)
+
                 }
                 Text(
                     "Seat changes are made on the desk site.",
                     fontSize = 12.sp,
-                    color = Industry.neutral400,
+                    color = Industry.caption,
                     modifier = Modifier.padding(top = 10.dp, bottom = 8.dp).testTag("hall-read-only"),
                 )
                 Spacer(Modifier.height(16.dp))
             }
+        }
+        UnseatedFacts(plan)
+        if (plan.unseatedVisible.isNotEmpty()) {
+            UnseatedSection(plan.unseatedVisible)
         }
     }
 }
@@ -215,6 +227,7 @@ fun HallBody(
 private fun hallWord(hall: Gender) = if (hall == Gender.F) "Female" else "Male"
 
 /** 62dp header — title, hall + tally sub-line, the destination pair with Seating selected, ⚙. */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun Header(
     hall: Gender,
@@ -222,11 +235,12 @@ private fun Header(
     onView: (TeacherView) -> Unit,
     onSettings: () -> Unit,
 ) {
-    Row(
-        Modifier.fillMaxWidth().height(68.dp).padding(horizontal = 24.dp),
-        verticalAlignment = Alignment.CenterVertically,
+    FlowRow(
+        Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Column(Modifier.weight(1f)) {
+        Column(Modifier.widthIn(max = 360.dp)) {
             Text(
                 "Seating plan",
                 fontFamily = DipiCondensed,
@@ -239,7 +253,7 @@ private fun Header(
             Text(
                 "${hallWord(hall)} hall · facing the front · ${plan.oldCount} old, ${plan.newCount} new",
                 fontSize = 13.sp,
-                color = Industry.neutral600,
+                color = Industry.secondary,
                 maxLines = 1,
             )
         }
@@ -255,10 +269,10 @@ private fun Header(
             Modifier
                 .size(48.dp)
                 .clickable(onClick = onSettings, role = Role.Button)
-                .testTag("seating-settings"),
+                .semantics { contentDescription = "Settings" }.testTag("seating-settings"),
             contentAlignment = Alignment.Center,
         ) {
-            Text("⚙", fontSize = 18.sp, color = Industry.neutral600)
+            Text("⚙", fontSize = 18.sp, color = Industry.secondary)
         }
     }
 }
@@ -274,9 +288,9 @@ private fun SeatingDestinationButton(
     val shape = RoundedCornerShape(8.dp)
     Row(
         Modifier
-            .height(52.dp)
+            .heightIn(min = 52.dp)
             .shadow(3.dp, shape, clip = false)
-            .background(Color.White, shape)
+            .background(Industry.card, shape)
             .then(
                 if (selected) {
                     Modifier.border(1.5.dp, Industry.accent, shape)
@@ -312,7 +326,7 @@ private fun HallAndLegendBand(
         }
     }
     Row(
-        Modifier.fillMaxWidth().height(44.dp).bottomHairline(Rule).padding(horizontal = 24.dp),
+        Modifier.fillMaxWidth().heightIn(min = 48.dp).horizontalScroll(rememberScrollState()).bottomHairline(Rule).padding(horizontal = 24.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
@@ -321,17 +335,17 @@ private fun HallAndLegendBand(
             val shape = RoundedCornerShape(16.dp)
             Row(
                 Modifier
-                    .height(32.dp)
+                    .heightIn(min = 48.dp)
                     .then(
                         if (selected) {
-                            Modifier.background(Industry.accent800, shape)
+                            Modifier.background(Industry.accent100, shape).border(1.5.dp, Industry.accent700, shape)
                         } else {
                             Modifier.border(1.dp, Industry.neutral300, shape)
                         },
                     )
                     .clickable(role = Role.Button) { onHall(g) }
                     .padding(horizontal = 16.dp)
-                    .testTag("hall-tab-${g.name}"),
+                    .semantics { this.selected = selected }.testTag("hall-tab-${g.name}"),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(7.dp),
             ) {
@@ -339,14 +353,14 @@ private fun HallAndLegendBand(
                     hallWord(g),
                     fontSize = 13.sp,
                     fontWeight = if (selected) FontWeight.Medium else FontWeight.Normal,
-                    color = if (selected) Color.White else Industry.neutral700,
+                    color = if (selected) Industry.accent800 else Industry.neutral700,
                 )
                 Text(
                     (seatedByHall[g] ?: 0).toString(),
                     fontFamily = DipiMono,
                     fontWeight = FontWeight.Medium,
                     fontSize = 11.sp,
-                    color = if (selected) Color.White.copy(alpha = 0.75f) else Industry.neutral500,
+                    color = if (selected) Industry.accent700 else Industry.caption,
                 )
             }
         }
@@ -357,7 +371,7 @@ private fun HallAndLegendBand(
             fontWeight = FontWeight.Medium,
             fontSize = 9.sp,
             letterSpacing = 1.7.sp,
-            color = Industry.neutral500,
+            color = Industry.caption,
             modifier = Modifier.padding(end = 6.dp),
         )
         // Legend swatches carry the CELL fills (ground-truth correction):
@@ -366,7 +380,7 @@ private fun HallAndLegendBand(
         Spacer(Modifier.width(14.dp))
         LegendItem("New", fill = NewFill, borderColor = Industry.neutral300)
         Spacer(Modifier.width(14.dp))
-        LegendItem("Empty", fill = Color.White, borderColor = Industry.neutral400, dashed = true)
+        LegendItem("Empty", fill = Industry.card, borderColor = Industry.neutral400, dashed = true)
     }
 }
 
@@ -385,7 +399,7 @@ private fun LegendItem(label: String, fill: Color, borderColor: Color, dashed: B
                     },
                 ),
         )
-        Text(label, fontSize = 12.sp, color = Industry.neutral600)
+        Text(label, fontSize = 12.sp, color = Industry.secondary)
     }
 }
 
@@ -410,7 +424,7 @@ private fun TeacherMarker() {
             fontWeight = FontWeight.Medium,
             fontSize = 9.sp,
             letterSpacing = 2.4.sp,
-            color = Industry.neutral600,
+            color = Industry.secondary,
         )
     }
 }
@@ -429,7 +443,7 @@ private fun ColumnAxisRow(letters: List<String>) {
                 fontFamily = DipiCondensed,
                 fontWeight = FontWeight.SemiBold,
                 fontSize = 15.sp,
-                color = Industry.neutral500,
+                color = Industry.caption,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.weight(1f),
             )
@@ -480,7 +494,7 @@ private fun SeatCellBox(cell: HallCell, modifier: Modifier, onOpen: (RollRow) ->
             .then(
                 when {
                     seated == null -> Modifier
-                        .background(Color.White, CellShape)
+                        .background(Industry.card, CellShape)
                         .dashedBorder(Industry.neutral400, 5.dp)
                     seated.old -> Modifier
                         .background(Industry.accent100, CellShape)
@@ -588,7 +602,7 @@ private fun ChowkyChairSection(
             fontWeight = FontWeight.Medium,
             fontSize = 9.sp,
             letterSpacing = 1.7.sp,
-            color = Industry.neutral500,
+            color = Industry.caption,
         )
         if (layout == ChowkyRailLayout.SINGLE_ROW) {
             RailRun(
@@ -607,18 +621,18 @@ private fun ChowkyChairSection(
                 fontWeight = FontWeight.Medium,
                 fontSize = 8.5.sp,
                 letterSpacing = 1.5.sp,
-                color = Industry.neutral400,
+                color = Industry.caption,
                 modifier = Modifier.padding(top = 9.dp, bottom = 6.dp),
             )
             Box(
                 Modifier
                     .fillMaxWidth()
-                    .height(38.dp)
+                    .heightIn(min = 38.dp)
                     .dashedBorder(Industry.neutral300, 5.dp)
                     .testTag("chowky-none"),
                 contentAlignment = Alignment.Center,
             ) {
-                Text("None in this hall", fontSize = 12.sp, color = Industry.neutral400)
+                Text("None in this hall", fontSize = 12.sp, color = Industry.caption)
             }
         } else {
             RailRun("CW · CHOWKY", plan.chowkySeats, perRow, onOpen, emptyLabel = null)
@@ -629,7 +643,7 @@ private fun ChowkyChairSection(
             fontWeight = FontWeight.Medium,
             fontSize = 8.5.sp,
             letterSpacing = 1.5.sp,
-            color = Industry.neutral400,
+            color = Industry.caption,
             modifier = Modifier.padding(top = 11.dp).bottomHairline(Industry.neutral200).padding(top = 10.dp),
         )
         if (plan.chairSeats.isEmpty()) {
@@ -637,12 +651,12 @@ private fun ChowkyChairSection(
                 Modifier
                     .fillMaxWidth()
                     .padding(top = 7.dp)
-                    .height(38.dp)
+                    .heightIn(min = 38.dp)
                     .dashedBorder(Industry.neutral300, 5.dp)
                     .testTag("chair-none"),
                 contentAlignment = Alignment.Center,
             ) {
-                Text("None in this hall", fontSize = 12.sp, color = Industry.neutral400)
+                Text("None in this hall", fontSize = 12.sp, color = Industry.caption)
             }
         } else {
             RailRun(null, plan.chairSeats, perRow, onOpen, emptyLabel = null)
@@ -665,14 +679,14 @@ private fun RailRun(
             fontWeight = FontWeight.Medium,
             fontSize = 8.5.sp,
             letterSpacing = 1.5.sp,
-            color = Industry.neutral400,
+            color = Industry.caption,
             modifier = Modifier.padding(top = 9.dp, bottom = 6.dp),
         )
     } else {
         Spacer(Modifier.height(6.dp))
     }
     if (seats.isEmpty() && emptyLabel != null) {
-        Text(emptyLabel, fontSize = 12.sp, color = Industry.neutral400)
+        Text(emptyLabel, fontSize = 12.sp, color = Industry.caption)
         return
     }
     seats.chunked(perRow.coerceAtLeast(1)).forEach { line ->
@@ -739,6 +753,19 @@ private fun RailRun(
  * staying in the header tally.
  */
 @Composable
+private fun UnseatedFacts(plan: HallPlan) {
+    val unseatedTotal = plan.unseated.size
+    val unseatedListed = plan.unseatedVisible.size
+    val unseatedSevaks = unseatedTotal - unseatedListed
+    Text(
+        "$unseatedTotal unseated · $unseatedSevaks sevaks not listed · $unseatedListed shown · ${plan.seatedCount} seated",
+        fontSize = 12.5.sp,
+        color = Industry.secondary,
+        modifier = Modifier.padding(top = 12.dp, bottom = 6.dp).testTag("hall-unseated-facts"),
+    )
+}
+
+@Composable
 private fun UnseatedSection(unseated: List<UnseatedRow>) {
     Column(
         Modifier
@@ -760,20 +787,21 @@ private fun UnseatedSection(unseated: List<UnseatedRow>) {
                 fontWeight = FontWeight.Medium,
                 fontSize = 9.sp,
                 letterSpacing = 1.7.sp,
-                color = Industry.neutral500,
+                color = Industry.caption,
             )
             Text(
                 "on the roll, not in the hall · ${unseated.size}",
                 fontSize = 12.sp,
-                color = Industry.neutral400,
+                color = Industry.caption,
             )
         }
+        Column(Modifier.heightIn(max = 144.dp).verticalScroll(rememberScrollState()).testTag("unseated-scroll")) {
         unseated.forEach { u ->
             Row(
                 Modifier
                     .fillMaxWidth()
                     .padding(bottom = 6.dp)
-                    .height(38.dp)
+                    .heightIn(min = 38.dp)
                     .background(NewFill, CellShape)
                     .border(1.dp, Rule, CellShape)
                     .padding(horizontal = 12.dp)
@@ -783,21 +811,23 @@ private fun UnseatedSection(unseated: List<UnseatedRow>) {
                 Text(
                     u.row.name,
                     fontSize = 13.sp,
-                    color = UnseatedText,
+                    color = Industry.secondary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f),
                 )
                 Text(
-                    u.reason,
+                    u.reason.takeUnless { it.isBlank() || it.trim() in setOf("-", "–", "—") } ?: "No placeable seat label",
                     fontFamily = DipiMono,
                     fontWeight = FontWeight.Medium,
                     fontSize = 10.sp,
                     letterSpacing = 0.8.sp,
-                    color = Industry.neutral500,
+                    color = Industry.caption,
+                    modifier = Modifier.weight(1f),
                 )
             }
         }
+    }
     }
 }
 

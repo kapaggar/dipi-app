@@ -4,6 +4,8 @@ import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.runtime.*
+import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
@@ -97,24 +99,23 @@ class RoomsPaneTest {
     }
 
     @Test
-    fun genderBlocksStackVerticallyRatherThanSideBySide() {
+    fun blockSelectionShowsWholeSelectedBlock() {
         val rooms = listOf(
             AccoRoom("Fbk 01", Gender.F, "Fbk"),
             AccoRoom("Mbk 01", Gender.M, "Mbk"),
         )
         rule.setContent {
             DipiTheme {
-                RoomsPane(roll = emptyList(), checkIns = emptyMap(), rooms = rooms, layout = RoomLayout())
+                var block by remember { mutableStateOf<org.dhamma.dipi.staff.desk.RoomBlockKey?>(null) }
+                RoomsPane(roll = emptyList(), checkIns = emptyMap(), rooms = rooms, layout = RoomLayout(),
+                    selectedBlock = block, onSelectBlock = { block = it })
             }
         }
-        // Both tiles reachable by scrolling — neither is clipped off by a
-        // fixed-width side-by-side column.
-        val female = rule.onNodeWithText("Fbk 01").performScrollTo().getUnclippedBoundsInRoot()
-        val male = rule.onNodeWithText("Mbk 01").performScrollTo().getUnclippedBoundsInRoot()
-        // Stacked, not side by side: a side-by-side layout would place both
-        // tiles on the same row (equal top), just at different columns. A
-        // clearly different vertical position proves the blocks stack.
-        assertTrue((female.top - male.top).value.let { it > 20f || it < -20f })
+        rule.onNodeWithText("Fbk 01").assertIsDisplayed()
+        rule.onNodeWithText("Mbk 01").assertDoesNotExist()
+        rule.onNodeWithTag("room-block-M-Mbk").performClick()
+        rule.onNodeWithText("Mbk 01").assertIsDisplayed()
+        rule.onNodeWithText("Fbk 01").assertDoesNotExist()
     }
 
     @Test
@@ -126,12 +127,16 @@ class RoomsPaneTest {
         )
         rule.setContent {
             DipiTheme {
-                RoomsPane(roll = emptyList(), checkIns = emptyMap(), rooms = rooms, layout = RoomLayout())
+                var block by remember { mutableStateOf<org.dhamma.dipi.staff.desk.RoomBlockKey?>(null) }
+                RoomsPane(roll = emptyList(), checkIns = emptyMap(), rooms = rooms, layout = RoomLayout(),
+                    selectedBlock = block, onSelectBlock = { block = it })
             }
         }
-        rule.onNodeWithText("Male · Mbk").assertIsDisplayed()
-        rule.onNodeWithText("Male · Guest").performScrollTo().assertIsDisplayed()
         rule.onNodeWithText("Female · Fbk").assertIsDisplayed()
+        rule.onNodeWithTag("room-block-M-Mbk").performClick()
+        rule.onNodeWithText("Male · Mbk").assertIsDisplayed()
+        rule.onNodeWithTag("room-block-M-Guest").performClick()
+        rule.onNodeWithText("Male · Guest").assertIsDisplayed()
     }
 
     /* ── v5 T5 · Rooms visual rebalance ───────────────────────────────── */

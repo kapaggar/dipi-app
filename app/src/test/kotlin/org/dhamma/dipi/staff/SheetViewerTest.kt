@@ -584,7 +584,7 @@ class SheetViewerTest {
         )
         assertTrue(chit.contains("dipi-student-chit"))
         assertTrue("12-up cell width", chit.contains("63.3mm"))
-        assertTrue("12-up cell height", chit.contains("69.3mm"))
+        assertTrue("12-up minimum cell height", chit.contains("min-height:69mm!important"))
         assertFalse("9-up height must not win", chit.contains("92.3mm"))
         assertTrue(chit.contains("html.dipi-student-chit .table-student-chit"))
         assertTrue(
@@ -598,8 +598,21 @@ class SheetViewerTest {
         )
         assertTrue(slip.contains("dipi-checking-slip"))
         assertTrue("5g 2-up width", slip.contains("190mm"))
-        assertTrue("5g 2-up height", slip.contains("138.5mm"))
+        assertTrue("5g 2-up minimum height", slip.contains("min-height:138mm!important"))
         assertTrue(slip.contains("TIME  AM / PM"))
+        // Check the effective rule's geometry, not just the presence of a label.
+        // 1mm remains inside the 297 - 2*10mm body for print-engine rounding.
+        fun printCellHeight(document: String, exportClass: String): Double {
+            val printRules = document.substringAfter("/* 4 · Print.")
+            val cellRule = printRules.substringAfter("html.$exportClass .table-student-chit{").substringBefore("}")
+            assertTrue("Long records grow instead of clipping", cellRule.contains("height:auto!important"))
+            assertTrue("No maximum clips a long record", cellRule.contains("max-height:none!important"))
+            assertTrue("Content stays visible", cellRule.contains("overflow:visible!important"))
+            return Regex("min-height:([0-9.]+)mm").find(cellRule)!!.groupValues[1].toDouble()
+        }
+        assertTrue("Four rows fit A4 including rounding clearance", printCellHeight(chit, "dipi-student-chit") * 4 <= 276.0)
+        assertTrue("Two slips fit A4 including rounding clearance", printCellHeight(slip, "dipi-checking-slip") * 2 <= 276.0)
+
         assertEquals(
             android.print.PrintAttributes.MediaSize.ISO_A4,
             org.dhamma.dipi.staff.ui.NativePrint.a4Attributes().mediaSize,
@@ -648,6 +661,25 @@ class SheetViewerTest {
         rule.waitForIdle()
         rule.onNodeWithTag("sheet-viewer").assertExists()
         rule.onNodeWithTag("sheet-web").assertExists()
+    }
+
+    @Test
+    fun readableWidthIsScreenOnlyAndPrintStaysUnconstrained() {
+        val fit = SheetStylesheet.render("<p>body</p>", emptySet(), SheetExport.Day0List)
+        val readable = SheetStylesheet.render(
+            "<p>body</p>",
+            emptySet(),
+            SheetExport.Day0List,
+            org.dhamma.dipi.staff.model.SheetScreenWidth.READABLE,
+        )
+        assertTrue(fit.contains("dipi-fit"))
+        assertTrue(readable.contains("dipi-readable"))
+        assertTrue(readable.contains("dipi-sheet-body"))
+        assertTrue(readable.contains("@media screen"))
+        assertTrue(readable.contains("@media print"))
+        assertTrue(readable.contains("max-width: none !important"))
+        assertTrue(fit.contains("@media print"))
+        assertTrue(fit.contains(".d0-contact{display:none!important}"))
     }
 
     @Test

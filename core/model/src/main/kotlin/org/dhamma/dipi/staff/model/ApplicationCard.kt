@@ -48,6 +48,12 @@ data class ApplicationCard(
     val practiceDetails: String = "",
     /** `Health` rows, labels verbatim in server order — [HEALTH_ORDER]. */
     val health: List<HealthRow> = emptyList(),
+    /**
+     * Keys in [HISTORY_ORDER] whose source cells were valid nonnegative
+     * integers. Null = legacy/unknown provenance; empty = no valid count
+     * cells; a set names the keys that were actually present.
+     */
+    val historyCountsPresent: Set<String>? = null,
 ) {
     fun personalValue(key: String): String =
         personal.firstOrNull { it.first.equals(key, ignoreCase = true) }?.second ?: "-"

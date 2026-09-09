@@ -89,6 +89,9 @@ object ApplicationViewParser {
             historyCounts = ApplicationCard.HISTORY_ORDER.map { key ->
                 key to (historyValue(key).toIntOrNull() ?: 0)
             },
+            historyCountsPresent = ApplicationCard.HISTORY_ORDER.filter { key ->
+                historyValue(key).trim().toIntOrNull()?.let { it >= 0 } == true
+            }.toSet(),
             firstCourse = historyValue("First Course"),
             lastCourse = lastCourse,
             firstCourseTeacher = teachers.first,

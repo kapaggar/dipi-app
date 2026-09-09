@@ -17,6 +17,12 @@ val overrideUrl = (findProperty("dipi.baseUrl") as String?)
     ?: localProps.getProperty("dipi.baseUrl")
     ?: "https://dipi.vridhamma.org"
 
+// Explicit opt-in: never inherit this capability from machine-local properties.
+val photoReviewEnabled = providers.gradleProperty("dipi.photoReview").orNull?.let {
+    require(it == "true" || it == "false") { "dipi.photoReview must be true or false" }
+    it.toBoolean()
+} ?: false
+
 android {
     namespace = "org.dhamma.dipi.staff"
     compileSdk = 35
@@ -24,8 +30,9 @@ android {
         applicationId = "org.dhamma.dipi.staff"
         minSdk = 26
         targetSdk = 35
-        versionCode = 95
-        versionName = "1.46.1"
+        versionCode = 99
+        versionName = "1.48.0"
+        buildConfigField("boolean", "PHOTO_REVIEW_ENABLED", photoReviewEnabled.toString())
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "BASE_URL", "\"${overrideUrl.trimEnd('/')}\"")
         val useMock = ((findProperty("dipi.useMock") as String?)
@@ -33,6 +40,9 @@ android {
             ?: "false").equals("true", ignoreCase = true)
         buildConfigField("boolean", "USE_MOCK", if (useMock) "true" else "false")
     }
+    sourceSets.getByName("main").java.srcDir(
+        if (photoReviewEnabled) "src/photoEnabled/kotlin" else "src/photoDisabled/kotlin",
+    )
     buildTypes {
         release {
             isMinifyEnabled = true
@@ -98,7 +108,7 @@ dependencies {
     implementation(libs.hilt.navigation.compose)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.kotlinx.coroutines.android)
-    implementation("com.google.mlkit:face-detection:16.1.7")
+    if (photoReviewEnabled) implementation("com.google.mlkit:face-detection:16.1.7")
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.retrofit)
     implementation(libs.okhttp)
@@ -113,5 +123,9 @@ dependencies {
     testImplementation(libs.robolectric)
     testImplementation(platform(libs.androidx.compose.bom))
     testImplementation(libs.androidx.ui.test.junit4)
+    androidTestImplementation(platform(libs.androidx.compose.bom))
+    androidTestImplementation(libs.androidx.ui.test.junit4)
+    androidTestImplementation(libs.androidx.test.ext.junit)
+    androidTestImplementation("androidx.test:runner:1.6.2")
     debugImplementation(libs.androidx.ui.test.manifest)
 }

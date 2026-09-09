@@ -204,6 +204,7 @@ private data class CardDto(
     val lastCourseTeacher: String = "",
     val practiceDetails: String = "",
     val health: List<KvDto> = emptyList(),
+    val historyCountsPresent: Set<String>? = null,
 ) {
     override fun toString(): String = "CardDto(name=$name, conf=$conf, health.keys=${health.map { it.k }})"
 
@@ -220,6 +221,7 @@ private data class CardDto(
         lastCourseTeacher = lastCourseTeacher,
         practiceDetails = practiceDetails,
         health = health.map { HealthRow(it.k, it.v) },
+        historyCountsPresent = historyCountsPresent,
     )
 }
 
@@ -236,6 +238,7 @@ private fun ApplicationCard.toDto() = CardDto(
     lastCourseTeacher = lastCourseTeacher,
     practiceDetails = practiceDetails,
     health = health.map { KvDto(it.label, it.answer) },
+    historyCountsPresent = historyCountsPresent,
 )
 
 @Serializable

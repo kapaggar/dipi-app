@@ -19,7 +19,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.CornerRadius
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.testTag
@@ -32,7 +31,7 @@ import org.dhamma.dipi.staff.model.Course
 import org.dhamma.dipi.staff.teacher.CourseOpsOfflineStrip
 import org.dhamma.dipi.staff.ui.theme.DipiCondensed
 import org.dhamma.dipi.staff.ui.theme.DipiMono
-import org.dhamma.dipi.staff.ui.theme.Industry
+import org.dhamma.dipi.staff.ui.theme.ThemeIndustry
 import org.dhamma.dipi.staff.ui.theme.LocalDipi
 
 /**
@@ -119,6 +118,7 @@ private fun CourseOpsPlaceholder() {
 /** Roll fetch failed — the server's words, verbatim, and nothing else. */
 @Composable
 fun CourseOpsRollError(message: String) {
+    val c = LocalDipi.current
     Column(
         Modifier
             .fillMaxSize()
@@ -130,18 +130,18 @@ fun CourseOpsRollError(message: String) {
             Modifier
                 .fillMaxWidth()
                 .height(38.dp)
-                .background(Industry.neutral200, RoundedCornerShape(6.dp))
-                .border(1.dp, Color(0xFFDEDEE1), RoundedCornerShape(6.dp))
+                .background(ThemeIndustry.neutral200, RoundedCornerShape(6.dp))
+                .border(1.dp, c.hairline, RoundedCornerShape(6.dp))
                 .padding(horizontal = 14.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text("◍ No cached roll for this course", fontSize = 13.5.sp, color = Industry.neutral800)
+            Text("◍ No cached roll for this course", fontSize = 13.5.sp, color = ThemeIndustry.neutral800)
         }
         Column(
             Modifier
                 .fillMaxWidth()
-                .background(Color(0xFFFBEFEE), RoundedCornerShape(8.dp))
-                .border(1.dp, Color(0xFFE8CDC9), RoundedCornerShape(8.dp))
+                .background(c.hard.copy(alpha = 0.08f), RoundedCornerShape(8.dp))
+                .border(1.dp, c.hard.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
                 .padding(start = 18.dp, end = 18.dp, top = 16.dp, bottom = 18.dp),
         ) {
             Text(
@@ -150,17 +150,17 @@ fun CourseOpsRollError(message: String) {
                 fontWeight = FontWeight.Medium,
                 fontSize = 9.sp,
                 letterSpacing = 1.7.sp,
-                color = Color(0xFFA33A34),
+                color = c.hard,
             )
             Text(
                 message,
                 fontSize = 13.5.sp,
                 lineHeight = 20.sp,
-                color = Industry.text,
+                color = ThemeIndustry.text,
                 modifier = Modifier
                     .padding(top = 11.dp)
-                    .background(Color.White, RoundedCornerShape(6.dp))
-                    .border(1.dp, Color(0xFFE8CDC9), RoundedCornerShape(6.dp))
+                    .background(c.field, RoundedCornerShape(6.dp))
+                    .border(1.dp, c.hard.copy(alpha = 0.3f), RoundedCornerShape(6.dp))
                     .padding(horizontal = 14.dp, vertical = 13.dp)
                     .testTag("course-ops-roll-error-body"),
             )
@@ -175,6 +175,7 @@ fun CourseOpsRollError(message: String) {
  */
 @Composable
 fun CourseOpsRollPending(hasCourse: Boolean) {
+    val c = LocalDipi.current
     if (!hasCourse) {
         Box(
             Modifier
@@ -182,7 +183,7 @@ fun CourseOpsRollPending(hasCourse: Boolean) {
                 .padding(20.dp)
                 .drawBehind {
                     drawRoundRect(
-                        color = Color(0xFFD4D4D7),
+                        color = c.hairlineStrong,
                         style = Stroke(
                             width = 1.dp.toPx(),
                             pathEffect = PathEffect.dashPathEffect(floatArrayOf(8f, 6f)),
@@ -190,7 +191,7 @@ fun CourseOpsRollPending(hasCourse: Boolean) {
                         cornerRadius = CornerRadius(8.dp.toPx()),
                     )
                 }
-                .background(Color(0xFFFAFAFB), RoundedCornerShape(8.dp))
+                .background(c.field, RoundedCornerShape(8.dp))
                 .testTag("course-ops-empty-host"),
             contentAlignment = Alignment.Center,
         ) {
@@ -205,7 +206,7 @@ fun CourseOpsRollPending(hasCourse: Boolean) {
                     fontWeight = FontWeight.Medium,
                     fontSize = 9.sp,
                     letterSpacing = 1.7.sp,
-                    color = Industry.neutral500,
+                    color = ThemeIndustry.caption,
                 )
                 Text(
                     "No course is running today",
@@ -213,14 +214,14 @@ fun CourseOpsRollPending(hasCourse: Boolean) {
                     fontWeight = FontWeight.SemiBold,
                     fontSize = 21.sp,
                     letterSpacing = 0.3.sp,
-                    color = Industry.text,
+                    color = ThemeIndustry.text,
                     textAlign = TextAlign.Center,
                 )
                 Text(
                     "The running course will appear here.",
                     fontSize = 13.5.sp,
                     lineHeight = 21.sp,
-                    color = Industry.neutral600,
+                    color = ThemeIndustry.neutral600,
                     textAlign = TextAlign.Center,
                 )
             }
@@ -231,7 +232,7 @@ fun CourseOpsRollPending(hasCourse: Boolean) {
         Text(
             "Fetching the roll…",
             fontSize = 14.sp,
-            color = Industry.neutral500,
+            color = ThemeIndustry.caption,
             modifier = Modifier.testTag("course-ops-roll-pending"),
         )
     }

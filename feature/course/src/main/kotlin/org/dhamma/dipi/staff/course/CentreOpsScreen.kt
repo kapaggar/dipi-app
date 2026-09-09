@@ -43,7 +43,7 @@ import org.dhamma.dipi.staff.model.centreOpsEffect
 import org.dhamma.dipi.staff.model.whatsAppMessage
 import org.dhamma.dipi.staff.ui.theme.DeskKicker
 import org.dhamma.dipi.staff.ui.theme.DipiCondensed
-import org.dhamma.dipi.staff.ui.theme.Industry
+import org.dhamma.dipi.staff.ui.theme.ThemeIndustry as Industry
 import org.dhamma.dipi.staff.ui.theme.LocalDipi
 import org.dhamma.dipi.staff.ui.theme.deskCard
 
@@ -285,6 +285,7 @@ private fun HallChartCard(
         )
         listOf(Gender.M to "Male hall", Gender.F to "Female hall").forEach { (g, label) ->
             val grid = staged.getValue(g)
+            Column(Modifier.fillMaxWidth().padding(top = 8.dp).deskCard().padding(14.dp)) {
             Text(
                 "$label · ${grid.columns} columns · ${grid.depth} deep",
                 fontFamily = DipiCondensed,
@@ -306,6 +307,7 @@ private fun HallChartCard(
                 max = HallGrid.MAX_DEPTH,
                 contentLabel = "rows deep · $label",
             ) { n -> staged = staged + (g to grid.copy(depth = n)) }
+        }
         }
         Text(
             "Chowky / chair rail",

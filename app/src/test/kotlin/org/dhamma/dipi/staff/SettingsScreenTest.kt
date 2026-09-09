@@ -203,6 +203,7 @@ class SettingsScreenTest {
                     onToggleTheme = {},
                     onToggleOffline = { taps++ },
                     onLogout = {},
+                    diagnosticsOpen = true,
                 )
             }
         }
@@ -223,6 +224,7 @@ class SettingsScreenTest {
                     offline = false,
                     onToggleTheme = {},
                     onLogout = {},
+                    diagnosticsOpen = true,
                 )
             }
         }
@@ -244,6 +246,7 @@ class SettingsScreenTest {
                     onToggleTheme = {},
                     onLogout = {},
                     skin = DeskSkin.Blossom,
+                    diagnosticsOpen = true,
                 )
             }
         }
@@ -267,6 +270,7 @@ class SettingsScreenTest {
                     onToggleTheme = {},
                     onLogout = {},
                     skin = DeskSkin.Blossom,
+                    diagnosticsOpen = true,
                 )
             }
         }
@@ -346,7 +350,7 @@ class SettingsScreenTest {
             }
         }
         rule.onNodeWithText("APPEARANCE").performScrollTo().assertIsDisplayed()
-        rule.onNodeWithText("TESTING").performScrollTo().assertIsDisplayed()
+        rule.onNodeWithText("DIAGNOSTICS").performScrollTo().assertIsDisplayed()
         rule.onNodeWithText("ACCOUNT & SESSION").performScrollTo().assertIsDisplayed()
         rule.onNodeWithText("Erase all local data").performScrollTo().assertIsDisplayed()
     }
@@ -377,6 +381,7 @@ class SettingsScreenTest {
                     lotus = true,
                     onToggleLotus = { lotusTaps++ },
                     appVersion = "1.22.0",
+                    diagnosticsOpen = true,
                 )
             }
         }
@@ -408,6 +413,7 @@ class SettingsScreenTest {
                     offline = false,
                     onToggleTheme = {},
                     onLogout = {},
+                    diagnosticsOpen = true,
                 )
             }
         }

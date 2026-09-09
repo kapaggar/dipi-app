@@ -11,7 +11,9 @@ import org.dhamma.dipi.staff.desk.deskCallSorted
 import org.dhamma.dipi.staff.desk.deskCallMeta
 import org.dhamma.dipi.staff.desk.deskCallRows
 import org.dhamma.dipi.staff.desk.deskWaNumber
+import org.dhamma.dipi.staff.desk.deskApplicationList
 import org.dhamma.dipi.staff.desk.deskFindings
+import org.dhamma.dipi.staff.desk.deskSelectedApplicant
 import org.dhamma.dipi.staff.desk.deskFreeRooms
 import org.dhamma.dipi.staff.desk.deskOccupied
 import org.dhamma.dipi.staff.desk.deskRecord
@@ -259,6 +261,17 @@ class DeskDeriveTest {
     }
 
     @Test
+    fun selectedApplicantHonorsPinnedOpenOverFirstScopedRow() {
+        val priya = card(1, conf = "NF1", given = "Priya")
+        val arun = card(2, conf = "NM2", given = "Arun", gender = Gender.M)
+        val scoped = listOf(priya)
+        assertEquals(priya, deskSelectedApplicant(scoped, ApplicantId(2)))
+        assertEquals(arun, deskSelectedApplicant(scoped, ApplicantId(2), pinnedCard = arun))
+        assertEquals(listOf(arun, priya), deskApplicationList(scoped, arun))
+        assertEquals(scoped, deskApplicationList(scoped, priya))
+    }
+
+    @Test
     fun stripHonorificOnlyTouchesTheTitle() {
         assertEquals("Lakshmi", stripHonorific("Smt Lakshmi"))
         assertEquals("Lakshmi", stripHonorific("Smt. Lakshmi"))
@@ -285,6 +298,7 @@ class DeskDeriveTest {
         assertEquals(
             mapOf(
                 "To call" to 1,
+                "All" to 2,
                 "Confirmed" to 1,
                 "Cancelled" to 0,
                 "No answer" to 0,

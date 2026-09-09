@@ -1,6 +1,7 @@
 package org.dhamma.dipi.staff.audit
 
 import org.dhamma.dipi.staff.model.ApplicantCard
+import org.dhamma.dipi.staff.model.ApplicantId
 import org.dhamma.dipi.staff.model.ApplicantType
 import org.dhamma.dipi.staff.model.AuditFlag
 import org.dhamma.dipi.staff.model.AuditSeverity
@@ -105,11 +106,18 @@ object ClientAudit {
         return out
     }
 
-    fun merge(client: List<AuditFlag>, server: List<AuditFlag>): List<AuditFlag> {
-        val byId = linkedMapOf<String, AuditFlag>()
-        (server + client).forEach { byId.putIfAbsent(it.ruleId, it) }
-        return byId.values.toList()
-    }
+    fun merge(client: List<AuditFlag>, server: List<AuditFlag>): List<AuditFlag> =
+        (server + client).groupBy { it.ruleId }.values.map { matches ->
+            val preferred = matches.first()
+            if (preferred.relatedApplicantIds.isNotEmpty()) {
+                preferred
+            } else {
+                preferred.copy(
+                    relatedApplicantIds = matches.firstOrNull { it.relatedApplicantIds.isNotEmpty() }
+                        ?.relatedApplicantIds.orEmpty(),
+                )
+            }
+        }
 
     /* ── Hard ─────────────────────────────────────────────────────────── */
 
@@ -367,6 +375,7 @@ object ClientAudit {
             "Conf number appears twice in this course",
             "conf_no_duplicate · $conf · also ${other.displayName}",
             "conf_no_duplicate",
+            listOf(other.id),
         )
     }
 
@@ -385,6 +394,7 @@ object ClientAudit {
                     "Two people share the same phone",
                     "within_file_duplicate · ${card.displayName} and ${hit.displayName} share the same phone: $phone",
                     "within_file_duplicate",
+                    listOf(hit.id),
                 )
             }
         }
@@ -400,6 +410,7 @@ object ClientAudit {
                     "Same person may be entered twice",
                     "within_file_duplicate · name+DOB · also ${hit.displayName}",
                     "within_file_duplicate",
+                    listOf(hit.id),
                 )
             }
         }
@@ -485,6 +496,7 @@ object ClientAudit {
             "Mobile shared with another applicant",
             "shared_mobile · $mine · also ${other.displayName}",
             "shared_mobile",
+            listOf(other.id),
         )
     }
 
@@ -499,6 +511,7 @@ object ClientAudit {
             "Email shared across unrelated surnames",
             "shared_email_unrelated · $mine · also ${group.first().displayName}",
             "shared_email_unrelated",
+            group.map { it.id }.distinct(),
         )
     }
 
@@ -540,6 +553,11 @@ object ClientAudit {
         return NOW_YEAR - year
     }
 
-    private fun flag(sev: AuditSeverity, label: String, detail: String, id: String) =
-        AuditFlag(sev, label, detail, id)
+    private fun flag(
+        sev: AuditSeverity,
+        label: String,
+        detail: String,
+        id: String,
+        relatedApplicantIds: List<ApplicantId> = emptyList(),
+    ) = AuditFlag(sev, label, detail, id, relatedApplicantIds)
 }

@@ -5,6 +5,7 @@ import org.dhamma.dipi.staff.ui.theme.DarkDipi
 import org.dhamma.dipi.staff.ui.theme.DeskSkin
 import org.dhamma.dipi.staff.ui.theme.IndustryPalette
 import org.dhamma.dipi.staff.ui.theme.lightDipi
+import org.dhamma.dipi.staff.ui.theme.readableTokens
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -39,5 +40,14 @@ class DarkTokensTest {
         assertEquals(Color(0xFFE0796F), DarkDipi.hard)
         assertEquals(Color(0xFFA33A34), lightDipi(IndustryPalette.Steel).hard)
         assertEquals(Color(0xFFA33A34), lightDipi(IndustryPalette.of(DeskSkin.Blossom)).hard)
+    }
+
+    @Test
+    fun darkReadableTokensStayOnTheNightRamp() {
+        val tokens = readableTokens(IndustryPalette.of(DeskSkin.Blossom), dark = true)
+        assertEquals(DarkDipi.foreground, tokens.primary)
+        assertEquals(DarkDipi.muted, tokens.caption)
+        assertEquals(DarkDipi.hover, tokens.recordedFill)
+        assertEquals(DarkDipi.field, tokens.blankFill)
     }
 }

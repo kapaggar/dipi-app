@@ -88,10 +88,12 @@ fun deskRosterRows(
             card.confNo?.value.orEmpty().lowercase().contains(q) ||
             card.displayName.lowercase().contains(q)
         val isIn = deskCheckedIn(card, checkIns)
+        val left = deskIsLeft(card)
         val okF = when (filter) {
-            "Arrived" -> isIn
+            "Arrived" -> isIn && !left
+            "Left" -> left
             "All" -> true
-            else -> !isIn
+            else -> !isIn && !left
         }
         okQ && okF
     }.sortedBy { it.displayName.lowercase() }
@@ -136,7 +138,11 @@ fun deskSeatCount(
 
 /* ── Audit ─────────────────────────────────────────────────────────── */
 
-data class DeskFindingPerson(val card: ApplicantCard, val offendingValue: String)
+data class DeskFindingPerson(
+    val card: ApplicantCard,
+    val offendingValue: String,
+    val relatedApplicantIds: List<ApplicantId> = emptyList(),
+)
 
 data class DeskFinding(
     val code: String,
@@ -220,7 +226,8 @@ fun deskFindings(flagged: List<ApplicantCard>): List<DeskFinding> {
     for (card in flagged) {
         for (flag in card.flags) {
             val value = flag.detail.substringAfter("· ", flag.detail).trim()
-            byCode.getOrPut(flag.ruleId) { mutableListOf() } += DeskFindingPerson(card, value)
+            byCode.getOrPut(flag.ruleId) { mutableListOf() } +=
+                DeskFindingPerson(card, value, flag.relatedApplicantIds)
             severity.merge(flag.ruleId, flag.severity) { a, b -> minOf(a, b) }
         }
     }
@@ -242,6 +249,31 @@ fun deskFindings(flagged: List<ApplicantCard>): List<DeskFinding> {
                 people = people,
             )
         }
+}
+
+/**
+ * Applications list–detail: honor an explicit Audit Open (or other pin) even
+ * when gender / seniority hide that row. Without a pin, an out-of-scope
+ * [selectedId] snaps to the first visible row — that is browsing, not Open.
+ */
+fun deskSelectedApplicant(
+    scoped: List<ApplicantCard>,
+    selectedId: ApplicantId?,
+    pinnedCard: ApplicantCard? = null,
+): ApplicantCard? {
+    if (pinnedCard != null && (selectedId == null || pinnedCard.id == selectedId)) {
+        return pinnedCard
+    }
+    return scoped.firstOrNull { it.id == selectedId } ?: scoped.firstOrNull()
+}
+
+/** Keep a pinned Open target at the top of the list when filters would drop it. */
+fun deskApplicationList(
+    scoped: List<ApplicantCard>,
+    selected: ApplicantCard?,
+): List<ApplicantCard> {
+    if (selected == null || scoped.any { it.id == selected.id }) return scoped
+    return listOf(selected) + scoped
 }
 
 fun deskFindingCount(flagged: List<ApplicantCard>): Int = flagged.sumOf { it.flags.size }
@@ -318,9 +350,10 @@ fun deskCallRows(
     search: String = "",
 ): List<ApplicantCard> {
     val q = search.trim().lowercase()
-    return deskCallList(roll).filter { card ->
+    val source = if (filter == "All") deskCallList(roll) else deskCallRound(roll)
+    return source.filter { card ->
         val o = deskCallOutcome(outcomes[card.id]?.outcome)
-        val okPile = if (filter == "To call") o.isBlank() else o == filter
+        val okPile = filter == "All" || (if (filter == "To call") o.isBlank() else o == filter)
         val okQ = q.isEmpty() ||
             card.displayName.lowercase().contains(q) ||
             card.confNo?.value.orEmpty().lowercase().contains(q)
@@ -328,12 +361,12 @@ fun deskCallRows(
     }
 }
 
-/** Pile sizes for the segmented labels — "To call" plus each outcome. */
+/** Pile sizes for the segmented labels — To call, All, and each outcome. All is not a pile sum. */
 fun deskCallCounts(
     roll: List<ApplicantCard>,
     outcomes: Map<ApplicantId, CallRecord>,
 ): Map<String, Int> =
-    (listOf("To call") + CALL_OUTCOMES).associateWith { deskCallRows(roll, outcomes, it).size }
+    (listOf("To call", "All") + CALL_OUTCOMES).associateWith { deskCallRows(roll, outcomes, it).size }
 
 /**
  * Call-priority rank, lowest first: still to reach, then the ones worth

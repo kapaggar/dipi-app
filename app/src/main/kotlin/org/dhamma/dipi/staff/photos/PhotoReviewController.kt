@@ -41,13 +41,14 @@ fun interface PhotoDeskWrite {
     suspend fun submit(applicantId: Int, jpeg: ByteArray, fileName: String): PhotoDeskWriteResult
 }
 
-class PhotoReviewController(
+class PhotoReviewController internal constructor(
     private val store: PhotoCorrectionStore,
     private val scope: CoroutineScope,
     private val sources: PhotoSourceGateway,
     private val renderer: PhotoRenderer = PhotoRenderer(),
     private val scanner: PhotoScanner = PhotoScanner(),
     private val exporter: PhotoExport = PhotoExport(renderer),
+    private val enabled: Boolean = org.dhamma.dipi.staff.BuildConfig.PHOTO_REVIEW_ENABLED,
     var openOutput: (String) -> OutputStream? = { null },
 ) {
     var deskWrite: PhotoDeskWrite? = null
@@ -74,6 +75,7 @@ class PhotoReviewController(
     }
 
     fun dispatch(action: PhotoReviewAction) {
+        if (!enabled) return
         when (action) {
             is PhotoReviewAction.Open -> open(action.scope, action.applicants, action.focusApplicantId)
             is PhotoReviewAction.SetSearch -> {

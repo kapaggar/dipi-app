@@ -33,7 +33,7 @@ import org.dhamma.dipi.staff.ui.theme.DeskKicker
 import org.dhamma.dipi.staff.ui.theme.DipiCondensed
 import org.dhamma.dipi.staff.ui.theme.DipiMono
 import org.dhamma.dipi.staff.ui.theme.DipiSans
-import org.dhamma.dipi.staff.ui.theme.Industry
+import org.dhamma.dipi.staff.ui.theme.ThemeIndustry as Industry
 import org.dhamma.dipi.staff.ui.theme.LotusWatermark
 import org.dhamma.dipi.staff.ui.theme.deskWash
 
@@ -92,7 +92,7 @@ fun DeskShell(
         if (lotus) {
             LotusWatermark(
                 size = 300.dp,
-                opacity = Industry.skin.markOpacity * 0.7f,
+                opacity = org.dhamma.dipi.staff.ui.theme.Industry.skin.markOpacity * 0.7f,
                 modifier = Modifier
                     .align(Alignment.BottomStart)
                     .offset(x = (-52).dp, y = 64.dp)

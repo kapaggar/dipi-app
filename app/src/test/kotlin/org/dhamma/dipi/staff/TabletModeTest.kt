@@ -186,8 +186,8 @@ class TabletModeTest {
         rule.onNodeWithText("Exports, Room Chart").assertIsDisplayed()
         assertEquals(2, rule.onAllNodesWithText("hidden").fetchSemanticsNodes().size)
         // The right column: the course lock and the static PIN row (no switch).
-        rule.onNodeWithText("Course being taught").assertIsDisplayed()
-        rule.onNodeWithText("No course is running today").assertIsDisplayed()
+        rule.onNodeWithText("Course being taught").performScrollTo().assertIsDisplayed()
+        rule.onNodeWithText("No course is running today").performScrollTo().assertIsDisplayed()
         rule.onNodeWithText(
             "Uses the course running today.",
         ).performScrollTo().assertIsDisplayed()

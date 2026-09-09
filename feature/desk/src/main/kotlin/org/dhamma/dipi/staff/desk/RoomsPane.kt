@@ -1,5 +1,11 @@
 package org.dhamma.dipi.staff.desk
 
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -21,8 +27,15 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -33,8 +46,11 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -52,7 +68,7 @@ import org.dhamma.dipi.staff.model.RoomSyncFailure
 import org.dhamma.dipi.staff.ui.theme.DeskStyle
 import org.dhamma.dipi.staff.ui.theme.DipiCondensed
 import org.dhamma.dipi.staff.ui.theme.DipiMono
-import org.dhamma.dipi.staff.ui.theme.Industry
+import org.dhamma.dipi.staff.ui.theme.ThemeIndustry as Industry
 import org.dhamma.dipi.staff.ui.theme.deskCard
 
 /**
@@ -62,6 +78,7 @@ import org.dhamma.dipi.staff.ui.theme.deskCard
  * record through the desk's own update form — hidden at N=0. Both buttons
  * disable while either walk is in flight; per-row refusals list under the header.
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun RoomsPane(
     roll: List<ApplicantCard>,
@@ -75,18 +92,23 @@ fun RoomsPane(
     syncFailures: List<RoomSyncFailure> = emptyList(),
     onSyncRooms: () -> Unit = {},
     onPullRooms: () -> Unit = {},
+    selectedBlock: RoomBlockKey? = null,
+    onSelectBlock: (RoomBlockKey) -> Unit = {},
+    focusedCode: String? = null,
+    jumpError: String? = null,
+    onJump: (String, List<AccoRoom>) -> Unit = { _, _ -> },
+    onFocusRoom: (String?) -> Unit = {},
 ) {
     Column(
         Modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 26.dp, vertical = 24.dp),
+            .padding(horizontal = 16.dp, vertical = 16.dp),
     ) {
-        Row(
+        FlowRow(
             Modifier.fillMaxWidth().padding(bottom = 12.dp),
-            verticalAlignment = Alignment.Top,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Column(Modifier.width(350.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 DeskH2("Room Chart")
                 if (readOnly) DeskSub("Finalized course · Read only")
                 AmenityLegend()
@@ -118,7 +140,6 @@ fun RoomsPane(
             rec?.checkedIn == true && rec.room.isNotBlank()
         }.groupBy { deskRecord(it, checkIns)!!.room }
 
-        // Older courses may reference rooms removed from today's inventory.
         val chartRooms = rooms + if (readOnly) roll.filter {
             it.courseFinalized && it.status.normalize() == "attended" && it.historicalRoom.isNotBlank()
         }.map { student ->
@@ -128,24 +149,107 @@ fun RoomsPane(
         }.distinctBy { it.code }.filter { historical -> rooms.none { it.code == historical.code } }
         else emptyList()
 
-        // Stacked full-width, one block per gender+section — matching RoomLayout's
-        // own keying — inside the pane's single verticalScroll above. No side-by-side
-        // columns, so each block's grid gets the pane's full width.
-        Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(24.dp)) {
-            listOf(Gender.F to "Female", Gender.M to "Male").forEach { (gender, label) ->
-                val genderRooms = chartRooms.filter { it.gender == gender }
-                val sections = genderRooms.map { it.section }.distinct().ifEmpty { listOf("") }
-                sections.forEach { section ->
-                    val block = genderRooms.filter { it.section == section }
-                    RoomBlock(
-                        label = label,
-                        section = section,
-                        block = block,
-                        columns = layout.columnsFor(gender, section),
-                        occupantByRoom = occupantByRoom,
-                        readOnly = readOnly,
+        val blockKeys = listOf(Gender.F, Gender.M).flatMap { gender ->
+            chartRooms.filter { it.gender == gender }.map { it.section }.distinct()
+                .map { RoomBlockKey(gender, it) }
+        }
+        val activeBlock = selectedBlock?.takeIf { it in blockKeys } ?: blockKeys.firstOrNull()
+        val activeRooms = chartRooms.filter { it.gender == activeBlock?.gender && it.section == activeBlock.section }
+        val focusManager = LocalFocusManager.current
+        val keyboard = LocalSoftwareKeyboardController.current
+        val finishRoomNavigation = { focusManager.clearFocus(); keyboard?.hide(); Unit }
+        var jumpQuery by remember { mutableStateOf("") }
+        var jumpRequest by remember { mutableStateOf(0) }
+        val requestJump = {
+            if (resolveRoomJump(activeRooms, jumpQuery) != null) {
+                finishRoomNavigation()
+                jumpRequest++
+            }
+            onJump(jumpQuery, activeRooms)
+        }
+        if (blockKeys.isNotEmpty()) {
+            FlowRow(
+                Modifier.fillMaxWidth().padding(bottom = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                blockKeys.forEach { key ->
+                    val on = key == activeBlock
+                    Text(
+                        "${key.section} · ${if (key.gender == Gender.M) "Male" else "Female"}",
+                        fontSize = 13.sp,
+                        color = if (on) Color.White else Industry.neutral700,
+                        modifier = Modifier
+                            .deskCard(
+                                shape = DeskStyle.controlShape,
+                                fill = if (on) Industry.accent else DeskStyle.cardFill,
+                                border = if (on) Industry.accent else DeskStyle.cardBorder,
+                                elevation = 0.dp,
+                            )
+                            .clickable { onSelectBlock(key) }
+                            .padding(horizontal = 12.dp, vertical = 12.dp)
+                            .testTag("room-block-${key.gender.name}-${key.section}"),
                     )
                 }
+            }
+            FlowRow(
+                Modifier.fillMaxWidth().padding(bottom = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                TextField(
+                    value = jumpQuery,
+                    onValueChange = { jumpQuery = it },
+                    singleLine = true,
+                    label = { Text("Jump to room") },
+                    keyboardOptions = KeyboardOptions(imeAction = androidx.compose.ui.text.input.ImeAction.Search),
+                    keyboardActions = KeyboardActions(onSearch = { requestJump() }),
+                    modifier = Modifier.width(180.dp).testTag("room-jump-field"),
+                )
+                Text(
+                    "Jump",
+                    modifier = Modifier
+                        .clickable { requestJump() }
+                        .heightIn(min = 48.dp)
+                        .padding(12.dp)
+                        .testTag("room-jump"),
+                    color = Industry.accent800,
+                )
+                val next = nextOccupiedRoomCode(activeRooms.map { it.code }, occupantByRoom.keys, focusedCode)
+                Text(
+                    "Next occupied",
+                    modifier = Modifier
+                        .clickable(enabled = next != null) {
+                            next?.let { code ->
+                                finishRoomNavigation()
+                                jumpRequest++
+                                onFocusRoom(code)
+                            }
+                        }
+                        .heightIn(min = 48.dp)
+                        .padding(12.dp)
+                        .testTag("room-next-occupied"),
+                    color = if (next != null) Industry.accent800 else Industry.neutral400,
+                )
+            }
+            if (!jumpError.isNullOrBlank()) {
+                Text(jumpError, fontSize = 12.5.sp, color = Industry.accent800, modifier = Modifier.padding(bottom = 8.dp))
+            }
+        }
+
+        activeBlock?.let { block ->
+            RoomBlockSummary(if (block.gender == Gender.M) "Male" else "Female", block.section, activeRooms, occupantByRoom, readOnly)
+        }
+        Column(Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberScrollState()).testTag("room-grid")) {
+            activeBlock?.let { block ->
+                RoomBlock(
+                    label = if (block.gender == Gender.M) "Male" else "Female",
+                    section = block.section,
+                    block = activeRooms,
+                    columns = layout.columnsFor(block.gender, block.section),
+                    occupantByRoom = occupantByRoom,
+                    readOnly = readOnly,
+                    focusedCode = focusedCode,
+                    jumpRequest = jumpRequest,
+                )
             }
         }
     }
@@ -164,8 +268,42 @@ private fun RoomBlock(
     columns: Int,
     occupantByRoom: Map<String, List<ApplicantCard>>,
     readOnly: Boolean,
+    focusedCode: String? = null,
+    jumpRequest: Int = 0,
 ) {
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        // Chart bands like the paper ROOM CHART: `columns` cells a row (from the
+        // Centre Settings room-chart layout), alternate rows on a soft rounded
+        // band of the neutral ground.
+        block.chunked(columns).forEachIndexed { i, rowRooms ->
+            val rowOccupied = rowRooms.any { occupantByRoom[it.code].orEmpty().isNotEmpty() }
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .height(IntrinsicSize.Max)
+                    .clip(DeskStyle.tileShape)
+                    .background(if (i % 2 == 1) Industry.neutral100 else Color.Transparent),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.Top,
+            ) {
+                rowRooms.forEach { room ->
+                    val who = occupantByRoom[room.code]
+                    RoomCell(room, who, compactRow = !rowOccupied, Modifier.weight(1f).fillMaxHeight(), focused = room.code == focusedCode, jumpRequest = jumpRequest)
+                }
+                repeat(columns - rowRooms.size) { Spacer(Modifier.weight(1f).fillMaxHeight()) }
+            }
+        }
+        if (block.isEmpty()) {
+            DeskEmpty(
+                "No rooms configured on the desk site yet.",
+                Modifier.fillMaxWidth().padding(vertical = 20.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun RoomBlockSummary(label: String, section: String, block: List<AccoRoom>, occupantByRoom: Map<String, List<ApplicantCard>>, readOnly: Boolean) {
         val free = block.count { it.code !in occupantByRoom }
         val occupied = block.size - free
         Column(
@@ -196,34 +334,7 @@ private fun RoomBlock(
             )
             OccupancyBar(occupied, block.size)
         }
-        // Chart bands like the paper ROOM CHART: `columns` cells a row (from the
-        // Centre Settings room-chart layout), alternate rows on a soft rounded
-        // band of the neutral ground.
-        block.chunked(columns).forEachIndexed { i, rowRooms ->
-            val rowOccupied = rowRooms.any { occupantByRoom[it.code].orEmpty().isNotEmpty() }
-            Row(
-                Modifier
-                    .fillMaxWidth()
-                    .height(IntrinsicSize.Max)
-                    .clip(DeskStyle.tileShape)
-                    .background(if (i % 2 == 1) Industry.neutral100 else Color.Transparent),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.Top,
-            ) {
-                rowRooms.forEach { room ->
-                    val who = occupantByRoom[room.code]
-                    RoomCell(room, who, compactRow = !rowOccupied, Modifier.weight(1f).fillMaxHeight())
-                }
-                repeat(columns - rowRooms.size) { Spacer(Modifier.weight(1f).fillMaxHeight()) }
-            }
-        }
-        if (block.isEmpty()) {
-            DeskEmpty(
-                "No rooms configured on the desk site yet.",
-                Modifier.fillMaxWidth().padding(vertical = 20.dp),
-            )
-        }
-    }
+
 }
 
 /**
@@ -283,6 +394,8 @@ private fun SyncRefusals(roll: List<ApplicantCard>, failures: List<RoomSyncFailu
         Modifier
             .fillMaxWidth()
             .padding(top = 8.dp)
+            .heightIn(max = 100.dp)
+            .verticalScroll(rememberScrollState())
             .deskCard(border = Industry.accent, elevation = 0.dp)
             .padding(horizontal = 14.dp, vertical = 10.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -319,17 +432,24 @@ private fun SyncRefusals(roll: List<ApplicantCard>, failures: List<RoomSyncFailu
 /**
  * Occupied cells keep the accent fill. Old is a solid accent border; New is
  * the same stroke, short-dashed. Age is the number only — muted 12sp — at
- * the reserved top-right corner. A row with no allocated rooms uses the
- * compact height (room number only); width stays the column weight. Empty
- * cells stay the near-white hairline they were.
+ * the reserved top-right corner. On a tall allocated cell the meditator
+ * name is 17sp Medium so it reads against the 19sp room number. A row with
+ * no allocated rooms uses the compact height (room number only); width
+ * stays the column weight. Empty cells stay the near-white hairline they
+ * were. Gender/block headings stay 22sp Bold condensed.
  */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun RoomCell(
     room: AccoRoom,
     occupant: List<ApplicantCard>?,
     compactRow: Boolean,
     modifier: Modifier = Modifier,
+    focused: Boolean = false,
+    jumpRequest: Int = 0,
 ) {
+    val bringIntoView = remember { BringIntoViewRequester() }
+    LaunchedEffect(focused, jumpRequest) { if (focused) bringIntoView.bringIntoView() }
     val who = occupant.orEmpty()
     val taken = who.isNotEmpty()
     val isNew = taken && who.any { !it.oldStudent }
@@ -337,8 +457,10 @@ private fun RoomCell(
     val hasAge = ages.isNotEmpty()
     Box(
         modifier
+            .bringIntoViewRequester(bringIntoView)
             .heightIn(min = if (compactRow) RoomCellCompactHeight else RoomCellMinHeight)
             .fillMaxHeight()
+            .then(if (focused) Modifier.border(2.dp, Industry.accent, DeskStyle.tileShape) else Modifier)
             .then(
                 if (taken) {
                     Modifier.roomChartOutline(Industry.accent100, Industry.accent, dashed = isNew)
@@ -352,6 +474,7 @@ private fun RoomCell(
                 },
             )
             .semantics {
+                selected = focused
                 contentDescription = when {
                     !taken -> "Available room"
                     isNew -> "New student room"
@@ -374,6 +497,7 @@ private fun RoomCell(
             ) {
                 Text(
                     room.displayNo,
+                    modifier = Modifier.testTag("room-code-${room.code}"),
                     fontFamily = DipiCondensed,
                     fontWeight = FontWeight.Bold,
                     fontSize = 19.sp,
@@ -406,11 +530,11 @@ private fun RoomCell(
                     who.forEach { student ->
                         Text(
                             student.displayName,
-                            fontSize = 13.sp,
-                            lineHeight = 15.sp,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis,
+                            fontSize = 17.sp,
+                            lineHeight = 20.sp,
+                            fontWeight = FontWeight.Medium,
                             color = Industry.neutral700,
+                            modifier = Modifier.testTag("room-cell-name"),
                         )
                     }
                 }
@@ -475,10 +599,12 @@ private fun Modifier.roomChartOutline(
     }
 
 /** Near-white ground for a free cell — emptiness reads as absence of ink. */
-private val FreeCellFill = Color(0xFFFAFAFB)
+private val FreeCellFill: Color
+    @Composable get() = Industry.card
 
 /** The nearly-invisible hairline a free cell carries instead of a card border. */
-private val FreeCellHairline = Color(0xFFEDEDF1)
+private val FreeCellHairline: Color
+    @Composable get() = Industry.neutral200
 
 /** Occupied Old/New share this stroke so the dash is the only difference. */
 private val RoomChartStroke = 1.5.dp
@@ -487,9 +613,9 @@ private val RoomChartStroke = 1.5.dp
 private val RoomChartDashOn = 6.dp
 private val RoomChartDashOff = 4.dp
 
-private val RoomCellMinHeight = 96.dp
+private val RoomCellMinHeight = 104.dp
 /** Room number only — used when every cell in the row is empty. Width unchanged. */
-private val RoomCellCompactHeight = 42.dp
+private val RoomCellCompactHeight = 44.dp
 private val AgeEdgePad = 8.dp
 private val AgeReserveEnd = 28.dp
 private val AgeReserveTop = 22.dp

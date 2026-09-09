@@ -1,6 +1,7 @@
 package org.dhamma.dipi.staff.desk
 
 import org.dhamma.dipi.staff.model.SheetExport
+import org.dhamma.dipi.staff.model.SheetScreenWidth
 
 /**
  * The desk-sheet stylesheet (v5 frames `5a` / `5t`) — the one piece of the
@@ -71,15 +72,22 @@ object SheetStylesheet {
      * appended after the style, never rewritten — so a change on the desk
      * shows up in the app the same day it ships.
      */
-    fun render(serverHtml: String, hidden: Set<Column>, export: SheetExport? = null): String {
+    fun render(
+        serverHtml: String,
+        hidden: Set<Column>,
+        export: SheetExport? = null,
+        screenWidth: SheetScreenWidth = SheetScreenWidth.FIT,
+    ): String {
         val extra = when (export) {
             SheetExport.StudentChit -> " dipi-student-chit"
             SheetExport.CheckingSlip -> " dipi-checking-slip"
             else -> ""
         }
+        val widthClass = if (screenWidth == SheetScreenWidth.READABLE) "dipi-readable" else "dipi-fit"
         val classes = hidden.joinToString(" ") { it.hideClass }
         return buildString {
-            append("<!doctype html><html class=\"dipi-sheet")
+            append("<!doctype html><html class=\"dipi-sheet ")
+            append(widthClass)
             append(extra)
             append(" ")
             append(classes)
@@ -87,9 +95,9 @@ object SheetStylesheet {
             append("<style>")
             append(CSS)
             append(hiddenColumnRules())
-            append("</style></head><body>")
+            append("</style></head><body><div class=\"dipi-sheet-body\">")
             append(serverHtml)
-            append("</body></html>")
+            append("</div></body></html>")
         }
     }
 
@@ -115,6 +123,13 @@ object SheetStylesheet {
         }
         html,body{margin:0;padding:0;background:#FFF;color:#2E2E34;
           font-family:Roboto,'Helvetica Neue',Arial,sans-serif;font-size:13px;}
+        @media screen {
+          html.dipi-readable .dipi-sheet-body { max-width: 900px; margin-inline: auto; }
+          html.dipi-fit .dipi-sheet-body { max-width: none; width: 100%; }
+        }
+        @media print {
+          .dipi-sheet-body { max-width: none !important; width: auto !important; margin: 0 !important; }
+        }
 
         /* 1 · Dead furniture. JavaScript is off: none of this can work. */
         .no-print,.helptext,.day0-toolbar,.tl-toolbar,.ml-toolbar,
@@ -172,10 +187,12 @@ object SheetStylesheet {
         html.dipi-student-chit .table-student-chit .cell{order:4}
         html.dipi-student-chit .table-student-chit .cell:empty{display:none}
 
-        /* 4 · Print. A4, 10mm. 5e wins: chits 12-up (63.3×69.3mm). 5g:
-           checking slip 2-up stacked (190×138.5mm) with TIME/PLACE boxes.
+        /* 4 · Print. A4, 10mm. 5e wins: chits 12-up (63.3×69mm minimum). 5g:
+           checking slip 2-up stacked (190×138mm minimum) with TIME/PLACE boxes.
            Contact off. The desk @imports student-chit.css after this block,
-           so every geometry rule here is !important. */
+           so every geometry rule here is !important. Four 69.3mm rows exceed
+           the 277mm page body; leave 1mm for renderer rounding. Minimum heights
+           preserve long content by growing rather than clipping or overlapping. */
         @page{size:A4;margin:10mm}
         @media print{
           .d0-comments,.tl-comments{display:block;-webkit-line-clamp:unset;overflow:visible}
@@ -191,8 +208,9 @@ object SheetStylesheet {
             width:190mm!important;max-width:100%!important;margin:0!important}
           html.dipi-student-chit .table-student-chit{
             float:none!important;display:flex!important;flex-direction:column!important;
-            width:63.3mm!important;height:69.3mm!important;
-            max-width:63.3mm!important;max-height:69.3mm!important;
+            width:63.3mm!important;min-height:69mm!important;height:auto!important;
+            max-width:63.3mm!important;max-height:none!important;overflow:visible!important;
+            flex-shrink:0!important;
             margin:0!important;padding:3.5mm!important;
             box-sizing:border-box!important;
             page-break-inside:avoid!important;break-inside:avoid!important}
@@ -202,8 +220,9 @@ object SheetStylesheet {
             width:190mm!important;margin:0!important}
           html.dipi-checking-slip .table-student-chit{
             float:none!important;display:flex!important;flex-direction:column!important;
-            width:190mm!important;height:138.5mm!important;
-            max-width:190mm!important;max-height:138.5mm!important;
+            width:190mm!important;min-height:138mm!important;height:auto!important;
+            max-width:190mm!important;max-height:none!important;overflow:visible!important;
+            flex-shrink:0!important;
             margin:0!important;padding:6mm!important;
             box-sizing:border-box!important;
             border:0.25pt solid #2E2E34!important;

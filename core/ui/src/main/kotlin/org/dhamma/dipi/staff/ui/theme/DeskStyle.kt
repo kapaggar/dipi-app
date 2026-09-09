@@ -1,5 +1,7 @@
 package org.dhamma.dipi.staff.ui.theme
 
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -43,10 +45,12 @@ object DeskStyle {
     val dialogElevation: Dp = 4.dp
 
     /** Elevated surface tone — the skin ground lifted toward white, so the hue survives. */
-    val cardFill: Color get() = lerp(Industry.bg, Color.White, 0.55f)
+    val cardFill: Color @Composable @ReadOnlyComposable get() =
+        if (LocalDipi.current == DarkDipi) LocalDipi.current.field
+        else lerp(LocalIndustry.current.bg, Color.White, 0.55f)
 
     /** The soft card outline: neutral-300 thinned out. */
-    val cardBorder: Color get() = Industry.neutral300.copy(alpha = 0.75f)
+    val cardBorder: Color @Composable @ReadOnlyComposable get() = LocalIndustry.current.neutral300.copy(alpha = 0.75f)
 }
 
 /**
@@ -55,6 +59,7 @@ object DeskStyle {
  * accent100 fill + accent border instead. Content and ripples clip to the
  * shape, so callers no longer stack their own square backgrounds.
  */
+@Composable
 fun Modifier.deskCard(
     shape: Shape = DeskStyle.cardShape,
     fill: Color = DeskStyle.cardFill,

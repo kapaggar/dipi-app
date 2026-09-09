@@ -336,6 +336,8 @@ fun DipiAppUi(vm: DeskViewModel, deskSiteLauncher: DeskSiteLauncher? = null) {
                     nativeHallPrintHtml = sheetRoll
                         ?.takeIf { sheetView.nativeHall && it.groups.isNotEmpty() }
                         ?.let { roll -> seatingPlanPrintHtml(roll) { g -> state.centreOps.hallGridFor(g) } },
+                    screenWidth = sheetView.screenWidth,
+                    onScreenWidth = vm::setSheetScreenWidth,
                 )
             }
 
@@ -410,6 +412,7 @@ private fun DeskBodyRouter(
                 onFrom = vm::setReportFrom,
                 onTo = vm::setReportTo,
                 onRun = vm::runCourseReport,
+                onPreset = vm::applyReportPreset,
                 onShareCsv = vm::shareCourseReportCsv,
                 onPrint = {
                     val report = state.courseReport.report
@@ -454,6 +457,7 @@ private fun DeskBodyRouter(
                     onApplications = vm::openApplications,
                     onSummary = vm::openSummary,
                     onPhotos = vm::openPhotos,
+                    photoReviewEnabled = org.dhamma.dipi.staff.BuildConfig.PHOTO_REVIEW_ENABLED,
                     onAudit = vm::openAudit,
                     onCalling = vm::openCalling,
                     onZeroDay = vm::openZeroDay,
@@ -574,8 +578,7 @@ private fun DeskHost(
     val courseDates = listOf(course.start, course.end).filter { it.isNotBlank() }.joinToString(" – ")
     val flagsById = remember(state.auditRows) { state.auditRows.associate { it.id to it.flags } }
     val openApp: (org.dhamma.dipi.staff.model.ApplicantCard) -> Unit = { card ->
-        vm.selectDeskApp(card)
-        vm.setDeskSection(DeskSection.Applications)
+        vm.openApplicantFromAudit(card, state.deskFinding.orEmpty())
     }
 
     Box(Modifier.fillMaxSize()) {
@@ -614,13 +617,18 @@ private fun DeskHost(
                     onGender = vm::setDeskGender,
                     onSeniority = vm::setDeskSeniority,
                     onOpen = vm::openDeskMark,
+                    selectedBlock = state.selectedRoomBlock,
+                    onSelectBlock = vm::selectRoomBlock,
                 )
                 DeskSection.Audit -> AuditPane(
                     flagged = state.auditRows,
+                    allRows = state.rows,
                     selectedCode = state.deskFinding,
+                    returnNote = state.auditReturnNote,
                     onSelect = vm::selectDeskFinding,
                     onBatch = vm::runDeskBatch,
                     onOpen = openApp,
+                    onOpenFromFinding = { card, ruleId -> vm.openApplicantFromAudit(card, ruleId) },
                 )
                 DeskSection.Calling -> CallingPane(
                     roll = roll,
@@ -675,6 +683,12 @@ private fun DeskHost(
                     syncFailures = state.roomSync?.failures.orEmpty(),
                     onSyncRooms = vm::syncRooms,
                     onPullRooms = vm::pullRooms,
+                    selectedBlock = state.selectedRoomBlock,
+                    onSelectBlock = vm::selectRoomBlock,
+                    focusedCode = state.roomsFocusCode,
+                    jumpError = state.roomsJumpError,
+                    onJump = { query, blockRooms -> vm.jumpToRoom(query, blockRooms) },
+                    onFocusRoom = vm::focusRoom,
                 )
                 DeskSection.Applications -> ApplicationsPane(
                     rows = state.visible,
@@ -699,6 +713,9 @@ private fun DeskHost(
                     historyById = state.history,
                     onExpandHistory = vm::expandHistory,
                     onOpenClarification = { appId, clarId -> vm.openClarification(appId, clarId) },
+                    pinnedCard = state.card.takeIf { state.deskAppPinned },
+                    auditOrigin = state.auditOpenContext,
+                    onBackToAudit = vm::returnToAudit,
                 )
             }
         }
@@ -830,6 +847,7 @@ private fun DeskBody(vm: DeskViewModel, state: DeskUiState, wide: Boolean) {
                 onOpen = vm::openCard,
                 onSummary = vm::openSummary,
                 onPhotos = vm::openPhotos,
+                    photoReviewEnabled = org.dhamma.dipi.staff.BuildConfig.PHOTO_REVIEW_ENABLED,
                 onSettings = vm::openSettings,
                 onRefresh = vm::refresh,
             )
@@ -853,7 +871,7 @@ private fun DeskBody(vm: DeskViewModel, state: DeskUiState, wide: Boolean) {
         when (state.screen) {
             DeskScreen.Today -> today(Modifier.fillMaxSize())
             DeskScreen.Card -> CardPane(vm, state)
-            DeskScreen.Photos -> {
+            DeskScreen.Photos -> if (org.dhamma.dipi.staff.BuildConfig.PHOTO_REVIEW_ENABLED) {
                 val photoState by vm.photoReview.state.collectAsStateWithLifecycle()
                 val photoContext = LocalContext.current
                 val exportMime = photoState.exportRequest?.mime ?: "image/jpeg"
@@ -896,9 +914,15 @@ private fun SettingsPane(vm: DeskViewModel, state: DeskUiState) {
     SettingsScreen(
         session = state.session,
         dark = state.dark,
-        lastSync = state.lastSync,
+        lastSync = org.dhamma.dipi.staff.model.freshnessText(
+            state.lastSync,
+            java.time.Instant.now(),
+            java.time.ZoneId.systemDefault(),
+            java.util.Locale.getDefault(),
+        ),
         queued = state.queuedCount,
         offline = state.offline,
+        simulatedOffline = state.simulatedOffline,
         onToggleTheme = vm::toggleTheme,
         onToggleOffline = vm::toggleOffline,
         onLogout = vm::logout,
@@ -958,6 +982,7 @@ private fun CardPane(vm: DeskViewModel, state: DeskUiState) {
         dark = state.dark,
         onChangeStatus = vm::openSheet,
         onPhoto = vm::openPhotos,
+        photoReviewEnabled = org.dhamma.dipi.staff.BuildConfig.PHOTO_REVIEW_ENABLED,
         sensitive = state.sensitiveById[card.id],
         history = state.history[card.id],
         onExpandHistory = { key -> vm.expandHistory(card.id, key) },

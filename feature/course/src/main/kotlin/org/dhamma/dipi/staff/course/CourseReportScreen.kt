@@ -1,5 +1,8 @@
+@file:OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+
 package org.dhamma.dipi.staff.course
 
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -45,7 +48,7 @@ import org.dhamma.dipi.staff.model.parseDeskDate
 import org.dhamma.dipi.staff.ui.theme.DeskStyle
 import org.dhamma.dipi.staff.ui.theme.DipiCondensed
 import org.dhamma.dipi.staff.ui.theme.DipiMono
-import org.dhamma.dipi.staff.ui.theme.Industry
+import org.dhamma.dipi.staff.ui.theme.ThemeIndustry as Industry
 import org.dhamma.dipi.staff.ui.theme.LocalDipi
 import org.dhamma.dipi.staff.ui.theme.deskCard
 
@@ -86,6 +89,7 @@ fun CourseReportScreen(
     onPrint: () -> Unit = {},
     onCopyMessage: (String) -> Unit = {},
     onBack: () -> Unit = {},
+    onPreset: (org.dhamma.dipi.staff.model.ReportPreset) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val c = LocalDipi.current
@@ -96,7 +100,7 @@ fun CourseReportScreen(
             .testTag("course-report-screen"),
     ) {
         Header(state, onShareCsv, onPrint, onBack)
-        RangeBand(state, onFrom, onTo, onRun)
+        RangeBand(state, onFrom, onTo, onRun, onPreset)
         Box(Modifier.weight(1f).fillMaxWidth()) {
             when {
                 state.refusal != null -> Refusal(state, onCopyMessage)
@@ -203,39 +207,76 @@ private fun RangeBand(
     onFrom: (String) -> Unit,
     onTo: (String) -> Unit,
     onRun: () -> Unit,
+    onPreset: (org.dhamma.dipi.staff.model.ReportPreset) -> Unit,
 ) {
     val c = LocalDipi.current
-    Row(
+    val rangeError = org.dhamma.dipi.staff.model.reportRangeError(state.from, state.to)
+        .takeIf { state.from.isNotBlank() || state.to.isNotBlank() }
+    val draftDiffers = state.report != null &&
+        (state.from != state.report.from || state.to != state.report.to)
+    Column(
         Modifier
             .fillMaxWidth()
-            .height(72.dp)
             .background(Industry.neutral100)
-            .padding(horizontal = 20.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+            .padding(horizontal = 20.dp, vertical = 10.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        DateField("FROM", state.from, "report-from", onFrom)
-        DateField("TO", state.to, "report-to", onTo)
-        Spacer(Modifier.weight(1f))
-        Text(
-            if (state.running) "RUNNING…" else "RUN",
-            fontFamily = DipiCondensed,
-            fontWeight = FontWeight.SemiBold,
-            fontSize = 15.sp,
-            letterSpacing = 0.06.em,
-            color = Color.White,
-            modifier = Modifier
-                .deskCard(
-                    shape = DeskStyle.controlShape,
-                    fill = if (state.running) Industry.accent700 else c.accent,
-                    border = if (state.running) Industry.accent700 else c.accent,
-                    elevation = 0.dp,
-                )
-                .clickable(enabled = !state.running, onClick = onRun)
-                .padding(horizontal = 26.dp, vertical = 12.dp)
-                .testTag("report-run"),
-        )
+        androidx.compose.foundation.layout.FlowRow(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            DateField("FROM (DD-MM-YYYY)", state.from, "report-from", onFrom)
+            DateField("TO (DD-MM-YYYY)", state.to, "report-to", onTo)
+            Text(
+                if (state.running) "RUNNING…" else "RUN",
+                fontFamily = DipiCondensed,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 15.sp,
+                letterSpacing = 0.06.em,
+                color = Color.White,
+                modifier = Modifier
+                    .heightIn(min = 48.dp)
+                    .deskCard(
+                        shape = DeskStyle.controlShape,
+                        fill = if (state.running || rangeError != null) Industry.accent700 else c.accent,
+                        border = if (state.running || rangeError != null) Industry.accent700 else c.accent,
+                        elevation = 0.dp,
+                    )
+                    .clickable(enabled = !state.running && rangeError == null, onClick = onRun)
+                    .padding(horizontal = 26.dp, vertical = 12.dp)
+                    .testTag("report-run"),
+            )
+        }
+        androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            PresetChip("This month", "report-preset-month") {
+                onPreset(org.dhamma.dipi.staff.model.ReportPreset.THIS_MONTH)
+            }
+            PresetChip("This year", "report-preset-year") {
+                onPreset(org.dhamma.dipi.staff.model.ReportPreset.THIS_YEAR)
+            }
+            PresetChip("Last 12 months", "report-preset-12m") {
+                onPreset(org.dhamma.dipi.staff.model.ReportPreset.LAST_12_MONTHS)
+            }
+        }
+        if (rangeError != null) {
+            Text(rangeError, fontSize = 12.5.sp, color = Industry.accent800, modifier = Modifier.testTag("report-range-error"))
+        } else if (draftDiffers) {
+            Text("Dates edited — tap RUN to load this range.", fontSize = 12.5.sp, color = c.muted)
+        }
     }
+}
+
+@Composable
+private fun PresetChip(label: String, tag: String, onClick: () -> Unit) {
+    Text(
+        label,
+        fontSize = 13.sp,
+        color = Industry.accent800,
+        modifier = Modifier
+            .clickable(onClick = onClick)
+            .padding(horizontal = 10.dp, vertical = 8.dp)
+            .testTag(tag),
+    )
 }
 
 @Composable
@@ -252,8 +293,8 @@ private fun DateField(label: String, value: String, tag: String, onChange: (Stri
         )
         Box(
             Modifier
-                .width(140.dp)
-                .height(44.dp)
+                .width(168.dp)
+                .heightIn(min = 48.dp)
                 .deskCard(
                     shape = DeskStyle.controlShape,
                     fill = c.field,
@@ -407,9 +448,12 @@ private val DangerTint = Color(0x22A33A34)
 @Composable
 private fun Loaded(state: CourseReportUi) {
     val report = state.report ?: return
-    Column(Modifier.fillMaxSize()) {
+    androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxSize()) {
+    val tableWidth = maxWidth.coerceAtLeast(1050.dp)
+    val tableScroll = rememberScrollState()
+    Column(Modifier.fillMaxSize().horizontalScroll(tableScroll)) {
         Column(
-            Modifier
+            Modifier.width(tableWidth)
                 .weight(1f)
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 26.dp),
@@ -431,7 +475,8 @@ private fun Loaded(state: CourseReportUi) {
             ColumnHeaders()
             report.rows.forEach { ReportRow(it) }
         }
-        GrandTotalFooter(report)
+        Box(Modifier.width(tableWidth)) { GrandTotalFooter(report) }
+    }
     }
 }
 
@@ -629,8 +674,10 @@ private fun GrandTotalFooter(report: CourseReport) {
     }
 }
 
+@Composable
 private fun Modifier.bottomRule(): Modifier = drawBottom(Industry.neutral400, 1.dp)
 
+@Composable
 private fun Modifier.bottomHairline(): Modifier = drawBottom(Industry.neutral200, 1.dp)
 
 private fun Modifier.drawBottom(color: Color, thickness: Dp) = drawBehind {

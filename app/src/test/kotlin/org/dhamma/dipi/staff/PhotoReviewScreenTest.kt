@@ -64,6 +64,7 @@ class PhotoReviewScreenTest {
         val stamp = PhotoStamps.ofEncoded(byteArrayOf(1, 2, 3, 4), 8, 10)
         val source = PhotoSource(stamp, bitmap)
         return PhotoReviewController(
+            enabled = true,
             store = PhotoCorrectionStore { prefs },
             scope = CoroutineScope(Dispatchers.Main.immediate),
             sources = { _, _ -> PhotoSourceResult.Ready(source) },
@@ -103,9 +104,10 @@ class PhotoReviewScreenTest {
         val people = listOf(card(3, "No", "Photo"))
         photos.dispatch(PhotoReviewAction.Open(PhotoScope("https://one.example.test", 1, 10), people))
         rule.setContent {
+            val state by photos.state.collectAsState()
             DipiTheme {
                 PhotoReviewScreen(
-                    state = photos.state.value,
+                    state = state,
                     onAction = {},
                     loadPreview = { null },
                 )

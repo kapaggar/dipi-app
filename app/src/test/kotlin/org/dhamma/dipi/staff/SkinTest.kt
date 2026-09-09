@@ -10,7 +10,9 @@ import org.dhamma.dipi.staff.ui.theme.chipGradientColors
 import org.dhamma.dipi.staff.ui.theme.lightDipi
 import org.dhamma.dipi.staff.ui.theme.markColorFilter
 import org.dhamma.dipi.staff.ui.theme.oklch
+import org.dhamma.dipi.staff.ui.theme.readableTokens
 import org.dhamma.dipi.staff.ui.theme.statusColors
+import org.dhamma.dipi.staff.ui.theme.DarkDipi
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -153,5 +155,17 @@ class SkinTest {
         // Severities that carry meaning stay fixed.
         assertEquals(Color(0xFFA33A34), light.hard)
         assertEquals(Color(0xFF6A5A38), light.safety)
+    }
+
+    @Test
+    fun readableTokensFollowLightSkinAndSteelNight() {
+        val blossom = IndustryPalette.of(DeskSkin.Blossom)
+        val light = readableTokens(blossom, dark = false)
+        assertEquals(blossom.text, light.primary)
+        val darkBlossom = readableTokens(blossom, dark = true)
+        val darkSteel = readableTokens(IndustryPalette.Steel, dark = true)
+        assertEquals(DarkDipi.foreground, darkBlossom.primary)
+        assertEquals(darkBlossom.primary, darkSteel.primary)
+        assertEquals(DarkDipi.muted, darkBlossom.secondary)
     }
 }

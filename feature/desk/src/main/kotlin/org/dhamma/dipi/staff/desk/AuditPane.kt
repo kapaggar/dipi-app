@@ -3,11 +3,15 @@ package org.dhamma.dipi.staff.desk
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
@@ -15,10 +19,14 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.key
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -30,7 +38,7 @@ import org.dhamma.dipi.staff.model.AuditSeverity
 import org.dhamma.dipi.staff.ui.theme.DeskStyle
 import org.dhamma.dipi.staff.ui.theme.DipiCondensed
 import org.dhamma.dipi.staff.ui.theme.DipiMono
-import org.dhamma.dipi.staff.ui.theme.Industry
+import org.dhamma.dipi.staff.ui.theme.ThemeIndustry as Industry
 import org.dhamma.dipi.staff.ui.theme.deskCard
 
 /**
@@ -46,16 +54,19 @@ fun AuditPane(
     onSelect: (String) -> Unit,
     onBatch: (code: String, label: String) -> Unit,
     onOpen: (ApplicantCard) -> Unit,
+    allRows: List<ApplicantCard> = flagged,
+    returnNote: String? = null,
+    onOpenFromFinding: (ApplicantCard, String) -> Unit = { card, _ -> onOpen(card) },
 ) {
     val findings = deskFindings(flagged)
     val total = deskFindingCount(flagged)
     val selected = findings.firstOrNull { it.code == selectedCode } ?: findings.firstOrNull()
 
-    Row(Modifier.fillMaxSize()) {
+    androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxSize()) {
+    val narrow = maxWidth < 800.dp
+    val content: @Composable (Modifier, Modifier) -> Unit = { listModifier, detailModifier ->
         Column(
-            Modifier
-                .width(410.dp)
-                .fillMaxHeight()
+            listModifier
                 .rightHairline(Industry.neutral300)
                 .verticalScroll(rememberScrollState())
                 .padding(20.dp),
@@ -63,6 +74,9 @@ fun AuditPane(
             Column(Modifier.padding(bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 DeskH2("$total findings")
                 DeskSub("Grouped by issue")
+            }
+            if (!returnNote.isNullOrBlank()) {
+                Text(returnNote, fontSize = 13.sp, color = Industry.accent800, modifier = Modifier.padding(bottom = 10.dp))
             }
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 FINDING_SECTIONS.forEach { (severity, kicker) ->
@@ -88,8 +102,20 @@ fun AuditPane(
         }
 
         if (selected != null) {
-            FindingDetail(selected, Modifier.weight(1f), onBatch = onBatch, onOpen = onOpen)
+            FindingDetail(
+                selected,
+                detailModifier,
+                allRows = allRows,
+                onBatch = onBatch,
+                onOpen = { card -> onOpenFromFinding(card, selected.code) },
+            )
         }
+    }
+    if (narrow) {
+        Column(Modifier.fillMaxSize()) { content(Modifier.fillMaxWidth().height(220.dp), Modifier.fillMaxWidth().weight(1f)) }
+    } else {
+        Row(Modifier.fillMaxSize()) { content(Modifier.width(470.dp).fillMaxHeight(), Modifier.weight(1f)) }
+    }
     }
 }
 
@@ -153,13 +179,13 @@ private fun FindingRow(finding: DeskFinding, on: Boolean, onSelect: (String) -> 
 private fun FindingDetail(
     selected: DeskFinding,
     modifier: Modifier,
+    allRows: List<ApplicantCard>,
     onBatch: (code: String, label: String) -> Unit,
     onOpen: (ApplicantCard) -> Unit,
 ) {
     Column(
         modifier
             .fillMaxHeight()
-            .verticalScroll(rememberScrollState())
             .padding(horizontal = 26.dp, vertical = 24.dp),
     ) {
         Text(
@@ -213,56 +239,105 @@ private fun FindingDetail(
             }
         }
 
-        Column(Modifier.fillMaxWidth().topHairline(Industry.neutral300)) {
+        Column(Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberScrollState()).topHairline(Industry.neutral300).testTag("audit-evidence-list")) {
             selected.people.forEach { person ->
-                Row(
-                    Modifier
-                        .fillMaxWidth()
-                        .bottomHairline(Industry.neutral200)
-                        .padding(vertical = 13.dp),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        person.card.confNo?.display() ?: "-",
-                        fontFamily = DipiMono,
-                        fontWeight = FontWeight.Medium,
-                        fontSize = 12.5.sp,
-                        color = Industry.neutral600,
-                        modifier = Modifier.width(56.dp),
-                    )
-                    Text(
-                        person.card.displayName,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Medium,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        color = Industry.text,
-                        modifier = Modifier.width(180.dp),
-                    )
-                    Text(
-                        person.offendingValue,
-                        fontFamily = DipiMono,
-                        fontWeight = FontWeight.Medium,
-                        fontSize = 12.5.sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        color = Industry.accent800,
-                        modifier = Modifier.weight(1f),
-                    )
-                    Text(
-                        "Open",
-                        fontSize = 12.sp,
-                        textAlign = TextAlign.Center,
-                        color = Industry.text,
-                        modifier = Modifier
-                            .clip(DeskStyle.controlShape)
-                            .border(1.dp, Industry.neutral400, DeskStyle.controlShape)
-                            .clickable { onOpen(person.card) }
-                            .padding(horizontal = 12.dp, vertical = 6.dp),
-                    )
+                val card = person.card
+                key(card.id.value) {
+                    FindingPersonRow(person = person, onOpen = { onOpen(card) })
+                    val related = person.relatedApplicantIds.mapNotNull { id ->
+                        allRows.firstOrNull { it.id == id }
+                    }
+                    if (related.isNotEmpty()) {
+                        RelatedCompare(card, related, onOpen)
+                    }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun RelatedCompare(subject: ApplicantCard, related: List<ApplicantCard>, onOpen: (ApplicantCard) -> Unit) {
+    Column(Modifier.fillMaxWidth().padding(bottom = 12.dp).testTag("audit-related-${subject.id.value}"),
+        verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text("Compare allowed fields - not an identity decision.", fontSize = 12.sp, color = Industry.neutral600)
+        (listOf(subject) + related).distinctBy { it.id }.forEach { record ->
+            Column(Modifier.fillMaxWidth().deskCard().padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(record.displayName, fontSize = 17.sp, fontWeight = FontWeight.Medium, color = Industry.text)
+                Text(record.confNo?.display() ?: "Confirmation not provided", fontSize = 12.sp, color = Industry.neutral600)
+                listOf("Status" to record.status.value, "DOB" to record.dob, "Mobile" to record.mobile,
+                    "Email" to record.email, "City" to record.city, "Applied on" to record.createdAt).forEach { (label, value) ->
+                    Text("$label: ${fieldOrMissing(value)}", fontSize = 13.sp, color = Industry.neutral700)
+                }
+                Text("Open", color = Industry.accent800, modifier = Modifier.widthIn(min = 96.dp).heightIn(min = 48.dp)
+                    .clickable { onOpen(record) }.padding(12.dp).testTag("audit-related-open-${record.id.value}"))
+            }
+        }
+    }
+}
+
+private fun fieldOrMissing(value: String?): String =
+    value?.takeIf { it.isNotBlank() } ?: "Not provided"
+
+@Composable
+private fun FindingPersonRow(person: DeskFindingPerson, onOpen: () -> Unit) {
+    val card = person.card
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .bottomHairline(Industry.neutral200)
+            .clickable(onClick = onOpen)
+            .padding(vertical = 13.dp)
+            .semantics { contentDescription = "Open ${card.displayName}" },
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            card.confNo?.display() ?: "-",
+            fontFamily = DipiMono,
+            fontWeight = FontWeight.Medium,
+            fontSize = 12.5.sp,
+            color = Industry.neutral600,
+            modifier = Modifier.width(56.dp),
+        )
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(
+                card.displayName,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Medium,
+                color = Industry.text,
+            )
+            Text(
+                card.status.value,
+                fontSize = 12.sp,
+                color = Industry.neutral600,
+            )
+            Text(
+                person.offendingValue,
+                fontFamily = DipiMono,
+                fontWeight = FontWeight.Medium,
+                fontSize = 12.5.sp,
+                color = Industry.accent800,
+            )
+        }
+        Box(
+            modifier = Modifier
+                .defaultMinSize(minWidth = 96.dp, minHeight = 48.dp)
+                .widthIn(min = 96.dp)
+                .heightIn(min = 48.dp)
+                .clip(DeskStyle.controlShape)
+                .border(1.dp, Industry.neutral400, DeskStyle.controlShape)
+                .clickable(onClick = onOpen)
+                .padding(horizontal = 16.dp)
+                .testTag("audit-open-${card.id.value}"),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                "Open",
+                fontSize = 13.sp,
+                textAlign = TextAlign.Center,
+                color = Industry.text,
+            )
         }
     }
 }

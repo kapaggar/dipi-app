@@ -235,7 +235,11 @@ class CentreScreenWideTest {
             }
         }
         upcoming.forEach {
-            rule.onNodeWithText(it.name, useUnmergedTree = true).onParent().assertWhollyOnScreen()
+            // v7 action row sits above upcoming on the same below-header
+            // scroll; cards stay unclipped once scrolled into view.
+            rule.onNodeWithText(it.name, useUnmergedTree = true).onParent()
+                .performScrollTo()
+                .assertWhollyOnScreen()
         }
     }
 

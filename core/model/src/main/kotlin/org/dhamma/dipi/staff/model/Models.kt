@@ -12,6 +12,7 @@ data class AuditFlag(
     val label: String,
     val detail: String,
     val ruleId: String,
+    val relatedApplicantIds: List<ApplicantId> = emptyList(),
 )
 
 data class CourseCount(val label: String, val n: Int)

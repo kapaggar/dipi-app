@@ -204,11 +204,11 @@ class BoardPaneTest {
         repeat(4) { i ->
             assertEquals(112.dp.value, stats[i].getBoundsInRoot().height.value, 0.5f)
         }
-        listOf("ARRIVING TODAY", "CHECKED IN", "STILL TO CALL", "NEEDS ATTENTION").forEach {
+        listOf("ON THE ROLL", "CHECKED IN", "STILL TO CALL", "NEEDS ATTENTION").forEach {
             rule.onNodeWithText(it).assertIsDisplayed()
         }
 
-        rule.onNodeWithText("ARRIVING TODAY").performClick()
+        rule.onNodeWithText("ON THE ROLL").performClick()
         assertEquals(DeskSection.CheckIn, went)
         rule.onNodeWithText("STILL TO CALL").performClick()
         assertEquals(DeskSection.Calling, went)
