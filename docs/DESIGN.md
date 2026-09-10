@@ -974,6 +974,10 @@ On return, refresh the same course once, retaining selection and recomputing aud
 The sheet viewer remains for exports, not application editing.
 
 
+## Photo review default off (1.46.2)
+
+Owner 2026-09-09: compact desk builds hide photo review, correction, ML Kit scan, export and live update. Ordinary applicant photos still display. `-Pdipi.photoReview=true` includes the existing review workflow. See `docs/PHOTO-BUILDS.md`.
+
 ## Room Chart top-right age only (1.46.1)
 
 Owner 2026-09-08: Room Chart age is the muted 12sp `neutral600` number at the **reserved top-right only**. The lower-right age is gone. Empty-row compact height, Old/New borders, and the occupancy legend are unchanged.

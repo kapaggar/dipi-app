@@ -55,6 +55,7 @@ fun CourseHubScreen(
     onApplications: () -> Unit,
     onSummary: () -> Unit,
     onPhotos: () -> Unit,
+    photoReviewEnabled: Boolean = true,
     onAudit: () -> Unit = {},
     onCalling: () -> Unit = {},
     onZeroDay: () -> Unit = {},
@@ -131,7 +132,7 @@ fun CourseHubScreen(
         Text("During the course", color = c.muted, modifier = Modifier.padding(top = 12.dp, bottom = 10.dp))
         val columns = if (LocalConfiguration.current.screenWidthDp >= 700) 3 else 2
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            courseHubLiveTiles(cid, id).chunked(columns).forEach { row ->
+            courseHubLiveTiles(cid, id).filter { photoReviewEnabled || it.live != CourseHubLive.Photos }.chunked(columns).forEach { row ->
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                     modifier = Modifier.fillMaxWidth(),

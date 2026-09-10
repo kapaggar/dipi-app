@@ -481,7 +481,7 @@ class DeskViewModel @Inject constructor(
         renderer = photoRenderer,
     ).also { photos ->
         photos.deskWrite = PhotoDeskWrite { id, jpeg, name ->
-            if (_state.value.mode == TabletMode.COURSE_OPS) {
+            if (!BuildConfig.PHOTO_REVIEW_ENABLED || _state.value.mode == TabletMode.COURSE_OPS) {
                 return@PhotoDeskWrite org.dhamma.dipi.staff.network.PhotoDeskWriteResult.Failed(
                     "Course ops cannot update applications",
                 )
@@ -1506,6 +1506,7 @@ class DeskViewModel @Inject constructor(
     }
 
     fun openPhotos() {
+        if (!BuildConfig.PHOTO_REVIEW_ENABLED) return
         if (_state.value.mode == TabletMode.COURSE_OPS) return
         photoReview.allowDeskWrite = true
         val course = _state.value.course
@@ -1639,6 +1640,7 @@ class DeskViewModel @Inject constructor(
     }
 
     suspend fun loadDisplayPhoto(id: ApplicantId): ImageBitmap? {
+        if (!BuildConfig.PHOTO_REVIEW_ENABLED) return photoLoader.load(id.value)?.asImageBitmap()
         val course = _state.value.course ?: return photoLoader.load(id.value)?.asImageBitmap()
         val key = PhotoKey(
             PhotoScope(PhotoOrigins.canonicalize(BuildConfig.BASE_URL), course.centreId.value, course.id.value),

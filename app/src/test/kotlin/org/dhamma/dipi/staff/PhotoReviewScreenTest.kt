@@ -67,6 +67,7 @@ class PhotoReviewScreenTest {
             store = PhotoCorrectionStore { prefs },
             scope = CoroutineScope(Dispatchers.Main.immediate),
             sources = { _, _ -> PhotoSourceResult.Ready(source) },
+            enabled = true,
         )
     }
 

@@ -46,6 +46,7 @@ fun TodayScreen(
     onOpen: (ApplicantCard) -> Unit,
     onSummary: () -> Unit,
     onPhotos: () -> Unit,
+    photoReviewEnabled: Boolean = true,
     onSettings: () -> Unit,
     onRefresh: () -> Unit = {},
 ) {
@@ -64,7 +65,7 @@ fun TodayScreen(
             }
             Row {
                 IconButton(onSummary) { Text("▤") }
-                IconButton(onPhotos) { Text("◎") }
+                if (photoReviewEnabled) IconButton(onPhotos) { Text("◎") }
                 IconButton(onSettings) { Text("⚙") }
             }
         }

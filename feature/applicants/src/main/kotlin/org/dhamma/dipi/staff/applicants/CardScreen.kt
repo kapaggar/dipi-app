@@ -41,6 +41,7 @@ fun CardScreen(
     dark: Boolean,
     onChangeStatus: () -> Unit,
     onPhoto: () -> Unit,
+    photoReviewEnabled: Boolean = true,
     sensitive: SensitiveInfo? = null,
     history: ApplicantDeskHistory? = null,
     onExpandHistory: (String) -> Unit = {},
@@ -59,7 +60,7 @@ fun CardScreen(
         }
         Text("${card.age ?: "-"} ${card.gender.name}", color = c.muted, modifier = Modifier.padding(top = 4.dp))
         if (card.monk) Text("Monk/Nun", color = c.accent, fontFamily = DipiCondensed)
-        TextButton(onPhoto) { Text(photoNote, color = c.accent) }
+        if (photoReviewEnabled) TextButton(onPhoto) { Text(photoNote, color = c.accent) }
         val health = sensitive?.health.orEmpty()
         if (health.isNotEmpty()) {
             Spacer(Modifier.height(12.dp))

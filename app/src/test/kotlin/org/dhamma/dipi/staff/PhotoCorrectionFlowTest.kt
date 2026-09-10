@@ -64,6 +64,7 @@ class PhotoCorrectionFlowTest {
             store = PhotoCorrectionStore { prefs },
             scope = CoroutineScope(Dispatchers.Main.immediate),
             sources = { _, _ -> PhotoSourceResult.Ready(PhotoSource(stamp, bitmap)) },
+            enabled = true,
         )
     }
 
@@ -134,6 +135,23 @@ class PhotoCorrectionFlowTest {
         photos.dispatch(PhotoReviewAction.StartUpdate)
         assertEquals(0, writes)
         assertEquals(PhotoWriteState.NOT_STARTED, photos.state.value.drafts.getValue(41).write)
+    }
+
+    @Test
+    fun disabledBuildRejectsReviewActions() {
+        val prefs = RuntimeEnvironment.getApplication()
+            .getSharedPreferences("pc-flow-off", Context.MODE_PRIVATE)
+        prefs.edit().clear().commit()
+        val bitmap = Bitmap.createBitmap(8, 10, Bitmap.Config.ARGB_8888).apply { eraseColor(Color.RED) }
+        val photos = PhotoReviewController(
+            store = PhotoCorrectionStore { prefs },
+            scope = CoroutineScope(Dispatchers.Main.immediate),
+            sources = { _, _ -> PhotoSourceResult.Ready(PhotoSource(stamp, bitmap)) },
+            enabled = false,
+        )
+        photos.dispatch(PhotoReviewAction.Open(scope, listOf(card()), 41))
+        assertEquals(null, photos.state.value.scope)
+        assertTrue(photos.state.value.drafts.isEmpty())
     }
 
     @Test

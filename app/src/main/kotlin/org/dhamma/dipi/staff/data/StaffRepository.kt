@@ -783,7 +783,11 @@ class StaffRepository @Inject constructor(
         id: ApplicantId,
         jpeg: ByteArray,
         fileName: String,
-    ): PhotoDeskWriteResult = photoWriter.submit(id.value, jpeg, fileName)
+    ): PhotoDeskWriteResult = if (org.dhamma.dipi.staff.BuildConfig.PHOTO_REVIEW_ENABLED) {
+        photoWriter.submit(id.value, jpeg, fileName)
+    } else {
+        PhotoDeskWriteResult.Failed("Photo review is unavailable in this build")
+    }
 
     fun clearApplicantEditForms() {
         photoWriter.wipe()

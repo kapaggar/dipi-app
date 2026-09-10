@@ -454,6 +454,7 @@ private fun DeskBodyRouter(
                     onApplications = vm::openApplications,
                     onSummary = vm::openSummary,
                     onPhotos = vm::openPhotos,
+                    photoReviewEnabled = BuildConfig.PHOTO_REVIEW_ENABLED,
                     onAudit = vm::openAudit,
                     onCalling = vm::openCalling,
                     onZeroDay = vm::openZeroDay,
@@ -830,6 +831,7 @@ private fun DeskBody(vm: DeskViewModel, state: DeskUiState, wide: Boolean) {
                 onOpen = vm::openCard,
                 onSummary = vm::openSummary,
                 onPhotos = vm::openPhotos,
+                photoReviewEnabled = BuildConfig.PHOTO_REVIEW_ENABLED,
                 onSettings = vm::openSettings,
                 onRefresh = vm::refresh,
             )
@@ -853,7 +855,7 @@ private fun DeskBody(vm: DeskViewModel, state: DeskUiState, wide: Boolean) {
         when (state.screen) {
             DeskScreen.Today -> today(Modifier.fillMaxSize())
             DeskScreen.Card -> CardPane(vm, state)
-            DeskScreen.Photos -> {
+            DeskScreen.Photos -> if (BuildConfig.PHOTO_REVIEW_ENABLED) {
                 val photoState by vm.photoReview.state.collectAsStateWithLifecycle()
                 val photoContext = LocalContext.current
                 val exportMime = photoState.exportRequest?.mime ?: "image/jpeg"
@@ -882,6 +884,8 @@ private fun DeskBody(vm: DeskViewModel, state: DeskUiState, wide: Boolean) {
                     loadOriginal = vm.photoReview::original,
                     loadCorrected = vm.photoReview::corrected,
                 )
+            } else {
+                today(Modifier.fillMaxSize())
             }
             DeskScreen.Summary -> DaySummaryScreen(course, state.rows)
             DeskScreen.Settings -> SettingsPane(vm, state)
@@ -958,6 +962,7 @@ private fun CardPane(vm: DeskViewModel, state: DeskUiState) {
         dark = state.dark,
         onChangeStatus = vm::openSheet,
         onPhoto = vm::openPhotos,
+        photoReviewEnabled = BuildConfig.PHOTO_REVIEW_ENABLED,
         sensitive = state.sensitiveById[card.id],
         history = state.history[card.id],
         onExpandHistory = { key -> vm.expandHistory(card.id, key) },
