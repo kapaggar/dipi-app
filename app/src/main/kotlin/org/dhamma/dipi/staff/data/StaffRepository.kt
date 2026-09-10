@@ -3,6 +3,7 @@ package org.dhamma.dipi.staff.data
 import android.content.Context
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -65,6 +66,7 @@ import org.dhamma.dipi.staff.network.TokenStore
 import org.dhamma.dipi.staff.network.html
 import java.io.File
 import java.time.Instant
+import java.util.concurrent.atomic.AtomicLong
 import javax.inject.Inject
 import javax.inject.Named
 import javax.inject.Singleton
@@ -183,9 +185,15 @@ class StaffRepository @Inject constructor(
     @Named("useMock") private val useMock: Boolean,
     @Named("baseUrl") private val baseUrl: String,
     @ApplicationContext private val context: Context,
+    private val dispatchers: DeskDispatchers = DeskDispatchers(),
 ) {
     @Volatile private var lastCentreId: Int? = null
     @Volatile private var lastStatuses: List<String> = emptyList()
+    private val sessionGeneration = AtomicLong()
+
+    private fun requireSession(generation: Long) {
+        if (sessionGeneration.get() != generation) throw CancellationException("Session changed")
+    }
 
     /**
      * Board sheet transport. Sheet bodies (health disclosures, contact
@@ -213,20 +221,27 @@ class StaffRepository @Inject constructor(
 
     fun observeApplicants(courseId: CourseId): Flow<List<ApplicantCard>> =
         applicants.observe(courseId.value).map { rows ->
-            val cards = rows.map { json.decodeFromString(ApplicantDto.serializer(), it.payload).toModel() }
-            cards.map { card ->
-                card.copy(
-                    flags = ClientAudit.merge(
-                        ClientAudit.evaluate(card, cards, sensitive[card.id.value]),
-                        card.flags,
-                    ),
-                )
+            val generation = sessionGeneration.get()
+            val disclosures = sensitive.toMap()
+            val cards = withContext(dispatchers.computation) {
+                val decoded = rows.map { json.decodeFromString(ApplicantDto.serializer(), it.payload).toModel() }
+                decoded.map { card ->
+                    card.copy(
+                        flags = ClientAudit.merge(
+                            ClientAudit.evaluate(card, decoded, disclosures[card.id.value]),
+                            card.flags,
+                        ),
+                    )
+                }
             }
+            requireSession(generation)
+            cards
         }
 
     fun observeOutbox(): Flow<List<OutboxEntity>> = outbox.observePending()
 
     suspend fun login(username: String, password: String): Session {
+        sessionGeneration.incrementAndGet()
         return runCatching {
             if (useMock) {
                 val dto = auth.login(LoginBody(username, password))
@@ -313,6 +328,7 @@ class StaffRepository @Inject constructor(
     }
 
     suspend fun loadCourses(centreId: CentreId): CentreCourses = runCatching {
+        val generation = sessionGeneration.get()
         lastCentreId = centreId.value
         if (useMock) {
             refreshRooms(centreId.value)
@@ -322,20 +338,27 @@ class StaffRepository @Inject constructor(
             )
         }
         val dash = api.centreDashboard(centreId.value)
-        val html = dash.html()
+        val html = withContext(dispatchers.computation) { dash.html() }
+        requireSession(generation)
         if (stillOnLogin(html) || dash.code() == 403) throw ApiException("Access denied", unauthorized = true)
-        val summaries = CentrePageParser.courseSummaries(html)
-        val matrices = CentrePageParser.courseMatrices(html)
-        refreshRooms(centreId.value)
-        val upcomingOpts = SearchPageParser.coursesFromDashboard(html)
-        val upcomingIds = upcomingOpts.map { it.id }.toSet()
-        val upcoming = upcomingOpts.map {
-            Course(CourseId(it.id), centreId, it.label, "", "", summary = summaries[it.id], matrix = matrices[it.id])
+        val (summaries, matrices) = withContext(dispatchers.computation) {
+            CentrePageParser.courseSummaries(html) to CentrePageParser.courseMatrices(html)
         }
-        val older = CentrePageParser.olderCourseOptions(html, upcomingIds).map {
-            Course(CourseId(it.id), centreId, it.label, "", "")
-        }.take(OLDER_COURSE_LIMIT)
-        CentreCourses(upcoming, older)
+        requireSession(generation)
+        refreshRooms(centreId.value, generation)
+        val courses = withContext(dispatchers.computation) {
+            val upcomingOpts = SearchPageParser.coursesFromDashboard(html)
+            val upcomingIds = upcomingOpts.map { it.id }.toSet()
+            val upcoming = upcomingOpts.map {
+                Course(CourseId(it.id), centreId, it.label, "", "", summary = summaries[it.id], matrix = matrices[it.id])
+            }
+            val older = CentrePageParser.olderCourseOptions(html, upcomingIds).map {
+                Course(CourseId(it.id), centreId, it.label, "", "")
+            }.take(OLDER_COURSE_LIMIT)
+            CentreCourses(upcoming, older)
+        }
+        requireSession(generation)
+        courses
     }.getOrElse { throw it.toApi() }
 
     /**
@@ -345,14 +368,15 @@ class StaffRepository @Inject constructor(
      * in [CentreOpsPrefs.rooms]; any failure or non-Editor body (offline,
      * expired session) keeps the last fetch, so Rooms stays offline-first.
      */
-    private suspend fun refreshRooms(centreId: Int) {
+    private suspend fun refreshRooms(centreId: Int, generation: Long = sessionGeneration.get()) {
         runCatching {
             val resp = api.accoHandler(centreId)
             if (!resp.isSuccessful) return
-            val rooms = AccoHandlerParser.roomsOrNull(resp.html()) ?: return
+            val rooms = withContext(dispatchers.computation) { AccoHandlerParser.roomsOrNull(resp.html()) } ?: return
             val cur = sessionStore.centreOpsOnce()
+            requireSession(generation)
             if (cur.rooms != rooms) sessionStore.setCentreOps(cur.copy(rooms = rooms))
-        }
+        }.onFailure { if (it is CancellationException) throw it }
     }
 
     suspend fun loadStatuses(): List<String> = runCatching {
@@ -370,6 +394,7 @@ class StaffRepository @Inject constructor(
         q: String? = null,
         centreId: CentreId? = null,
     ): Pair<List<ApplicantCard>, Map<String, Int>> {
+        val generation = sessionGeneration.get()
         return runCatching {
             if (useMock) {
                 val page = api.applicants(
@@ -378,7 +403,8 @@ class StaffRepository @Inject constructor(
                     q = q?.takeIf { it.isNotBlank() },
                 )
                 val unfiltered = status.isNullOrBlank() && q.isNullOrBlank()
-                if (unfiltered) persist(page.items)
+                if (unfiltered) persist(page.items, generation)
+                requireSession(generation)
                 sessionStore.setLastSync(Instant.now().toString())
                 return@runCatching page.toModel().items to page.counts
             }
@@ -393,25 +419,32 @@ class StaffRepository @Inject constructor(
                 gender = "",
                 db = "a",
             )
-            val html = resp.html()
+            val html = withContext(dispatchers.computation) { resp.html() }
+            requireSession(generation)
             if (stillOnLogin(html) || (resp.code() == 403 && !html.contains("var dataset"))) {
                 throw ApiException("Access denied", unauthorized = true)
             }
-            val result = SearchPageParser.parse(html, cid)
+            val result = withContext(dispatchers.computation) { SearchPageParser.parse(html, cid) }
+            requireSession(generation)
             val rows = result.dataset
             // Unfiltered fetch = the worklist is being replaced → drop stale
             // sensitive entries; filtered fetches only refresh their subset.
             if (status.isNullOrBlank() && q.isNullOrBlank()) sensitive.clear()
             sensitive.putAll(result.sensitive)
-            persist(rows)
+            persist(rows, generation)
+            requireSession(generation)
             sessionStore.setLastSync(Instant.now().toString())
-            val counts = linkedMapOf("All" to rows.size)
-            rows.groupingBy { it.status }.eachCount().forEach { (k, v) ->
-                if (k.isNotBlank()) counts[k] = v
+            val (cards, counts) = withContext(dispatchers.computation) {
+                val counts = linkedMapOf("All" to rows.size)
+                rows.groupingBy { it.status }.eachCount().forEach { (k, v) ->
+                    if (k.isNotBlank()) counts[k] = v
+                }
+                rows.map { it.toModel() } to counts
             }
+            requireSession(generation)
             val derived = deriveStatuses(result.statuses, counts)
             if (derived.isNotEmpty()) lastStatuses = derived
-            rows.map { it.toModel() } to counts
+            cards to counts
         }.getOrElse { throw it.toApi() }
     }
 
@@ -572,13 +605,17 @@ class StaffRepository @Inject constructor(
      * the attending table → unauthorized, same pattern as [refreshApplicants].
      */
     suspend fun pullRoomAllocations(centreId: Int, courseId: Int): Map<ApplicantId, CheckInRecord> {
+        val generation = sessionGeneration.get()
         return runCatching {
             val resp = api.sheetPage("zero-day", centreId, courseId)
-            val html = resp.html()
+            val html = withContext(dispatchers.computation) { resp.html() }
+            requireSession(generation)
             if (stillOnLogin(html) || (resp.code() == 403 && !html.contains("table-attending"))) {
                 throw ApiException("Access denied", unauthorized = true)
             }
-            AttendedTableParser.parse(html)
+            val records = withContext(dispatchers.computation) { AttendedTableParser.parse(html) }
+            requireSession(generation)
+            records
         }.getOrElse { throw it.toApi() }
     }
 
@@ -592,14 +629,18 @@ class StaffRepository @Inject constructor(
      * verbatim. Success is an unthemed fragment starting `<style>`.
      */
     suspend fun loadTeacherRoll(centreId: Int, courseId: Int): TeacherRoll {
+        val generation = sessionGeneration.get()
         return runCatching {
             val resp = api.sheetPage("teacher-list", centreId, courseId)
-            val html = resp.html()
+            val html = withContext(dispatchers.computation) { resp.html() }
+            requireSession(generation)
             if (stillOnLogin(html) || resp.code() == 403) {
                 throw ApiException("Access denied", unauthorized = true)
             }
             if (!resp.isSuccessful) throw ApiException(html.ifBlank { "HTTP ${resp.code()}" })
-            TeacherListParser.parse(html)
+            val roll = withContext(dispatchers.computation) { TeacherListParser.parse(html) }
+            requireSession(generation)
+            roll
         }.getOrElse { throw it.toApi() }
     }
 
@@ -651,12 +692,21 @@ class StaffRepository @Inject constructor(
      * course cache so the hall reads offline across restarts. No network.
      */
     suspend fun resolveTeacherRoll(courseId: Int, roll: TeacherRoll): TeacherRoll {
-        val worklist = applicants.list(courseId).map {
-            json.decodeFromString(ApplicantDto.serializer(), it.payload).toModel()
+        val generation = sessionGeneration.get()
+        val rows = applicants.list(courseId)
+        val worklist = withContext(dispatchers.computation) {
+            rows.map { json.decodeFromString(ApplicantDto.serializer(), it.payload).toModel() }
         }
         val checkIns = sessionStore.checkInsOnce()
-        val mapped = mapRollApplicantIds(roll, worklist, checkIns)
-        runCatching { courseOpsStore.saveRoll(courseId, mapped) }
+        val mapped = withContext(dispatchers.computation) { mapRollApplicantIds(roll, worklist, checkIns) }
+        requireSession(generation)
+        withContext(dispatchers.io) {
+            synchronized(courseOpsStore) {
+                requireSession(generation)
+                runCatching { courseOpsStore.saveRoll(courseId, mapped) }
+            }
+        }
+        requireSession(generation)
         return mapped
     }
 
@@ -671,6 +721,7 @@ class StaffRepository @Inject constructor(
         val have = runCatching { applicants.list(course.id.value) }.getOrDefault(emptyList())
         if (have.isNotEmpty()) return
         runCatching { refreshApplicants(course.id, centreId = course.centreId) }
+            .onFailure { if (it is CancellationException) throw it }
     }
 
     /** The encrypted course cache's roll snapshot — offline entry to course ops. */
@@ -696,6 +747,7 @@ class StaffRepository @Inject constructor(
         // Last so existing trailing-lambda call sites keep meaning onCard.
         onCard: suspend (Int, ApplicationCard) -> Unit = { _, _ -> },
     ) = withContext(Dispatchers.IO) {
+        val generation = sessionGeneration.get()
         val cached = runCatching { courseOpsStore.loadCards(courseId).keys }.getOrDefault(emptySet())
         val toFetch = ids.distinct().filter { it !in cached }
         if (toFetch.isEmpty()) return@withContext
@@ -707,7 +759,11 @@ class StaffRepository @Inject constructor(
                 launch {
                     gate.withPermit {
                         runCatching { loadApplicationView(id) }.onSuccess { card ->
-                            runCatching { courseOpsStore.saveCard(courseId, id, card) }
+                            synchronized(courseOpsStore) {
+                                requireSession(generation)
+                                runCatching { courseOpsStore.saveCard(courseId, id, card) }
+                            }
+                            requireSession(generation)
                             onCard(id, card)
                         }
                         // Attempted, success or not — the bar must reach the end.
@@ -794,13 +850,14 @@ class StaffRepository @Inject constructor(
     }
 
     suspend fun logout() {
+        sessionGeneration.incrementAndGet()
         if (useMock) runCatching { auth.logout() } else runCatching { api.logoutGet() }
         cookies.clear()
         applicants.clear()
         outbox.clear()
         // Course-ops amendment (2026-09-02): the encrypted roll + application
         // cache dies with the account; the device PIN deliberately survives.
-        runCatching { courseOpsStore.wipeCourse() }
+        withContext(dispatchers.io) { synchronized(courseOpsStore) { runCatching { courseOpsStore.wipeCourse() } } }
         sessionStore.clear()
         sensitive.clear()
         photoWriter.wipe()
@@ -817,6 +874,7 @@ class StaffRepository @Inject constructor(
      * "Erase all local data" wipes.
      */
     suspend fun sessionExpired() {
+        sessionGeneration.incrementAndGet()
         cookies.clear()
         tokens.saveSession(null, null)
         sensitive.clear()
@@ -826,6 +884,7 @@ class StaffRepository @Inject constructor(
     }
 
     suspend fun factoryReset() {
+        sessionGeneration.incrementAndGet()
         if (useMock) runCatching { auth.logout() } else runCatching { api.logoutGet() }
         cookies.clear()
         applicants.clear()
@@ -833,7 +892,7 @@ class StaffRepository @Inject constructor(
         sessionStore.wipeAll()
         // Erase-all is the one thing that removes the course-ops device PIN
         // (spec 2a S3); logout deliberately leaves it in place.
-        courseOpsStore.wipeAll()
+        withContext(dispatchers.io) { synchronized(courseOpsStore) { courseOpsStore.wipeAll() } }
         sensitive.clear()
         photoWriter.wipe()
         sheets.wipe()
@@ -883,12 +942,14 @@ class StaffRepository @Inject constructor(
         )
     }
 
-    private suspend fun persist(rows: List<ApplicantDto>) {
-        applicants.upsert(
+    private suspend fun persist(rows: List<ApplicantDto>, generation: Long = sessionGeneration.get()) {
+        val entities = withContext(dispatchers.computation) {
             rows.map {
                 ApplicantEntity(it.id, it.courseId, json.encodeToString(ApplicantDto.serializer(), it))
-            },
-        )
+            }
+        }
+        requireSession(generation)
+        applicants.upsert(entities)
     }
 
     suspend fun markAttendedLocal(id: ApplicantId, attended: Boolean = true) {

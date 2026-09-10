@@ -974,6 +974,26 @@ On return, refresh the same course once, retaining selection and recomputing aud
 The sheet viewer remains for exports, not application editing.
 
 
+## Desk processing and idle clock (2.0.0 / 98)
+
+2026-09-10: worklist, centre, attended-table and teacher-roll parsing, DTO preparation,
+and both audit passes in the observed-roll pipeline run off Main. Audit results use immutable
+disclosure snapshots; cancelled/expired-session and previous-course work cannot
+publish into the current desk. Course ops cache reads and roll writes use IO.
+Hot worklist regexes are reused without changing their expressions or output.
+
+The wide desk's minute clock runs only while its host is STARTED and the screen is
+interactive, restarting at the current time. Day 0 summary now shares the existing
+finalized-course Zero Day exclusion. Request order remains worklist, finalized
+decision, then optional Zero Day. Keep-alive remains the single process-local
+20-minute token + centre pair. No new cache/freshness model, endpoints, photo
+review, WhatsApp activation, or v7 UI.
+
+Validation and measurement limits: [performance record](plans/2026-09-10-desk-performance.md).
+Owner selected 2.0.0 / 98 for the final GitHub release on main, superseding the
+unpublished 1.46.3 / 97 preparation. Tablet installation and device after-measurements
+remain separate; the major version does not introduce v7 UI or a transport rewrite.
+
 ## Photo review default off (1.46.2)
 
 Owner 2026-09-09: compact desk builds hide photo review, correction, ML Kit scan, export and live update. Ordinary applicant photos still display. `-Pdipi.photoReview=true` includes the existing review workflow. See `docs/PHOTO-BUILDS.md`.

@@ -13,6 +13,34 @@ import org.robolectric.RobolectricTestRunner
 @RunWith(RobolectricTestRunner::class)
 class FinalizedRoomActionsTest {
     @get:Rule val rule = createComposeRule()
+    @Test fun dayZeroSummarySkipsBothFinalizedSignalsButActiveCoursesStillFetch() {
+        val server = MockWebServer().apply { dispatcher = DipiMockDispatcher(); start() }
+        try {
+            val vm = buildTestVm(server).vm
+            var fetches = 0
+            vm.sheetFetch = { export, _, _, _ ->
+                assertEquals(SheetExport.Day0Summary, export)
+                fetches++
+                SheetPayload.NotAvailable("Fixture response")
+            }
+            val card = org.dhamma.dipi.staff.network.SearchPageParser.parse("""<script>var dataset = [{"aid":31,"centreid":63,"courseid":77,"name":"Test Student","gender":"M","app_status":"Attended","finalized":1}];</script>""").dataset.single().toModel()
+            val base = DeskUiState(course = Course(CourseId(77), CentreId(63), "Test", "", ""))
+            rule.runOnIdle {
+                vm.seedForTest(base.copy(courseFinalized = true))
+                vm.openSheet("Day 0 summary")
+                assertNull(vm.state.value.sheetView)
+                vm.seedForTest(base.copy(rows = listOf(card)))
+                vm.openSheet("Day 0 summary")
+                assertNull(vm.state.value.sheetView)
+                assertEquals(0, fetches)
+                vm.seedForTest(base.copy(rows = listOf(card.copy(courseFinalized = false))))
+                vm.openSheet("Day 0 summary")
+            }
+            rule.awaitTrue("active course still fetches its summary") { fetches == 1 }
+            assertEquals(0, server.requestCount)
+        } finally { server.shutdown() }
+    }
+
     @Test fun finalizedCourseCannotEditUndoSyncOrFetchZeroDay() {
         val server = MockWebServer().apply { dispatcher = DipiMockDispatcher(); start() }
         try {

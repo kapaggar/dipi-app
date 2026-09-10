@@ -1,6 +1,7 @@
 package org.dhamma.dipi.staff.data
 
 import retrofit2.HttpException
+import kotlinx.coroutines.CancellationException
 import java.io.IOException
 
 class ApiException(
@@ -9,6 +10,7 @@ class ApiException(
 ) : RuntimeException(message)
 
 fun Throwable.toApi(): ApiException = when (this) {
+    is CancellationException -> throw this
     is ApiException -> this
     is HttpException -> {
         val raw = response()?.errorBody()?.string().orEmpty()

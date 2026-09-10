@@ -202,6 +202,9 @@ object SearchPageParser {
      * once (owner feedback 2026-08-16; `( View )` added in v5 T5).
      */
     private val LINK_REMNANT = Regex("""\s*\(\s*(?:PDF|View)\s*\)""", RegexOption.IGNORE_CASE)
+    private val WHITESPACE = Regex("""\s+""")
+    private val HTML_TAG = Regex("<[^>]+>")
+    private val ROLE_SUFFIX = Regex("""\s*\((Sevak|AT)[^)]*\)""")
 
     /** dipi edit-form PAN shape: 5 letters + 4 digits + 1 letter (loader.js `looksLikePan`). */
     private val PAN_SHAPE = Regex("""^[A-Za-z]{5}\d{4}[A-Za-z]$""")
@@ -231,7 +234,7 @@ object SearchPageParser {
     fun sensitiveRow(o: JsonObject): SensitiveInfo? {
         val aadhar = o.str("aadhar")
         val id: Pair<String, String>? = when {
-            aadhar != null && PAN_SHAPE.matches(aadhar.replace(Regex("""\s+"""), "")) -> "PAN" to aadhar
+            aadhar != null && PAN_SHAPE.matches(aadhar.replace(WHITESPACE, "")) -> "PAN" to aadhar
             aadhar != null -> "Aadhaar" to aadhar
             else -> o.str("pancard")?.let { "PAN" to it }
                 ?: o.str("voterid")?.let { "Voter ID" to it }
@@ -254,9 +257,9 @@ object SearchPageParser {
         val display = cleanPersonName(
             stripTags(o.str("name").orEmpty())
                 .replace(LINK_REMNANT, "")
-                .replace(Regex("""\s*\((Sevak|AT)[^)]*\)"""), ""),
+                .replace(ROLE_SUFFIX, ""),
         )
-        val parts = display.split(Regex("\\s+")).filter { it.isNotBlank() }
+        val parts = display.split(WHITESPACE).filter { it.isNotBlank() }
         val given = parts.firstOrNull().orEmpty()
         val family = parts.drop(1).joinToString(" ")
         val genderRaw = o.str("gender").orEmpty()
@@ -332,8 +335,8 @@ object SearchPageParser {
     }
 
     fun stripTags(raw: String): String =
-        HtmlEntities.unescape(raw.replace(Regex("<[^>]+>"), " "))
-            .replace(Regex("\\s+"), " ")
+        HtmlEntities.unescape(raw.replace(HTML_TAG, " "))
+            .replace(WHITESPACE, " ")
             .trim()
 
     fun centreIdFromPath(path: String): Int? {
@@ -407,12 +410,13 @@ object HealthNoiseFilter {
     )
 
     private val LEADING_NO = Regex("""^no\b""", RegexOption.IGNORE_CASE)
+    private val WHITESPACE = Regex("""\s+""")
 
     fun isNoise(value: String?): Boolean {
         if (value == null) return true
         val s = value.replace('\u00A0', ' ')
             .lowercase()
-            .replace(Regex("""\s+"""), " ")
+            .replace(WHITESPACE, " ")
             .trim()
         if (s.isEmpty()) return true
         return s in NOISE_EXACT || s in GEO_NOISE

@@ -787,21 +787,6 @@ private fun deskCourse(
     )
 }
 
-/** "Wed 2 Sep · 09:41", ticking once a minute. */
-@Composable
-private fun deskClock(): String {
-    val fmt = remember {
-        java.time.format.DateTimeFormatter.ofPattern("EEE d MMM · HH:mm", java.util.Locale.ENGLISH)
-    }
-    val clock = androidx.compose.runtime.produceState(java.time.LocalDateTime.now().format(fmt)) {
-        while (true) {
-            value = java.time.LocalDateTime.now().format(fmt)
-            kotlinx.coroutines.delay(60_000L - (System.currentTimeMillis() % 60_000L))
-        }
-    }
-    return clock.value
-}
-
 @Composable
 private fun DeskBody(vm: DeskViewModel, state: DeskUiState, wide: Boolean) {
     val course = state.course

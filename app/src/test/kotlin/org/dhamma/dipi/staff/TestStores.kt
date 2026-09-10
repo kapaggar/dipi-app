@@ -13,6 +13,7 @@ import okhttp3.mockwebserver.MockWebServer
 import org.dhamma.dipi.staff.data.ConnectivityMonitor
 import org.dhamma.dipi.staff.data.PhotoEditStore
 import org.dhamma.dipi.staff.data.StaffRepository
+import org.dhamma.dipi.staff.data.DeskDispatchers
 import org.dhamma.dipi.staff.datastore.PhotoCorrectionStore
 import org.dhamma.dipi.staff.database.ApplicantDao
 import org.dhamma.dipi.staff.database.ApplicantEntity
@@ -80,6 +81,7 @@ class TestVm(
     val courseOpsStore: CourseOpsStore,
     val tokens: TestTokens,
     val connectivity: ConnectivityMonitor,
+    val repo: StaffRepository,
 )
 
 /**
@@ -91,6 +93,9 @@ fun buildTestVm(
     server: MockWebServer,
     pinPrefsName: String = "test_course_ops",
     cookie: String? = null,
+    applicants: ApplicantDao = EmptyApplicants(),
+    dispatchers: DeskDispatchers = DeskDispatchers(),
+    useMock: Boolean = true,
 ): TestVm {
     val app = RuntimeEnvironment.getApplication()
     // Before the VM: its init runs restore() inline up to the first real
@@ -112,13 +117,14 @@ fun buildTestVm(
         tokens = tokens,
         sessionStore = sessionStore,
         courseOpsStore = courseOpsStore,
-        applicants = EmptyApplicants(),
+        applicants = applicants,
         outbox = EmptyOutbox(),
         json = json,
         cookies = SessionCookieJar(tokens),
-        useMock = true,
+        useMock = useMock,
         baseUrl = base,
         context = app,
+        dispatchers = dispatchers,
     )
     val vm = DeskViewModel(
         repo,
@@ -130,16 +136,17 @@ fun buildTestVm(
             app.getSharedPreferences("pc_$pinPrefsName", Context.MODE_PRIVATE)
         },
         connectivity,
+        dispatchers,
     )
-    return TestVm(vm, sessionStore, courseOpsStore, tokens, connectivity)
+    return TestVm(vm, sessionStore, courseOpsStore, tokens, connectivity, repo)
 }
 
 /**
  * Waits for [cond] while letting DataStore/OkHttp threads progress and the
  * Robolectric main looper drain — the coroutine seams the VM suspends on.
  */
-fun ComposeTestRule.awaitTrue(message: String, cond: () -> Boolean) {
-    val deadline = System.currentTimeMillis() + 5_000
+fun ComposeTestRule.awaitTrue(message: String, timeoutMs: Long = 5_000, cond: () -> Boolean) {
+    val deadline = System.currentTimeMillis() + timeoutMs
     while (!cond() && System.currentTimeMillis() < deadline) {
         waitForIdle()
         Thread.sleep(20)

@@ -6,19 +6,26 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.dhamma.dipi.staff.audit.ClientAudit
 import org.dhamma.dipi.staff.data.ApiException
 import org.dhamma.dipi.staff.data.ConnectivityMonitor
 import org.dhamma.dipi.staff.BuildConfig
 import org.dhamma.dipi.staff.data.PhotoEditStore
 import org.dhamma.dipi.staff.data.StaffRepository
+import org.dhamma.dipi.staff.data.DeskDispatchers
 import org.dhamma.dipi.staff.datastore.CourseOpsStore
 import org.dhamma.dipi.staff.datastore.PhotoCorrectionStore
 import org.dhamma.dipi.staff.datastore.SessionStore
@@ -349,6 +356,7 @@ fun deskOpenCourse(state: DeskUiState, course: Course): DeskUiState = state.copy
     query = "",
     card = null,
     loading = false,
+    roomPullBusy = false,
     sensitiveById = emptyMap(),
     sheetView = null,
     deskScan = "",
@@ -465,6 +473,7 @@ class DeskViewModel @Inject constructor(
     private val photoLoader: PhotoLoader,
     private val photoCorrections: PhotoCorrectionStore,
     private val connectivity: ConnectivityMonitor,
+    private val dispatchers: DeskDispatchers = DeskDispatchers(),
 ) : ViewModel() {
     internal var onWhatsAppSessionExit: () -> Unit = {}
     internal var onWhatsAppErase: () -> Unit = {}
@@ -622,11 +631,13 @@ class DeskViewModel @Inject constructor(
             _state.update { it.copy(session = session.copy(centres = reordered), loading = true) }
             runCatching { repo.loadCourses(centre.id) }
                 .onSuccess { lists ->
+                    if (_state.value.session?.centres?.firstOrNull()?.id != centre.id) return@onSuccess
                     _state.update {
                         it.copy(courses = lists.upcoming, olderCourses = lists.older, loading = false)
                     }
                 }
                 .onFailure { e ->
+                    if (e is CancellationException) throw e
                     _state.update { it.copy(loading = false) }
                     handleAuth(e)
                 }
@@ -789,6 +800,7 @@ class DeskViewModel @Inject constructor(
             _state.update { it.copy(roomPullBusy = true) }
             runCatching { repo.pullRoomAllocations(course.centreId.value, course.id.value) }
                 .onSuccess { pulled ->
+                    if (!isCurrentCourse(course, s.session)) return@onSuccess
                     persistCheckIns(RoomAllocSync.mergePulled(_state.value.checkIns, pulled))
                     val n = pulled.values.count { it.room.isNotBlank() }
                     _state.update {
@@ -799,6 +811,11 @@ class DeskViewModel @Inject constructor(
                     }
                 }
                 .onFailure { e ->
+                    if (e is CancellationException) throw e
+                    if (!isCurrentCourse(course, s.session)) {
+                        if (e is ApiException && e.unauthorized) handleAuth(e)
+                        return@onFailure
+                    }
                     _state.update { it.copy(roomPullBusy = false) }
                     if (userInitiated || (e is ApiException && e.unauthorized)) handleAuth(e)
                 }
@@ -915,7 +932,8 @@ class DeskViewModel @Inject constructor(
     internal var hallRollFetch: suspend (Int, Int) -> TeacherRoll =
         { cid, courseId ->
             val raw = repo.loadTeacherRoll(cid, courseId)
-            runCatching { repo.resolveTeacherRoll(courseId, raw) }.getOrDefault(raw)
+            runCatching { repo.resolveTeacherRoll(courseId, raw) }
+                .onFailure { if (it is CancellationException) throw it }.getOrDefault(raw)
         }
     /** Test seam so freshness / report strips pin a clock. */
     internal var sheetClock: () -> String = {
@@ -931,7 +949,12 @@ class DeskViewModel @Inject constructor(
      */
     fun openSheet(label: String, sort: SheetSort = SheetSort.Default) {
         val export = SheetExport.fromLabel(label) ?: return
-        val course = _state.value.course ?: return
+        val state = _state.value
+        val course = state.course ?: return
+        // The summary shares /zero-day with the allocation pull. Finalized
+        // courses must skip both routes, using worklist facts only.
+        if (export == SheetExport.Day0Summary &&
+            (state.courseFinalized || state.rows.any { it.courseFinalized })) return
         if (export == SheetExport.SeatingPlan) {
             openNativeBoardSeating()
             return
@@ -971,8 +994,9 @@ class DeskViewModel @Inject constructor(
      * and never `?r=`.
      */
     private fun openNativeBoardSeating() {
-        val course = _state.value.course ?: return
-        val existing = _state.value.teacherRoll
+        val entry = _state.value
+        val course = entry.course ?: return
+        val existing = entry.teacherRoll
         _state.update {
             it.copy(
                 sheetView = SheetViewUi(
@@ -989,6 +1013,7 @@ class DeskViewModel @Inject constructor(
         viewModelScope.launch {
             runCatching { hallRollFetch(course.centreId.value, course.id.value) }
                 .onSuccess { roll ->
+                    if (!isCurrentCourse(course, entry.session)) return@onSuccess
                     _state.update { cur ->
                         if (cur.sheetView?.title != SheetExport.SeatingPlan.label) return@update cur
                         cur.copy(
@@ -1002,6 +1027,11 @@ class DeskViewModel @Inject constructor(
                     }
                 }
                 .onFailure { e ->
+                    if (e is CancellationException) throw e
+                    if (!isCurrentCourse(course, entry.session)) {
+                        if (e is ApiException && e.unauthorized) handleAuth(e)
+                        return@onFailure
+                    }
                     if (e is ApiException && e.unauthorized) {
                         _state.update { it.copy(sheetView = null) }
                         handleAuth(e)
@@ -1773,18 +1803,24 @@ class DeskViewModel @Inject constructor(
      * prefetch failures (never a hot loop).
      */
     private fun fetchTeacherRoll() {
-        val course = _state.value.course ?: return
+        val entry = _state.value
+        val course = entry.course ?: return
         _state.update {
             it.copy(teacherRoll = null, teacherRollError = null, teacherCards = emptyMap(), teacherCard = null)
         }
         viewModelScope.launch {
             runCatching { repo.loadTeacherRoll(course.centreId.value, course.id.value) }
                 .onSuccess { raw ->
+                    if (!isCurrentCourse(course, entry.session)) return@onSuccess
                     // Course ops buffers its own worklist: the id mapping is
                     // starved without it (owner feedback 2026-09-02).
                     runCatching { repo.ensureCourseOpsWorklist(course) }
-                    val roll = runCatching { repo.resolveTeacherRoll(course.id.value, raw) }.getOrDefault(raw)
-                    val cached = repo.cachedApplicationCards(course.id.value)
+                        .onFailure { if (it is CancellationException) throw it }
+                    if (!isCurrentCourse(course, entry.session)) return@onSuccess
+                    val roll = runCatching { repo.resolveTeacherRoll(course.id.value, raw) }
+                        .onFailure { if (it is CancellationException) throw it }.getOrDefault(raw)
+                    val cached = withContext(dispatchers.io) { repo.cachedApplicationCards(course.id.value) }
+                    if (!isCurrentCourse(course, entry.session)) return@onSuccess
                     _state.update {
                         it.copy(
                             teacherRoll = roll,
@@ -1798,12 +1834,16 @@ class DeskViewModel @Inject constructor(
                     handleAuth(e)
                     // An expired session boots to sign-in; nothing to render here.
                     if (e is ApiException && e.unauthorized) return@launch
-                    val cachedRoll = repo.cachedTeacherRoll(course.id.value)
+                    if (!isCurrentCourse(course, entry.session)) return@launch
+                    val (cachedRoll, cachedCards) = withContext(dispatchers.io) {
+                        repo.cachedTeacherRoll(course.id.value) to repo.cachedApplicationCards(course.id.value)
+                    }
+                    if (!isCurrentCourse(course, entry.session)) return@launch
                     if (cachedRoll != null) {
                         _state.update {
                             it.copy(
                                 teacherRoll = cachedRoll,
-                                teacherCards = repo.cachedApplicationCards(course.id.value),
+                                teacherCards = cachedCards,
                                 teacherRollCachedAt = null,
                             )
                         }
@@ -1919,6 +1959,8 @@ class DeskViewModel @Inject constructor(
 
     fun logout() {
         pendingAppEdit = null
+        observeJob?.cancel()
+        observeJob = null
         onWhatsAppSessionExit()
         viewModelScope.launch {
             keepAliveJob?.cancel()
@@ -1944,6 +1986,8 @@ class DeskViewModel @Inject constructor(
 
     fun factoryReset() {
         pendingAppEdit = null
+        observeJob?.cancel()
+        observeJob = null
         onWhatsAppErase()
         viewModelScope.launch {
             keepAliveJob?.cancel()
@@ -1983,7 +2027,9 @@ class DeskViewModel @Inject constructor(
                     // Course ops (spec 2a S5): the mode key decides the start
                     // destination — the roll, locked to the running course.
                     // DESK is byte-identical to the pre-2a flow: Centre.
-                    if (sessionStore.tabletModeOnce() == TabletMode.COURSE_OPS) {
+                    val mode = sessionStore.tabletModeOnce()
+                    if (_state.value.session !== session) return@onSuccess
+                    if (mode == TabletMode.COURSE_OPS) {
                         val running = runningCourse(lists.upcoming + lists.older, todayProvider())
                         returnTo = DeskScreen.TeacherRoll
                         _state.update {
@@ -2007,6 +2053,7 @@ class DeskViewModel @Inject constructor(
                     }
                 }
                 .onFailure { e ->
+                    if (e is CancellationException) throw e
                     _state.update { it.copy(loginError = e.message, screen = DeskScreen.Login) }
                     handleAuth(e)
                 }
@@ -2040,25 +2087,38 @@ class DeskViewModel @Inject constructor(
         }
     }
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     private fun ensureWorklist(course: Course) {
+        val session = _state.value.session
         if (observeJob?.isActive != true) {
             observeJob = viewModelScope.launch {
                 val id = course.id
-                repo.observeApplicants(id).collect { rows ->
-                    _state.update { cur ->
-                        cur.copy(
-                            rows = rows,
-                            courseFinalized = rows.any { it.courseFinalized } || cur.courseFinalized,
-                            visible = WorklistFilter.visible(rows, cur.selected, cur.query),
-                            auditRows = flagAudit(rows),
-                            loading = false,
-                        )
+                repo.observeApplicants(id)
+                    .combine(_state.map { it.sensitiveById }.distinctUntilChanged()) { rows, sensitive ->
+                        rows to sensitive
                     }
-                }
+                    .mapLatest { (rows, sensitive) ->
+                        withContext(dispatchers.computation) { Triple(rows, sensitive, flagAudit(rows, sensitive)) }
+                    }
+                    .collect { (rows, sensitive, auditRows) ->
+                        _state.update { cur ->
+                            if (cur.course?.id != id || cur.session !== session || cur.sensitiveById != sensitive) {
+                                return@update cur
+                            }
+                            cur.copy(
+                                rows = rows,
+                                courseFinalized = rows.any { it.courseFinalized } || cur.courseFinalized,
+                                visible = WorklistFilter.visible(rows, cur.selected, cur.query),
+                                auditRows = auditRows,
+                                loading = false,
+                            )
+                        }
+                    }
             }
         }
         viewModelScope.launch {
             refreshWorklist(unfiltered = true)
+            if (!isCurrentCourse(course, session)) return@launch
             runCatching { repo.loadStatuses() }.onSuccess { list ->
                 // Through mergeChoices so an offline cold start (empty list)
                 // keeps the SHEET_CHOICES default instead of wiping it, and
@@ -2077,13 +2137,18 @@ class DeskViewModel @Inject constructor(
         val q = if (unfiltered) null else s.query.takeIf { it.isNotBlank() }
         runCatching { repo.refreshApplicants(course.id, status, q, course.centreId) }
             .onSuccess { (rows, counts) ->
-                if (_state.value.course?.id != course.id) return@onSuccess
+                if (!isCurrentCourse(course, s.session)) return@onSuccess
                 _state.update {
                     it.copy(counts = counts, courseFinalized = rows.any { row -> row.courseFinalized } || it.courseFinalized,
                         sensitiveById = repo.sensitiveSnapshot(), loading = false)
                 }
             }
             .onFailure { e ->
+                if (e is CancellationException) throw e
+                if (!isCurrentCourse(course, s.session)) {
+                    if (e is ApiException && e.unauthorized) handleAuth(e)
+                    return@onFailure
+                }
                 _state.update { it.copy(loading = false) }
                 handleAuth(e)
             }
@@ -2109,8 +2174,13 @@ class DeskViewModel @Inject constructor(
             .onFailure { handleAuth(it) }
     }
 
-    private fun flagAudit(rows: List<ApplicantCard>): List<ApplicantCard> {
-        val sensitive = _state.value.sensitiveById
+    private fun isCurrentCourse(course: Course, session: Session?): Boolean =
+        _state.value.let { it.course?.id == course.id && it.course.centreId == course.centreId && it.session === session }
+
+    private fun flagAudit(
+        rows: List<ApplicantCard>,
+        sensitive: Map<ApplicantId, SensitiveInfo> = _state.value.sensitiveById,
+    ): List<ApplicantCard> {
         return rows.map { card ->
             card.copy(
                 flags = ClientAudit.merge(
@@ -2123,8 +2193,11 @@ class DeskViewModel @Inject constructor(
     }
 
     private fun handleAuth(e: Throwable) {
+        if (e is CancellationException) throw e
         if (e is ApiException && e.unauthorized) {
             pendingAppEdit = null
+            observeJob?.cancel()
+            observeJob = null
             authCleanupJob = viewModelScope.launch {
                 keepAliveJob?.cancel()
                 returnTo = null
