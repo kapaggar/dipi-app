@@ -3,8 +3,11 @@
 Implemented on `main` from 1.46.2 / 96, following the owner-approved analysis.
 Owner requested a final 2.0 GitHub release after reviewing the implementation.
 Version 2.0.0 / 98 supersedes the unpublished 1.46.3 / 97 preparation.
-Work remains on main, with no v7 merge/UI port. Tablet installation was not
-authorized by the publication request; device after-measurements remain pending.
+Work remains on main, with no v7 merge/UI port. The later installation request
+authorized the Pixel C update. See the [device follow-up and next implementation
+plan](../reports/2026-09-11-android-performance-follow-up.md) for confirmed
+installation, partial after-measurements, mixed CPU results and the subsequent
+Wi-Fi ADB disconnect. The remaining paths still need measurement.
 
 The full [baseline inventory, measurements and ranked recommendations](../reports/2026-09-10-android-performance-baseline.md)
 are archived separately with source links pinned to the analyzed 1.46.2 commit.
@@ -113,9 +116,10 @@ mAh estimate. The 20-minute tick/typical long registrar pause was not measured.
 
 ## After measurements and validation
 
-No Pixel C after table can be produced without installing the new APK. The tablet
-remains on 1.46.2 with its session, owner-set PIN and original preferences intact.
-No Android runtime speedup or battery saving is claimed from local tests.
+At publication, the tablet remained on 1.46.2 and device after-measurements were
+pending. The [later device follow-up](../reports/2026-09-11-android-performance-follow-up.md)
+records the authorized 2.0.0 installation and available after table. Those results
+are mixed and incomplete; no overall speedup or battery saving is claimed.
 
 Local synthetic `stripTags` probe: Mac aarch64, JDK 20.0.1; 512 distinct synthetic
 inputs, output equality checked, eight warm-up pairs, eleven alternating measured
