@@ -189,6 +189,13 @@ or signing keys are included in the commit.
 
 ## Remaining device measurements
 
+The authorized install and subsequent reconnect have now completed the available
+release-build course/sheet/refresh/Course ops, centre idle and 90-second return
+checks. See the [device follow-up](../reports/2026-09-11-android-performance-follow-up.md)
+for both the interrupted run and retry, device-state differences and mixed
+results. The sequence below records the measurement protocol; exact HTTP and
+method traces, matched performance trials and long-pause survival remain open.
+
 The 1.46.2 baseline has no per-Retrofit duration trace and no method-exclusive
 parse/merge profile. The 2.0.0 release is non-debuggable. Its first tablet run can
 repeat process/Main CPU, UID byte counters, `gfxinfo`, and idle measurements;

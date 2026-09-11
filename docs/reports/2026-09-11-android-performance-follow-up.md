@@ -41,7 +41,7 @@ cache warmth and changing live data limit comparisons with the previous day.
 | Centre, screen off | No due fetch | 124,210 | 260 | 30 | 0 / 135 |
 | First upcoming-course open after install | Worklist then Zero Day: 2 | 15,960 | 37,980 | 3,920 | 107,612 / 4,866 |
 | Warm reopen of the same course | Worklist then Zero Day: 2 | 15,829 | 32,200 | 1,550 | 99,912 / 4,058 |
-| Warm sheet, compact refresh, Course ops and 90-second return | Not captured in this run | Unmeasured | Unmeasured | Unmeasured | Unmeasured |
+| Remaining paths | Captured after reconnect; see the separate table below | - | - | - | - |
 
 The centre run totals 245,194 ms, with 260 ms process CPU and 30 ms Main CPU.
 The final screen-off minute used 10 ms process CPU, zero Main CPU and zero app
@@ -77,10 +77,97 @@ After the warm course run, Wi-Fi ADB changed to offline and reconnecting to the
 documented address timed out. A thread-cost follow-up and sheet measurement
 could not start; these failures are excluded from timing tables. This does not
 establish an app crash. At disconnection the last confirmed state was the
-populated course Board, Desk mode, **Simulate offline disabled**. Restoration to
-the prior enabled preference, remaining paths and a fresh runtime ML Kit/service/
-alarm/job/connectivity inspection require the tablet to reconnect. The owner was
-asked to charge the tablet and reconnect it to the same Wi-Fi.
+populated course Board, Desk mode, **Simulate offline disabled**. The owner was
+asked to charge the tablet and reconnect it to the same Wi-Fi, then explicitly
+requested a retry when the tablet was back.
+
+### Reconnected release run
+
+The retry reconnected to the same Pixel C and confirmed 2.0.0 / 98 without
+reinstalling. The tablet was AC powered at 30% and 32.6 C; the DIPI process was
+not running. Launch again reached Sign-in with populated Remember me fields.
+Submitting those existing fields restored the centre; no logout or app data
+clear was performed. These observations do not isolate why session restoration
+failed. Charging and the fresh process further limit cross-run comparisons.
+
+The first Board sample after course entry still consumed 7,920 ms process CPU
+over 5,567 ms, with zero Main CPU and zero UID bytes. A later 13,317 ms thread
+sample used 70 ms process CPU, zero Main CPU and zero UID bytes. Only ART's
+Profile Saver accumulated nonzero CPU in the separate per-thread samples
+(80 ms). Process and thread intervals are not identical and tick rounding
+prevents exact reconciliation. The early interval was therefore not a settled
+idle baseline; the later interval does not show a sustained worker loop.
+
+Runtime inspection found no DIPI alarm, registered job, active service, app
+wakelock or bound accessibility service. The job scheduler's `u0a145: 40` entry
+was a UID priority entry, not a scheduled job. Connectivity had one DIPI LISTEN
+callback. None of the 32 thread names sampled at initial launch matched ML Kit,
+Firebase, vision or transport-runtime; names alone are not a complete library
+inspection, but the release DEX/dependency inspection also found ML Kit absent.
+Another app, AccuBattery, held a charging wakelock, and SD Maid's accessibility
+service was enabled. Whole-device power cannot be attributed to DIPI alone.
+
+| Retry path | Logical requests from source | Window ms | Process CPU ms | Main CPU ms | App RX/TX bytes |
+|---|---|---:|---:|---:|---:|
+| First Day 0 list sheet in this process | 1 sheet GET plus WebView assets | 7,852 | 7,120 | 1,670 | 10,673 / 1,766 |
+| Warm Day 0 list sheet | 1 sheet GET plus WebView assets | 7,718 | 5,340 | 1,210 | 11,587 / 2,593 |
+| Compact pull-to-refresh | 1 worklist GET; no Zero Day merge | 11,270 | 14,610 | 1,780 | 84,946 / 4,896 |
+| One deliberate Course ops entry | 1 teacher-list GET; optional worklist and missing cards, actual wire count unmeasured | 25,021 | 11,620 | 1,810 | 14,639 / 3,550 |
+| Course ops, settled | No due fetch | 10,450 | 160 | 0 | 0 / 0 |
+| Course ops group filter on/off, Seating plan, Teacher list | 0 | 12,274 | 4,840 | 1,860 | 0 / 0 |
+| Home, untouched for 90 seconds | No due fetch | 90,568 | 560 | 60 | 0 / 0 |
+| Return to the existing Board | 0 | 5,673 | 550 | 150 | 0 / 0 |
+
+These are fixed observation windows including ADB input overhead, not request
+durations or first-useful-pixel measurements. Sheet controls and the print action
+were present on subsequent inspection. The process survived the entire
+background/return trial; no UID traffic was observed in either window. This is
+only a short-pause result, not a 20-minute keep-alive or long-pause test.
+
+Gfxinfo for the first sheet recorded 75/75 janky frames, p50 46 ms and p99
+4,950 ms; the warm sheet recorded 89/89, p50 46 ms and p99 300 ms. These counters
+include the subsequent UI inspection before capture and do not have exactly the
+same boundary as the CPU window. Baseline warm-sheet Main CPU was 440 ms and
+p99 was 89 ms over a shorter observed opening. This retry does not demonstrate
+a sheet speedup; WebView startup/assets and rendering need separate attribution.
+
+Portrait reached the existing compact Applications screen. Its initial entry
+was allowed to load before the measured pull gesture; rotation/entry work is
+excluded from the refresh window. The list remained present afterwards. Source
+inspection still gives one worklist request and no Zero Day merge for refresh;
+the UID byte measurement does not independently count those requests.
+Refresh gfxinfo recorded 266/266 janky frames, p50 21 ms and p99 61 ms. Main CPU
+was lower than the earlier 3,570 ms sample, but the windows differ and the
+14,610 ms process CPU leaves active-work savings unproven.
+
+Exactly one Course ops entry was performed during the retry, with no repeated
+teacher-list benchmark. Its 71-person roll was visible at the subsequent UI
+inspection. Existing Room/encrypted card caches were left intact, so this must
+not be interpreted as an empty-cache application-buffer benchmark. No applicant
+cards were opened, no Comments column was inspected and no letter/WhatsApp
+workflow was started. The entry window includes leaving Settings and 20 seconds
+of waiting; it is not teacher-list latency.
+Entry gfxinfo recorded 14/14 janky frames, p50 150 ms and p99 950 ms.
+Toggling one group filter on/off and switching to Seating plan and back to
+Teacher list used zero UID bytes across all four actions. That supports the
+existing no-refetch behavior for these interactions; it does not prove all
+possible navigation or lifecycle sequences.
+Local-action gfxinfo recorded 33/33 janky frames, p50 44 ms and p99 900 ms.
+
+### Restoration and validation
+
+After the retry, the existing device PIN opened Settings successfully. Verified
+Desk mode selected, Course ops unselected, **Simulate offline enabled**, automatic
+rotation 1, user rotation 0 and screen timeout 600,000 ms. Returned to the centre
+dashboard and put the screen to sleep; `dumpsys power` reported Asleep. Package
+manager again confirmed 2.0.0 / 98. Local desk data and the PIN were preserved;
+no second APK was installed during this retry.
+
+This follow-up changes documentation only. Release validation remains the
+recorded **853 passing tests**, including all three SheetRouteSafetyTest cases,
+and the verified release APK. The suite was not rerun for these documentation
+edits; documentation whitespace and measurement transcription were checked.
+There is no new version bump or release artifact.
 
 ## Next implementation, in order
 
@@ -101,9 +188,9 @@ work as a cache optimization. This requires an explicit retention decision.
 
 ## Human input that is actually needed
 
-**Immediate device dependency:** recharge/reconnect Pixel C so the original
-Simulate offline preference can be restored and the interrupted measurements
-can finish. Installation itself is complete.
+**Device dependency resolved:** the owner reconnected Pixel C and the interrupted
+release measurements resumed. Installation itself was already complete. Exact
+endpoint timing and CPU method attribution remain separate profiling work.
 
 1. **Profiling build and test window:** authorize a separate debuggable diagnostic
    APK if exact Retrofit durations and parse/merge/audit method attribution are
