@@ -43,8 +43,8 @@ import org.dhamma.dipi.staff.model.centreOpsEffect
 import org.dhamma.dipi.staff.model.whatsAppMessage
 import org.dhamma.dipi.staff.ui.theme.DeskKicker
 import org.dhamma.dipi.staff.ui.theme.DipiCondensed
-import org.dhamma.dipi.staff.ui.theme.Industry
 import org.dhamma.dipi.staff.ui.theme.LocalDipi
+import org.dhamma.dipi.staff.ui.theme.LocalIndustry
 import org.dhamma.dipi.staff.ui.theme.deskCard
 
 @Composable
@@ -60,6 +60,7 @@ fun CentreOpsScreen(
     automationContent: @Composable () -> Unit = {},
 ) {
     val c = LocalDipi.current
+    val industry = LocalIndustry.current
     val grouped = prefs.rooms.groupBy { it.gender to it.section }
     Column(
         Modifier
@@ -124,7 +125,7 @@ fun CentreOpsScreen(
                 .padding(14.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            DeskKicker("RESULT", Industry.neutral500)
+            DeskKicker("RESULT", industry.neutral500)
             Text(centreOpsEffect(prefs), color = c.foreground, fontSize = 13.sp)
         }
         Spacer(Modifier.height(14.dp))

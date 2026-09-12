@@ -19,7 +19,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
-import org.dhamma.dipi.staff.ui.theme.Industry
+import org.dhamma.dipi.staff.ui.theme.LocalIndustry
 
 /**
  * Name-bar widths as a fraction of the row. The design binds these to absent
@@ -31,26 +31,27 @@ private val SKELETON_WIDTHS = listOf(0.52f, 0.66f, 0.44f, 0.60f, 0.72f, 0.48f, 0
 /** The eight-row Today loading skeleton (design: `3 · Today — loading skeleton`). */
 @Composable
 fun TodaySkeleton(modifier: Modifier = Modifier) {
+    val industry = LocalIndustry.current
     Column(modifier.fillMaxWidth().testTag("today-skeleton")) {
-        SKELETON_WIDTHS.forEach { width -> SkeletonRow(width) }
+        SKELETON_WIDTHS.forEach { width -> SkeletonRow(width, industry) }
     }
 }
 
 @Composable
-private fun SkeletonRow(nameWidth: Float) {
+private fun SkeletonRow(nameWidth: Float, industry: org.dhamma.dipi.staff.ui.theme.IndustryPalette) {
     Column(Modifier.fillMaxWidth().testTag("skeleton-row")) {
         Column(
             Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Bar(Modifier.weight(nameWidth).height(14.dp), Industry.neutral300)
+                Bar(Modifier.weight(nameWidth).height(14.dp), industry.neutral300)
                 Spacer(Modifier.weight(1f - nameWidth))
-                Bar(Modifier.width(46.dp).height(14.dp), Industry.neutral200)
+                Bar(Modifier.width(46.dp).height(14.dp), industry.neutral200)
             }
-            Bar(Modifier.fillMaxWidth(0.62f).height(11.dp), Industry.neutral200)
+            Bar(Modifier.fillMaxWidth(0.62f).height(11.dp), industry.neutral200)
         }
-        HorizontalDivider(thickness = 1.dp, color = Industry.neutral300)
+        HorizontalDivider(thickness = 1.dp, color = industry.neutral300)
     }
 }
 

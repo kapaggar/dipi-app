@@ -45,17 +45,14 @@ import org.dhamma.dipi.staff.model.RollRow
 import org.dhamma.dipi.staff.model.TeacherRoll
 import org.dhamma.dipi.staff.ui.theme.DipiCondensed
 import org.dhamma.dipi.staff.ui.theme.DipiMono
-import org.dhamma.dipi.staff.ui.theme.Industry
+import org.dhamma.dipi.staff.ui.theme.LocalDeskColors
+import org.dhamma.dipi.staff.ui.theme.LocalIndustry
 
 /** The header's two-way segmented control over the ONE fetched response. */
 enum class TeacherView { SENIORITY, SEATING }
 
 // Fixed hexes DESIGN.md § Course ops names outside the ramp tokens:
 // row hairline · card hairline · rules.
-private val PillFill = Color(0xFFFAFAFB)
-private val RowHairline = Color(0xFFEDEDF1)
-private val CardHairline = Color(0xFFDEDEE1)
-private val Rule = Color(0xFFE0E0E3)
 
 private val SnW = 30.dp
 private val RoomW = 78.dp
@@ -124,7 +121,7 @@ fun TeacherListScreen(
         }
     }
 
-    Column(Modifier.fillMaxSize().background(Industry.bg)) {
+    Column(Modifier.fillMaxSize().background(LocalIndustry.current.bg)) {
         // Offline and prefetch share the 38dp slot; offline wins (nothing is pulling).
         when {
             offline -> CourseOpsOfflineStrip(cachedAt)
@@ -165,20 +162,20 @@ fun CourseOpsOfflineStrip(cachedAt: String? = null) {
     val age = cachedAt?.let { "showing the roll cached at $it" } ?: "showing cached list"
     Column(Modifier.fillMaxWidth().testTag("offline-strip")) {
         Row(
-            Modifier.fillMaxWidth().height(38.dp).background(Industry.neutral200).padding(horizontal = 20.dp),
+            Modifier.fillMaxWidth().height(38.dp).background(LocalIndustry.current.neutral200).padding(horizontal = 20.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text("◍ Offline - $age", color = Industry.neutral800, fontSize = 14.sp)
+            Text("◍ Offline - $age", color = LocalIndustry.current.neutral800, fontSize = 14.sp)
             Text(
                 "nothing is waiting to send; this mode never writes",
-                color = Industry.neutral600,
+                color = LocalIndustry.current.neutral600,
                 fontSize = 12.5.sp,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
         }
-        Box(Modifier.fillMaxWidth().height(1.dp).background(CardHairline))
+        Box(Modifier.fillMaxWidth().height(1.dp).background(LocalDeskColors.current.modeBorder))
     }
 }
 
@@ -201,14 +198,14 @@ private fun Header(
                 fontWeight = FontWeight.SemiBold,
                 fontSize = 23.sp,
                 letterSpacing = 0.2.sp,
-                color = Industry.text,
+                color = LocalIndustry.current.text,
                 modifier = Modifier.testTag("teacher-list-title"),
             )
             Spacer(Modifier.height(4.dp))
             Text(
                 "$courseLine · $rollCount on the roll",
                 fontSize = 12.5.sp,
-                color = Industry.neutral600,
+                color = LocalIndustry.current.neutral600,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -230,7 +227,7 @@ private fun Header(
                 .testTag("teacher-settings"),
             contentAlignment = Alignment.Center,
         ) {
-            Text("⚙", fontSize = 18.sp, color = Industry.neutral600)
+            Text("⚙", fontSize = 18.sp, color = LocalIndustry.current.neutral600)
         }
     }
 }
@@ -247,12 +244,12 @@ private fun DestinationButton(
         Modifier
             .height(52.dp)
             .shadow(3.dp, shape, clip = false)
-            .background(Color.White, shape)
+            .background(LocalDeskColors.current.whiteSurface, shape)
             .then(
                 if (selected) {
-                    Modifier.border(1.5.dp, Industry.accent, shape)
+                    Modifier.border(1.5.dp, LocalIndustry.current.accent, shape)
                 } else {
-                    Modifier.border(1.dp, Industry.neutral300, shape)
+                    Modifier.border(1.dp, LocalIndustry.current.neutral300, shape)
                 },
             )
             .clickable(onClick = onClick, role = Role.Button)
@@ -264,7 +261,7 @@ private fun DestinationButton(
             label,
             fontSize = 14.5.sp,
             fontWeight = if (selected) FontWeight.Medium else FontWeight.Normal,
-            color = if (selected) Industry.accent800 else Industry.neutral600,
+            color = if (selected) LocalIndustry.current.accent800 else LocalIndustry.current.neutral600,
         )
     }
 }
@@ -280,7 +277,7 @@ private fun GroupFilterBand(
         Modifier
             .fillMaxWidth()
             .height(44.dp)
-            .bottomHairline(Rule)
+            .bottomHairline(LocalDeskColors.current.rule)
             .padding(horizontal = 20.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -291,7 +288,7 @@ private fun GroupFilterBand(
             fontWeight = FontWeight.Medium,
             fontSize = 9.sp,
             letterSpacing = 1.7.sp,
-            color = Industry.neutral500,
+            color = LocalIndustry.current.neutral500,
             modifier = Modifier.padding(end = 2.dp),
         )
         groups.forEach { g ->
@@ -302,9 +299,9 @@ private fun GroupFilterBand(
                     .height(30.dp)
                     .then(
                         if (selected) {
-                            Modifier.background(Industry.accent100, shape).border(1.5.dp, Industry.accent, shape)
+                            Modifier.background(LocalIndustry.current.accent100, shape).border(1.5.dp, LocalIndustry.current.accent, shape)
                         } else {
-                            Modifier.background(PillFill, shape).border(1.dp, Rule, shape)
+                            Modifier.background(LocalDeskColors.current.subtleSurface, shape).border(1.dp, LocalDeskColors.current.rule, shape)
                         },
                     )
                     .clickable(role = Role.Button) { onGroupFilter(if (selected) null else g.key) }
@@ -317,14 +314,14 @@ private fun GroupFilterBand(
                     pillLabel(g),
                     fontSize = 12.5.sp,
                     fontWeight = if (selected) FontWeight.Medium else FontWeight.Normal,
-                    color = if (selected) Industry.accent800 else Industry.neutral700,
+                    color = if (selected) LocalIndustry.current.accent800 else LocalIndustry.current.neutral700,
                 )
                 Text(
                     g.total.toString(),
                     fontFamily = DipiMono,
                     fontWeight = FontWeight.Medium,
                     fontSize = 11.sp,
-                    color = if (selected) Industry.accent700 else Industry.neutral500,
+                    color = if (selected) LocalIndustry.current.accent700 else LocalIndustry.current.neutral500,
                 )
             }
         }
@@ -334,7 +331,7 @@ private fun GroupFilterBand(
             Row(
                 Modifier
                     .height(30.dp)
-                    .border(1.dp, Industry.neutral300, shape)
+                    .border(1.dp, LocalIndustry.current.neutral300, shape)
                     .clickable(role = Role.Button) { onGroupFilter(null) }
                     .padding(horizontal = 12.dp)
                     .testTag("clear-filter"),
@@ -343,7 +340,7 @@ private fun GroupFilterBand(
                 Text(
                     "Clear filter ×",
                     fontSize = 12.5.sp,
-                    color = Industry.neutral600,
+                    color = LocalIndustry.current.neutral600,
                 )
             }
         }
@@ -362,11 +359,11 @@ private fun GroupBand(group: RollGroup) {
     Row(
         Modifier
             .fillMaxWidth()
-            .background(Industry.bg)
+            .background(LocalIndustry.current.bg)
             .padding(horizontal = 20.dp)
             .height(34.dp)
-            .background(Industry.accent100, shape)
-            .border(1.dp, Industry.accent300, shape)
+            .background(LocalIndustry.current.accent100, shape)
+            .border(1.dp, LocalIndustry.current.accent300, shape)
             .padding(horizontal = 12.dp)
             .testTag("group-band-${group.key}"),
         verticalAlignment = Alignment.CenterVertically,
@@ -378,17 +375,17 @@ private fun GroupBand(group: RollGroup) {
             fontWeight = FontWeight.SemiBold,
             fontSize = 15.sp,
             letterSpacing = 0.3.sp,
-            color = Industry.accent800,
+            color = LocalIndustry.current.accent800,
             maxLines = 1,
         )
-        Text(group.qualifier, fontSize = 12.5.sp, color = Industry.accent600, maxLines = 1)
+        Text(group.qualifier, fontSize = 12.5.sp, color = LocalIndustry.current.accent600, maxLines = 1)
         Spacer(Modifier.weight(1f))
         Text(
             "${group.total} TOTAL",
             fontFamily = DipiMono,
             fontWeight = FontWeight.Medium,
             fontSize = 12.sp,
-            color = Industry.accent700,
+            color = LocalIndustry.current.accent700,
         )
     }
 }
@@ -400,7 +397,7 @@ private fun ColumnHeader(showCourses: Boolean) {
             .fillMaxWidth()
             .padding(horizontal = 20.dp)
             .height(28.dp)
-            .bottomHairline(Industry.neutral300)
+            .bottomHairline(LocalIndustry.current.neutral300)
             .padding(horizontal = 12.dp),
         verticalAlignment = Alignment.Bottom,
     ) {
@@ -423,7 +420,7 @@ private fun HeaderCell(label: String, modifier: Modifier, align: TextAlign = Tex
         fontWeight = FontWeight.Medium,
         fontSize = 9.sp,
         letterSpacing = 1.4.sp,
-        color = Industry.neutral500,
+        color = LocalIndustry.current.neutral500,
         textAlign = align,
         modifier = modifier.padding(bottom = 4.dp),
     )
@@ -449,7 +446,7 @@ private fun RollRowLine(
             .padding(horizontal = 20.dp)
             .height(52.dp)
             .clickable { onOpen(row) }
-            .bottomHairline(RowHairline)
+            .bottomHairline(LocalDeskColors.current.rule)
             .padding(horizontal = 12.dp)
             .testTag("roll-row"),
         verticalAlignment = Alignment.CenterVertically,
@@ -458,7 +455,7 @@ private fun RollRowLine(
             row.sn.toString(),
             fontFamily = DipiMono,
             fontSize = 12.5.sp,
-            color = Industry.neutral400,
+            color = LocalIndustry.current.neutral400,
             modifier = Modifier.width(SnW),
         )
         Column(Modifier.weight(1f).width(0.dp).padding(end = 8.dp)) {
@@ -468,7 +465,7 @@ private fun RollRowLine(
                     fontSize = 15.5.sp,
                     lineHeight = 17.sp,
                     fontWeight = FontWeight.Medium,
-                    color = Industry.text,
+                    color = LocalIndustry.current.text,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f, fill = false),
@@ -477,7 +474,7 @@ private fun RollRowLine(
                     Text(
                         "($tag)",
                         fontSize = 12.sp,
-                        color = Industry.neutral500,
+                        color = LocalIndustry.current.neutral500,
                         maxLines = 1,
                         modifier = Modifier.padding(start = 7.dp),
                     )
@@ -488,7 +485,7 @@ private fun RollRowLine(
                 foldedLine(row),
                 fontSize = 11.5.sp,
                 lineHeight = 13.sp,
-                color = Industry.neutral500,
+                color = LocalIndustry.current.neutral500,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -497,7 +494,7 @@ private fun RollRowLine(
             row.room,
             fontFamily = DipiMono,
             fontSize = 13.5.sp,
-            color = Industry.neutral700,
+            color = LocalIndustry.current.neutral700,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.width(RoomW),
@@ -513,7 +510,7 @@ private fun RollRowLine(
         Text(
             row.city,
             fontSize = 13.sp,
-            color = Industry.neutral700,
+            color = LocalIndustry.current.neutral700,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.padding(start = CityPad).width(if (showCourses) CityW else CityWideW),
@@ -539,7 +536,7 @@ private fun RollRowLine(
                 fontFamily = DipiMono,
                 fontWeight = FontWeight.SemiBold,
                 fontSize = 14.sp,
-                color = Industry.text,
+                color = LocalIndustry.current.text,
                 textAlign = TextAlign.End,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -560,7 +557,7 @@ private fun RollRowLine(
                     Modifier
                         .width(44.dp)
                         .height(8.dp)
-                        .background(RowHairline, RoundedCornerShape(4.dp)),
+                        .background(LocalDeskColors.current.rule, RoundedCornerShape(4.dp)),
                 )
             } else {
                 flagsFor(row).forEach { FlagPill(it) }
@@ -574,7 +571,7 @@ private fun CourseChip(key: String, count: Int) {
     Row(
         Modifier
             .height(20.dp)
-            .background(RowHairline, RoundedCornerShape(3.dp))
+            .background(LocalDeskColors.current.rule, RoundedCornerShape(3.dp))
             .padding(horizontal = 6.dp)
             .testTag("course-chip-$key"),
         verticalAlignment = Alignment.CenterVertically,
@@ -585,14 +582,14 @@ private fun CourseChip(key: String, count: Int) {
             fontFamily = DipiMono,
             fontWeight = FontWeight.Medium,
             fontSize = 11.sp,
-            color = Industry.neutral800,
+            color = LocalIndustry.current.neutral800,
         )
         Text(
             count.toString(),
             fontFamily = DipiMono,
             fontWeight = FontWeight.Medium,
             fontSize = 11.sp,
-            color = Industry.neutral600,
+            color = LocalIndustry.current.neutral600,
         )
     }
 }
@@ -602,8 +599,8 @@ private fun FlagPill(label: String) {
     Row(
         Modifier
             .height(22.dp)
-            .background(Color.White, RoundedCornerShape(11.dp))
-            .border(1.dp, if (label == "HLTH") Industry.neutral400 else Industry.neutral300, RoundedCornerShape(11.dp))
+            .background(LocalDeskColors.current.whiteSurface, RoundedCornerShape(11.dp))
+            .border(1.dp, if (label == "HLTH") LocalIndustry.current.neutral400 else LocalIndustry.current.neutral300, RoundedCornerShape(11.dp))
             .padding(horizontal = 7.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -613,7 +610,7 @@ private fun FlagPill(label: String) {
             fontWeight = FontWeight.Medium,
             fontSize = 10.sp,
             letterSpacing = 0.8.sp,
-            color = Industry.neutral600,
+            color = LocalIndustry.current.neutral600,
         )
     }
 }
@@ -625,8 +622,8 @@ private fun NextGroupFooter(group: RollGroup) {
         Modifier
             .fillMaxWidth()
             .height(40.dp)
-            .background(PillFill)
-            .topHairline(Rule)
+            .background(LocalDeskColors.current.subtleSurface)
+            .topHairline(LocalDeskColors.current.rule)
             .padding(horizontal = 32.dp)
             .testTag("next-group-footer"),
         verticalAlignment = Alignment.CenterVertically,
@@ -637,7 +634,7 @@ private fun NextGroupFooter(group: RollGroup) {
             fontFamily = DipiCondensed,
             fontWeight = FontWeight.SemiBold,
             fontSize = 15.sp,
-            color = Industry.neutral600,
+            color = LocalIndustry.current.neutral600,
             maxLines = 1,
             modifier = Modifier.weight(1f, fill = false),
         )
@@ -646,9 +643,9 @@ private fun NextGroupFooter(group: RollGroup) {
             fontFamily = DipiMono,
             fontWeight = FontWeight.Medium,
             fontSize = 12.sp,
-            color = Industry.neutral600,
+            color = LocalIndustry.current.neutral600,
         )
-        Text("›", fontSize = 15.sp, color = Industry.neutral400)
+        Text("›", fontSize = 15.sp, color = LocalIndustry.current.neutral400)
     }
 }
 
@@ -663,8 +660,8 @@ private fun PullProgressStrip(done: Int, total: Int) {
         Modifier
             .fillMaxWidth()
             .height(38.dp)
-            .background(Industry.accent100)
-            .bottomHairline(Industry.accent300)
+            .background(LocalIndustry.current.accent100)
+            .bottomHairline(LocalIndustry.current.accent300)
             .padding(horizontal = 20.dp)
             .testTag("pull-progress"),
         verticalAlignment = Alignment.CenterVertically,
@@ -673,12 +670,12 @@ private fun PullProgressStrip(done: Int, total: Int) {
         Text(
             "◍ Pulling applications… $done of $total",
             fontSize = 14.sp,
-            color = Industry.accent800,
+            color = LocalIndustry.current.accent800,
         )
         Text(
             "flags and health arrive as each one lands",
             fontSize = 12.5.sp,
-            color = Industry.accent600,
+            color = LocalIndustry.current.accent600,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f),
@@ -686,8 +683,8 @@ private fun PullProgressStrip(done: Int, total: Int) {
         LinearProgressIndicator(
             progress = { if (total == 0) 0f else done.toFloat() / total },
             modifier = Modifier.width(220.dp).height(4.dp),
-            color = Industry.accent,
-            trackColor = Industry.accent200,
+            color = LocalIndustry.current.accent,
+            trackColor = LocalIndustry.current.accent200,
         )
     }
 }
@@ -710,7 +707,7 @@ private fun CoursesCollapsedNotice() {
             fontWeight = FontWeight.Medium,
             fontSize = 10.sp,
             letterSpacing = 1.2.sp,
-            color = Industry.neutral400,
+            color = LocalIndustry.current.neutral400,
         )
     }
 }
@@ -734,8 +731,8 @@ private fun FilterEmptyBody(
                 .fillMaxWidth()
                 .padding(top = 16.dp)
                 .height(236.dp)
-                .background(PillFill, RoundedCornerShape(8.dp))
-                .border(1.dp, Industry.neutral300, RoundedCornerShape(8.dp))
+                .background(LocalDeskColors.current.subtleSurface, RoundedCornerShape(8.dp))
+                .border(1.dp, LocalIndustry.current.neutral300, RoundedCornerShape(8.dp))
                 .padding(horizontal = 60.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(11.dp, Alignment.CenterVertically),
@@ -746,20 +743,20 @@ private fun FilterEmptyBody(
                 fontWeight = FontWeight.SemiBold,
                 fontSize = 20.sp,
                 letterSpacing = 0.3.sp,
-                color = Industry.text,
+                color = LocalIndustry.current.text,
             )
             Text(
                 "Choose another group or show all students.",
                 fontSize = 13.5.sp,
                 lineHeight = 20.sp,
-                color = Industry.neutral600,
+                color = LocalIndustry.current.neutral600,
                 textAlign = TextAlign.Center,
             )
             Row(
                 Modifier
                     .height(48.dp)
-                    .background(Color.White, RoundedCornerShape(6.dp))
-                    .border(1.dp, Industry.neutral300, RoundedCornerShape(6.dp))
+                    .background(LocalDeskColors.current.whiteSurface, RoundedCornerShape(6.dp))
+                    .border(1.dp, LocalIndustry.current.neutral300, RoundedCornerShape(6.dp))
                     .clickable(role = Role.Button) { onGroupFilter(null) }
                     .padding(horizontal = 22.dp)
                     .testTag("filter-empty-clear"),
@@ -768,7 +765,7 @@ private fun FilterEmptyBody(
                 Text(
                     "Clear the filter · show all ${roll.rollCount}",
                     fontSize = 13.5.sp,
-                    color = Industry.neutral700,
+                    color = LocalIndustry.current.neutral700,
                 )
             }
         }
@@ -779,7 +776,7 @@ private fun FilterEmptyBody(
                 fontWeight = FontWeight.Medium,
                 fontSize = 9.sp,
                 letterSpacing = 1.7.sp,
-                color = Industry.neutral500,
+                color = LocalIndustry.current.neutral500,
                 modifier = Modifier.padding(top = 18.dp, bottom = 9.dp),
             )
             others.forEach { g ->
@@ -788,8 +785,8 @@ private fun FilterEmptyBody(
                         .fillMaxWidth()
                         .padding(bottom = 6.dp)
                         .height(44.dp)
-                        .background(PillFill, RoundedCornerShape(6.dp))
-                        .border(1.dp, Rule, RoundedCornerShape(6.dp))
+                        .background(LocalDeskColors.current.subtleSurface, RoundedCornerShape(6.dp))
+                        .border(1.dp, LocalDeskColors.current.rule, RoundedCornerShape(6.dp))
                         .clickable(role = Role.Button) { onGroupFilter(g.key) }
                         .padding(horizontal = 14.dp)
                         .testTag("filter-empty-other-${g.key}"),
@@ -801,7 +798,7 @@ private fun FilterEmptyBody(
                         fontWeight = FontWeight.SemiBold,
                         fontSize = 16.sp,
                         letterSpacing = 0.2.sp,
-                        color = Industry.text,
+                        color = LocalIndustry.current.text,
                         modifier = Modifier.weight(1f),
                     )
                     Text(
@@ -809,9 +806,9 @@ private fun FilterEmptyBody(
                         fontFamily = DipiMono,
                         fontWeight = FontWeight.Medium,
                         fontSize = 12.5.sp,
-                        color = Industry.neutral600,
+                        color = LocalIndustry.current.neutral600,
                     )
-                    Text("›", fontSize = 15.sp, color = Industry.neutral400, modifier = Modifier.padding(start = 14.dp))
+                    Text("›", fontSize = 15.sp, color = LocalIndustry.current.neutral400, modifier = Modifier.padding(start = 14.dp))
                 }
             }
         }

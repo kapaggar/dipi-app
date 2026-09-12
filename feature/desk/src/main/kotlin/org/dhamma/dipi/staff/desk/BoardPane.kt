@@ -28,7 +28,10 @@ import org.dhamma.dipi.staff.model.CheckInRecord
 import org.dhamma.dipi.staff.ui.theme.DeskKicker
 import org.dhamma.dipi.staff.ui.theme.DipiCondensed
 import org.dhamma.dipi.staff.ui.theme.DipiMono
-import org.dhamma.dipi.staff.ui.theme.Industry
+import org.dhamma.dipi.staff.ui.theme.LocalDeskColors
+import org.dhamma.dipi.staff.ui.theme.LocalDarkTheme
+import org.dhamma.dipi.staff.ui.theme.LocalDipi
+import org.dhamma.dipi.staff.ui.theme.LocalIndustry
 import org.dhamma.dipi.staff.ui.theme.deskCard
 
 /**
@@ -61,6 +64,7 @@ fun BoardPane(
     onGoto: (DeskSection) -> Unit,
     onExport: (String) -> Unit,
 ) {
+    val industry = LocalIndustry.current
     val total = roll.size
     val inCount = roll.count { deskCheckedIn(it, checkIns) }
     val pct = if (total == 0) 0 else (inCount * 100) / total
@@ -81,7 +85,7 @@ fun BoardPane(
             "$total on the roll · $inCount checked in",
             fontSize = 15.sp,
             lineHeight = 20.sp,
-            color = Industry.neutral700,
+            color = industry.neutral700,
             modifier = Modifier.padding(bottom = 14.dp),
         )
 
@@ -89,21 +93,21 @@ fun BoardPane(
             Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            BoardTile("$total", "ARRIVING TODAY", "$total confirmed", Modifier.weight(1f)) {
+            BoardTile("$total", "ARRIVING TODAY", "$total confirmed", 0, Modifier.weight(1f)) {
                 onGoto(DeskSection.CheckIn)
             }
-            BoardTile("$inCount", "CHECKED IN", "$pct% of the roll", Modifier.weight(1f)) {
+            BoardTile("$inCount", "CHECKED IN", "$pct% of the roll", 1, Modifier.weight(1f)) {
                 onGoto(DeskSection.CheckIn)
             }
-            BoardTile("$toCall", "STILL TO CALL", "$logged logged this round", Modifier.weight(1f)) {
+            BoardTile("$toCall", "STILL TO CALL", "$logged logged this round", 2, Modifier.weight(1f)) {
                 onGoto(DeskSection.Calling)
             }
-            BoardTile("$fTotal", "NEEDS ATTENTION", "across ${findings.size} checks", Modifier.weight(1f)) {
+            BoardTile("$fTotal", "NEEDS ATTENTION", "across ${findings.size} checks", 3, Modifier.weight(1f)) {
                 onGoto(DeskSection.Audit)
             }
         }
 
-        DeskKicker("NEXT", Industry.neutral600, Modifier.padding(top = 18.dp, bottom = 8.dp))
+        DeskKicker("NEXT", industry.neutral600, Modifier.padding(top = 18.dp, bottom = 8.dp))
         Column(
             Modifier.fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(7.dp),
@@ -125,7 +129,7 @@ fun BoardPane(
             fontWeight = FontWeight.Medium,
             fontSize = 9.5.sp,
             letterSpacing = 1.7.sp,
-            color = Industry.neutral600,
+            color = industry.neutral600,
             modifier = Modifier.padding(top = 18.dp, bottom = 10.dp),
         )
         Column(
@@ -155,6 +159,10 @@ fun BoardPane(
  */
 @Composable
 private fun ExportCell(label: String, modifier: Modifier, onExport: (String) -> Unit) {
+    val industry = LocalIndustry.current
+    val deskColors = LocalDeskColors.current
+    val dark = LocalDarkTheme.current
+    val dipi = LocalDipi.current
     val day11 = label == "Course summary"
     Box(
         modifier
@@ -167,8 +175,8 @@ private fun ExportCell(label: String, modifier: Modifier, onExport: (String) -> 
                 .fillMaxSize()
                 .deskCard(
                     shape = CellShape,
-                    fill = ChipFill,
-                    border = ChipBorder,
+                    fill = deskColors.exportTile,
+                    border = if (dark) dipi.hairline else ChipBorder,
                     elevation = 0.dp,
                 )
                 .clickable { onExport(label) }
@@ -177,8 +185,8 @@ private fun ExportCell(label: String, modifier: Modifier, onExport: (String) -> 
             horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            DeskIcon(DeskIconKind.Download, 16.dp, Industry.accent300)
-            Text(label, fontSize = 14.sp, maxLines = 2, color = Industry.neutral700)
+            DeskIcon(DeskIconKind.Download, 16.dp, industry.accent300)
+            Text(label, fontSize = 14.sp, maxLines = 2, color = industry.neutral700)
         }
     }
 }
@@ -191,9 +199,12 @@ private fun BoardTile(
     number: String,
     label: String,
     note: String,
+    index: Int,
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
+    val industry = LocalIndustry.current
+    val deskColors = LocalDeskColors.current
     Box(
         modifier
             .height(112.dp)
@@ -210,7 +221,7 @@ private fun BoardTile(
                 fontSize = 38.sp,
                 lineHeight = 38.sp,
                 letterSpacing = (-0.02).em,
-                color = Industry.accent800,
+                color = industry.accent800,
             )
             Text(
                 label,
@@ -219,7 +230,7 @@ private fun BoardTile(
                 fontSize = 10.sp,
                 lineHeight = 10.sp,
                 letterSpacing = 0.16.em,
-                color = Industry.neutral700,
+                color = industry.neutral700,
                 maxLines = 1,
                 modifier = Modifier.padding(top = 9.dp),
             )
@@ -227,16 +238,18 @@ private fun BoardTile(
                 note,
                 fontSize = 12.5.sp,
                 lineHeight = 12.5.sp,
-                color = Industry.neutral500,
+                color = deskColors.caption,
                 maxLines = 1,
-                modifier = Modifier.padding(top = 7.dp, end = 18.dp),
+                modifier = Modifier
+                    .padding(top = 7.dp, end = 18.dp)
+                    .testTag("theme-board-caption-$index"),
             )
         }
         // Overlay so the pale accent300 arrow is not clipped by the note row.
         Text(
             "→",
             fontSize = 14.sp,
-            color = Industry.accent300,
+            color = industry.accent300,
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .testTag("board-stat-arrow"),
@@ -246,6 +259,7 @@ private fun BoardTile(
 
 @Composable
 private fun BoardAction(label: String, sub: String, onClick: () -> Unit) {
+    val industry = LocalIndustry.current
     Row(
         Modifier
             .fillMaxWidth()
@@ -265,18 +279,18 @@ private fun BoardAction(label: String, sub: String, onClick: () -> Unit) {
                 fontSize = 18.sp,
                 lineHeight = 18.sp,
                 letterSpacing = 0.01.em,
-                color = Industry.text,
+                color = industry.text,
                 maxLines = 1,
             )
             Text(
                 sub,
                 fontSize = 12.5.sp,
                 lineHeight = 12.5.sp,
-                color = Industry.neutral600,
+                color = industry.neutral600,
                 maxLines = 1,
                 modifier = Modifier.padding(top = 6.dp),
             )
         }
-        DeskIcon(DeskIconKind.ArrowRight, 17.dp, Industry.accent400)
+        DeskIcon(DeskIconKind.ArrowRight, 17.dp, industry.accent400)
     }
 }

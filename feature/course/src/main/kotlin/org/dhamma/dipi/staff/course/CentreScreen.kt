@@ -45,8 +45,8 @@ import org.dhamma.dipi.staff.model.cardRows
 import org.dhamma.dipi.staff.ui.theme.DeskStyle
 import org.dhamma.dipi.staff.ui.theme.DipiCondensed
 import org.dhamma.dipi.staff.ui.theme.DipiMono
-import org.dhamma.dipi.staff.ui.theme.Industry
 import org.dhamma.dipi.staff.ui.theme.LocalDipi
+import org.dhamma.dipi.staff.ui.theme.LocalDeskSkin
 import org.dhamma.dipi.staff.ui.theme.LotusWatermark
 import org.dhamma.dipi.staff.ui.theme.deskCard
 import java.time.LocalDate
@@ -88,6 +88,7 @@ fun CentreScreen(
     olderCourses: List<Course> = emptyList(),
 ) {
     val c = LocalDipi.current
+    val deskSkin = LocalDeskSkin.current
     val centre = session.centres.firstOrNull()
     val cid = centre?.id?.value ?: 0
     val wide = LocalConfiguration.current.screenWidthDp >= 600
@@ -98,7 +99,7 @@ fun CentreScreen(
             // everything and non-interactive (owner feedback 2026-08-16).
             LotusWatermark(
                 size = 480.dp,
-                opacity = Industry.skin.markOpacity * 0.5f,
+                opacity = deskSkin.markOpacity * 0.5f,
                 modifier = Modifier.align(Alignment.Center),
             )
         }

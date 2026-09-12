@@ -4,18 +4,23 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import org.dhamma.dipi.staff.model.StatusTone
 import org.dhamma.dipi.staff.ui.theme.DeskSkin
+import org.dhamma.dipi.staff.ui.theme.DarkDipi
 import org.dhamma.dipi.staff.ui.theme.Industry
 import org.dhamma.dipi.staff.ui.theme.IndustryPalette
 import org.dhamma.dipi.staff.ui.theme.chipGradientColors
+import org.dhamma.dipi.staff.ui.theme.deskColors
+import org.dhamma.dipi.staff.ui.theme.effectiveIndustry
 import org.dhamma.dipi.staff.ui.theme.lightDipi
 import org.dhamma.dipi.staff.ui.theme.markColorFilter
 import org.dhamma.dipi.staff.ui.theme.oklch
 import org.dhamma.dipi.staff.ui.theme.statusColors
+import org.dhamma.dipi.staff.ui.systemNavigationBarColor
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import kotlin.math.pow
 
 class SkinTest {
 
@@ -153,5 +158,70 @@ class SkinTest {
         // Severities that carry meaning stay fixed.
         assertEquals(Color(0xFFA33A34), light.hard)
         assertEquals(Color(0xFF6A5A38), light.safety)
+    }
+
+    @Test
+    fun effectivePaletteKeepsEverySavedSkinInLightAndAlwaysRendersSteelAtNight() {
+        for (skin in DeskSkin.entries) {
+            val saved = IndustryPalette.of(skin)
+            assertEquals(saved, effectiveIndustry(saved, dark = false))
+            assertEquals(IndustryPalette.SteelNight, effectiveIndustry(saved, dark = true))
+            assertEquals(saved, lightDipi(saved).let { colors ->
+                assertEquals(saved.bg, colors.background)
+                saved
+            })
+        }
+        assertEquals(Color(0xFF14171A), IndustryPalette.SteelNight.bg)
+        assertEquals(DarkDipi.foreground, IndustryPalette.SteelNight.text)
+        assertEquals(Color(0xFFB5D9FD), IndustryPalette.SteelNight.accent700)
+        assertEquals(IndustryPalette.SteelNight.accent700, IndustryPalette.SteelNight.accent800)
+    }
+
+    @Test
+    fun deskCaptionKeepsTextContrastOnActualCardSurfaceForEveryMode() {
+        for (skin in DeskSkin.entries) {
+            for (dark in listOf(false, true)) {
+                val roles = deskColors(IndustryPalette.of(skin), dark)
+                assertTrue(
+                    "${skin.key} dark=$dark caption contrast=${contrast(roles.caption, roles.cardFill)}",
+                    contrast(roles.caption, roles.cardFill) >= 4.5,
+                )
+            }
+        }
+    }
+
+    @Test
+    fun savedSkinCanChangeWhileDarkAndIsRestoredWhenReturningToLight() {
+        Industry.apply(DeskSkin.Pond)
+        assertEquals(IndustryPalette.SteelNight, effectiveIndustry(Industry.palette, dark = true))
+
+        // This is the Settings action while Dark is visible. It changes only
+        // the saved Light preference, never the effective Dark palette.
+        Industry.apply(DeskSkin.Blossom)
+        assertEquals(IndustryPalette.SteelNight, effectiveIndustry(Industry.palette, dark = true))
+        assertEquals(IndustryPalette.of(DeskSkin.Blossom), effectiveIndustry(Industry.palette, dark = false))
+    }
+
+    @Test
+    fun statusPairsAndNavigationBarPairingStayFixedAcrossThemeWork() {
+        assertEquals(Color(0xFFDFEAE1), statusColors(StatusTone.Confirmed, dark = false).first)
+        assertEquals(Color(0xFFA9CDB6), statusColors(StatusTone.Confirmed, dark = true).second)
+        assertEquals(Color(0xFFF0E3E3), statusColors(StatusTone.Cancelled, dark = false).first)
+        assertEquals(Color(0xFFDEAEAE), statusColors(StatusTone.Cancelled, dark = true).second)
+        assertEquals(0xFFE8E8E9.toInt(), systemNavigationBarColor(dark = false))
+        assertEquals(0xFF14171A.toInt(), systemNavigationBarColor(dark = true))
+    }
+
+    private fun contrast(foreground: Color, background: Color): Double {
+        fun channel(v: Float): Double = if (v <= 0.04045f) {
+            (v / 12.92f).toDouble()
+        } else {
+            ((v + 0.055f) / 1.055f).toDouble().pow(2.4)
+        }
+        fun luminance(c: Color): Double =
+            0.2126 * channel(c.red) + 0.7152 * channel(c.green) + 0.0722 * channel(c.blue)
+        val high = maxOf(luminance(foreground), luminance(background))
+        val low = minOf(luminance(foreground), luminance(background))
+        return (high + 0.05) / (low + 0.05)
     }
 }

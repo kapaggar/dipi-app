@@ -34,6 +34,7 @@ import org.dhamma.dipi.staff.ui.theme.DipiMono
 import org.dhamma.dipi.staff.ui.theme.Industry
 import org.dhamma.dipi.staff.ui.theme.IndustryPalette
 import org.dhamma.dipi.staff.ui.theme.LocalDipi
+import org.dhamma.dipi.staff.ui.theme.LocalIndustry
 
 /** One sync strip on the phone shell. */
 sealed interface SyncBanner {
@@ -102,28 +103,36 @@ private val NightOfflineText = Color(0xFFC3C9D0)
 // testable without pixel capture (as LoginScreen.kt does for its error strip).
 
 /** Offline-strip ground: `neutral200` by day, night `hover` `#22272C` (frame 1e). */
-fun offlineStripFill(c: DipiColors): Color = if (c.isNight()) c.hover else Industry.neutral200
+fun offlineStripFill(c: DipiColors, industry: IndustryPalette = Industry.palette): Color =
+    if (c.isNight()) c.hover else industry.neutral200
 
 /** Offline-strip copy: `neutral700` by day, `#C3C9D0` at night. */
-fun offlineStripText(c: DipiColors): Color = if (c.isNight()) NightOfflineText else Industry.neutral700
+fun offlineStripText(c: DipiColors, industry: IndustryPalette = Industry.palette): Color =
+    if (c.isNight()) NightOfflineText else industry.neutral700
 
 /** Offline-strip rule: `neutral300` by day, the night `hairline`. */
-fun offlineStripRule(c: DipiColors): Color = if (c.isNight()) c.hairline else Industry.neutral300
+fun offlineStripRule(c: DipiColors, industry: IndustryPalette = Industry.palette): Color =
+    if (c.isNight()) c.hairline else industry.neutral300
 
 /** Queued-strip ground: `accent100` by day, night `tint` `#1D2D3D`. */
-fun queuedStripFill(c: DipiColors): Color = if (c.isNight()) c.tint else Industry.accent100
+fun queuedStripFill(c: DipiColors, industry: IndustryPalette = Industry.palette): Color =
+    if (c.isNight()) c.tint else industry.accent100
 
 /** Queued-strip count and copy: `accent800` by day, `#B5D9FD` at night. */
-fun queuedStripText(c: DipiColors): Color = if (c.isNight()) NightAccentText else Industry.accent800
+fun queuedStripText(c: DipiColors, industry: IndustryPalette = Industry.palette): Color =
+    if (c.isNight()) NightAccentText else industry.accent800
 
 /** The dimmer "last try" line: `accent700` by day, `#749DC4` at night. */
-fun queuedStripDim(c: DipiColors): Color = if (c.isNight()) NightAccentDim else Industry.accent700
+fun queuedStripDim(c: DipiColors, industry: IndustryPalette = Industry.palette): Color =
+    if (c.isNight()) NightAccentDim else industry.accent700
 
 /** RETRY's 1dp border: `accent400` by day, `#749DC4` at night. */
-fun queuedStripBorder(c: DipiColors): Color = if (c.isNight()) NightAccentDim else Industry.accent400
+fun queuedStripBorder(c: DipiColors, industry: IndustryPalette = Industry.palette): Color =
+    if (c.isNight()) NightAccentDim else industry.accent400
 
 /** Queued-strip bottom hairline: `accent200` by day, `accent700` at night. */
-fun queuedStripRule(c: DipiColors): Color = if (c.isNight()) NightAccentRule else Industry.accent200
+fun queuedStripRule(c: DipiColors, industry: IndustryPalette = Industry.palette): Color =
+    if (c.isNight()) NightAccentRule else industry.accent200
 
 @Composable
 fun SyncBannerStrips(
@@ -143,22 +152,23 @@ fun SyncBannerStrips(
 @Composable
 private fun OfflineStrip() {
     val c = LocalDipi.current
+    val industry = LocalIndustry.current
     Column(Modifier.fillMaxWidth().testTag("offline-strip")) {
         Row(
             Modifier
                 .fillMaxWidth()
                 .height(38.dp)
-                .background(offlineStripFill(c))
+                .background(offlineStripFill(c, industry))
                 .padding(horizontal = 24.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
                 text = stringResource(R.string.offline_strip),
-                color = offlineStripText(c),
+                color = offlineStripText(c, industry),
                 fontSize = 14.sp,
             )
         }
-        HorizontalDivider(thickness = 1.dp, color = offlineStripRule(c))
+        HorizontalDivider(thickness = 1.dp, color = offlineStripRule(c, industry))
     }
 }
 
@@ -169,12 +179,13 @@ private fun OfflineStrip() {
 @Composable
 private fun QueuedStrip(count: Int, lastTryAtMs: Long?, onRetry: () -> Unit) {
     val c = LocalDipi.current
+    val industry = LocalIndustry.current
     Column(Modifier.fillMaxWidth().testTag("queued-strip")) {
         Row(
             Modifier
                 .fillMaxWidth()
                 .height(56.dp)
-                .background(queuedStripFill(c))
+                .background(queuedStripFill(c, industry))
                 .padding(start = 24.dp, end = 16.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -182,11 +193,11 @@ private fun QueuedStrip(count: Int, lastTryAtMs: Long?, onRetry: () -> Unit) {
                 Modifier.weight(1f),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(count.toString(), fontFamily = DipiMono, fontSize = 14.sp, color = queuedStripText(c))
+                Text(count.toString(), fontFamily = DipiMono, fontSize = 14.sp, color = queuedStripText(c, industry))
                 Text(
                     pluralStringResource(R.plurals.changes_waiting, count),
                     fontSize = 14.sp,
-                    color = queuedStripText(c),
+                    color = queuedStripText(c, industry),
                     modifier = Modifier.padding(start = 6.dp).weight(1f),
                 )
                 lastTryLabel(lastTryAtMs)?.let { line ->
@@ -194,7 +205,7 @@ private fun QueuedStrip(count: Int, lastTryAtMs: Long?, onRetry: () -> Unit) {
                         line,
                         fontFamily = DipiMono,
                         fontSize = 12.5.sp,
-                        color = queuedStripDim(c),
+                        color = queuedStripDim(c, industry),
                         modifier = Modifier.padding(start = 8.dp),
                     )
                 }
@@ -202,7 +213,7 @@ private fun QueuedStrip(count: Int, lastTryAtMs: Long?, onRetry: () -> Unit) {
             Row(
                 Modifier
                     .height(48.dp)
-                    .border(1.dp, queuedStripBorder(c), RoundedCornerShape(5.dp))
+                    .border(1.dp, queuedStripBorder(c, industry), RoundedCornerShape(5.dp))
                     .clickable(onClick = onRetry, role = Role.Button)
                     .padding(horizontal = 22.dp)
                     .testTag("retry-sync"),
@@ -214,10 +225,10 @@ private fun QueuedStrip(count: Int, lastTryAtMs: Long?, onRetry: () -> Unit) {
                     fontWeight = FontWeight.SemiBold,
                     fontSize = 13.5.sp,
                     letterSpacing = 0.133.em,
-                    color = queuedStripText(c),
+                    color = queuedStripText(c, industry),
                 )
             }
         }
-        HorizontalDivider(thickness = 1.dp, color = queuedStripRule(c))
+        HorizontalDivider(thickness = 1.dp, color = queuedStripRule(c, industry))
     }
 }

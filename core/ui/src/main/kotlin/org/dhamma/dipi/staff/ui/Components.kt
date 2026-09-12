@@ -23,12 +23,13 @@ import org.dhamma.dipi.staff.ui.theme.DeskStyle
 import org.dhamma.dipi.staff.ui.theme.DipiCondensed
 import org.dhamma.dipi.staff.ui.theme.DipiMono
 import org.dhamma.dipi.staff.ui.theme.LocalDipi
+import org.dhamma.dipi.staff.ui.theme.LocalIndustry
 import org.dhamma.dipi.staff.ui.theme.statusColors
 
 @Composable
 fun StatusBadge(label: String, modifier: Modifier = Modifier, dark: Boolean) {
     val tone = org.dhamma.dipi.staff.model.ApplicantStatus(label).tone
-    val (bg, fg) = statusColors(tone, dark)
+    val (bg, fg) = statusColors(tone, dark, LocalIndustry.current)
     Text(
         text = label,
         color = fg,

@@ -36,6 +36,7 @@ import androidx.compose.ui.unit.sp
 import org.dhamma.dipi.staff.ui.theme.DipiCondensed
 import org.dhamma.dipi.staff.ui.theme.DipiMono
 import org.dhamma.dipi.staff.ui.theme.LocalDipi
+import org.dhamma.dipi.staff.ui.theme.LocalDeskColors
 import org.dhamma.dipi.staff.ui.theme.LocalIndustry
 
 /** 4-digit device PIN. The digits live in dialog state only — never logged, never persisted raw. */
@@ -57,11 +58,12 @@ fun PinDialog(
     error: String? = null,
 ) {
     val c = LocalDipi.current
+    val deskColors = LocalDeskColors.current
     val industry = LocalIndustry.current
     var pin by remember { mutableStateOf("") }
     AlertDialog(
         modifier = Modifier.testTag("pin-dialog"),
-        containerColor = Color(0xFFFAFAFB),
+        containerColor = deskColors.subtleSurface,
         onDismissRequest = onDismiss,
         title = {
             Text(
@@ -104,7 +106,7 @@ fun PinDialog(
                                     Modifier
                                         .width(56.dp)
                                         .height(64.dp)
-                                        .background(Color.White, RoundedCornerShape(6.dp))
+                                        .background(deskColors.whiteSurface, RoundedCornerShape(6.dp))
                                         .border(
                                             if (active) 1.5.dp else 1.dp,
                                             when {

@@ -974,6 +974,16 @@ On return, refresh the same course once, retaining selection and recomputing aud
 The sheet viewer remains for exports, not application editing.
 
 
+## Theme honesty repair (2.0.1 / 99)
+
+2026-09-11: Dark mode now renders the documented Steel night palette across
+Settings, course, applicant and desk surfaces while retaining the selected
+Light skin for the next Light render. Shared surface roles replace fixed light
+fills where those surfaces are rendered in Dark; skin swatches remain true
+colour and are explicitly labelled as applying in Light. Exported documents and
+server workflows are unchanged. Validation and device inspection remain part
+of the release acceptance pass.
+
 ## Desk processing and idle clock (2.0.0 / 98)
 
 2026-09-10: worklist, centre, attended-table and teacher-roll parsing, DTO preparation,

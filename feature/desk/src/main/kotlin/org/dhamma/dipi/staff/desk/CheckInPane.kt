@@ -63,6 +63,7 @@ import org.dhamma.dipi.staff.ui.theme.DipiCondensed
 import org.dhamma.dipi.staff.ui.theme.DipiMono
 import org.dhamma.dipi.staff.ui.theme.DipiSans
 import org.dhamma.dipi.staff.ui.theme.Industry
+import org.dhamma.dipi.staff.ui.theme.LocalIndustry
 import org.dhamma.dipi.staff.ui.theme.deskCard
 
 /**
@@ -87,6 +88,7 @@ fun CheckInPane(
     onSeniority: (String) -> Unit = {},
     onOpen: (ApplicantCard) -> Unit,
 ) {
+    val industry = LocalIndustry.current
     // Desk-level scope: a tablet on the new-female desk sees/counts that subset only.
     val genderScope = deskGenderScope(gender)
     val scoped = deskRoll(roll, genderScope, deskSeniorityScope(seniority))
@@ -96,7 +98,7 @@ fun CheckInPane(
                 .weight(1f)
                 .fillMaxHeight(),
         ) {
-            if (readOnly) Text("Finalized course · Read only", color = Industry.neutral600,
+            if (readOnly) Text("Finalized course · Read only", color = industry.neutral600,
                 modifier = Modifier.padding(start = 24.dp, top = 16.dp))
             CheckInHeader(
                 scoped, checkIns, scan, filter, gender, seniority,
@@ -139,6 +141,7 @@ private fun CheckInHeader(
     onGender: (String) -> Unit,
     onSeniority: (String) -> Unit,
 ) {
+    val industry = LocalIndustry.current
     val inCount = roll.count { deskCheckedIn(it, checkIns) }
     val total = roll.size
     val pct = if (total == 0) 0f else inCount.toFloat() / total
@@ -148,7 +151,7 @@ private fun CheckInHeader(
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            DeskKicker("CONF NUMBER OR NAME", Industry.neutral500)
+            DeskKicker("CONF NUMBER OR NAME", industry.neutral500)
             Row(
                 horizontalArrangement = Arrangement.spacedBy(14.dp),
                 verticalAlignment = Alignment.CenterVertically,
@@ -167,7 +170,7 @@ private fun CheckInHeader(
                 horizontalArrangement = Arrangement.spacedBy(14.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                DeskKicker("THIS TABLET", Industry.neutral500)
+                DeskKicker("THIS TABLET", industry.neutral500)
                 DeskScopeFilters(gender, seniority, onGender, onSeniority)
             }
         }
@@ -186,12 +189,12 @@ private fun CheckInHeader(
                     fontWeight = FontWeight.Bold,
                     fontSize = 22.sp,
                     lineHeight = 26.sp,
-                    color = Industry.accent800,
+                    color = industry.accent800,
                 )
                 Text(
                     " of $total checked in",
                     fontSize = 13.sp,
-                    color = Industry.neutral600,
+                    color = industry.neutral600,
                     modifier = Modifier.padding(bottom = 2.dp),
                 )
                 Spacer(Modifier.weight(1f))
@@ -200,7 +203,7 @@ private fun CheckInHeader(
                     fontFamily = DipiMono,
                     fontWeight = FontWeight.Medium,
                     fontSize = 13.sp,
-                    color = Industry.neutral600,
+                    color = industry.neutral600,
                     modifier = Modifier.padding(bottom = 2.dp),
                 )
             }
@@ -210,14 +213,14 @@ private fun CheckInHeader(
                     .fillMaxWidth()
                     .height(5.dp)
                     .clip(RoundedCornerShape(3.dp))
-                    .background(Industry.neutral200),
+                    .background(industry.neutral200),
             ) {
                 Box(
                     Modifier
                         .fillMaxWidth(fill)
                         .height(5.dp)
                         .clip(RoundedCornerShape(3.dp))
-                        .background(Industry.accent),
+                        .background(industry.accent),
                 )
             }
         }
@@ -233,6 +236,7 @@ private fun CheckInHeader(
  */
 @Composable
 private fun ScanField(scan: String, onScan: (String) -> Unit, modifier: Modifier = Modifier) {
+    val industry = LocalIndustry.current
     var focused by remember { mutableStateOf(false) }
     Row(
         modifier
@@ -242,7 +246,7 @@ private fun ScanField(scan: String, onScan: (String) -> Unit, modifier: Modifier
             // than through deskCard's fixed 1dp hairline.
             .border(
                 if (focused) 2.dp else 1.dp,
-                if (focused) Industry.accent else Industry.neutral400,
+                if (focused) industry.accent else industry.neutral400,
                 DeskStyle.controlShape,
             )
             .clip(DeskStyle.controlShape)
@@ -250,7 +254,7 @@ private fun ScanField(scan: String, onScan: (String) -> Unit, modifier: Modifier
         horizontalArrangement = Arrangement.spacedBy(10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        ScanGlyph(15.dp, if (focused) Industry.accent else Industry.neutral500)
+        ScanGlyph(15.dp, if (focused) industry.accent else industry.neutral500)
         BasicTextField(
             value = scan,
             onValueChange = onScan,
@@ -259,7 +263,7 @@ private fun ScanField(scan: String, onScan: (String) -> Unit, modifier: Modifier
                 fontFamily = DipiMono,
                 fontWeight = FontWeight.Medium,
                 fontSize = 15.sp,
-                color = Industry.text,
+                color = industry.text,
             ),
             modifier = Modifier
                 .weight(1f)
@@ -272,7 +276,7 @@ private fun ScanField(scan: String, onScan: (String) -> Unit, modifier: Modifier
                         fontSize = 15.sp,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        color = Industry.neutral500,
+                        color = industry.neutral500,
                     )
                 }
                 inner()
@@ -290,10 +294,10 @@ private fun ScanField(scan: String, onScan: (String) -> Unit, modifier: Modifier
                     Modifier
                         .size(32.dp)
                         .clip(CircleShape)
-                        .background(Industry.neutral200),
+                        .background(industry.neutral200),
                     contentAlignment = Alignment.Center,
                 ) {
-                    DeskIcon(DeskIconKind.Close, 15.dp, Industry.neutral700)
+                    DeskIcon(DeskIconKind.Close, 15.dp, industry.neutral700)
                 }
             }
         }
@@ -303,6 +307,7 @@ private fun ScanField(scan: String, onScan: (String) -> Unit, modifier: Modifier
 /** Barcode-reader mark: four corner brackets around a scan line. */
 @Composable
 private fun ScanGlyph(size: Dp, color: Color) {
+    val industry = LocalIndustry.current
     Canvas(Modifier.size(size)) {
         val s = this.size.width / 24f
         val stroke = Stroke(width = 1.8f * s, cap = StrokeCap.Round, join = StrokeJoin.Round)
@@ -329,12 +334,13 @@ private fun RosterRow(
     readOnly: Boolean = false,
     onClick: () -> Unit,
 ) {
+    val industry = LocalIndustry.current
     val isIn = record?.checkedIn == true
     Row(
         Modifier
             .fillMaxWidth()
             .clickable(enabled = !readOnly, onClick = onClick)
-            .bottomHairline(Industry.neutral200)
+            .bottomHairline(industry.neutral200)
             .padding(horizontal = 24.dp, vertical = 11.dp),
         horizontalArrangement = Arrangement.spacedBy(14.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -343,8 +349,8 @@ private fun RosterRow(
             Modifier
                 .size(20.dp)
                 .clip(CircleShape)
-                .background(if (isIn) Industry.accent else Color.Transparent)
-                .border(1.dp, if (isIn) Industry.accent else Industry.neutral400, CircleShape),
+                .background(if (isIn) industry.accent else Color.Transparent)
+                .border(1.dp, if (isIn) industry.accent else industry.neutral400, CircleShape),
             contentAlignment = Alignment.Center,
         ) {
             if (isIn) DeskIcon(DeskIconKind.Check, 12.dp, Color.White, strokeWidth = 2.2f)
@@ -354,7 +360,7 @@ private fun RosterRow(
             fontFamily = DipiMono,
             fontWeight = FontWeight.Medium,
             fontSize = 13.sp,
-            color = Industry.neutral700,
+            color = industry.neutral700,
             modifier = Modifier.width(56.dp),
         )
         Row(
@@ -369,20 +375,20 @@ private fun RosterRow(
                 fontSize = 15.5.sp,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                color = Industry.text,
+                color = industry.text,
             )
             Box(
                 Modifier
                     .size(5.dp)
                     .clip(CircleShape)
-                    .background(if (hasFinding) Industry.accent else Color.Transparent),
+                    .background(if (hasFinding) industry.accent else Color.Transparent),
             )
         }
         Text(
             listOfNotNull(card.age?.toString(), card.gender.name).joinToString(" ") +
                 (card.city?.let { " · $it" } ?: ""),
             fontSize = 14.sp,
-            color = Industry.neutral600,
+            color = industry.neutral600,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.width(190.dp),
@@ -392,7 +398,7 @@ private fun RosterRow(
                 .width(132.dp)
                 .height(36.dp)
                 .clip(RoundedCornerShape(5.dp))
-                .border(1.dp, if (isIn) Industry.neutral300 else Industry.accent300, RoundedCornerShape(5.dp))
+                .border(1.dp, if (isIn) industry.neutral300 else industry.accent300, RoundedCornerShape(5.dp))
                 .testTag("checkin-mark"),
             contentAlignment = Alignment.Center,
         ) {
@@ -404,7 +410,7 @@ private fun RosterRow(
                 fontSize = 13.5.sp,
                 textAlign = TextAlign.Center,
                 maxLines = 1,
-                color = if (readOnly) Industry.neutral500 else if (isIn) Industry.neutral700 else Industry.accent800,
+                color = if (readOnly) industry.neutral500 else if (isIn) industry.neutral700 else industry.accent800,
             )
         }
     }
@@ -417,22 +423,23 @@ private fun CheckInSidebar(
     rooms: List<AccoRoom>,
     scope: Gender?,
 ) {
+    val industry = LocalIndustry.current
     Column(
         Modifier
             .width(296.dp)
             .fillMaxHeight()
-            .background(Industry.surface)
-            .leftHairline(Industry.neutral300)
+            .background(industry.surface)
+            .leftHairline(industry.neutral300)
             .padding(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 24.dp),
         verticalArrangement = Arrangement.spacedBy(20.dp),
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
-            DeskKicker("THE ROLL", Industry.neutral500)
+            DeskKicker("THE ROLL", industry.neutral500)
             RollTable(roll)
         }
 
         Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
-            DeskKicker("ROOMS FREE", Industry.neutral500, Modifier.padding(bottom = 7.dp))
+            DeskKicker("ROOMS FREE", industry.neutral500, Modifier.padding(bottom = 7.dp))
             val occupied = deskOccupied(roll, checkIns)
             listOf(
                 Gender.F to "Female",
@@ -445,7 +452,7 @@ private fun CheckInSidebar(
                 Row(
                     Modifier
                         .fillMaxWidth()
-                        .bottomHairline(Industry.neutral200)
+                        .bottomHairline(industry.neutral200)
                         .padding(vertical = 6.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
@@ -454,7 +461,7 @@ private fun CheckInSidebar(
                     Text(
                         if (sections.isEmpty()) label else "$label · ${sections.joinToString("/")} block",
                         fontSize = 12.5.sp,
-                        color = Industry.text,
+                        color = industry.text,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f).padding(end = 8.dp),
@@ -464,7 +471,7 @@ private fun CheckInSidebar(
                         fontFamily = DipiMono,
                         fontWeight = FontWeight.Medium,
                         fontSize = 14.sp,
-                        color = Industry.accent700,
+                        color = industry.accent700,
                         maxLines = 1,
                         textAlign = TextAlign.End,
                         modifier = Modifier.width(86.dp),
@@ -474,22 +481,22 @@ private fun CheckInSidebar(
         }
 
         Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
-            DeskKicker("SEATING ISSUED", Industry.neutral500, Modifier.padding(bottom = 7.dp))
+            DeskKicker("SEATING ISSUED", industry.neutral500, Modifier.padding(bottom = 7.dp))
             SEAT_TYPES.forEach { seat ->
                 Row(
                     Modifier
                         .fillMaxWidth()
-                        .bottomHairline(Industry.neutral200)
+                        .bottomHairline(industry.neutral200)
                         .padding(vertical = 6.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text(seat, fontSize = 12.5.sp, color = Industry.text, modifier = Modifier.weight(1f))
+                    Text(seat, fontSize = 12.5.sp, color = industry.text, modifier = Modifier.weight(1f))
                     Text(
                         "${deskSeatCount(roll, checkIns, seat)}",
                         fontFamily = DipiMono,
                         fontWeight = FontWeight.Medium,
                         fontSize = 13.sp,
-                        color = Industry.text,
+                        color = industry.text,
                     )
                 }
             }
@@ -499,12 +506,13 @@ private fun CheckInSidebar(
 
 @Composable
 private fun RollTable(roll: List<ApplicantCard>) {
+    val industry = LocalIndustry.current
     Column(Modifier.deskCard(shape = DeskStyle.tileShape, elevation = 0.dp)) {
         Row(
             Modifier
                 .fillMaxWidth()
-                .background(Industry.neutral100)
-                .bottomHairline(Industry.neutral200)
+                .background(industry.neutral100)
+                .bottomHairline(industry.neutral200)
                 .padding(vertical = 5.dp),
         ) {
             Spacer(Modifier.weight(1f).padding(start = 8.dp))
@@ -514,7 +522,7 @@ private fun RollTable(roll: List<ApplicantCard>) {
                     fontFamily = DipiCondensed,
                     fontWeight = FontWeight.SemiBold,
                     fontSize = 11.sp,
-                    color = Industry.neutral600,
+                    color = industry.neutral600,
                     textAlign = TextAlign.Center,
                     modifier = Modifier.width(40.dp),
                 )
@@ -532,14 +540,14 @@ private fun RollTable(roll: List<ApplicantCard>) {
             Row(
                 Modifier
                     .fillMaxWidth()
-                    .then(if (i < 2) Modifier.bottomHairline(Industry.neutral200) else Modifier)
+                    .then(if (i < 2) Modifier.bottomHairline(industry.neutral200) else Modifier)
                     .padding(vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
                     label,
                     fontSize = 12.sp,
-                    color = Industry.neutral700,
+                    color = industry.neutral700,
                     modifier = Modifier.weight(1f).padding(start = 8.dp),
                 )
                 listOf(m, f).forEach { n ->
@@ -548,7 +556,7 @@ private fun RollTable(roll: List<ApplicantCard>) {
                         fontFamily = DipiMono,
                         fontWeight = FontWeight.Medium,
                         fontSize = 13.sp,
-                        color = Industry.text,
+                        color = industry.text,
                         textAlign = TextAlign.Center,
                         modifier = Modifier.width(40.dp),
                     )
@@ -584,6 +592,7 @@ fun CheckInDialog(
     onUndo: () -> Unit,
     onClose: () -> Unit,
 ) {
+    val industry = LocalIndustry.current
     Box(
         Modifier
             .fillMaxSize()
@@ -600,7 +609,7 @@ fun CheckInDialog(
             Modifier
                 .width(560.dp)
                 .deskCard(
-                    border = Industry.accent,
+                    border = industry.accent,
                     elevation = DeskStyle.dialogElevation,
                 )
                 .clickable(
@@ -613,36 +622,36 @@ fun CheckInDialog(
             Row(
                 Modifier
                     .fillMaxWidth()
-                    .bottomHairline(Industry.neutral300)
+                    .bottomHairline(industry.neutral300)
                     .padding(start = 20.dp, end = 20.dp, top = 18.dp, bottom = 14.dp),
                 horizontalArrangement = Arrangement.spacedBy(14.dp),
             ) {
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                    DeskKicker("CHECK IN · ${card.confNo?.display() ?: "-"}", Industry.accent700)
+                    DeskKicker("CHECK IN · ${card.confNo?.display() ?: "-"}", industry.accent700)
                     Text(
                         card.displayName,
                         fontFamily = DipiCondensed,
                         fontWeight = FontWeight.Bold,
                         fontSize = 27.sp,
                         lineHeight = 28.sp,
-                        color = Industry.text,
+                        color = industry.text,
                     )
                     Text(
                         listOfNotNull(card.age?.toString(), card.gender.name).joinToString(" ") +
                             (card.city?.let { " · $it" } ?: ""),
                         fontSize = 12.5.sp,
-                        color = Industry.neutral600,
+                        color = industry.neutral600,
                     )
                 }
                 Box(
                     Modifier
                         .size(28.dp)
                         .clip(DeskStyle.controlShape)
-                        .border(1.dp, Industry.neutral400, DeskStyle.controlShape)
+                        .border(1.dp, industry.neutral400, DeskStyle.controlShape)
                         .clickable(onClick = onClose),
                     contentAlignment = Alignment.Center,
                 ) {
-                    DeskIcon(DeskIconKind.Close, 13.dp, Industry.text)
+                    DeskIcon(DeskIconKind.Close, 13.dp, industry.text)
                 }
             }
 
@@ -660,12 +669,12 @@ fun CheckInDialog(
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    DeskKicker("ROOM", Industry.neutral500)
+                    DeskKicker("ROOM", industry.neutral500)
                     Row(
                         Modifier
                             .fillMaxWidth()
                             .clip(DeskStyle.controlShape)
-                            .border(1.dp, Industry.neutral400, DeskStyle.controlShape)
+                            .border(1.dp, industry.neutral400, DeskStyle.controlShape)
                             .clickable(onClick = onToggleRooms)
                             .padding(horizontal = 13.dp, vertical = 11.dp),
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -676,15 +685,15 @@ fun CheckInDialog(
                             fontFamily = DipiCondensed,
                             fontWeight = FontWeight.Bold,
                             fontSize = 20.sp,
-                            color = if (record.room.isBlank()) Industry.neutral500 else Industry.accent800,
+                            color = if (record.room.isBlank()) industry.neutral500 else industry.accent800,
                         )
                         Text(
                             "only free rooms for this gender",
                             fontSize = 11.5.sp,
-                            color = Industry.neutral600,
+                            color = industry.neutral600,
                             modifier = Modifier.weight(1f),
                         )
-                        DeskIcon(DeskIconKind.ChevronDown, 14.dp, Industry.accent)
+                        DeskIcon(DeskIconKind.ChevronDown, 14.dp, industry.accent)
                     }
                     if (roomOpen) {
                         val occupied = deskOccupied(roll, checkIns, except = card.id)
@@ -698,8 +707,8 @@ fun CheckInDialog(
                                             .weight(1f)
                                             .deskCard(
                                                 shape = DeskStyle.tileShape,
-                                                fill = if (on) Industry.accent100 else DeskStyle.cardFill,
-                                                border = if (on) Industry.accent else DeskStyle.cardBorder,
+                                                fill = if (on) industry.accent100 else DeskStyle.cardFill,
+                                                border = if (on) industry.accent else DeskStyle.cardBorder,
                                                 elevation = 0.dp,
                                             )
                                             .clickable { onRoom(room.code) }
@@ -711,7 +720,7 @@ fun CheckInDialog(
                                             fontFamily = DipiCondensed,
                                             fontWeight = FontWeight.Bold,
                                             fontSize = 17.sp,
-                                            color = Industry.text,
+                                            color = industry.text,
                                         )
                                         Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                                             amenityLabels(room).forEach { label ->
@@ -721,9 +730,9 @@ fun CheckInDialog(
                                                     fontWeight = FontWeight.Medium,
                                                     fontSize = 8.5.sp,
                                                     maxLines = 1,
-                                                    color = Industry.neutral600,
+                                                    color = industry.neutral600,
                                                     modifier = Modifier
-                                                        .border(1.dp, Industry.neutral300, DeskStyle.pillShape)
+                                                        .border(1.dp, industry.neutral300, DeskStyle.pillShape)
                                                         .padding(horizontal = 5.dp, vertical = 1.dp),
                                                 )
                                             }
@@ -740,7 +749,7 @@ fun CheckInDialog(
                 }
 
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    DeskKicker("SEATING", Industry.neutral500)
+                    DeskKicker("SEATING", industry.neutral500)
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                         SEAT_TYPES.forEach { seat ->
                             val on = record.seat == seat
@@ -750,14 +759,14 @@ fun CheckInDialog(
                                 fontWeight = FontWeight.SemiBold,
                                 fontSize = 15.sp,
                                 textAlign = TextAlign.Center,
-                                color = if (on) Industry.accent800 else Industry.neutral700,
+                                color = if (on) industry.accent800 else industry.neutral700,
                                 modifier = Modifier
                                     .weight(1f)
                                     .clip(DeskStyle.controlShape)
-                                    .background(if (on) Industry.accent100 else Color.Transparent)
+                                    .background(if (on) industry.accent100 else Color.Transparent)
                                     .border(
                                         1.dp,
-                                        if (on) Industry.accent else Industry.neutral300,
+                                        if (on) industry.accent else industry.neutral300,
                                         DeskStyle.controlShape,
                                     )
                                     .clickable { onSeat(seat) }
@@ -769,7 +778,7 @@ fun CheckInDialog(
 
                 if (valuablesOn || laundryOn) {
                     Column(
-                        Modifier.fillMaxWidth().topHairline(Industry.neutral200).padding(top = 14.dp),
+                        Modifier.fillMaxWidth().topHairline(industry.neutral200).padding(top = 14.dp),
                         verticalArrangement = Arrangement.spacedBy(14.dp),
                     ) {
                         if (valuablesOn) {
@@ -783,7 +792,7 @@ fun CheckInDialog(
 
                 if (groupsOn) {
                     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        DeskKicker("GROUP", Industry.neutral500)
+                        DeskKicker("GROUP", industry.neutral500)
                         Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
                             (1..9).map { "$it" }.forEach { g ->
                                 val on = record.group == g
@@ -791,10 +800,10 @@ fun CheckInDialog(
                                     Modifier
                                         .size(36.dp)
                                         .clip(DeskStyle.controlShape)
-                                        .background(if (on) Industry.accent else Color.Transparent)
+                                        .background(if (on) industry.accent else Color.Transparent)
                                         .border(
                                             1.dp,
-                                            if (on) Industry.accent else Industry.neutral300,
+                                            if (on) industry.accent else industry.neutral300,
                                             DeskStyle.controlShape,
                                         )
                                         .clickable { onGroup(g) },
@@ -805,7 +814,7 @@ fun CheckInDialog(
                                         fontFamily = DipiMono,
                                         fontWeight = FontWeight.Medium,
                                         fontSize = 14.sp,
-                                        color = if (on) Color.White else Industry.neutral700,
+                                        color = if (on) Color.White else industry.neutral700,
                                     )
                                 }
                             }
@@ -818,7 +827,7 @@ fun CheckInDialog(
             Row(
                 Modifier
                     .fillMaxWidth()
-                    .topHairline(Industry.neutral300)
+                    .topHairline(industry.neutral300)
                     .padding(horizontal = 20.dp, vertical = 14.dp),
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
                 verticalAlignment = Alignment.CenterVertically,
@@ -827,7 +836,7 @@ fun CheckInDialog(
                     Text(
                         "Undo check-in",
                         fontSize = 12.5.sp,
-                        color = Industry.neutral600,
+                        color = industry.neutral600,
                         textDecoration = androidx.compose.ui.text.style.TextDecoration.Underline,
                         modifier = Modifier.clickable(onClick = onUndo),
                     )
@@ -845,12 +854,13 @@ fun CheckInDialog(
 
 @Composable
 private fun DialogToggleRow(label: String, on: Boolean, onToggle: () -> Unit) {
+    val industry = LocalIndustry.current
     Row(
         Modifier.fillMaxWidth().clickable(onClick = onToggle),
         horizontalArrangement = Arrangement.spacedBy(14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(label, fontSize = 14.sp, color = Industry.text, modifier = Modifier.weight(1f))
+        Text(label, fontSize = 14.sp, color = industry.text, modifier = Modifier.weight(1f))
         DeskToggle(on)
     }
 }

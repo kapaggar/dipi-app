@@ -64,6 +64,7 @@ import org.dhamma.dipi.staff.ui.theme.DipiCondensed
 import org.dhamma.dipi.staff.ui.theme.DipiMono
 import org.dhamma.dipi.staff.ui.theme.IndustryPalette
 import org.dhamma.dipi.staff.ui.theme.LocalDipi
+import org.dhamma.dipi.staff.ui.theme.LocalDeskColors
 import org.dhamma.dipi.staff.ui.theme.LocalIndustry
 import org.dhamma.dipi.staff.ui.theme.chipGradientColors
 import org.dhamma.dipi.staff.ui.theme.deskCard
@@ -217,13 +218,6 @@ fun SettingsScreen(
 
 // --------------------------------------------------------------- TABLET MODE
 
-/** Frame 2a's fixed neutrals — the frame is drawn light; hexes win (DESIGN.md). */
-private val ModeCardFill = Color(0xFFFAFAFB)
-private val ModeCardBorder = Color(0xFFDEDEE1)
-private val ModeRule = Color(0xFFE0E0E3)
-private val ModeDash = Color(0xFFD4D4D7)
-private val ModeKeyText = Color(0xFF424244)
-
 /**
  * Frame 2a — the mode switch (spec 2a S4). Two radio cards, the consequence
  * rows, the dashed "Course being taught" card and the static PIN row. The
@@ -260,6 +254,7 @@ private fun TabletModeCard(
 @Composable
 private fun ModeChoiceColumn(mode: TabletMode, onMode: (TabletMode) -> Unit, compact: Boolean) {
     val c = LocalDipi.current
+    val deskColors = LocalDeskColors.current
     DeskKicker(
         "TABLET MODE",
         c.muted,
@@ -287,7 +282,7 @@ private fun ModeChoiceColumn(mode: TabletMode, onMode: (TabletMode) -> Unit, com
             .fillMaxWidth()
             .padding(top = if (compact) 12.dp else 18.dp)
             .height(1.dp)
-            .background(ModeRule),
+            .background(deskColors.rule),
     )
     DeskKicker(
         "WHILE COURSE OPS IS ON",
@@ -319,22 +314,24 @@ private fun ModeRadioCard(
     modifier: Modifier = Modifier,
 ) {
     val industry = LocalIndustry.current
+    val deskColors = LocalDeskColors.current
     val shape = RoundedCornerShape(8.dp)
-    Box(
-        modifier
-            .fillMaxWidth()
-            .clip(shape)
-            .background(if (selected) Color.White else ModeCardFill)
-            .border(
-                if (selected) 1.5.dp else 1.dp,
-                if (selected) industry.accent else ModeCardBorder,
-                shape,
-            )
-            .selectable(selected = selected, role = Role.RadioButton) {
-                if (!selected) onSelect()
-            }
-            .testTag(testTag),
-    ) {
+    Box(modifier.fillMaxWidth().testTag("theme-settings-mode-${testTag.removePrefix("mode-")}")) {
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .clip(shape)
+                .background(if (selected) deskColors.whiteSurface else deskColors.subtleSurface)
+                .border(
+                    if (selected) 1.5.dp else 1.dp,
+                    if (selected) industry.accent else deskColors.modeBorder,
+                    shape,
+                )
+                .selectable(selected = selected, role = Role.RadioButton) {
+                    if (!selected) onSelect()
+                }
+                .testTag(testTag),
+        ) {
         if (selected) {
             // The 3dp accent bar — inset 14dp top/bottom, radius 0 3 3 0.
             Box(
@@ -386,7 +383,7 @@ private fun ModeRadioCard(
                         fontWeight = FontWeight.SemiBold,
                         fontSize = 19.sp,
                         letterSpacing = 0.2.sp,
-                        color = ModeKeyText,
+                        color = deskColors.keyText,
                     )
                     if (selected) {
                         Text(
@@ -407,10 +404,11 @@ private fun ModeRadioCard(
                     description,
                     fontSize = 13.5.sp,
                     lineHeight = 20.sp,
-                    color = LocalIndustry.current.neutral600,
+                    color = industry.neutral600,
                     modifier = Modifier.padding(top = 5.dp),
                 )
             }
+        }
         }
     }
 }
@@ -420,12 +418,13 @@ private fun ModeRadioCard(
 @Composable
 private fun ConsequenceRow(index: String, key: String, value: String, modifier: Modifier = Modifier) {
     val industry = LocalIndustry.current
+    val deskColors = LocalDeskColors.current
     Row(
         modifier
             .fillMaxWidth()
             .height(44.dp)
-            .background(ModeCardFill, RoundedCornerShape(6.dp))
-            .border(1.dp, ModeRule, RoundedCornerShape(6.dp))
+            .background(deskColors.subtleSurface, RoundedCornerShape(6.dp))
+            .border(1.dp, deskColors.rule, RoundedCornerShape(6.dp))
             .padding(horizontal = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -435,7 +434,7 @@ private fun ConsequenceRow(index: String, key: String, value: String, modifier: 
         Text(
             key,
             fontSize = 14.sp,
-            color = ModeKeyText,
+            color = deskColors.keyText,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.padding(start = 8.dp),
@@ -462,13 +461,15 @@ private fun CourseBeingTaughtCard(
     compact: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
+    val deskColors = LocalDeskColors.current
+    val industry = LocalIndustry.current
     Column(
         modifier
             .fillMaxWidth()
-            .background(Color.White, RoundedCornerShape(8.dp))
+            .background(deskColors.whiteSurface, RoundedCornerShape(8.dp))
             .drawBehind {
                 drawRoundRect(
-                    color = ModeDash,
+                    color = deskColors.strongRule,
                     style = Stroke(
                         width = 1.dp.toPx(),
                         pathEffect = PathEffect.dashPathEffect(floatArrayOf(8f, 6f)),
@@ -477,30 +478,30 @@ private fun CourseBeingTaughtCard(
                 )
             }
             .padding(horizontal = 18.dp, vertical = if (compact) 12.dp else 16.dp)
-            .testTag("course-being-taught"),
+            .testTag("theme-settings-course"),
     ) {
         Text(
             "Course being taught",
             fontFamily = DipiCondensed,
             fontWeight = FontWeight.SemiBold,
             fontSize = 17.sp,
-            color = ModeKeyText,
+            color = deskColors.keyText,
         )
         Text(
             courseName ?: "No course is running today",
             fontSize = 14.sp,
             lineHeight = 21.sp,
-            color = ModeKeyText,
+            color = deskColors.keyText,
             modifier = Modifier.padding(top = 8.dp),
         )
         if (courseName != null && !courseDates.isNullOrBlank()) {
-            Text(courseDates, fontSize = 14.sp, lineHeight = 21.sp, color = ModeKeyText)
+            Text(courseDates, fontSize = 14.sp, lineHeight = 21.sp, color = deskColors.keyText)
         }
         Text(
             "Uses the course running today.",
             fontSize = 12.5.sp,
             lineHeight = 19.sp,
-            color = Color(0xFF7A7A7D),
+            color = industry.neutral500,
             modifier = Modifier.padding(top = 8.dp),
         )
     }
@@ -513,17 +514,18 @@ private fun CourseBeingTaughtCard(
  */
 @Composable
 private fun PinGateRow(modifier: Modifier = Modifier) {
+    val deskColors = LocalDeskColors.current
     Row(
         modifier
             .fillMaxWidth()
             .height(48.dp)
-            .background(ModeCardFill, RoundedCornerShape(6.dp))
-            .border(1.dp, ModeDash, RoundedCornerShape(6.dp))
+            .background(deskColors.subtleSurface, RoundedCornerShape(6.dp))
+            .border(1.dp, deskColors.strongRule, RoundedCornerShape(6.dp))
             .padding(horizontal = 14.dp)
             .testTag("pin-gate-row"),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text("Settings and logout need the device PIN", fontSize = 14.sp, color = ModeKeyText)
+        Text("Settings and logout need the device PIN", fontSize = 14.sp, color = deskColors.keyText)
     }
 }
 

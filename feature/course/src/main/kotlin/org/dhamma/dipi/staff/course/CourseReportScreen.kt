@@ -45,8 +45,9 @@ import org.dhamma.dipi.staff.model.parseDeskDate
 import org.dhamma.dipi.staff.ui.theme.DeskStyle
 import org.dhamma.dipi.staff.ui.theme.DipiCondensed
 import org.dhamma.dipi.staff.ui.theme.DipiMono
-import org.dhamma.dipi.staff.ui.theme.Industry
 import org.dhamma.dipi.staff.ui.theme.LocalDipi
+import org.dhamma.dipi.staff.ui.theme.LocalDeskColors
+import org.dhamma.dipi.staff.ui.theme.LocalIndustry
 import org.dhamma.dipi.staff.ui.theme.deskCard
 
 /** Everything the screen needs, so the states in frame `5p` are exhaustive. */
@@ -205,11 +206,12 @@ private fun RangeBand(
     onRun: () -> Unit,
 ) {
     val c = LocalDipi.current
+    val industry = LocalIndustry.current
     Row(
         Modifier
             .fillMaxWidth()
             .height(72.dp)
-            .background(Industry.neutral100)
+            .background(industry.neutral100)
             .padding(horizontal = 20.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -227,8 +229,8 @@ private fun RangeBand(
             modifier = Modifier
                 .deskCard(
                     shape = DeskStyle.controlShape,
-                    fill = if (state.running) Industry.accent700 else c.accent,
-                    border = if (state.running) Industry.accent700 else c.accent,
+                    fill = if (state.running) c.accentPressed else c.accent,
+                    border = if (state.running) c.accentPressed else c.accent,
                     elevation = 0.dp,
                 )
                 .clickable(enabled = !state.running, onClick = onRun)
@@ -343,6 +345,7 @@ private fun Message(title: String, body: String, tag: String) {
 @Composable
 private fun Refusal(state: CourseReportUi, onCopyMessage: (String) -> Unit) {
     val c = LocalDipi.current
+    val industry = LocalIndustry.current
     val message = state.refusal.orEmpty()
     Column(
         Modifier
@@ -361,10 +364,10 @@ private fun Refusal(state: CourseReportUi, onCopyMessage: (String) -> Unit) {
                 message,
                 fontSize = 14.sp,
                 lineHeight = 20.sp,
-                color = Industry.text,
+                color = industry.text,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Color.White)
+                    .background(LocalDeskColors.current.whiteSurface)
                     .padding(horizontal = 16.dp, vertical = 14.dp)
                     .testTag("report-refusal-text"),
             )
@@ -407,6 +410,7 @@ private val DangerTint = Color(0x22A33A34)
 @Composable
 private fun Loaded(state: CourseReportUi) {
     val report = state.report ?: return
+    val industry = LocalIndustry.current
     Column(Modifier.fillMaxSize()) {
         Column(
             Modifier
@@ -421,7 +425,7 @@ private fun Loaded(state: CourseReportUi) {
                     fontWeight = FontWeight.Medium,
                     fontSize = 9.sp,
                     letterSpacing = 0.14.em,
-                    color = Industry.neutral500,
+                    color = industry.neutral500,
                     modifier = Modifier
                         .padding(top = 10.dp, bottom = 6.dp)
                         .testTag("report-run-strip"),
@@ -445,6 +449,7 @@ private val GROUPS = listOf(
 
 @Composable
 private fun GroupCaps() {
+    val industry = LocalIndustry.current
     Row(Modifier.fillMaxWidth().height(22.dp), verticalAlignment = Alignment.CenterVertically) {
         Box(Modifier.weight(4f))
         GROUPS.forEach { (name, weight) ->
@@ -455,7 +460,7 @@ private fun GroupCaps() {
                 fontSize = 9.sp,
                 letterSpacing = 0.17.em,
                 textAlign = TextAlign.Center,
-                color = Industry.neutral500,
+                color = industry.neutral500,
                 modifier = Modifier.weight(weight),
             )
         }
@@ -466,11 +471,12 @@ private val HEADERS = listOf("M", "F", "T", "M", "F", "T", "TOTAL", "M", "F", "T
 
 @Composable
 private fun ColumnHeaders() {
+    val industry = LocalIndustry.current
     Row(
         Modifier
             .fillMaxWidth()
             .height(28.dp)
-            .bottomRule(),
+            .bottomRule(industry.neutral400),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
@@ -479,7 +485,7 @@ private fun ColumnHeaders() {
             fontWeight = FontWeight.Medium,
             fontSize = 9.sp,
             letterSpacing = 0.14.em,
-            color = Industry.neutral500,
+            color = industry.neutral500,
             modifier = Modifier.weight(4f),
         )
         HEADERS.forEachIndexed { i, h ->
@@ -492,6 +498,7 @@ private fun headerWeight(i: Int): Float = if (i == 6) 1.2f else 1f
 
 @Composable
 private fun ReportRow(row: CourseReportRow) {
+    val industry = LocalIndustry.current
     val name = row.parsed
     val teachers = row.displayTeacherNames()
     Row(
@@ -499,7 +506,7 @@ private fun ReportRow(row: CourseReportRow) {
             .fillMaxWidth()
             .height(IntrinsicSize.Min)
             .heightIn(min = 52.dp)
-            .bottomHairline(),
+            .bottomHairline(industry.neutral200),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(Modifier.weight(4f).padding(end = 10.dp, top = 8.dp, bottom = 8.dp)) {
@@ -512,7 +519,7 @@ private fun ReportRow(row: CourseReportRow) {
                 lineHeight = 19.sp,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                color = Industry.text,
+                color = industry.text,
             )
             if (!name.raw) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -520,14 +527,14 @@ private fun ReportRow(row: CourseReportRow) {
                         name.year,
                         fontFamily = DipiMono,
                         fontSize = 11.5.sp,
-                        color = Industry.neutral600,
+                        color = industry.neutral600,
                     )
                     Text(
                         name.dates,
                         fontSize = 12.5.sp,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        color = Industry.neutral600,
+                        color = industry.neutral600,
                     )
                 }
             }
@@ -538,7 +545,7 @@ private fun ReportRow(row: CourseReportRow) {
                     lineHeight = 15.sp,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
-                    color = Industry.neutral600,
+                    color = industry.neutral600,
                     modifier = Modifier
                         .padding(top = 2.dp)
                         .testTag("report-teacher-names"),
@@ -571,11 +578,12 @@ private fun RowScope.Figure(
     header: Boolean = false,
     bold: Boolean = false,
 ) {
+    val industry = LocalIndustry.current
     Box(
         Modifier
             .weight(weight)
             .then(if (header) Modifier.height(28.dp) else Modifier.fillMaxHeight())
-            .background(if (banded) Industry.neutral200 else Color.Transparent),
+            .background(if (banded) industry.neutral200 else Color.Transparent),
         contentAlignment = Alignment.CenterEnd,
     ) {
         Text(
@@ -584,7 +592,7 @@ private fun RowScope.Figure(
             fontWeight = if (bold || header) FontWeight.Medium else FontWeight.Normal,
             fontSize = if (header) 9.sp else 14.sp,
             letterSpacing = if (header) 0.14.em else 0.em,
-            color = if (header) Industry.neutral500 else Industry.text,
+            color = if (header) industry.neutral500 else industry.text,
             modifier = Modifier.padding(end = 6.dp),
         )
     }
@@ -597,13 +605,14 @@ private fun RowScope.Figure(
  */
 @Composable
 private fun GrandTotalFooter(report: CourseReport) {
+    val industry = LocalIndustry.current
     Column(Modifier.fillMaxWidth().testTag("report-grand-total")) {
-        Box(Modifier.fillMaxWidth().height(2.dp).background(Industry.neutral900))
+        Box(Modifier.fillMaxWidth().height(2.dp).background(industry.neutral900))
         Row(
             Modifier
                 .fillMaxWidth()
                 .height(56.dp)
-                .background(Industry.neutral100)
+                .background(industry.neutral100)
                 .padding(horizontal = 26.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -614,13 +623,13 @@ private fun GrandTotalFooter(report: CourseReport) {
                     fontWeight = FontWeight.SemiBold,
                     fontSize = 10.sp,
                     letterSpacing = 0.17.em,
-                    color = Industry.neutral700,
+                    color = industry.neutral700,
                 )
                 if (report.from.isNotBlank()) {
                     Text(
                         "${displayDeskDate(report.from)} → ${displayDeskDate(report.to)} · ${report.rows.size} courses",
                         fontSize = 11.5.sp,
-                        color = Industry.neutral600,
+                        color = industry.neutral600,
                     )
                 }
             }
@@ -629,9 +638,9 @@ private fun GrandTotalFooter(report: CourseReport) {
     }
 }
 
-private fun Modifier.bottomRule(): Modifier = drawBottom(Industry.neutral400, 1.dp)
+private fun Modifier.bottomRule(color: Color): Modifier = drawBottom(color, 1.dp)
 
-private fun Modifier.bottomHairline(): Modifier = drawBottom(Industry.neutral200, 1.dp)
+private fun Modifier.bottomHairline(color: Color): Modifier = drawBottom(color, 1.dp)
 
 private fun Modifier.drawBottom(color: Color, thickness: Dp) = drawBehind {
     val h = thickness.toPx()

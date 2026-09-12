@@ -150,6 +150,7 @@ fun DipiAppUi(vm: DeskViewModel, deskSiteLauncher: DeskSiteLauncher? = null) {
 
     DipiTheme(dark = state.dark) {
         val c = LocalDipi.current
+        ThemeSystemBars(dark = state.dark)
         Box(
             Modifier
                 .fillMaxSize()

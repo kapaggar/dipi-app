@@ -47,12 +47,10 @@ import org.dhamma.dipi.staff.model.RollGroup
 import org.dhamma.dipi.staff.model.RollRow
 import org.dhamma.dipi.staff.ui.theme.DipiCondensed
 import org.dhamma.dipi.staff.ui.theme.DipiMono
-import org.dhamma.dipi.staff.ui.theme.Industry
+import org.dhamma.dipi.staff.ui.theme.LocalDeskColors
+import org.dhamma.dipi.staff.ui.theme.LocalIndustry
 
 // Fixed hexes DESIGN.md § Course ops names outside the ramp tokens.
-private val PaleFill = Color(0xFFFAFAFB)
-private val RowHairline = Color(0xFFEDEDF1)
-private val ZeroTileBorder = Color(0xFFE7E7EA)
 
 private fun Modifier.bottomHairline(color: Color): Modifier = drawBehind {
     val y = size.height - 0.5.dp.toPx()
@@ -98,7 +96,7 @@ fun StudentCardScreen(
     /** Hall + seat when the door was the plan, e.g. `Female hall · seat A1`. */
     cameFrom: String? = null,
 ) {
-    Column(Modifier.fillMaxSize().background(Industry.bg)) {
+    Column(Modifier.fillMaxSize().background(LocalIndustry.current.bg)) {
         Header(row, group, card, canPrev, canNext, onPrev, onNext, onBack, backLabel)
         if (card == null) {
             NotCachedBody(offline)
@@ -137,16 +135,16 @@ private fun Header(
         Row(
             Modifier
                 .height(48.dp)
-                .background(Color.White, RoundedCornerShape(6.dp))
-                .border(1.dp, Industry.neutral300, RoundedCornerShape(6.dp))
+                .background(LocalDeskColors.current.whiteSurface, RoundedCornerShape(6.dp))
+                .border(1.dp, LocalIndustry.current.neutral300, RoundedCornerShape(6.dp))
                 .clickable(role = Role.Button, onClick = onBack)
                 .padding(start = 10.dp, end = 14.dp)
                 .testTag("card-back"),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Text("‹", fontSize = 19.sp, color = Industry.neutral700)
-            Text(backLabel, fontSize = 13.sp, color = Industry.neutral700)
+            Text("‹", fontSize = 19.sp, color = LocalIndustry.current.neutral700)
+            Text(backLabel, fontSize = 13.sp, color = LocalIndustry.current.neutral700)
         }
         Column(Modifier.weight(1f).padding(start = 4.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -156,7 +154,7 @@ private fun Header(
                     fontWeight = FontWeight.SemiBold,
                     fontSize = 24.sp,
                     letterSpacing = 0.2.sp,
-                    color = Industry.text,
+                    color = LocalIndustry.current.text,
                     maxLines = 1,
                 )
                 StatusChip(group, card)
@@ -165,7 +163,7 @@ private fun Header(
             Text(
                 placementLine(row, group),
                 fontSize = 12.5.sp,
-                color = Industry.neutral600,
+                color = LocalIndustry.current.neutral600,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.testTag("card-placement"),
@@ -187,10 +185,10 @@ private fun StatusChip(group: RollGroup, card: ApplicationCard?) {
         fontWeight = FontWeight.SemiBold,
         fontSize = 16.sp,
         letterSpacing = 0.6.sp,
-        color = Industry.accent700,
+        color = LocalIndustry.current.accent700,
         modifier = Modifier
             .padding(start = 10.dp)
-            .background(Industry.accent100, RoundedCornerShape(4.dp))
+            .background(LocalIndustry.current.accent100, RoundedCornerShape(4.dp))
             .padding(horizontal = 10.dp, vertical = 6.dp)
             .testTag("card-status-chip"),
     )
@@ -213,13 +211,13 @@ private fun WalkButton(glyph: String, enabled: Boolean, onClick: () -> Unit, tag
         Modifier
             .size(56.dp)
             .shadow(4.dp, shape, clip = false)
-            .background(Color.White, shape)
-            .border(1.dp, if (enabled) Industry.neutral300 else Industry.neutral200, shape)
+            .background(LocalDeskColors.current.whiteSurface, shape)
+            .border(1.dp, if (enabled) LocalIndustry.current.neutral300 else LocalIndustry.current.neutral200, shape)
             .then(if (enabled) Modifier.clickable(role = Role.Button, onClick = onClick) else Modifier)
             .testTag(tag),
         contentAlignment = Alignment.Center,
     ) {
-        Text(glyph, fontSize = 22.sp, color = if (enabled) Industry.neutral700 else Industry.neutral300)
+        Text(glyph, fontSize = 22.sp, color = if (enabled) LocalIndustry.current.neutral700 else LocalIndustry.current.neutral300)
     }
 }
 
@@ -232,7 +230,7 @@ private fun NotCachedBody(offline: Boolean) {
             Text(
                 "Not cached - connect to load",
                 fontSize = 14.sp,
-                color = Industry.neutral700,
+                color = LocalIndustry.current.neutral700,
                 modifier = Modifier.testTag("card-not-cached"),
             )
         } else {
@@ -242,7 +240,7 @@ private fun NotCachedBody(offline: Boolean) {
                     fontFamily = DipiCondensed,
                     fontWeight = FontWeight.SemiBold,
                     fontSize = 18.sp,
-                    color = Industry.text,
+                    color = LocalIndustry.current.text,
                     modifier = Modifier.testTag("card-fetching"),
                 )
                 Text(
@@ -250,7 +248,7 @@ private fun NotCachedBody(offline: Boolean) {
                         "Personal, course history and the six answers appear as soon as it lands.",
                     fontSize = 13.sp,
                     lineHeight = 19.5.sp,
-                    color = Industry.neutral600,
+                    color = LocalIndustry.current.neutral600,
                     textAlign = TextAlign.Center,
                     modifier = Modifier.padding(top = 7.dp).width(480.dp),
                 )
@@ -304,8 +302,8 @@ private fun PhotoBox(
     Box(
         Modifier
             .size(width = 132.dp, height = 158.dp)
-            .background(Industry.neutral200, shape)
-            .border(1.dp, Industry.neutral300, shape)
+            .background(LocalIndustry.current.neutral200, shape)
+            .border(1.dp, LocalIndustry.current.neutral300, shape)
             .testTag("card-photo"),
         contentAlignment = Alignment.Center,
     ) {
@@ -327,7 +325,7 @@ private fun PhotoBox(
                 fontSize = 9.sp,
                 lineHeight = 13.5.sp,
                 letterSpacing = 1.sp,
-                color = Industry.neutral500,
+                color = LocalIndustry.current.neutral500,
                 textAlign = TextAlign.Center,
             )
         }
@@ -363,17 +361,17 @@ private fun PersonalRow(key: String, value: String, tag: String? = null) {
         Modifier
             .fillMaxWidth()
             .height(22.5.dp)
-            .bottomHairline(RowHairline)
+            .bottomHairline(LocalDeskColors.current.rule)
             .then(if (tag != null) Modifier.testTag(tag) else Modifier),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(key, fontSize = 12.sp, color = Industry.neutral500)
+        Text(key, fontSize = 12.sp, color = LocalIndustry.current.neutral500)
         Spacer(Modifier.weight(1f))
         Text(
             value,
             fontFamily = DipiMono,
             fontSize = 12.5.sp,
-            color = Industry.text,
+            color = LocalIndustry.current.text,
             maxLines = 1,
         )
     }
@@ -387,8 +385,8 @@ private fun HistoryTile(key: String, n: Int, modifier: Modifier) {
     Column(
         modifier
             .height(50.dp)
-            .background(if (nonZero) Industry.accent100 else PaleFill, shape)
-            .border(1.dp, if (nonZero) Industry.accent300 else ZeroTileBorder, shape)
+            .background(if (nonZero) LocalIndustry.current.accent100 else LocalDeskColors.current.subtleSurface, shape)
+            .border(1.dp, if (nonZero) LocalIndustry.current.accent300 else LocalDeskColors.current.modeBorder, shape)
             .testTag("history-tile-$key"),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
@@ -398,7 +396,7 @@ private fun HistoryTile(key: String, n: Int, modifier: Modifier) {
             fontFamily = DipiMono,
             fontWeight = FontWeight.SemiBold,
             fontSize = 18.sp,
-            color = if (nonZero) Industry.accent700 else Industry.neutral400,
+            color = if (nonZero) LocalIndustry.current.accent700 else LocalIndustry.current.neutral400,
         )
         Spacer(Modifier.height(3.dp))
         Text(
@@ -407,7 +405,7 @@ private fun HistoryTile(key: String, n: Int, modifier: Modifier) {
             fontWeight = FontWeight.Medium,
             fontSize = 8.5.sp,
             letterSpacing = 0.9.sp,
-            color = Industry.neutral500,
+            color = LocalIndustry.current.neutral500,
             maxLines = 1,
         )
     }
@@ -419,12 +417,12 @@ private fun MetaRow(key: String, value: String) {
         Modifier
             .fillMaxWidth()
             .heightIn(min = 26.dp)
-            .bottomHairline(RowHairline)
+            .bottomHairline(LocalDeskColors.current.rule)
             .padding(vertical = 4.dp),
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        Text(key, fontSize = 12.sp, lineHeight = 15.6.sp, color = Industry.neutral500, modifier = Modifier.width(104.dp))
-        Text(value, fontSize = 13.sp, lineHeight = 16.9.sp, color = Industry.text, modifier = Modifier.weight(1f))
+        Text(key, fontSize = 12.sp, lineHeight = 15.6.sp, color = LocalIndustry.current.neutral500, modifier = Modifier.width(104.dp))
+        Text(value, fontSize = 13.sp, lineHeight = 16.9.sp, color = LocalIndustry.current.text, modifier = Modifier.weight(1f))
     }
 }
 
@@ -447,7 +445,7 @@ private fun RightColumn(card: ApplicationCard, gender: Gender, cameFrom: String?
             Text(
                 "page 2 of the application · in $whose own words",
                 fontSize = 11.5.sp,
-                color = Industry.neutral400,
+                color = LocalIndustry.current.neutral400,
                 modifier = Modifier.padding(top = 4.dp),
             )
         }
@@ -459,8 +457,8 @@ private fun RightColumn(card: ApplicationCard, gender: Gender, cameFrom: String?
                     .fillMaxWidth()
                     .padding(top = 8.dp)
                     .height(38.dp)
-                    .background(Industry.neutral100, RoundedCornerShape(6.dp))
-                    .border(1.dp, Industry.neutral200, RoundedCornerShape(6.dp))
+                    .background(LocalIndustry.current.neutral100, RoundedCornerShape(6.dp))
+                    .border(1.dp, LocalIndustry.current.neutral200, RoundedCornerShape(6.dp))
                     .padding(horizontal = 14.dp)
                     .testTag("card-came-from"),
                 verticalAlignment = Alignment.CenterVertically,
@@ -472,9 +470,9 @@ private fun RightColumn(card: ApplicationCard, gender: Gender, cameFrom: String?
                     fontWeight = FontWeight.Medium,
                     fontSize = 9.sp,
                     letterSpacing = 1.4.sp,
-                    color = Industry.neutral500,
+                    color = LocalIndustry.current.neutral500,
                 )
-                Text(cameFrom, fontSize = 12.5.sp, color = Industry.neutral700, modifier = Modifier.weight(1f))
+                Text(cameFrom, fontSize = 12.5.sp, color = LocalIndustry.current.neutral700, modifier = Modifier.weight(1f))
             }
         }
         Spacer(Modifier.height(16.dp))
@@ -502,8 +500,8 @@ private fun AnswerSummary(answered: Int, names: List<String>) {
         Modifier
             .fillMaxWidth()
             .height(34.dp)
-            .background(if (flagged) Industry.accent100 else Industry.neutral100, RoundedCornerShape(6.dp))
-            .border(1.dp, if (flagged) Industry.accent300 else Industry.neutral200, RoundedCornerShape(6.dp))
+            .background(if (flagged) LocalIndustry.current.accent100 else LocalIndustry.current.neutral100, RoundedCornerShape(6.dp))
+            .border(1.dp, if (flagged) LocalIndustry.current.accent300 else LocalIndustry.current.neutral200, RoundedCornerShape(6.dp))
             .padding(horizontal = 14.dp)
             .testTag("answer-summary"),
         verticalAlignment = Alignment.CenterVertically,
@@ -513,7 +511,7 @@ private fun AnswerSummary(answered: Int, names: List<String>) {
             label,
             fontSize = 13.sp,
             fontWeight = FontWeight.Medium,
-            color = if (flagged) Industry.accent800 else Industry.neutral700,
+            color = if (flagged) LocalIndustry.current.accent800 else LocalIndustry.current.neutral700,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f),
@@ -524,7 +522,7 @@ private fun AnswerSummary(answered: Int, names: List<String>) {
             fontWeight = FontWeight.Medium,
             fontSize = 10.sp,
             letterSpacing = 1.2.sp,
-            color = if (flagged) Industry.accent700 else Industry.neutral500,
+            color = if (flagged) LocalIndustry.current.accent700 else LocalIndustry.current.neutral500,
         )
     }
 }
@@ -538,8 +536,8 @@ private fun AnswerCard(index: Int, row: HealthRow, gender: Gender) {
         Modifier
             .fillMaxWidth()
             .then(if (!answered) Modifier.height(56.dp) else Modifier)
-            .background(if (answered) Industry.accent100 else PaleFill, shape)
-            .border(1.dp, if (answered) Industry.accent300 else ZeroTileBorder, shape)
+            .background(if (answered) LocalIndustry.current.accent100 else LocalDeskColors.current.subtleSurface, shape)
+            .border(1.dp, if (answered) LocalIndustry.current.accent300 else LocalDeskColors.current.modeBorder, shape)
             .padding(
                 start = 14.dp,
                 end = 14.dp,
@@ -559,7 +557,7 @@ private fun AnswerCard(index: Int, row: HealthRow, gender: Gender) {
                 fontWeight = FontWeight.Medium,
                 fontSize = 12.sp,
                 lineHeight = 15.6.sp,
-                color = if (answered) Industry.accent400 else Industry.neutral400,
+                color = if (answered) LocalIndustry.current.accent400 else LocalIndustry.current.neutral400,
                 modifier = Modifier.width(20.dp),
             )
             // The question label, verbatim — the teacher must see what was asked.
@@ -568,7 +566,7 @@ private fun AnswerCard(index: Int, row: HealthRow, gender: Gender) {
                 fontSize = if (answered) 15.5.sp else 14.sp,
                 fontWeight = if (answered) FontWeight.Medium else FontWeight.Normal,
                 lineHeight = 18.2.sp,
-                color = if (answered) Industry.text else Industry.neutral700,
+                color = if (answered) LocalIndustry.current.text else LocalIndustry.current.neutral700,
                 modifier = Modifier.weight(1f),
             )
             AnswerTag(
@@ -585,12 +583,12 @@ private fun AnswerCard(index: Int, row: HealthRow, gender: Gender) {
             // largest body type on any screen in the app, on purpose. The
             // rule is drawn, not laid out, so nothing can constrain the
             // text's height.
-            val rule = Industry.accent500
+            val rule = LocalIndustry.current.accent500
             Text(
                 row.answer,
                 fontSize = 14.5.sp,
                 lineHeight = 21.75.sp,
-                color = Industry.text,
+                color = LocalIndustry.current.text,
                 modifier = Modifier
                     .padding(top = 9.dp, start = 32.dp)
                     .drawBehind {
@@ -609,7 +607,7 @@ private fun AnswerTag(text: String, accent: Boolean) {
         Modifier
             .height(24.dp)
             .background(
-                if (accent) Industry.accent200 else Industry.neutral200,
+                if (accent) LocalIndustry.current.accent200 else LocalIndustry.current.neutral200,
                 RoundedCornerShape(12.dp),
             )
             .padding(horizontal = 10.dp),
@@ -621,7 +619,7 @@ private fun AnswerTag(text: String, accent: Boolean) {
             fontWeight = if (accent) FontWeight.SemiBold else FontWeight.Medium,
             fontSize = 10.5.sp,
             letterSpacing = 1.1.sp,
-            color = if (accent) Industry.accent800 else Industry.neutral600,
+            color = if (accent) LocalIndustry.current.accent800 else LocalIndustry.current.neutral600,
         )
     }
 }
@@ -634,6 +632,6 @@ private fun Kicker(text: String) {
         fontWeight = FontWeight.Medium,
         fontSize = 9.sp,
         letterSpacing = 1.7.sp,
-        color = Industry.neutral500,
+        color = LocalIndustry.current.neutral500,
     )
 }

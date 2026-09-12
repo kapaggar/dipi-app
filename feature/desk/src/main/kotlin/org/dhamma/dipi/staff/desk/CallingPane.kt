@@ -51,7 +51,8 @@ import org.dhamma.dipi.staff.ui.theme.DeskStyle
 import org.dhamma.dipi.staff.ui.theme.DipiCondensed
 import org.dhamma.dipi.staff.ui.theme.DipiMono
 import org.dhamma.dipi.staff.ui.theme.DipiSans
-import org.dhamma.dipi.staff.ui.theme.Industry
+import org.dhamma.dipi.staff.ui.theme.LocalIndustry
+import org.dhamma.dipi.staff.ui.theme.LocalDarkTheme
 import org.dhamma.dipi.staff.ui.theme.deskCard
 import org.dhamma.dipi.staff.ui.theme.statusColors
 
@@ -160,16 +161,17 @@ fun CallingPane(
 /** Order pill: A–Z, or still-to-reach floated to the top. */
 @Composable
 private fun SortPill(priority: Boolean, onPriority: () -> Unit) {
+    val industry = LocalIndustry.current
     Text(
         if (priority) "Priority order" else "A–Z",
         fontSize = 12.5.sp,
         maxLines = 1,
-        color = if (priority) Color.White else Industry.neutral700,
+        color = if (priority) Color.White else industry.neutral700,
         modifier = Modifier
             .deskCard(
                 shape = DeskStyle.controlShape,
-                fill = if (priority) Industry.accent else DeskStyle.cardFill,
-                border = if (priority) Industry.accent else DeskStyle.cardBorder,
+                fill = if (priority) industry.accent else DeskStyle.cardFill,
+                border = if (priority) industry.accent else DeskStyle.cardBorder,
                 elevation = 0.dp,
             )
             .clickable(onClick = onPriority)
@@ -181,6 +183,7 @@ private fun SortPill(priority: Boolean, onPriority: () -> Unit) {
 /** Name box — the tracker's search field, matched to the roster's scan field. */
 @Composable
 private fun CallSearchField(search: String, onSearch: (String) -> Unit) {
+    val industry = LocalIndustry.current
     var focused by remember { mutableStateOf(false) }
     Row(
         Modifier
@@ -189,7 +192,7 @@ private fun CallSearchField(search: String, onSearch: (String) -> Unit) {
             .background(DeskStyle.cardFill, DeskStyle.controlShape)
             .border(
                 if (focused) 2.dp else 1.dp,
-                if (focused) Industry.accent else Industry.neutral400,
+                if (focused) industry.accent else industry.neutral400,
                 DeskStyle.controlShape,
             )
             .clip(DeskStyle.controlShape)
@@ -201,8 +204,8 @@ private fun CallSearchField(search: String, onSearch: (String) -> Unit) {
             value = search,
             onValueChange = onSearch,
             singleLine = true,
-            textStyle = TextStyle(fontSize = 14.sp, color = Industry.text),
-            cursorBrush = SolidColor(Industry.accent),
+            textStyle = TextStyle(fontSize = 14.sp, color = industry.text),
+            cursorBrush = SolidColor(industry.accent),
             modifier = Modifier
                 .weight(1f)
                 .onFocusChanged { focused = it.isFocused }
@@ -215,7 +218,7 @@ private fun CallSearchField(search: String, onSearch: (String) -> Unit) {
                         fontSize = 14.sp,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        color = Industry.neutral500,
+                        color = industry.neutral500,
                     )
                 }
                 inner()
@@ -233,10 +236,10 @@ private fun CallSearchField(search: String, onSearch: (String) -> Unit) {
                     Modifier
                         .size(28.dp)
                         .clip(CircleShape)
-                        .background(Industry.neutral200),
+                        .background(industry.neutral200),
                     contentAlignment = Alignment.Center,
                 ) {
-                    DeskIcon(DeskIconKind.Close, 13.dp, Industry.neutral700)
+                    DeskIcon(DeskIconKind.Close, 13.dp, industry.neutral700)
                 }
             }
         }
@@ -265,8 +268,9 @@ private fun CallCard(
     statusChoices: List<String>,
     onChangeStatus: (String) -> Unit,
 ) {
+    val industry = LocalIndustry.current
     val outcome = deskCallOutcome(record?.outcome)
-    val (badgeBg, badgeFg) = statusColors(deskCallTone(outcome), dark = false)
+    val (badgeBg, badgeFg) = statusColors(deskCallTone(outcome), dark = LocalDarkTheme.current)
     val meta = listOfNotNull(
         card.confNo?.value?.takeIf { it.isNotBlank() },
         card.status.value.takeIf { it.isNotBlank() },
@@ -277,7 +281,7 @@ private fun CallCard(
         Modifier
             .fillMaxWidth()
             .deskCard(
-                border = if (expanded) Industry.accent else DeskStyle.cardBorder,
+                border = if (expanded) industry.accent else DeskStyle.cardBorder,
                 elevation = if (expanded) DeskStyle.dialogElevation else DeskStyle.cardElevation,
             ),
     ) {
@@ -293,14 +297,14 @@ private fun CallCard(
                 Modifier
                     .size(10.dp)
                     .clip(CircleShape)
-                    .background(if (outcome.isBlank()) Industry.neutral300 else badgeFg),
+                    .background(if (outcome.isBlank()) industry.neutral300 else badgeFg),
             )
             Text(
                 "$index.",
                 fontFamily = DipiMono,
                 fontWeight = FontWeight.Medium,
                 fontSize = 12.sp,
-                color = Industry.neutral500,
+                color = industry.neutral500,
                 modifier = Modifier.width(28.dp),
             )
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -310,14 +314,14 @@ private fun CallCard(
                     fontWeight = FontWeight.Medium,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    color = Industry.text,
+                    color = industry.text,
                 )
                 Text(
                     meta,
                     fontSize = 12.sp,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    color = Industry.neutral600,
+                    color = industry.neutral600,
                 )
             }
             Text(
@@ -327,16 +331,16 @@ private fun CallCard(
                 fontSize = 11.sp,
                 letterSpacing = 0.08.em,
                 maxLines = 1,
-                color = if (outcome.isBlank()) Industry.neutral600 else badgeFg,
+                color = if (outcome.isBlank()) industry.neutral600 else badgeFg,
                 modifier = Modifier
                     .clip(DeskStyle.pillShape)
-                    .background(if (outcome.isBlank()) Industry.neutral100 else badgeBg)
+                    .background(if (outcome.isBlank()) industry.neutral100 else badgeBg)
                     .padding(horizontal = 11.dp, vertical = 5.dp),
             )
             DeskIcon(
                 if (expanded) DeskIconKind.Close else DeskIconKind.ChevronDown,
                 14.dp,
-                Industry.neutral500,
+                industry.neutral500,
             )
         }
 
@@ -370,7 +374,7 @@ private fun CallCard(
                     Text(
                         "↩ Back to To call",
                         fontSize = 12.sp,
-                        color = Industry.neutral600,
+                        color = industry.neutral600,
                         modifier = Modifier
                             .clip(DeskStyle.controlShape)
                             .clickable { onOutcome("") }
@@ -391,6 +395,7 @@ private fun ContactButton(
     onClick: () -> Unit,
     description: String? = null,
 ) {
+    val industry = LocalIndustry.current
     Row(
         Modifier
             .deskCard(shape = DeskStyle.controlShape, elevation = 0.dp)
@@ -404,14 +409,14 @@ private fun ContactButton(
         horizontalArrangement = Arrangement.spacedBy(9.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        DeskIcon(icon, 16.dp, Industry.accent)
+        DeskIcon(icon, 16.dp, industry.accent)
         Text(
             label,
             fontFamily = if (icon == DeskIconKind.Phone) DipiMono else DipiSans,
             fontWeight = FontWeight.Medium,
             fontSize = 14.sp,
             maxLines = 1,
-            color = Industry.accent800,
+            color = industry.accent800,
         )
     }
 }
@@ -429,6 +434,7 @@ private fun DeskStatusChanger(
     name: String,
     onChange: (String) -> Unit,
 ) {
+    val industry = LocalIndustry.current
     val start = choices.firstOrNull { it.equals(current, ignoreCase = true) }
         ?: choices.firstOrNull { !it.contains("Custom", ignoreCase = true) }
         ?: choices.first()
@@ -441,7 +447,7 @@ private fun DeskStatusChanger(
     Column(
         Modifier
             .fillMaxWidth()
-            .background(Industry.neutral100, DeskStyle.controlShape)
+            .background(industry.neutral100, DeskStyle.controlShape)
             .padding(horizontal = 12.dp, vertical = 10.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
@@ -453,20 +459,20 @@ private fun DeskStatusChanger(
             Text(
                 "Desk status",
                 fontSize = 12.sp,
-                color = Industry.neutral600,
+                color = industry.neutral600,
             )
             Text(
                 current.ifBlank { "-" },
                 fontSize = 12.5.sp,
                 fontWeight = FontWeight.Medium,
                 maxLines = 1,
-                color = Industry.text,
+                color = industry.text,
             )
             Spacer(Modifier.weight(1f))
             Box {
                 Row(
                     Modifier
-                        .border(1.dp, Industry.neutral400, DeskStyle.controlShape)
+                        .border(1.dp, industry.neutral400, DeskStyle.controlShape)
                         .clip(DeskStyle.controlShape)
                         .clickable { menuOpen = true }
                         .semantics { contentDescription = "Choose a new status for $name" }
@@ -474,8 +480,8 @@ private fun DeskStatusChanger(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text(pick, fontSize = 12.5.sp, maxLines = 1, color = Industry.text)
-                    DeskIcon(DeskIconKind.ChevronDown, 13.dp, Industry.neutral600)
+                    Text(pick, fontSize = 12.5.sp, maxLines = 1, color = industry.text)
+                    DeskIcon(DeskIconKind.ChevronDown, 13.dp, industry.neutral600)
                 }
                 DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
                     choices.forEach { choice ->
@@ -496,10 +502,10 @@ private fun DeskStatusChanger(
                 fontSize = 13.sp,
                 letterSpacing = 0.06.em,
                 maxLines = 1,
-                color = if (resolved.isBlank()) Industry.neutral500 else Color.White,
+                color = if (resolved.isBlank()) industry.neutral500 else Color.White,
                 modifier = Modifier
                     .clip(DeskStyle.controlShape)
-                    .background(if (resolved.isBlank()) Industry.neutral200 else Industry.accent)
+                    .background(if (resolved.isBlank()) industry.neutral200 else industry.accent)
                     .clickable(enabled = resolved.isNotBlank()) { onChange(resolved) }
                     .padding(horizontal = 16.dp, vertical = 9.dp),
             )
@@ -509,17 +515,17 @@ private fun DeskStatusChanger(
                 value = custom,
                 onValueChange = { custom = it.take(60) },
                 singleLine = true,
-                textStyle = TextStyle(fontSize = 12.5.sp, color = Industry.text),
-                cursorBrush = SolidColor(Industry.accent),
+                textStyle = TextStyle(fontSize = 12.5.sp, color = industry.text),
+                cursorBrush = SolidColor(industry.accent),
                 decorationBox = { inner ->
                     Box(
                         Modifier
                             .background(DeskStyle.cardFill, DeskStyle.controlShape)
-                            .border(1.dp, Industry.neutral400, DeskStyle.controlShape)
+                            .border(1.dp, industry.neutral400, DeskStyle.controlShape)
                             .padding(horizontal = 10.dp, vertical = 8.dp),
                     ) {
                         if (custom.isEmpty()) {
-                            Text("Custom status text", fontSize = 12.5.sp, color = Industry.neutral500)
+                            Text("Custom status text", fontSize = 12.5.sp, color = industry.neutral500)
                         }
                         inner()
                     }
@@ -535,6 +541,8 @@ private fun DeskStatusChanger(
 /** The outcome grid: three across, so five buttons read as one block. */
 @Composable
 private fun OutcomeGrid(outcome: String, onOutcome: (String) -> Unit) {
+    val industry = LocalIndustry.current
+    val dark = LocalDarkTheme.current
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         CALL_OUTCOMES.chunked(3).forEach { row ->
             Row(
@@ -543,7 +551,7 @@ private fun OutcomeGrid(outcome: String, onOutcome: (String) -> Unit) {
             ) {
                 row.forEach { label ->
                     val on = outcome == label
-                    val (bg, fg) = statusColors(deskCallTone(label), dark = false)
+                    val (bg, fg) = statusColors(deskCallTone(label), dark = dark)
                     Box(
                         Modifier
                             .weight(1f)
@@ -552,7 +560,7 @@ private fun OutcomeGrid(outcome: String, onOutcome: (String) -> Unit) {
                             .background(if (on) bg else Color.Transparent)
                             .border(
                                 if (on) 1.5.dp else 1.dp,
-                                if (on) fg else Industry.neutral300,
+                                if (on) fg else industry.neutral300,
                                 DeskStyle.controlShape,
                             )
                             .clickable { onOutcome(label) },
@@ -564,7 +572,7 @@ private fun OutcomeGrid(outcome: String, onOutcome: (String) -> Unit) {
                             fontWeight = if (on) FontWeight.Medium else FontWeight.Normal,
                             textAlign = TextAlign.Center,
                             maxLines = 1,
-                            color = if (on) fg else Industry.neutral700,
+                            color = if (on) fg else industry.neutral700,
                         )
                     }
                 }
@@ -577,23 +585,24 @@ private fun OutcomeGrid(outcome: String, onOutcome: (String) -> Unit) {
 /** Device-local note — never sent, never logged. */
 @Composable
 private fun NoteField(name: String, note: String, onNote: (String) -> Unit) {
+    val industry = LocalIndustry.current
     BasicTextField(
         value = note,
         onValueChange = { onNote(it.take(200)) },
-        textStyle = TextStyle(fontSize = 12.5.sp, color = Industry.text),
-        cursorBrush = SolidColor(Industry.accent),
+        textStyle = TextStyle(fontSize = 12.5.sp, color = industry.text),
+        cursorBrush = SolidColor(industry.accent),
         decorationBox = { inner ->
             Box(
                 Modifier
                     .background(DeskStyle.cardFill, DeskStyle.controlShape)
-                    .border(1.dp, Industry.neutral300, DeskStyle.controlShape)
+                    .border(1.dp, industry.neutral300, DeskStyle.controlShape)
                     .padding(horizontal = 10.dp, vertical = 9.dp),
             ) {
                 if (note.isEmpty()) {
                     Text(
                         "Note (this tablet only)",
                         fontSize = 12.5.sp,
-                        color = Industry.neutral500,
+                        color = industry.neutral500,
                     )
                 }
                 inner()

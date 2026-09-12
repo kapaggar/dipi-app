@@ -52,7 +52,10 @@ import org.dhamma.dipi.staff.model.RoomSyncFailure
 import org.dhamma.dipi.staff.ui.theme.DeskStyle
 import org.dhamma.dipi.staff.ui.theme.DipiCondensed
 import org.dhamma.dipi.staff.ui.theme.DipiMono
-import org.dhamma.dipi.staff.ui.theme.Industry
+import org.dhamma.dipi.staff.ui.theme.LocalDarkTheme
+import org.dhamma.dipi.staff.ui.theme.LocalDipi
+import org.dhamma.dipi.staff.ui.theme.LocalDeskColors
+import org.dhamma.dipi.staff.ui.theme.LocalIndustry
 import org.dhamma.dipi.staff.ui.theme.deskCard
 
 /**
@@ -165,13 +168,14 @@ private fun RoomBlock(
     occupantByRoom: Map<String, List<ApplicantCard>>,
     readOnly: Boolean,
 ) {
+    val industry = LocalIndustry.current
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         val free = block.count { it.code !in occupantByRoom }
         val occupied = block.size - free
         Column(
             Modifier
                 .fillMaxWidth()
-                .bottomHairline(Industry.neutral400)
+                .bottomHairline(industry.neutral400)
                 .padding(bottom = 7.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
@@ -181,7 +185,7 @@ private fun RoomBlock(
                 fontWeight = FontWeight.Bold,
                 fontSize = 22.sp,
                 lineHeight = 22.sp,
-                color = Industry.text,
+                color = industry.text,
             )
             // The ratio is why the registrar opened this pane, so it leads at
             // the same weight as a Board stat — not as a 12sp grey sub-line.
@@ -191,7 +195,7 @@ private fun RoomBlock(
                 fontWeight = FontWeight.SemiBold,
                 fontSize = 21.sp,
                 lineHeight = 22.sp,
-                color = Industry.text,
+                color = industry.text,
                 modifier = Modifier.testTag("room-block-ratio"),
             )
             OccupancyBar(occupied, block.size)
@@ -206,7 +210,7 @@ private fun RoomBlock(
                     .fillMaxWidth()
                     .height(IntrinsicSize.Max)
                     .clip(DeskStyle.tileShape)
-                    .background(if (i % 2 == 1) Industry.neutral100 else Color.Transparent),
+                    .background(if (i % 2 == 1) industry.neutral100 else Color.Transparent),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.Top,
             ) {
@@ -232,6 +236,7 @@ private fun RoomBlock(
  */
 @Composable
 private fun RoomPullButton(busy: Boolean, enabled: Boolean, onClick: () -> Unit) {
+    val industry = LocalIndustry.current
     Text(
         (if (busy) "Pulling…" else "Pull from server").uppercase(),
         fontFamily = DipiCondensed,
@@ -239,12 +244,12 @@ private fun RoomPullButton(busy: Boolean, enabled: Boolean, onClick: () -> Unit)
         fontSize = 14.sp,
         letterSpacing = 0.06.em,
         maxLines = 1,
-        color = if (enabled) Industry.accent else Industry.neutral600,
+        color = if (enabled) industry.accent else industry.neutral600,
         modifier = Modifier
             .deskCard(
                 shape = DeskStyle.controlShape,
                 fill = DeskStyle.cardFill,
-                border = if (enabled) Industry.accent else Industry.neutral400,
+                border = if (enabled) industry.accent else industry.neutral400,
             )
             .clickable(enabled = enabled, onClick = onClick)
             .padding(horizontal = 22.dp, vertical = 10.dp),
@@ -257,6 +262,9 @@ private fun RoomPullButton(busy: Boolean, enabled: Boolean, onClick: () -> Unit)
  */
 @Composable
 private fun RoomSyncButton(pending: Int, busy: Boolean, enabled: Boolean, onClick: () -> Unit) {
+    val industry = LocalIndustry.current
+    val dark = LocalDarkTheme.current
+    val dipi = LocalDipi.current
     Text(
         (if (busy) "Syncing…" else "Sync $pending to server").uppercase(),
         fontFamily = DipiCondensed,
@@ -268,8 +276,8 @@ private fun RoomSyncButton(pending: Int, busy: Boolean, enabled: Boolean, onClic
         modifier = Modifier
             .deskCard(
                 shape = DeskStyle.controlShape,
-                fill = if (!enabled) Industry.neutral400 else if (busy) Industry.accent700 else Industry.accent,
-                border = if (busy) Industry.accent700 else Industry.accent,
+                fill = if (!enabled) industry.neutral400 else if (busy && dark) dipi.accentPressed else if (busy) industry.accent700 else industry.accent,
+                border = if (busy && dark) dipi.accentPressed else if (busy) industry.accent700 else industry.accent,
             )
             .clickable(enabled = enabled, onClick = onClick)
             .padding(horizontal = 22.dp, vertical = 10.dp),
@@ -279,11 +287,12 @@ private fun RoomSyncButton(pending: Int, busy: Boolean, enabled: Boolean, onClic
 /** Per-row refusals from the last sync run: name + the server's reason, verbatim. */
 @Composable
 private fun SyncRefusals(roll: List<ApplicantCard>, failures: List<RoomSyncFailure>) {
+    val industry = LocalIndustry.current
     Column(
         Modifier
             .fillMaxWidth()
             .padding(top = 8.dp)
-            .deskCard(border = Industry.accent, elevation = 0.dp)
+            .deskCard(border = industry.accent, elevation = 0.dp)
             .padding(horizontal = 14.dp, vertical = 10.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
@@ -293,7 +302,7 @@ private fun SyncRefusals(roll: List<ApplicantCard>, failures: List<RoomSyncFailu
             fontWeight = FontWeight.SemiBold,
             fontSize = 10.sp,
             letterSpacing = 0.1.em,
-            color = Industry.accent700,
+            color = industry.accent700,
         )
         failures.forEach { failure ->
             val name = roll.firstOrNull { it.id == failure.id }?.displayName
@@ -303,13 +312,13 @@ private fun SyncRefusals(roll: List<ApplicantCard>, failures: List<RoomSyncFailu
                     name,
                     fontSize = 12.5.sp,
                     fontWeight = FontWeight.Medium,
-                    color = Industry.text,
+                    color = industry.text,
                     modifier = Modifier.weight(1f),
                 )
                 Text(
                     failure.reason,
                     fontSize = 12.sp,
-                    color = Industry.neutral600,
+                    color = industry.neutral600,
                 )
             }
         }
@@ -330,6 +339,9 @@ private fun RoomCell(
     compactRow: Boolean,
     modifier: Modifier = Modifier,
 ) {
+    val industry = LocalIndustry.current
+    val dark = LocalDarkTheme.current
+    val dipi = LocalDipi.current
     val who = occupant.orEmpty()
     val taken = who.isNotEmpty()
     val isNew = taken && who.any { !it.oldStudent }
@@ -341,12 +353,12 @@ private fun RoomCell(
             .fillMaxHeight()
             .then(
                 if (taken) {
-                    Modifier.roomChartOutline(Industry.accent100, Industry.accent, dashed = isNew)
+                    Modifier.roomChartOutline(industry.accent100, industry.accent, dashed = isNew)
                 } else {
                     Modifier.deskCard(
                         shape = DeskStyle.tileShape,
-                        fill = FreeCellFill,
-                        border = FreeCellHairline,
+                        fill = LocalDeskColors.current.subtleSurface,
+                        border = if (dark) dipi.hairline else FreeCellHairline,
                         elevation = 0.dp,
                     )
                 },
@@ -380,7 +392,7 @@ private fun RoomCell(
                     lineHeight = 20.sp,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    color = if (taken) Industry.accent800 else Industry.neutral400,
+                    color = if (taken) industry.accent800 else industry.neutral400,
                 )
                 if (room.amenityMark.isNotBlank()) {
                     Text(
@@ -390,7 +402,7 @@ private fun RoomCell(
                         fontSize = 9.5.sp,
                         lineHeight = 12.sp,
                         letterSpacing = 0.1.em,
-                        color = if (taken) Industry.accent500 else Industry.neutral300,
+                        color = if (taken) industry.accent500 else industry.neutral300,
                         modifier = Modifier.padding(start = 6.dp),
                     )
                 }
@@ -410,7 +422,7 @@ private fun RoomCell(
                             lineHeight = 15.sp,
                             maxLines = 2,
                             overflow = TextOverflow.Ellipsis,
-                            color = Industry.neutral700,
+                            color = industry.neutral700,
                         )
                     }
                 }
@@ -424,6 +436,7 @@ private fun RoomCell(
 
 @Composable
 private fun BoxScope.AgeCorner(ages: List<Int>) {
+    val industry = LocalIndustry.current
     Column(
         Modifier
             .align(Alignment.TopEnd)
@@ -436,7 +449,7 @@ private fun BoxScope.AgeCorner(ages: List<Int>) {
                 years.toString(),
                 fontSize = 12.sp,
                 lineHeight = 14.sp,
-                color = Industry.neutral600,
+                color = industry.neutral600,
             )
         }
     }
@@ -474,9 +487,6 @@ private fun Modifier.roomChartOutline(
         )
     }
 
-/** Near-white ground for a free cell — emptiness reads as absence of ink. */
-private val FreeCellFill = Color(0xFFFAFAFB)
-
 /** The nearly-invisible hairline a free cell carries instead of a card border. */
 private val FreeCellHairline = Color(0xFFEDEDF1)
 
@@ -497,19 +507,23 @@ private val AgeReserveTop = 22.dp
 /** Border samples once above the grid: solid Old, short-dashed New, faint Available. */
 @Composable
 private fun OccupancyTypeLegend() {
+    val industry = LocalIndustry.current
     Row(
         Modifier.testTag("room-chart-type-legend"),
         horizontalArrangement = Arrangement.spacedBy(16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        TypeLegendItem("Old", fill = Industry.accent100, border = Industry.accent, dashed = false)
-        TypeLegendItem("New", fill = Industry.accent100, border = Industry.accent, dashed = true)
-        TypeLegendItem("Available", fill = FreeCellFill, border = FreeCellHairline, dashed = false)
+        TypeLegendItem("Old", fill = industry.accent100, border = industry.accent, dashed = false)
+        TypeLegendItem("New", fill = industry.accent100, border = industry.accent, dashed = true)
+        TypeLegendItem("Available", fill = LocalDeskColors.current.subtleSurface, border = FreeCellHairline, dashed = false)
     }
 }
 
 @Composable
 private fun TypeLegendItem(label: String, fill: Color, border: Color, dashed: Boolean) {
+    val industry = LocalIndustry.current
+    val dark = LocalDarkTheme.current
+    val resolvedBorder = if (border == FreeCellHairline && dark) LocalDipi.current.hairline else border
     Row(
         horizontalArrangement = Arrangement.spacedBy(6.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -521,13 +535,13 @@ private fun TypeLegendItem(label: String, fill: Color, border: Color, dashed: Bo
                     if (border == FreeCellHairline) {
                         Modifier
                             .background(fill, RoundedCornerShape(3.dp))
-                            .border(1.dp, border, RoundedCornerShape(3.dp))
+                            .border(1.dp, resolvedBorder, RoundedCornerShape(3.dp))
                     } else {
                         Modifier.roomChartOutline(fill, border, dashed = dashed, corner = 3.dp)
                     },
                 ),
         )
-        Text(label, fontSize = 12.sp, color = Industry.neutral600)
+        Text(label, fontSize = 12.sp, color = industry.neutral600)
     }
 }
 
@@ -537,6 +551,7 @@ private fun TypeLegendItem(label: String, fill: Color, border: Color, dashed: Bo
  */
 @Composable
 private fun OccupancyBar(occupied: Int, total: Int) {
+    val industry = LocalIndustry.current
     if (total <= 0) return
     val fraction = (occupied.toFloat() / total).coerceIn(0f, 1f)
     Box(
@@ -544,7 +559,7 @@ private fun OccupancyBar(occupied: Int, total: Int) {
             .width(280.dp)
             .height(6.dp)
             .clip(RoundedCornerShape(3.dp))
-            .background(Industry.neutral200)
+            .background(industry.neutral200)
             .testTag("room-occupancy-bar"),
     ) {
         if (fraction > 0f) {
@@ -552,7 +567,7 @@ private fun OccupancyBar(occupied: Int, total: Int) {
                 Modifier
                     .fillMaxHeight()
                     .fillMaxWidth(fraction)
-                    .background(Industry.accent400),
+                    .background(industry.accent400),
             )
         }
     }
@@ -561,6 +576,7 @@ private fun OccupancyBar(occupied: Int, total: Int) {
 /** `G` geyser · `IC` Indian · `W` western — the marks the cells now carry alone. */
 @Composable
 private fun AmenityLegend() {
+    val industry = LocalIndustry.current
     Row(
         Modifier.padding(top = 2.dp).testTag("room-amenity-legend"),
         horizontalArrangement = Arrangement.spacedBy(14.dp),
@@ -574,9 +590,9 @@ private fun AmenityLegend() {
                     fontWeight = FontWeight.Medium,
                     fontSize = 9.5.sp,
                     letterSpacing = 0.1.em,
-                    color = Industry.accent500,
+                    color = industry.accent500,
                 )
-                Text(meaning, fontSize = 11.5.sp, color = Industry.neutral500)
+                Text(meaning, fontSize = 11.5.sp, color = industry.neutral500)
             }
         }
     }

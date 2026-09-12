@@ -74,7 +74,7 @@ fun LotusWatermark(
     size: Dp,
     opacity: Float,
     modifier: Modifier = Modifier,
-    skin: DeskSkin = Industry.skin,
+    skin: DeskSkin = LocalDeskSkin.current,
 ) {
     val filter = remember(skin) { skin.markColorFilter() }
     Image(

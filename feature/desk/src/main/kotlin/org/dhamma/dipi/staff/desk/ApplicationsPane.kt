@@ -49,7 +49,8 @@ import org.dhamma.dipi.staff.ui.theme.DeskKicker
 import org.dhamma.dipi.staff.ui.theme.DeskStyle
 import org.dhamma.dipi.staff.ui.theme.DipiCondensed
 import org.dhamma.dipi.staff.ui.theme.DipiMono
-import org.dhamma.dipi.staff.ui.theme.Industry
+import org.dhamma.dipi.staff.ui.theme.LocalIndustry
+import org.dhamma.dipi.staff.ui.theme.LocalDarkTheme
 import org.dhamma.dipi.staff.ui.theme.deskCard
 import org.dhamma.dipi.staff.ui.theme.statusColors
 
@@ -83,6 +84,7 @@ fun ApplicationsPane(
     onExpandHistory: (ApplicantId, String) -> Unit = { _, _ -> },
     onOpenClarification: (ApplicantId, Int) -> Unit = { _, _ -> },
 ) {
+    val industry = LocalIndustry.current
     val scoped = deskScoped(rows, deskGenderScope(gender), deskSeniorityScope(seniority))
     val selected = scoped.firstOrNull { it.id == selectedId } ?: scoped.firstOrNull()
     val chipCounts = counts.filterKeys { it != "All" }.toList()
@@ -93,7 +95,7 @@ fun ApplicationsPane(
             Modifier
                 .width(396.dp)
                 .fillMaxHeight()
-                .rightHairline(Industry.neutral300),
+                .rightHairline(industry.neutral300),
         ) {
             if (chipCounts.isNotEmpty()) {
                 StatusChipRow(chipCounts, selectedStatuses, onToggleStatus)
@@ -105,7 +107,7 @@ fun ApplicationsPane(
                 onSeniority,
                 Modifier
                     .fillMaxWidth()
-                    .bottomHairline(Industry.neutral200)
+                    .bottomHairline(industry.neutral200)
                     .padding(horizontal = 18.dp, vertical = 8.dp),
             )
             LazyColumn(Modifier.weight(1f)) {
@@ -152,10 +154,11 @@ private fun StatusChipRow(
     selected: Set<String>,
     onToggle: (String) -> Unit,
 ) {
+    val industry = LocalIndustry.current
     FlowRow(
         Modifier
             .fillMaxWidth()
-            .bottomHairline(Industry.neutral200)
+            .bottomHairline(industry.neutral200)
             .padding(horizontal = 18.dp, vertical = 10.dp),
         horizontalArrangement = Arrangement.spacedBy(6.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
@@ -169,11 +172,12 @@ private fun StatusChipRow(
 
 @Composable
 private fun StatusChip(label: String, count: Int?, on: Boolean, onClick: () -> Unit) {
+    val industry = LocalIndustry.current
     Row(
         Modifier
             .clip(DeskStyle.controlShape)
-            .border(1.dp, if (on) Industry.accent else Industry.neutral400, DeskStyle.controlShape)
-            .background(if (on) Industry.accent100 else Color.Transparent)
+            .border(1.dp, if (on) industry.accent else industry.neutral400, DeskStyle.controlShape)
+            .background(if (on) industry.accent100 else Color.Transparent)
             .clickable(onClick = onClick)
             .semantics { contentDescription = "Filter $label" }
             .padding(horizontal = 10.dp, vertical = 5.dp),
@@ -185,7 +189,7 @@ private fun StatusChip(label: String, count: Int?, on: Boolean, onClick: () -> U
             fontSize = 11.5.sp,
             fontWeight = FontWeight.Medium,
             maxLines = 1,
-            color = if (on) Industry.accent800 else Industry.neutral700,
+            color = if (on) industry.accent800 else industry.neutral700,
         )
         if (count != null) {
             Text(
@@ -193,7 +197,7 @@ private fun StatusChip(label: String, count: Int?, on: Boolean, onClick: () -> U
                 fontFamily = DipiMono,
                 fontWeight = FontWeight.Medium,
                 fontSize = 11.sp,
-                color = if (on) Industry.accent700 else Industry.neutral500,
+                color = if (on) industry.accent700 else industry.neutral500,
             )
         }
     }
@@ -207,10 +211,11 @@ private fun AppListRow(
     selected: Boolean,
     onClick: () -> Unit,
 ) {
+    val industry = LocalIndustry.current
     val hard = flags.any { it.severity != AuditSeverity.SOFT }
     val dot = when {
-        hard -> Industry.accent
-        flags.isNotEmpty() -> Industry.neutral400
+        hard -> industry.accent
+        flags.isNotEmpty() -> industry.neutral400
         else -> Color.Transparent
     }
     // Sleek pass: the selected row is a rounded accent-tinted highlight
@@ -219,10 +224,10 @@ private fun AppListRow(
         Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .bottomHairline(Industry.neutral200)
+            .bottomHairline(industry.neutral200)
             .padding(horizontal = 8.dp, vertical = 3.dp)
             .clip(DeskStyle.controlShape)
-            .background(if (selected) Industry.accent100 else Color.Transparent)
+            .background(if (selected) industry.accent100 else Color.Transparent)
             .padding(horizontal = 10.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -235,7 +240,7 @@ private fun AppListRow(
                     fontWeight = FontWeight.Medium,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    color = Industry.text,
+                    color = industry.text,
                 )
                 Box(Modifier.size(5.dp).clip(CircleShape).background(dot))
                 if (health) {
@@ -246,7 +251,7 @@ private fun AppListRow(
                         fontFamily = DipiMono,
                         fontWeight = FontWeight.SemiBold,
                         fontSize = 11.5.sp,
-                        color = Industry.accent,
+                        color = industry.accent,
                         modifier = Modifier.semantics { contentDescription = "Health disclosures for ${card.displayName}" },
                     )
                 }
@@ -257,7 +262,7 @@ private fun AppListRow(
                 fontSize = 11.5.sp,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                color = Industry.neutral600,
+                color = industry.neutral600,
             )
         }
         Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(3.dp)) {
@@ -266,7 +271,7 @@ private fun AppListRow(
                 fontFamily = DipiMono,
                 fontWeight = FontWeight.Medium,
                 fontSize = 11.5.sp,
-                color = Industry.neutral500,
+                color = industry.neutral500,
             )
             StatusPill(card, fontSize = 10.5f)
         }
@@ -279,7 +284,8 @@ private fun AppListRow(
  */
 @Composable
 private fun StatusPill(card: ApplicantCard, fontSize: Float) {
-    val (bg, fg) = statusColors(card.status.tone, dark = false)
+    val industry = LocalIndustry.current
+    val (bg, fg) = statusColors(card.status.tone, dark = LocalDarkTheme.current)
     Text(
         card.status.value,
         fontSize = fontSize.sp,
@@ -308,6 +314,7 @@ private fun AppDetail(
     onOpenClarification: (ApplicantId, Int) -> Unit = { _, _ -> },
     modifier: Modifier = Modifier,
 ) {
+    val industry = LocalIndustry.current
     Column(modifier.fillMaxHeight()) {
         Column(
             Modifier
@@ -326,7 +333,7 @@ private fun AppDetail(
                         fontWeight = FontWeight.Bold,
                         fontSize = 32.sp,
                         lineHeight = 33.sp,
-                        color = Industry.text,
+                        color = industry.text,
                     )
                     Text(
                         listOfNotNull(
@@ -337,7 +344,7 @@ private fun AppDetail(
                                 .ifBlank { null },
                         ).joinToString(" · "),
                         fontSize = 14.sp,
-                        color = Industry.neutral700,
+                        color = industry.neutral700,
                     )
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         StatusPill(card, fontSize = 11.5f)
@@ -346,13 +353,13 @@ private fun AppDetail(
                             fontFamily = DipiMono,
                             fontWeight = FontWeight.Medium,
                             fontSize = 12.sp,
-                            color = Industry.neutral600,
+                            color = industry.neutral600,
                         )
                     }
                     Text(
                         courseCountsLine(card) ?: historyLine(card),
                         fontSize = 12.sp,
-                        color = Industry.neutral600,
+                        color = industry.neutral600,
                     )
                 }
             }
@@ -367,14 +374,14 @@ private fun AppDetail(
             Column(
                 Modifier
                     .fillMaxWidth()
-                    .deskCard(border = Industry.accent, elevation = 0.dp)
+                    .deskCard(border = industry.accent, elevation = 0.dp)
                     .padding(horizontal = 15.dp, vertical = 13.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 DeskKicker(
                     if (flags.isEmpty()) "AUDIT CLEAN · NOTHING TO FIX"
                     else "NEEDS ATTENTION · ${flags.size}",
-                    Industry.accent700,
+                    industry.accent700,
                 )
                 flags.forEach { flag ->
                     Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
@@ -382,20 +389,20 @@ private fun AppDetail(
                             flag.label,
                             fontSize = 13.5.sp,
                             fontWeight = FontWeight.Medium,
-                            color = Industry.text,
+                            color = industry.text,
                         )
                         Text(
                             flag.detail,
                             fontFamily = DipiMono,
                             fontWeight = FontWeight.Medium,
                             fontSize = 11.sp,
-                            color = Industry.neutral600,
+                            color = industry.neutral600,
                         )
                     }
                 }
             }
 
-            Column(Modifier.fillMaxWidth().topHairline(Industry.neutral300)) {
+            Column(Modifier.fillMaxWidth().topHairline(industry.neutral300)) {
                 FactRow("Mobile", card.mobile ?: "-")
                 FactRow("Email", card.email ?: "-")
                 FactRow("Date of birth", card.dob ?: "-")
@@ -412,7 +419,7 @@ private fun AppDetail(
         Row(
             Modifier
                 .fillMaxWidth()
-                .topHairline(Industry.neutral300)
+                .topHairline(industry.neutral300)
                 .padding(horizontal = 26.dp, vertical = 16.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
@@ -438,6 +445,7 @@ private sealed interface DetailPhotoState {
  */
 @Composable
 private fun DetailPhoto(card: ApplicantCard, loadPhoto: suspend (ApplicantId) -> ImageBitmap?) {
+    val industry = LocalIndustry.current
     val photo by produceState<DetailPhotoState>(DetailPhotoState.Loading, card.id) {
         value = DetailPhotoState.Loading
         value = loadPhoto(card.id)?.let { DetailPhotoState.Ready(it) } ?: DetailPhotoState.Missing
@@ -445,7 +453,7 @@ private fun DetailPhoto(card: ApplicantCard, loadPhoto: suspend (ApplicantId) ->
     Box(
         Modifier
             .size(170.dp, 183.dp)
-            .deskCard(fill = Industry.neutral100, elevation = 0.dp),
+            .deskCard(fill = industry.neutral100, elevation = 0.dp),
         contentAlignment = Alignment.Center,
     ) {
         when (val p = photo) {
@@ -460,7 +468,7 @@ private fun DetailPhoto(card: ApplicantCard, loadPhoto: suspend (ApplicantId) ->
                 fontFamily = DipiCondensed,
                 fontWeight = FontWeight.Bold,
                 fontSize = 30.sp,
-                color = if (photo is DetailPhotoState.Loading) Industry.neutral400 else Industry.neutral500,
+                color = if (photo is DetailPhotoState.Loading) industry.neutral400 else industry.neutral500,
             )
         }
     }
@@ -473,6 +481,7 @@ private fun DetailPhoto(card: ApplicantCard, loadPhoto: suspend (ApplicantId) ->
  */
 @Composable
 private fun IdVerificationBlock(sensitive: SensitiveInfo?) {
+    val industry = LocalIndustry.current
     Column(
         Modifier
             .fillMaxWidth()
@@ -480,7 +489,7 @@ private fun IdVerificationBlock(sensitive: SensitiveInfo?) {
             .padding(horizontal = 15.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(7.dp),
     ) {
-        DeskKicker("ID VERIFICATION", Industry.neutral500)
+        DeskKicker("ID VERIFICATION", industry.neutral500)
         val label = sensitive?.idLabel
         val number = sensitive?.idNumber
         if (label != null && number != null) {
@@ -492,18 +501,18 @@ private fun IdVerificationBlock(sensitive: SensitiveInfo?) {
                     label,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Medium,
-                    color = Industry.text,
+                    color = industry.text,
                 )
                 Text(
                     number,
                     fontFamily = DipiMono,
                     fontWeight = FontWeight.SemiBold,
                     fontSize = 19.sp,
-                    color = Industry.text,
+                    color = industry.text,
                 )
             }
         } else {
-            Text("No ID on file", fontSize = 13.sp, color = Industry.neutral500)
+            Text("No ID on file", fontSize = 13.sp, color = industry.neutral500)
         }
     }
 }
@@ -514,27 +523,28 @@ private fun IdVerificationBlock(sensitive: SensitiveInfo?) {
  */
 @Composable
 private fun HealthPanel(health: Map<String, String>) {
+    val industry = LocalIndustry.current
     Column(
         Modifier
             .fillMaxWidth()
-            .deskCard(fill = Industry.accent100, border = Industry.accent, elevation = 0.dp)
+            .deskCard(fill = industry.accent100, border = industry.accent, elevation = 0.dp)
             .padding(horizontal = 15.dp, vertical = 13.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        DeskKicker("HEALTH · VERIFY WITH APPLICANT", Industry.accent700)
+        DeskKicker("HEALTH · VERIFY WITH APPLICANT", industry.accent700)
         health.forEach { (label, text) ->
             Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
                 Text(
                     label,
                     fontSize = 13.5.sp,
                     fontWeight = FontWeight.Medium,
-                    color = Industry.text,
+                    color = industry.text,
                 )
                 Text(
                     text,
                     fontSize = 13.sp,
                     lineHeight = 18.sp,
-                    color = Industry.neutral800,
+                    color = industry.neutral800,
                 )
             }
         }
@@ -543,15 +553,16 @@ private fun HealthPanel(health: Map<String, String>) {
 
 @Composable
 private fun FactRow(key: String, value: String) {
+    val industry = LocalIndustry.current
     Row(
         Modifier
             .fillMaxWidth()
-            .bottomHairline(Industry.neutral200)
+            .bottomHairline(industry.neutral200)
             .padding(vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(key, fontSize = 12.5.sp, color = Industry.neutral600, modifier = Modifier.weight(1f))
-        Text(value, fontSize = 13.sp, color = Industry.text)
+        Text(key, fontSize = 12.5.sp, color = industry.neutral600, modifier = Modifier.weight(1f))
+        Text(value, fontSize = 13.sp, color = industry.text)
     }
 }
 

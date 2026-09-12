@@ -87,6 +87,32 @@ data class IndustryPalette(
             accent900 = Color(0xFF1D2D3D),
         )
 
+        /** The fixed Steel token block rendered by every saved skin in Dark mode. */
+        val SteelNight = IndustryPalette(
+            bg = Color(0xFF14171A),
+            surface = Color(0xFF1A1E22),
+            text = Color(0xFFE4E6E9),
+            neutral100 = Color(0xFF1A1E22),
+            neutral200 = Color(0xFF22272C),
+            neutral300 = Color(0xFF2E3339),
+            neutral400 = Color(0xFF3A4046),
+            neutral500 = Color(0xFF6B7278),
+            neutral600 = Color(0xFF9BA1A8),
+            neutral700 = Color(0xFFC0C7CD),
+            neutral800 = Color(0xFFD4D8DC),
+            neutral900 = Color(0xFFE4E6E9),
+            accent = Color(0xFF5980A6),
+            accent100 = Color(0xFF1D2D3D),
+            accent200 = Color(0xFF22384C),
+            accent300 = Color(0xFF2C455D),
+            accent400 = Color(0xFF416180),
+            accent500 = Color(0xFF749DC4),
+            accent600 = Color(0xFF94BCE3),
+            accent700 = Color(0xFFB5D9FD),
+            accent800 = Color(0xFFB5D9FD),
+            accent900 = Color(0xFFD6EBFF),
+        )
+
         /**
          * `.sk-paper/.sk-blossom/.sk-pond/.sk-still` — the OKLCH ladder from
          * the design's CSS, verbatim: same lightness steps, chroma factors
@@ -123,6 +149,10 @@ data class IndustryPalette(
         }
     }
 }
+
+/** Resolves the palette consumers render; [Industry] continues to hold the saved Light choice. */
+fun effectiveIndustry(saved: IndustryPalette, dark: Boolean): IndustryPalette =
+    if (dark) IndustryPalette.SteelNight else saved
 
 /**
  * OKLCH → sRGB (Björn Ottosson's OKLab, D65). Out-of-gamut components are

@@ -28,7 +28,7 @@ import org.dhamma.dipi.staff.model.SpecialRow
 import org.dhamma.dipi.staff.ui.theme.DeskStyle
 import org.dhamma.dipi.staff.ui.theme.DipiCondensed
 import org.dhamma.dipi.staff.ui.theme.DipiMono
-import org.dhamma.dipi.staff.ui.theme.Industry
+import org.dhamma.dipi.staff.ui.theme.LocalIndustry
 import org.dhamma.dipi.staff.ui.theme.deskCard
 
 /**
@@ -70,6 +70,7 @@ fun DaySummaryPane(
  */
 @Composable
 private fun HeadlineCard(summary: DaySummary) {
+    val industry = LocalIndustry.current
     val confirmed = summary.confirmed.total.total
     val attended = summary.attended.total.total
     Column(
@@ -90,12 +91,12 @@ private fun HeadlineCard(summary: DaySummary) {
                 fontFamily = DipiCondensed,
                 fontWeight = FontWeight.Bold,
                 fontSize = 34.sp,
-                color = Industry.neutral400,
+                color = industry.neutral400,
                 modifier = Modifier.padding(bottom = 12.dp),
             )
             HeadlineFigure("ATTENDED", attended)
         }
-        Box(Modifier.fillMaxWidth().height(1.dp).background(Industry.neutral300))
+        Box(Modifier.fillMaxWidth().height(1.dp).background(industry.neutral300))
         Row(
             horizontalArrangement = Arrangement.spacedBy(16.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -107,7 +108,7 @@ private fun HeadlineCard(summary: DaySummary) {
                     fontWeight = FontWeight.Medium,
                     fontSize = 9.sp,
                     letterSpacing = 0.17.em,
-                    color = Industry.neutral600,
+                    color = industry.neutral600,
                 )
                 Text(
                     "${summary.stillToArrive}",
@@ -115,7 +116,7 @@ private fun HeadlineCard(summary: DaySummary) {
                     fontWeight = FontWeight.Bold,
                     fontSize = 30.sp,
                     lineHeight = 32.sp,
-                    color = Industry.text,
+                    color = industry.text,
                     modifier = Modifier.testTag("day-summary-still-to-arrive"),
                 )
             }
@@ -124,7 +125,7 @@ private fun HeadlineCard(summary: DaySummary) {
                     "expected today and has not checked in yet.",
                 fontSize = 12.5.sp,
                 lineHeight = 17.sp,
-                color = Industry.neutral600,
+                color = industry.neutral600,
                 modifier = Modifier.weight(1f),
             )
         }
@@ -133,6 +134,7 @@ private fun HeadlineCard(summary: DaySummary) {
 
 @Composable
 private fun HeadlineFigure(label: String, value: Int) {
+    val industry = LocalIndustry.current
     Column {
         Text(
             label,
@@ -140,7 +142,7 @@ private fun HeadlineFigure(label: String, value: Int) {
             fontWeight = FontWeight.Medium,
             fontSize = 9.sp,
             letterSpacing = 0.17.em,
-            color = Industry.neutral600,
+            color = industry.neutral600,
         )
         Text(
             "$value",
@@ -149,7 +151,7 @@ private fun HeadlineFigure(label: String, value: Int) {
             fontSize = 62.sp,
             lineHeight = 64.sp,
             letterSpacing = (-0.02).em,
-            color = if (value == 0) Industry.neutral400 else Industry.accent800,
+            color = if (value == 0) industry.neutral400 else industry.accent800,
             modifier = Modifier.testTag("day-summary-figure-$label"),
         )
     }
@@ -162,6 +164,7 @@ private fun HeadlineFigure(label: String, value: Int) {
  */
 @Composable
 private fun RollMatrixCard(title: String, matrix: RollMatrix, tag: String) {
+    val industry = LocalIndustry.current
     Column(
         Modifier
             .fillMaxWidth()
@@ -175,7 +178,7 @@ private fun RollMatrixCard(title: String, matrix: RollMatrix, tag: String) {
             fontWeight = FontWeight.Medium,
             fontSize = 9.sp,
             letterSpacing = 0.17.em,
-            color = Industry.neutral600,
+            color = industry.neutral600,
             modifier = Modifier.padding(bottom = 10.dp),
         )
         Row(Modifier.fillMaxWidth().height(24.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -186,18 +189,19 @@ private fun RollMatrixCard(title: String, matrix: RollMatrix, tag: String) {
         }
         MatrixRow("Male", matrix.male)
         MatrixRow("Female", matrix.female)
-        Box(Modifier.fillMaxWidth().height(1.dp).background(Industry.neutral300))
+        Box(Modifier.fillMaxWidth().height(1.dp).background(industry.neutral300))
         MatrixRow("Total", matrix.total, emphasised = true)
     }
 }
 
 @Composable
 private fun MatrixColumnLabel(text: String, modifier: Modifier) {
+    val industry = LocalIndustry.current
     Box(
         modifier
             .height(24.dp)
             // The TOTAL column carries the band that follows it down the rows.
-            .background(if (text == "TOTAL") Industry.neutral200 else androidx.compose.ui.graphics.Color.Transparent),
+            .background(if (text == "TOTAL") industry.neutral200 else androidx.compose.ui.graphics.Color.Transparent),
         contentAlignment = Alignment.CenterEnd,
     ) {
         Text(
@@ -207,7 +211,7 @@ private fun MatrixColumnLabel(text: String, modifier: Modifier) {
             fontSize = 12.sp,
             letterSpacing = 0.1.em,
             // SEVAK sits outside the total, and reads that way.
-            color = if (text == "SEVAK") Industry.neutral600 else Industry.neutral500,
+            color = if (text == "SEVAK") industry.neutral600 else industry.neutral500,
             modifier = Modifier.padding(end = 8.dp),
         )
     }
@@ -215,13 +219,14 @@ private fun MatrixColumnLabel(text: String, modifier: Modifier) {
 
 @Composable
 private fun MatrixRow(label: String, row: DayRollRow, emphasised: Boolean = false) {
+    val industry = LocalIndustry.current
     val height = if (emphasised) 48.dp else 44.dp
     Row(Modifier.fillMaxWidth().height(height), verticalAlignment = Alignment.CenterVertically) {
         Text(
             label,
             fontSize = if (emphasised) 15.sp else 14.sp,
             fontWeight = if (emphasised) FontWeight.Medium else FontWeight.Normal,
-            color = Industry.text,
+            color = industry.text,
             modifier = Modifier.weight(1.6f),
         )
         MatrixFigure(row.old, Modifier.weight(1f), height)
@@ -241,10 +246,11 @@ private fun MatrixFigure(
     bold: Boolean = false,
     muted: Boolean = false,
 ) {
+    val industry = LocalIndustry.current
     Box(
         modifier
             .height(height)
-            .background(if (banded) Industry.neutral200 else androidx.compose.ui.graphics.Color.Transparent),
+            .background(if (banded) industry.neutral200 else androidx.compose.ui.graphics.Color.Transparent),
         contentAlignment = Alignment.CenterEnd,
     ) {
         Text(
@@ -253,9 +259,9 @@ private fun MatrixFigure(
             fontWeight = if (bold) FontWeight.SemiBold else FontWeight.Medium,
             fontSize = if (bold) 17.sp else 15.sp,
             color = when {
-                value == 0 -> Industry.neutral400
-                muted -> Industry.neutral600
-                else -> Industry.text
+                value == 0 -> industry.neutral400
+                muted -> industry.neutral600
+                else -> industry.text
             },
             modifier = Modifier.padding(end = 8.dp),
         )
@@ -270,6 +276,7 @@ private fun MatrixFigure(
  */
 @Composable
 private fun FacilitiesCard(summary: DaySummary) {
+    val industry = LocalIndustry.current
     Column(
         Modifier
             .fillMaxWidth()
@@ -284,7 +291,7 @@ private fun FacilitiesCard(summary: DaySummary) {
             fontWeight = FontWeight.Medium,
             fontSize = 9.sp,
             letterSpacing = 0.17.em,
-            color = Industry.neutral600,
+            color = industry.neutral600,
         )
         listOf(
             "Male" to summary.specialSeating.male,
@@ -298,7 +305,7 @@ private fun FacilitiesCard(summary: DaySummary) {
                 "No special seating requested.",
                 fontSize = 12.5.sp,
                 lineHeight = 17.sp,
-                color = Industry.neutral600,
+                color = industry.neutral600,
                 modifier = Modifier.testTag("day-summary-facilities-empty"),
             )
         }
@@ -307,12 +314,13 @@ private fun FacilitiesCard(summary: DaySummary) {
 
 @Composable
 private fun FacilitiesRow(label: String, row: SpecialRow, emphasised: Boolean) {
+    val industry = LocalIndustry.current
     Row(Modifier.fillMaxWidth().height(56.dp), verticalAlignment = Alignment.CenterVertically) {
         Text(
             label,
             fontSize = 14.sp,
             fontWeight = if (emphasised) FontWeight.Medium else FontWeight.Normal,
-            color = Industry.text,
+            color = industry.text,
             modifier = Modifier.weight(1.2f),
         )
         listOf("CHOWKY" to row.chowky, "CHAIR" to row.chair, "BACKREST" to row.backrest)
@@ -324,6 +332,7 @@ private fun FacilitiesRow(label: String, row: SpecialRow, emphasised: Boolean) {
 
 @Composable
 private fun FacilitiesCell(header: String, pair: OldNew, modifier: Modifier) {
+    val industry = LocalIndustry.current
     Column(modifier, verticalArrangement = Arrangement.spacedBy(2.dp)) {
         Text(
             header,
@@ -331,7 +340,7 @@ private fun FacilitiesCell(header: String, pair: OldNew, modifier: Modifier) {
             fontWeight = FontWeight.Medium,
             fontSize = 9.sp,
             letterSpacing = 0.14.em,
-            color = Industry.neutral500,
+            color = industry.neutral500,
         )
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             FacilitiesFigure("O", pair.old)
@@ -342,6 +351,7 @@ private fun FacilitiesCell(header: String, pair: OldNew, modifier: Modifier) {
 
 @Composable
 private fun FacilitiesFigure(marker: String, value: Int) {
+    val industry = LocalIndustry.current
     Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(3.dp)) {
         Text(
             "$value",
@@ -349,14 +359,14 @@ private fun FacilitiesFigure(marker: String, value: Int) {
             fontWeight = FontWeight.Medium,
             fontSize = 16.sp,
             lineHeight = 18.sp,
-            color = if (value == 0) Industry.neutral400 else Industry.text,
+            color = if (value == 0) industry.neutral400 else industry.text,
         )
         Text(
             marker,
             fontFamily = DipiMono,
             fontSize = 9.sp,
             lineHeight = 12.sp,
-            color = Industry.neutral400,
+            color = industry.neutral400,
             modifier = Modifier.padding(bottom = 2.dp),
         )
     }

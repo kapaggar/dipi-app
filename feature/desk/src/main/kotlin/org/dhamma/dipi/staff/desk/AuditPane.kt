@@ -30,7 +30,7 @@ import org.dhamma.dipi.staff.model.AuditSeverity
 import org.dhamma.dipi.staff.ui.theme.DeskStyle
 import org.dhamma.dipi.staff.ui.theme.DipiCondensed
 import org.dhamma.dipi.staff.ui.theme.DipiMono
-import org.dhamma.dipi.staff.ui.theme.Industry
+import org.dhamma.dipi.staff.ui.theme.LocalIndustry
 import org.dhamma.dipi.staff.ui.theme.deskCard
 
 /**
@@ -47,6 +47,7 @@ fun AuditPane(
     onBatch: (code: String, label: String) -> Unit,
     onOpen: (ApplicantCard) -> Unit,
 ) {
+    val industry = LocalIndustry.current
     val findings = deskFindings(flagged)
     val total = deskFindingCount(flagged)
     val selected = findings.firstOrNull { it.code == selectedCode } ?: findings.firstOrNull()
@@ -56,7 +57,7 @@ fun AuditPane(
             Modifier
                 .width(410.dp)
                 .fillMaxHeight()
-                .rightHairline(Industry.neutral300)
+                .rightHairline(industry.neutral300)
                 .verticalScroll(rememberScrollState())
                 .padding(20.dp),
         ) {
@@ -74,7 +75,7 @@ fun AuditPane(
                         fontWeight = FontWeight.SemiBold,
                         fontSize = 10.sp,
                         letterSpacing = 0.08.em,
-                        color = Industry.neutral500,
+                        color = industry.neutral500,
                         modifier = Modifier.padding(top = 6.dp),
                     )
                     section.forEach { finding ->
@@ -101,12 +102,13 @@ private fun severityBadge(finding: DeskFinding): String = when (finding.severity
 
 @Composable
 private fun FindingRow(finding: DeskFinding, on: Boolean, onSelect: (String) -> Unit) {
+    val industry = LocalIndustry.current
     Row(
         Modifier
             .fillMaxWidth()
             .deskCard(
-                fill = if (on) Industry.accent100 else DeskStyle.cardFill,
-                border = if (on) Industry.accent else DeskStyle.cardBorder,
+                fill = if (on) industry.accent100 else DeskStyle.cardFill,
+                border = if (on) industry.accent else DeskStyle.cardBorder,
             )
             .clickable { onSelect(finding.code) }
             .padding(horizontal = 13.dp, vertical = 11.dp),
@@ -118,14 +120,14 @@ private fun FindingRow(finding: DeskFinding, on: Boolean, onSelect: (String) -> 
                 fontSize = 13.5.sp,
                 lineHeight = 17.sp,
                 fontWeight = FontWeight.Medium,
-                color = Industry.text,
+                color = industry.text,
             )
             Text(
                 finding.code,
                 fontFamily = DipiMono,
                 fontWeight = FontWeight.Medium,
                 fontSize = 10.5.sp,
-                color = Industry.neutral500,
+                color = industry.neutral500,
             )
         }
         Column(horizontalAlignment = Alignment.End) {
@@ -135,7 +137,7 @@ private fun FindingRow(finding: DeskFinding, on: Boolean, onSelect: (String) -> 
                 fontWeight = FontWeight.Bold,
                 fontSize = 20.sp,
                 lineHeight = 20.sp,
-                color = Industry.accent800,
+                color = industry.accent800,
             )
             Text(
                 severityBadge(finding).uppercase(),
@@ -143,7 +145,7 @@ private fun FindingRow(finding: DeskFinding, on: Boolean, onSelect: (String) -> 
                 fontWeight = FontWeight.SemiBold,
                 fontSize = 9.5.sp,
                 letterSpacing = 0.1.em,
-                color = if (finding.mustFix) Industry.accent800 else Industry.neutral600,
+                color = if (finding.mustFix) industry.accent800 else industry.neutral600,
             )
         }
     }
@@ -156,6 +158,7 @@ private fun FindingDetail(
     onBatch: (code: String, label: String) -> Unit,
     onOpen: (ApplicantCard) -> Unit,
 ) {
+    val industry = LocalIndustry.current
     Column(
         modifier
             .fillMaxHeight()
@@ -167,7 +170,7 @@ private fun FindingDetail(
             fontFamily = DipiMono,
             fontWeight = FontWeight.Medium,
             fontSize = 11.sp,
-            color = Industry.accent700,
+            color = industry.accent700,
         )
         Text(
             selected.title,
@@ -175,13 +178,13 @@ private fun FindingDetail(
             fontWeight = FontWeight.Bold,
             fontSize = 28.sp,
             lineHeight = 30.sp,
-            color = Industry.text,
+            color = industry.text,
             modifier = Modifier.widthIn(max = 520.dp).padding(top = 3.dp),
         )
         Text(
             "${severityBadge(selected)} · ${selected.people.size} applications",
             fontSize = 12.5.sp,
-            color = Industry.neutral600,
+            color = industry.neutral600,
             modifier = Modifier.padding(top = 4.dp, bottom = 16.dp),
         )
 
@@ -192,8 +195,8 @@ private fun FindingDetail(
                     .padding(bottom = 20.dp)
                     .deskCard(
                         shape = DeskStyle.controlShape,
-                        fill = Industry.accent,
-                        border = Industry.accent,
+                        fill = industry.accent,
+                        border = industry.accent,
                     )
                     .clickable { onBatch(selected.code, batch) }
                     .padding(horizontal = 16.dp, vertical = 11.dp),
@@ -213,12 +216,12 @@ private fun FindingDetail(
             }
         }
 
-        Column(Modifier.fillMaxWidth().topHairline(Industry.neutral300)) {
+        Column(Modifier.fillMaxWidth().topHairline(industry.neutral300)) {
             selected.people.forEach { person ->
                 Row(
                     Modifier
                         .fillMaxWidth()
-                        .bottomHairline(Industry.neutral200)
+                        .bottomHairline(industry.neutral200)
                         .padding(vertical = 13.dp),
                     horizontalArrangement = Arrangement.spacedBy(16.dp),
                     verticalAlignment = Alignment.CenterVertically,
@@ -228,7 +231,7 @@ private fun FindingDetail(
                         fontFamily = DipiMono,
                         fontWeight = FontWeight.Medium,
                         fontSize = 12.5.sp,
-                        color = Industry.neutral600,
+                        color = industry.neutral600,
                         modifier = Modifier.width(56.dp),
                     )
                     Text(
@@ -237,7 +240,7 @@ private fun FindingDetail(
                         fontWeight = FontWeight.Medium,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        color = Industry.text,
+                        color = industry.text,
                         modifier = Modifier.width(180.dp),
                     )
                     Text(
@@ -247,17 +250,17 @@ private fun FindingDetail(
                         fontSize = 12.5.sp,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        color = Industry.accent800,
+                        color = industry.accent800,
                         modifier = Modifier.weight(1f),
                     )
                     Text(
                         "Open",
                         fontSize = 12.sp,
                         textAlign = TextAlign.Center,
-                        color = Industry.text,
+                        color = industry.text,
                         modifier = Modifier
                             .clip(DeskStyle.controlShape)
-                            .border(1.dp, Industry.neutral400, DeskStyle.controlShape)
+                            .border(1.dp, industry.neutral400, DeskStyle.controlShape)
                             .clickable { onOpen(person.card) }
                             .padding(horizontal = 12.dp, vertical = 6.dp),
                     )

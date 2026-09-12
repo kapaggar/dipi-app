@@ -8,7 +8,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
-import androidx.compose.ui.graphics.lerp
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
@@ -43,10 +43,12 @@ object DeskStyle {
     val dialogElevation: Dp = 4.dp
 
     /** Elevated surface tone — the skin ground lifted toward white, so the hue survives. */
-    val cardFill: Color get() = lerp(Industry.bg, Color.White, 0.55f)
+    val cardFill: Color
+        @Composable get() = LocalDeskColors.current.cardFill
 
     /** The soft card outline: neutral-300 thinned out. */
-    val cardBorder: Color get() = Industry.neutral300.copy(alpha = 0.75f)
+    val cardBorder: Color
+        @Composable get() = LocalDeskColors.current.cardBorder
 }
 
 /**
@@ -55,6 +57,7 @@ object DeskStyle {
  * accent100 fill + accent border instead. Content and ripples clip to the
  * shape, so callers no longer stack their own square backgrounds.
  */
+@Composable
 fun Modifier.deskCard(
     shape: Shape = DeskStyle.cardShape,
     fill: Color = DeskStyle.cardFill,

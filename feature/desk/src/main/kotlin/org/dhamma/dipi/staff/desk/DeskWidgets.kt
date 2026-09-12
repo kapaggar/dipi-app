@@ -42,7 +42,9 @@ import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import org.dhamma.dipi.staff.ui.theme.DeskStyle
 import org.dhamma.dipi.staff.ui.theme.DipiCondensed
-import org.dhamma.dipi.staff.ui.theme.Industry
+import org.dhamma.dipi.staff.ui.theme.LocalIndustry
+import org.dhamma.dipi.staff.ui.theme.LocalDarkTheme
+import org.dhamma.dipi.staff.ui.theme.LocalDipi
 import org.dhamma.dipi.staff.ui.theme.LocalDipi
 import org.dhamma.dipi.staff.ui.theme.deskCard
 
@@ -77,6 +79,7 @@ fun DeskSegmented(
     verticalPadding: Dp = 11.dp,
     counts: Map<String, Int> = emptyMap(),
 ) {
+    val industry = LocalIndustry.current
     Row(
         Modifier.deskCard(
             shape = DeskStyle.controlShape,
@@ -89,10 +92,10 @@ fun DeskSegmented(
                 counts[label]?.let { "$label $it" } ?: label,
                 fontSize = 12.5.sp,
                 maxLines = 1,
-                color = if (on) Color.White else Industry.neutral700,
+                color = if (on) Color.White else industry.neutral700,
                 modifier = Modifier
-                    .then(if (i > 0) Modifier.rightHairlineStart() else Modifier)
-                    .background(if (on) Industry.accent else Color.Transparent)
+                    .then(if (i > 0) Modifier.rightHairlineStart(industry.neutral300) else Modifier)
+                    .background(if (on) industry.accent else Color.Transparent)
                     .clickable { onPick(label) }
                     .padding(horizontal = optionPadding, vertical = verticalPadding),
             )
@@ -135,8 +138,8 @@ fun DeskScopeFilters(
     }
 }
 
-private fun Modifier.rightHairlineStart(): Modifier = drawBehind {
-    drawLine(Industry.neutral300, Offset(0.5.dp.toPx(), 0f), Offset(0.5.dp.toPx(), size.height), 1.dp.toPx())
+private fun Modifier.rightHairlineStart(color: Color): Modifier = drawBehind {
+    drawLine(color, Offset(0.5.dp.toPx(), 0f), Offset(0.5.dp.toPx(), size.height), 1.dp.toPx())
 }
 
 /** Toggle: rounded pill track, circular knob; accent when on, neutral-300 when off; .18s knob motion. */
@@ -148,6 +151,7 @@ fun DeskToggle(
     trackHeight: Dp = 20.dp,
     knob: Dp = 16.dp,
 ) {
+    val industry = LocalIndustry.current
     val x by animateDpAsState(
         targetValue = if (on) trackWidth - knob - 2.dp else 2.dp,
         animationSpec = tween(180),
@@ -157,7 +161,7 @@ fun DeskToggle(
         Modifier
             .size(trackWidth, trackHeight)
             .clip(DeskStyle.pillShape)
-            .background(if (on) Industry.accent else Industry.neutral300)
+            .background(if (on) industry.accent else industry.neutral300)
             .then(if (onToggle != null) Modifier.clickable(onClick = onToggle) else Modifier),
     ) {
         Box(
@@ -173,6 +177,7 @@ fun DeskToggle(
 /** Solid accent primary: rounded, gently elevated — the one deliberate accent fill. */
 @Composable
 fun DeskPrimaryButton(label: String, onClick: () -> Unit, fontSize: Float = 14f) {
+    val industry = LocalIndustry.current
     Text(
         label.uppercase(),
         fontFamily = DipiCondensed,
@@ -184,8 +189,8 @@ fun DeskPrimaryButton(label: String, onClick: () -> Unit, fontSize: Float = 14f)
         modifier = Modifier
             .deskCard(
                 shape = DeskStyle.controlShape,
-                fill = Industry.accent,
-                border = Industry.accent,
+                fill = industry.accent,
+                border = industry.accent,
             )
             .clickable(onClick = onClick)
             .padding(horizontal = 22.dp, vertical = 10.dp),
@@ -194,6 +199,7 @@ fun DeskPrimaryButton(label: String, onClick: () -> Unit, fontSize: Float = 14f)
 
 @Composable
 fun DeskOutlineButton(label: String, onClick: () -> Unit) {
+    val industry = LocalIndustry.current
     Text(
         label.uppercase(),
         fontFamily = DipiCondensed,
@@ -201,11 +207,11 @@ fun DeskOutlineButton(label: String, onClick: () -> Unit) {
         fontSize = 14.sp,
         letterSpacing = 0.06.em,
         maxLines = 1,
-        color = Industry.text,
+        color = industry.text,
         modifier = Modifier
             .deskCard(
                 shape = DeskStyle.controlShape,
-                border = Industry.neutral400,
+                border = industry.neutral400,
                 elevation = 0.dp,
             )
             .clickable(onClick = onClick)
@@ -219,7 +225,9 @@ fun DeskOutlineButton(label: String, onClick: () -> Unit) {
  */
 @Composable
 fun DeskSnackbar(text: String, error: Boolean, modifier: Modifier = Modifier) {
-    val tone = if (error) LocalDipi.current.snackError else Industry.accent800
+    val industry = LocalIndustry.current
+    val dipi = LocalDipi.current
+    val tone = if (error) dipi.snackError else if (LocalDarkTheme.current) dipi.snack else industry.accent800
     Box(
         modifier
             .padding(start = 24.dp, bottom = 20.dp)
@@ -250,6 +258,7 @@ fun DeskSnackbar(text: String, error: Boolean, modifier: Modifier = Modifier) {
  */
 @Composable
 fun DeskProgressHairline(modifier: Modifier = Modifier) {
+    val industry = LocalIndustry.current
     val transition = rememberInfiniteTransition(label = "desk-progress")
     val sweep by transition.animateFloat(
         initialValue = 0f,
@@ -258,11 +267,11 @@ fun DeskProgressHairline(modifier: Modifier = Modifier) {
         label = "sweep",
     )
     androidx.compose.foundation.Canvas(modifier.fillMaxWidth().height(2.dp)) {
-        drawRect(Industry.neutral200)
+        drawRect(industry.neutral200)
         val bar = size.width * 0.28f
         val x = (size.width + bar) * sweep - bar
         drawRect(
-            Industry.accent,
+            industry.accent,
             topLeft = Offset(x, 0f),
             size = androidx.compose.ui.geometry.Size(bar, size.height),
         )
@@ -350,29 +359,32 @@ private fun DrawScope.drawPhone(color: Color, stroke: Stroke, s: Float) {
 /** Section body copy — 12.5sp neutral-600, used by most pane subtitles. */
 @Composable
 fun DeskSub(text: String, modifier: Modifier = Modifier) {
-    Text(text, fontSize = 12.5.sp, lineHeight = 17.sp, color = Industry.neutral600, modifier = modifier)
+    val industry = LocalIndustry.current
+    Text(text, fontSize = 12.5.sp, lineHeight = 17.sp, color = industry.neutral600, modifier = modifier)
 }
 
 /** Pane h2 — Barlow Condensed 700 / 30. */
 @Composable
 fun DeskH2(text: String) {
+    val industry = LocalIndustry.current
     Text(
         text,
         fontFamily = DipiCondensed,
         fontWeight = FontWeight.Bold,
         fontSize = 30.sp,
         lineHeight = 30.sp,
-        color = Industry.text,
+        color = industry.text,
     )
 }
 
 /** Centred empty-state line. */
 @Composable
 fun DeskEmpty(text: String, modifier: Modifier = Modifier) {
+    val industry = LocalIndustry.current
     Text(
         text,
         fontSize = 13.sp,
-        color = Industry.neutral600,
+        color = industry.neutral600,
         textAlign = TextAlign.Center,
         modifier = modifier,
     )

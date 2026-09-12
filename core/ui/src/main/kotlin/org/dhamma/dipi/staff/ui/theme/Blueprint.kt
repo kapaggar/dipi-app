@@ -1,6 +1,7 @@
 package org.dhamma.dipi.staff.ui.theme
 
 import androidx.compose.foundation.border
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
@@ -21,7 +22,8 @@ fun Modifier.blueprint(border: Color): Modifier =
  * cross, offset 5dp outside each corner. Kept for reference; no live surface
  * draws them since the sleek pass.
  */
-fun Modifier.blueprintMarks(marks: Color = Industry.accent): Modifier = drawBehind {
+@Composable
+fun Modifier.blueprintMarks(marks: Color = LocalIndustry.current.accent): Modifier = drawBehind {
     val stroke = 1.dp.toPx()
     val outside = 5.dp.toPx()
     val inside = 4.dp.toPx()

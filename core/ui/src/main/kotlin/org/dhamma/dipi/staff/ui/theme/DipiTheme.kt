@@ -8,6 +8,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -108,16 +109,83 @@ val LocalDipi = staticCompositionLocalOf { LightDipi }
 /** The active skin's full Industry token block, provided by [DipiTheme]. */
 val LocalIndustry = staticCompositionLocalOf { IndustryPalette.Steel }
 
+/** True only while the app-selected Dark mode is rendering. */
+val LocalDarkTheme = staticCompositionLocalOf { false }
+
+/** The watermark skin follows rendered Steel at night without rewriting the saved preference. */
+val LocalDeskSkin = staticCompositionLocalOf { DeskSkin.Steel }
+
+/** Explicit app surfaces whose Light values intentionally differ from the token ladder. */
+data class DeskColors(
+    val cardFill: Color,
+    val cardBorder: Color,
+    val whiteSurface: Color,
+    val subtleSurface: Color,
+    val exportTile: Color,
+    val modeBorder: Color,
+    val rule: Color,
+    val strongRule: Color,
+    val keyText: Color,
+    val caption: Color,
+)
+
+val LocalDeskColors = staticCompositionLocalOf {
+    DeskColors(
+        cardFill = lerp(IndustryPalette.Steel.bg, Color.White, 0.55f),
+        cardBorder = IndustryPalette.Steel.neutral300.copy(alpha = 0.75f),
+        whiteSurface = Color.White,
+        subtleSurface = Color(0xFFFAFAFB),
+        exportTile = Color(0xFFFCFCFD),
+        modeBorder = Color(0xFFDEDEE1),
+        rule = Color(0xFFE0E0E3),
+        strongRule = Color(0xFFD4D4D7),
+        keyText = Color(0xFF424244),
+        caption = IndustryPalette.Steel.neutral700,
+    )
+}
+
+fun deskColors(saved: IndustryPalette, dark: Boolean): DeskColors = if (dark) {
+    DeskColors(
+        cardFill = DarkDipi.field,
+        cardBorder = DarkDipi.hairline.copy(alpha = 0.75f),
+        whiteSurface = DarkDipi.field,
+        subtleSurface = DarkDipi.field,
+        exportTile = DarkDipi.field,
+        modeBorder = DarkDipi.hairline,
+        rule = DarkDipi.hairline,
+        strongRule = DarkDipi.hairlineStrong,
+        keyText = DarkDipi.foreground,
+        caption = DarkDipi.muted,
+    )
+} else {
+    DeskColors(
+        cardFill = lerp(saved.bg, Color.White, 0.55f),
+        cardBorder = saved.neutral300.copy(alpha = 0.75f),
+        whiteSurface = Color.White,
+        subtleSurface = Color(0xFFFAFAFB),
+        exportTile = Color(0xFFFCFCFD),
+        modeBorder = Color(0xFFDEDEE1),
+        rule = Color(0xFFE0E0E3),
+        strongRule = Color(0xFFD4D4D7),
+        keyText = Color(0xFF424244),
+        caption = saved.neutral700,
+    )
+}
+
 /**
  * Status chip colours. Fixed hexes across skins with one exception:
  * Received/Reconfirmation's light background is the skin's accent-100
  * (`TONE.Received.bg` = `var(--color-accent-100)` in the design). Dark mode
  * stays steel throughout.
  */
-fun statusColors(tone: StatusTone, dark: Boolean): Pair<Color, Color> = when (tone) {
+fun statusColors(
+    tone: StatusTone,
+    dark: Boolean,
+    palette: IndustryPalette = Industry.palette,
+): Pair<Color, Color> = when (tone) {
     StatusTone.Confirmed -> if (dark) Color(0xFF22392C) to Color(0xFFA9CDB6) else Color(0xFFDFEAE1) to Color(0xFF2F5A41)
     StatusTone.Pending -> if (dark) Color(0xFF2A3138) to Color(0xFFC0C7CD) else Color(0xFFE7E7EA) to Color(0xFF5D5D60)
-    StatusTone.Received -> if (dark) Color(0xFF22384C) to Color(0xFFB5D9FD) else Industry.accent100 to Color(0xFF2C455D)
+    StatusTone.Received -> if (dark) Color(0xFF22384C) to Color(0xFFB5D9FD) else palette.accent100 to Color(0xFF2C455D)
     StatusTone.Expected -> if (dark) Color(0xFF3A3223) to Color(0xFFDBCBA6) else Color(0xFFF0ECE2) to Color(0xFF6A5A38)
     StatusTone.Cancelled -> if (dark) Color(0xFF3B2626) to Color(0xFFDEAEAE) else Color(0xFFF0E3E3) to Color(0xFF7A4141)
 }
@@ -140,12 +208,13 @@ val DipiMono = FontFamily(
 fun DipiTheme(dark: Boolean = isSystemInDarkTheme(), content: @Composable () -> Unit) {
     // Industry.palette is snapshot state — switching the skin recomposes here
     // and re-provides both locals. Dark mode stays steel by design.
-    val palette = Industry.palette
-    val colors = if (dark) DarkDipi else lightDipi(palette)
+    val saved = Industry.palette
+    val palette = effectiveIndustry(saved, dark)
+    val colors = if (dark) DarkDipi else lightDipi(saved)
     val scheme = if (dark) {
         darkColorScheme(
             background = colors.background,
-            surface = colors.background,
+            surface = colors.field,
             onBackground = colors.foreground,
             onSurface = colors.foreground,
             primary = colors.accent,
@@ -161,7 +230,13 @@ fun DipiTheme(dark: Boolean = isSystemInDarkTheme(), content: @Composable () -> 
             onPrimary = Color.White,
         )
     }
-    CompositionLocalProvider(LocalDipi provides colors, LocalIndustry provides palette) {
+    CompositionLocalProvider(
+        LocalDipi provides colors,
+        LocalIndustry provides palette,
+        LocalDarkTheme provides dark,
+        LocalDeskSkin provides if (dark) DeskSkin.Steel else Industry.skin,
+        LocalDeskColors provides deskColors(saved, dark),
+    ) {
         MaterialTheme(colorScheme = scheme, content = content)
     }
 }

@@ -49,7 +49,8 @@ import org.dhamma.dipi.staff.model.SheetSort
 import org.dhamma.dipi.staff.ui.NativePrint
 import org.dhamma.dipi.staff.ui.theme.DipiCondensed
 import org.dhamma.dipi.staff.ui.theme.DipiMono
-import org.dhamma.dipi.staff.ui.theme.Industry
+import org.dhamma.dipi.staff.ui.theme.LocalIndustry
+import org.dhamma.dipi.staff.ui.theme.LocalDeskColors
 import org.dhamma.dipi.staff.ui.theme.deskCard
 
 /**
@@ -92,6 +93,8 @@ fun SheetViewerPane(
     /** 5i: print-only HTML for the native hall (null = nothing to print). */
     nativeHallPrintHtml: String? = null,
 ) {
+    val industry = LocalIndustry.current
+    val deskColors = LocalDeskColors.current
     val context = LocalContext.current
     // Below 600dp (the phone) the chrome and the sheet body pan instead of
     // assuming the 1240dp desk frame; the hardening never varies by width.
@@ -108,7 +111,7 @@ fun SheetViewerPane(
     Column(
         modifier
             .fillMaxSize()
-            .background(Industry.surface)
+            .background(industry.surface)
             .testTag("sheet-viewer"),
     ) {
         SheetHeader(
@@ -171,7 +174,7 @@ fun SheetViewerPane(
                             .fillMaxSize()
                             .padding(20.dp)
                             .clip(RoundedCornerShape(8.dp))
-                            .background(Color.White)
+                            .background(deskColors.whiteSurface)
                             .testTag("sheet-web"),
                         factory = { ctx ->
                             WebView(ctx).apply {
@@ -232,11 +235,12 @@ private fun SheetHeader(
     onPrint: () -> Unit,
     onClose: () -> Unit,
 ) {
+    val industry = LocalIndustry.current
     Row(
         Modifier
             .fillMaxWidth()
             .height(64.dp)
-            .bottomHairline(Industry.neutral300)
+            .bottomHairline(industry.neutral300)
             .padding(horizontal = 16.dp),
         horizontalArrangement = Arrangement.spacedBy(10.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -249,7 +253,7 @@ private fun SheetHeader(
                 .testTag("sheet-back"),
             contentAlignment = Alignment.Center,
         ) {
-            Text("‹", fontSize = 26.sp, color = Industry.neutral700)
+            Text("‹", fontSize = 26.sp, color = industry.neutral700)
         }
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
             Row(
@@ -265,7 +269,7 @@ private fun SheetHeader(
                     letterSpacing = 0.2.sp,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    color = Industry.text,
+                    color = industry.text,
                     modifier = Modifier.testTag("sheet-title"),
                 )
                 Text(
@@ -274,10 +278,10 @@ private fun SheetHeader(
                     fontWeight = FontWeight.Medium,
                     fontSize = 9.sp,
                     letterSpacing = 0.14.em,
-                    color = Industry.neutral600,
+                    color = industry.neutral600,
                     modifier = Modifier
                         .clip(RoundedCornerShape(3.dp))
-                        .background(Industry.neutral100)
+                        .background(industry.neutral100)
                         .padding(horizontal = 6.dp, vertical = 3.dp)
                         .testTag("sheet-viewonly-chip"),
                 )
@@ -289,7 +293,7 @@ private fun SheetHeader(
                     lineHeight = 14.sp,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    color = Industry.neutral600,
+                    color = industry.neutral600,
                     modifier = Modifier.testTag("sheet-course-line"),
                 )
             }
@@ -320,12 +324,13 @@ private fun SheetControlBand(
     onToggleColumn: (SheetStylesheet.Column) -> Unit,
     fetchedAt: String? = null,
 ) {
+    val industry = LocalIndustry.current
     Row(
         Modifier
             .fillMaxWidth()
             .height(52.dp)
-            .background(Industry.neutral100)
-            .bottomHairline(Industry.neutral300)
+            .background(industry.neutral100)
+            .bottomHairline(industry.neutral300)
             .then(if (compact) Modifier.horizontalScroll(rememberScrollState()) else Modifier)
             .padding(horizontal = 20.dp),
         horizontalArrangement = Arrangement.spacedBy(14.dp),
@@ -338,7 +343,7 @@ private fun SheetControlBand(
                 fontWeight = FontWeight.Medium,
                 fontSize = 9.sp,
                 letterSpacing = 0.14.em,
-                color = Industry.neutral500,
+                color = industry.neutral500,
             )
             Row(
                 Modifier
@@ -346,7 +351,7 @@ private fun SheetControlBand(
                     .deskCard(
                         shape = RoundedCornerShape(5.dp),
                         fill = Color.Transparent,
-                        border = Industry.neutral300,
+                        border = industry.neutral300,
                         elevation = 0.dp,
                     )
                     .clip(RoundedCornerShape(5.dp))
@@ -357,7 +362,7 @@ private fun SheetControlBand(
                     Box(
                         Modifier
                             .height(38.dp)
-                            .background(if (selected) Industry.accent else Color.Transparent)
+                            .background(if (selected) industry.accent else Color.Transparent)
                             .clickable { if (!selected) onSort(option) }
                             .padding(horizontal = 14.dp)
                             .testTag("sheet-sort-option"),
@@ -368,7 +373,7 @@ private fun SheetControlBand(
                             fontSize = 13.sp,
                             maxLines = 1,
                             fontWeight = if (selected) FontWeight.Medium else FontWeight.Normal,
-                            color = if (selected) Color.White else Industry.neutral700,
+                            color = if (selected) Color.White else industry.neutral700,
                         )
                     }
                 }
@@ -381,7 +386,7 @@ private fun SheetControlBand(
                 fontWeight = FontWeight.Medium,
                 fontSize = 9.sp,
                 letterSpacing = 0.14.em,
-                color = Industry.neutral500,
+                color = industry.neutral500,
             )
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 columns.forEach { col ->
@@ -391,8 +396,8 @@ private fun SheetControlBand(
                             .height(38.dp)
                             .deskCard(
                                 shape = RoundedCornerShape(19.dp),
-                                fill = if (on) Industry.accent100 else Color.Transparent,
-                                border = if (on) Industry.accent300 else Industry.neutral300,
+                                fill = if (on) industry.accent100 else Color.Transparent,
+                                border = if (on) industry.accent300 else industry.neutral300,
                                 elevation = 0.dp,
                             )
                             .clickable { onToggleColumn(col) }
@@ -404,7 +409,7 @@ private fun SheetControlBand(
                             col.label,
                             fontSize = 13.sp,
                             maxLines = 1,
-                            color = if (on) Industry.accent800 else Industry.neutral600,
+                            color = if (on) industry.accent800 else industry.neutral600,
                         )
                     }
                 }
@@ -420,7 +425,7 @@ private fun SheetControlBand(
                 fontWeight = FontWeight.Medium,
                 fontSize = 9.sp,
                 letterSpacing = 0.14.em,
-                color = Industry.neutral500,
+                color = industry.neutral500,
                 modifier = Modifier.testTag("sheet-freshness"),
             )
         }

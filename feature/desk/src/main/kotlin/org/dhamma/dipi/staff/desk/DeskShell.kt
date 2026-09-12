@@ -33,7 +33,8 @@ import org.dhamma.dipi.staff.ui.theme.DeskKicker
 import org.dhamma.dipi.staff.ui.theme.DipiCondensed
 import org.dhamma.dipi.staff.ui.theme.DipiMono
 import org.dhamma.dipi.staff.ui.theme.DipiSans
-import org.dhamma.dipi.staff.ui.theme.Industry
+import org.dhamma.dipi.staff.ui.theme.LocalIndustry
+import org.dhamma.dipi.staff.ui.theme.LocalDeskSkin
 import org.dhamma.dipi.staff.ui.theme.LotusWatermark
 import org.dhamma.dipi.staff.ui.theme.deskWash
 
@@ -82,17 +83,20 @@ fun DeskShell(
     lotus: Boolean = true,
     content: @Composable (DeskSection) -> Unit = { DeskSectionPlaceholder(it) },
 ) {
+    val industry = LocalIndustry.current
+    val skin = LocalDeskSkin.current
     Box(
         Modifier
             .fillMaxSize()
-            .background(Industry.bg)
+            .background(industry.bg)
             .clipToBounds()
-            .deskWash(Industry.accent),
+            .deskWash(industry.accent)
+            .testTag("theme-desk-ground"),
     ) {
         if (lotus) {
             LotusWatermark(
                 size = 300.dp,
-                opacity = Industry.skin.markOpacity * 0.7f,
+                opacity = skin.markOpacity * 0.7f,
                 modifier = Modifier
                     .align(Alignment.BottomStart)
                     .offset(x = (-52).dp, y = 64.dp)
@@ -116,12 +120,13 @@ private fun DeskRailPane(
     rail: DeskRail,
     onSection: (DeskSection) -> Unit,
 ) {
+    val industry = LocalIndustry.current
     Column(
         Modifier
             .width(190.dp)
             .fillMaxHeight()
-            .background(Industry.surface)
-            .rightHairline(Industry.neutral300)
+            .background(industry.surface)
+            .rightHairline(industry.neutral300)
             .padding(top = 20.dp, bottom = 16.dp)
             .testTag("desk-rail"),
     ) {
@@ -134,7 +139,7 @@ private fun DeskRailPane(
                 .graphicsLayer { alpha = 0.78f },
         )
 
-        DeskKicker("DESK", Industry.neutral500, Modifier.padding(start = 18.dp, bottom = 6.dp))
+        DeskKicker("DESK", industry.neutral500, Modifier.padding(start = 18.dp, bottom = 6.dp))
 
         DeskSection.entries.forEach { s ->
             DeskNavRow(
@@ -148,12 +153,12 @@ private fun DeskRailPane(
         Spacer(Modifier.weight(1f))
 
         Column(Modifier.padding(horizontal = 18.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(rail.userName, fontFamily = DipiMono, fontSize = 12.sp, color = Industry.neutral600)
+            Text(rail.userName, fontFamily = DipiMono, fontSize = 12.sp, color = industry.neutral600)
             Text(
                 rail.syncLine,
                 fontFamily = DipiMono,
                 fontSize = 12.sp,
-                color = Industry.neutral500,
+                color = industry.neutral500,
             )
         }
     }
@@ -161,11 +166,12 @@ private fun DeskRailPane(
 
 @Composable
 private fun DeskNavRow(label: String, count: Int?, active: Boolean, onClick: () -> Unit) {
+    val industry = LocalIndustry.current
     Row(
         Modifier
             .fillMaxWidth()
             .height(46.dp)
-            .background(if (active) Industry.accent100 else Color.Transparent)
+            .background(if (active) industry.accent100 else Color.Transparent)
             .clickable(onClick = onClick),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -174,7 +180,7 @@ private fun DeskNavRow(label: String, count: Int?, active: Boolean, onClick: () 
                 Modifier
                     .width(3.dp)
                     .fillMaxHeight()
-                    .background(Industry.accent)
+                    .background(industry.accent)
                     .testTag("rail-accent-bar"),
             )
         }
@@ -183,7 +189,7 @@ private fun DeskNavRow(label: String, count: Int?, active: Boolean, onClick: () 
             fontFamily = DipiSans,
             fontSize = 15.5.sp,
             fontWeight = if (active) FontWeight.Medium else FontWeight.Normal,
-            color = if (active) Industry.accent800 else Industry.neutral700,
+            color = if (active) industry.accent800 else industry.neutral700,
             modifier = Modifier
                 .weight(1f)
                 .padding(start = if (active) 15.dp else 18.dp),
@@ -194,7 +200,7 @@ private fun DeskNavRow(label: String, count: Int?, active: Boolean, onClick: () 
                 fontFamily = DipiMono,
                 fontWeight = FontWeight.Medium,
                 fontSize = 13.sp,
-                color = if (active) Industry.accent700 else Industry.neutral500,
+                color = if (active) industry.accent700 else industry.neutral500,
                 modifier = Modifier.padding(end = 18.dp),
             )
         }
@@ -203,11 +209,12 @@ private fun DeskNavRow(label: String, count: Int?, active: Boolean, onClick: () 
 
 @Composable
 private fun DeskTopBar(courseLine: String, clock: String) {
+    val industry = LocalIndustry.current
     Row(
         Modifier
             .fillMaxWidth()
             .height(52.dp)
-            .bottomHairline(Industry.neutral300)
+            .bottomHairline(industry.neutral300)
             .padding(horizontal = 20.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
@@ -218,7 +225,7 @@ private fun DeskTopBar(courseLine: String, clock: String) {
             fontWeight = FontWeight.SemiBold,
             fontSize = 17.sp,
             letterSpacing = 0.2.sp,
-            color = Industry.text,
+            color = industry.text,
             maxLines = 1,
         )
         Text(
@@ -226,7 +233,7 @@ private fun DeskTopBar(courseLine: String, clock: String) {
             fontFamily = DipiMono,
             fontWeight = FontWeight.Medium,
             fontSize = 13.sp,
-            color = Industry.neutral600,
+            color = industry.neutral600,
         )
     }
 }
@@ -234,13 +241,14 @@ private fun DeskTopBar(courseLine: String, clock: String) {
 /** Stand-in pane until each section's slice lands. */
 @Composable
 fun DeskSectionPlaceholder(section: DeskSection) {
+    val industry = LocalIndustry.current
     Column(Modifier.fillMaxSize().padding(26.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        DeskKicker("SLICE PENDING", Industry.accent700)
+        DeskKicker("SLICE PENDING", industry.accent700)
         Text(
             "The ${section.label} pane arrives in a later build slice.",
             fontFamily = DipiSans,
             fontSize = 12.5.sp,
-            color = Industry.neutral600,
+            color = industry.neutral600,
         )
     }
 }
