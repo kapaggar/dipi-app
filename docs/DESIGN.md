@@ -974,6 +974,10 @@ On return, refresh the same course once, retaining selection and recomputing aud
 The sheet viewer remains for exports, not application editing.
 
 
+## Tablet stroll follow-up (2.1.0 / 100)
+
+2026-09-13: after a Pixel C Desk ops / Course ops stroll of 2.0.1, the phone Day 0 summary tile opens the same Board Day 0 summary sheet (finalized courses keep the worklist screen and count Expected with Confirmed). Zero Day no longer lists Cancelled, Duplicate, Rejected, or Left as unattended. Applications empty copy distinguishes filters from an unloaded worklist. Centre Settings refreshes `acco-handler` on open so Accommodation matches Room Chart. Course ops under 1100dp uses two-line teacher rows and a stacked student card. The centre dashboard lifts a running older course into a Teaching now / last-day band. Switching to Course ops leaves Settings for Teacher list. The desk day chip reads the course-name window when `start` is blank; Settings Last synced shows relative age instead of a raw ISO instant. `deskWide` 1100 is unchanged (owner fork).
+
 ## Theme honesty repair (2.0.1 / 99)
 
 2026-09-11: Dark mode now renders the documented Steel night palette across

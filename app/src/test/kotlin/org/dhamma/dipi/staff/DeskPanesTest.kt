@@ -1318,6 +1318,29 @@ class DeskPanesTest {
     }
 
     @Test
+    fun applicationsEmptyCopyNamesTheFiltersWhenNothingMatches() {
+        assertEquals("No applications loaded.", org.dhamma.dipi.staff.desk.applicationsEmptyCopy(false))
+        assertEquals("No applications match these filters.", org.dhamma.dipi.staff.desk.applicationsEmptyCopy(true))
+        rule.setContent {
+            DipiTheme {
+                ApplicationsPane(
+                    rows = listOf(card(1, conf = "OM1", given = "Vikram", family = "Rao", gender = Gender.M)),
+                    flagsById = emptyMap(),
+                    selectedId = ApplicantId(1),
+                    onSelect = {},
+                    onChangeStatus = {},
+                    onDial = {},
+                    onEdit = {},
+                    gender = "Female",
+                    seniority = "New",
+                )
+            }
+        }
+        rule.onNodeWithText("No applications match these filters.").assertIsDisplayed()
+        rule.onNodeWithText("No applications loaded.").assertDoesNotExist()
+    }
+
+    @Test
     fun applicationsScopeFiltersExcludeTheOtherThreeCombinations() {
         val rows = listOf(
             card(1, conf = "NF1", given = "Priya", family = "Nair"),

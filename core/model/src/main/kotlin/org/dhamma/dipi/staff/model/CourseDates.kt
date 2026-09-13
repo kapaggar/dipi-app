@@ -4,6 +4,7 @@ import java.time.LocalDate
 import java.time.Month
 import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
+import java.time.temporal.ChronoUnit
 import java.util.Locale
 
 /**
@@ -106,3 +107,17 @@ fun runningCourse(courses: List<Course>, today: LocalDate): Course? =
     courses.firstOrNull { course ->
         parseCourseWindow(course.name, today)?.contains(today) == true
     }
+
+/** The older-courses row whose name window contains today, if any. */
+fun teachingNowCourse(older: List<Course>, today: LocalDate): Course? =
+    runningCourse(older, today)
+
+/**
+ * Centre hero kicker. Last calendar day of the window reads as
+ * `Day n · last day` (n matches the desk `DAY n` chip). Otherwise
+ * `Teaching now`.
+ */
+fun teachingNowKicker(window: CourseWindow, today: LocalDate): String {
+    val day = ChronoUnit.DAYS.between(window.start, today)
+    return if (today == window.end) "Day $day · last day" else "Teaching now"
+}

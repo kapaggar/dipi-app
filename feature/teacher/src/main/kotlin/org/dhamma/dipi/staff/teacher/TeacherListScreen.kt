@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -33,6 +34,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
@@ -103,6 +105,7 @@ fun TeacherListScreen(
     /** False while this row's `/application-view` has not landed (pending FLAGS). */
     flagsReady: (RollRow) -> Boolean = { true },
 ) {
+    val compact = LocalConfiguration.current.screenWidthDp < 1100
     val groups = if (groupFilter == null) roll.groups else roll.groups.filter { it.key == groupFilter }
     val showCourses = remember(groups) { groups.any { g -> g.rows.any { it.courses.isNotEmpty() } } }
     val filterEmpty = groupFilter != null && groups.all { it.rows.isEmpty() }
@@ -136,9 +139,9 @@ fun TeacherListScreen(
                 LazyColumn(state = listState, modifier = Modifier.fillMaxSize().testTag("teacher-roll")) {
                     groups.forEach { group ->
                         stickyHeader(key = "band-${group.key}") { GroupBand(group) }
-                        item(key = "cols-${group.key}") { ColumnHeader(showCourses) }
+                        item(key = "cols-${group.key}") { ColumnHeader(showCourses, compact) }
                         items(group.rows.size, key = { "row-${group.key}-$it" }) { i ->
-                            RollRowLine(group.rows[i], flagsFor, flagsReady, showCourses, onOpen)
+                            RollRowLine(group.rows[i], flagsFor, flagsReady, showCourses, onOpen, compact)
                         }
                     }
                     if (!showCourses && groups.any { it.rows.isNotEmpty() }) {
@@ -391,7 +394,7 @@ private fun GroupBand(group: RollGroup) {
 }
 
 @Composable
-private fun ColumnHeader(showCourses: Boolean) {
+private fun ColumnHeader(showCourses: Boolean, compact: Boolean) {
     Row(
         Modifier
             .fillMaxWidth()
@@ -404,11 +407,15 @@ private fun ColumnHeader(showCourses: Boolean) {
         HeaderCell("S/N", Modifier.width(SnW))
         HeaderCell("STUDENT", Modifier.weight(1f))
         HeaderCell("ROOM", Modifier.width(RoomW))
-        HeaderCell("AGE", Modifier.width(AgeW), TextAlign.End)
-        HeaderCell("CITY", Modifier.padding(start = CityPad).width(if (showCourses) CityW else CityWideW))
-        if (showCourses) HeaderCell("COURSES", Modifier.padding(start = CityPad).width(CoursesW))
+        if (!compact) {
+            HeaderCell("AGE", Modifier.width(AgeW), TextAlign.End)
+            HeaderCell("CITY", Modifier.padding(start = CityPad).width(if (showCourses) CityW else CityWideW))
+            if (showCourses) HeaderCell("COURSES", Modifier.padding(start = CityPad).width(CoursesW))
+        }
         HeaderCell("SEAT", Modifier.width(SeatW), TextAlign.End)
-        HeaderCell("FLAGS", Modifier.padding(start = FlagsPad).width(FlagsW), TextAlign.End)
+        if (!compact) {
+            HeaderCell("FLAGS", Modifier.padding(start = FlagsPad).width(FlagsW), TextAlign.End)
+        }
     }
 }
 
@@ -439,7 +446,12 @@ private fun RollRowLine(
     flagsReady: (RollRow) -> Boolean,
     showCourses: Boolean,
     onOpen: (RollRow) -> Unit,
+    compact: Boolean,
 ) {
+    if (compact) {
+        CompactRollRowLine(row, flagsFor, flagsReady, showCourses, onOpen)
+        return
+    }
     Row(
         Modifier
             .fillMaxWidth()
@@ -561,6 +573,141 @@ private fun RollRowLine(
                 )
             } else {
                 flagsFor(row).forEach { FlagPill(it) }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun CompactRollRowLine(
+    row: RollRow,
+    flagsFor: (RollRow) -> List<String>,
+    flagsReady: (RollRow) -> Boolean,
+    showCourses: Boolean,
+    onOpen: (RollRow) -> Unit,
+) {
+    val pending = !flagsReady(row)
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp)
+            .heightIn(min = 72.dp)
+            .clickable { onOpen(row) }
+            .bottomHairline(LocalDeskColors.current.rule)
+            .padding(horizontal = 12.dp, vertical = 8.dp)
+            .testTag("roll-row"),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                row.sn.toString(),
+                fontFamily = DipiMono,
+                fontSize = 12.5.sp,
+                color = LocalIndustry.current.neutral400,
+                modifier = Modifier.width(SnW),
+            )
+            Column(Modifier.weight(1f).padding(end = 8.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        row.name,
+                        fontSize = 15.5.sp,
+                        lineHeight = 18.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = LocalIndustry.current.text,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false),
+                    )
+                    row.roleTag?.let { tag ->
+                        Text(
+                            "($tag)",
+                            fontSize = 12.sp,
+                            color = LocalIndustry.current.neutral500,
+                            maxLines = 1,
+                            modifier = Modifier.padding(start = 7.dp),
+                        )
+                    }
+                }
+                Text(
+                    foldedLine(row),
+                    fontSize = 11.5.sp,
+                    lineHeight = 13.sp,
+                    color = LocalIndustry.current.neutral500,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            Text(
+                row.room,
+                fontFamily = DipiMono,
+                fontSize = 13.5.sp,
+                color = LocalIndustry.current.neutral700,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.width(RoomW),
+            )
+            Column(
+                Modifier.width(SeatW),
+                horizontalAlignment = Alignment.End,
+                verticalArrangement = Arrangement.Center,
+            ) {
+                BackrestSeatMark(visible = row.backrest && row.seat.isNotBlank(), tag = "list-backrest-${row.seat}")
+                if (row.backrest && row.seat.isNotBlank()) Spacer(Modifier.height(3.dp))
+                Text(
+                    row.seat,
+                    fontFamily = DipiMono,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 14.sp,
+                    color = LocalIndustry.current.text,
+                    textAlign = TextAlign.End,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(
+                row.age,
+                fontFamily = DipiMono,
+                fontSize = 14.sp,
+                color = Color(0xFF8A8A8E),
+                modifier = Modifier.testTag("list-age"),
+            )
+            Text(
+                row.city,
+                fontSize = 13.sp,
+                color = LocalIndustry.current.neutral700,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
+            if (showCourses) {
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    row.courses.forEach { (key, count) -> CourseChip(key, count) }
+                }
+            }
+            Row(
+                Modifier.then(if (pending) Modifier.testTag("flags-pending") else Modifier),
+                horizontalArrangement = Arrangement.spacedBy(5.dp, Alignment.End),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                if (pending) {
+                    Box(
+                        Modifier
+                            .width(44.dp)
+                            .height(8.dp)
+                            .background(LocalDeskColors.current.rule, RoundedCornerShape(4.dp)),
+                    )
+                } else {
+                    flagsFor(row).forEach { FlagPill(it) }
+                }
             }
         }
     }

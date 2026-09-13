@@ -332,4 +332,23 @@ class StudentCardScreenTest {
         val prev = rule.onNodeWithTag("card-prev").getUnclippedBoundsInRoot()
         assertTrue("walk width ${prev.right - prev.left}", prev.right - prev.left >= 56.dp)
     }
+
+    @Test
+    @Config(qualifiers = "w900dp-h1280dp-port")
+    fun compactCardStacksAnswersBelowTheFacts() {
+        rule.setContent {
+            DipiTheme { StudentCardScreen(row = row(), group = group(), card = card()) }
+        }
+        rule.onNodeWithTag("card-stack").assertIsDisplayed()
+        val left = rule.onNodeWithTag("card-left").getUnclippedBoundsInRoot()
+        val answers = rule.onNodeWithTag("card-answers").getUnclippedBoundsInRoot()
+        assertTrue(
+            "answers should sit below the facts column",
+            answers.top.value >= left.bottom.value - 0.5f,
+        )
+        assertTrue(
+            "stacked left column should use the portrait width, not 404dp",
+            (left.right - left.left).value > 404.5f,
+        )
+    }
 }

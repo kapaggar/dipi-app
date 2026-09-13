@@ -22,6 +22,7 @@ import org.dhamma.dipi.staff.model.MatrixRow
 import org.dhamma.dipi.staff.model.Session
 import org.dhamma.dipi.staff.ui.theme.DipiTheme
 import org.junit.Assert.assertEquals
+import java.time.LocalDate
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -472,6 +473,40 @@ class CentreScreenWideTest {
         rule.onNodeWithText("App Settings").assertIsDisplayed()
         rule.onNodeWithText("Course report").assertIsDisplayed()
         rule.onNodeWithText("MORE ON THE DESK SITE").assertDoesNotExist()
+    }
+
+    @Test
+    fun runningOlderCourseGetsATeachingNowBand() {
+        val running = Course(
+            CourseId(9),
+            CentreId(1),
+            "Dhamma Sudha / 10 Day / 2026 / 2nd-Sep to 13th-Sep",
+            "",
+            "",
+        )
+        val past = Course(
+            CourseId(8),
+            CentreId(1),
+            "Dhamma Sudha / 10 Day / 2026 / 5th-Aug to 16th-Aug",
+            "",
+            "",
+        )
+        rule.setContent {
+            DipiTheme {
+                CentreScreen(
+                    session = singleCentreSession,
+                    courses = listOf(course),
+                    onPick = {},
+                    olderCourses = listOf(running, past),
+                    today = LocalDate.of(2026, 9, 13),
+                )
+            }
+        }
+        rule.onNodeWithText("Day 11 · last day").assertIsDisplayed()
+        rule.onNodeWithText(running.name).assertIsDisplayed()
+        rule.onNodeWithText("Older courses").assertIsDisplayed()
+        rule.onNodeWithText(past.name).assertIsDisplayed()
+        rule.onNodeWithText("Teaching now").assertDoesNotExist()
     }
 
     private val deskSiteTiles = centreDeskTiles(1).filter { it.action == null }

@@ -263,5 +263,6 @@ class TabletModeTest {
         }
         assertEquals(cachedRoll, t.vm.state.value.teacherRoll)
         assertEquals(null, t.vm.state.value.teacherRollCachedAt)
+        assertEquals(DeskScreen.TeacherRoll, t.vm.state.value.screen)
     }
 }

@@ -784,7 +784,7 @@ private fun deskCourse(
     val dates = listOf(course.start, course.end).filter { it.isNotBlank() }.joinToString(" – ")
     return DeskCourse(
         dates = dates.ifBlank { course.name },
-        dayChip = deskDayChip(course.start, java.time.LocalDate.now()),
+        dayChip = deskDayChip(course.start, java.time.LocalDate.now(), course.name),
     )
 }
 
@@ -886,7 +886,7 @@ private fun SettingsPane(vm: DeskViewModel, state: DeskUiState) {
     SettingsScreen(
         session = state.session,
         dark = state.dark,
-        lastSync = state.lastSync,
+        lastSync = lastSyncLabel(state.lastSync, java.time.Instant.now()),
         queued = state.queuedCount,
         offline = state.offline,
         onToggleTheme = vm::toggleTheme,

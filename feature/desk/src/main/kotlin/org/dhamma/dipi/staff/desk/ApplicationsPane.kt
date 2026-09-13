@@ -54,6 +54,9 @@ import org.dhamma.dipi.staff.ui.theme.LocalDarkTheme
 import org.dhamma.dipi.staff.ui.theme.deskCard
 import org.dhamma.dipi.staff.ui.theme.statusColors
 
+fun applicationsEmptyCopy(filtersOn: Boolean): String =
+    if (filtersOn) "No applications match these filters." else "No applications loaded."
+
 /**
  * List–detail on one screen: pick a row on the left, everything about them
  * on the right — no navigation, no back stack. The severity dot next to a
@@ -137,7 +140,8 @@ fun ApplicationsPane(
                 modifier = Modifier.weight(1f),
             )
         } else {
-            DeskEmpty("No applications loaded.", Modifier.weight(1f).padding(vertical = 46.dp))
+            val filtersOn = selectedStatuses.isNotEmpty() || gender != "Both" || seniority != "Both"
+            DeskEmpty(applicationsEmptyCopy(filtersOn), Modifier.weight(1f).padding(vertical = 46.dp))
         }
     }
 }

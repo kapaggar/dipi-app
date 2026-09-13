@@ -19,6 +19,7 @@ import org.dhamma.dipi.staff.ui.DeskUiState
 import org.dhamma.dipi.staff.ui.deskDayChip
 import org.dhamma.dipi.staff.ui.deskRailCounts
 import org.dhamma.dipi.staff.ui.deskSyncLine
+import org.dhamma.dipi.staff.ui.lastSyncLabel
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
@@ -78,6 +79,23 @@ class DeskDerivedTest {
         assertEquals("DAY 0 · TODAY", deskDayChip("2 Sep 2026", today))
         assertNull(deskDayChip("", today))
         assertNull(deskDayChip("not a date", today))
+        assertEquals(
+            "DAY 11",
+            deskDayChip(
+                "",
+                LocalDate.of(2026, 9, 13),
+                "Dhamma Sudha / 10 Day / 2026 / 2nd-Sep to 13th-Sep",
+            ),
+        )
+    }
+
+    @Test
+    fun lastSyncLabelTurnsIsoIntoRelativeAge() {
+        val now = Instant.parse("2026-09-13T09:07:05.375Z")
+        assertEquals("just now", lastSyncLabel("2026-09-13T09:07:05.375Z", now))
+        assertEquals("2 min ago", lastSyncLabel("2026-09-13T09:05:05.375Z", now))
+        assertEquals("just now", lastSyncLabel(null, now))
+        assertEquals("11:57", lastSyncLabel("11:57", now))
     }
 
     @Test

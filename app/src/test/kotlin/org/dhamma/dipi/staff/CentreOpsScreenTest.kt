@@ -149,7 +149,7 @@ class CentreOpsScreenTest {
         }
         // The accommodation summary now sits under the WhatsApp-message card,
         // so it has to be scrolled to before it is on screen.
-        rule.onNodeWithText("Edit rooms on the desk site. Refreshes at sign-in.")
+        rule.onNodeWithText("Edit rooms on the desk site. Refreshes when you open this page.")
             .performScrollTo()
             .assertIsDisplayed()
         rule.onNodeWithText("2 rooms").performScrollTo().assertIsDisplayed()

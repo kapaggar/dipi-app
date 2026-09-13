@@ -25,6 +25,7 @@ import org.dhamma.dipi.staff.model.MatrixRow
 import org.dhamma.dipi.staff.model.Session
 import org.dhamma.dipi.staff.ui.theme.DipiTheme
 import org.junit.Assert.assertEquals
+import java.time.LocalDate
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -558,5 +559,30 @@ class CentreScreenTest {
         }
         rule.onNodeWithText("App Settings").performScrollTo().performClick()
         assertTrue(settingsOpened)
+    }
+
+    @Test
+    fun runningOlderCourseGetsATeachingNowBand() {
+        val running = Course(
+            CourseId(9),
+            CentreId(1),
+            "Dhamma Sudha / 10 Day / 2026 / 2nd-Sep to 13th-Sep",
+            "",
+            "",
+        )
+        rule.setContent {
+            DipiTheme {
+                CentreScreen(
+                    session = session,
+                    courses = listOf(course),
+                    onPick = {},
+                    olderCourses = listOf(running),
+                    today = LocalDate.of(2026, 9, 13),
+                )
+            }
+        }
+        rule.onNodeWithText("Day 11 · last day").performScrollTo().assertIsDisplayed()
+        rule.onNodeWithText(running.name).performScrollTo().assertIsDisplayed()
+        rule.onNodeWithText("Older courses").assertDoesNotExist()
     }
 }

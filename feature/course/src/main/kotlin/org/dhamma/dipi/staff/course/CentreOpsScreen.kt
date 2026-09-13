@@ -143,7 +143,7 @@ fun CentreOpsScreen(
         Spacer(Modifier.height(14.dp))
         Text("Accommodation", fontFamily = DipiCondensed, fontSize = 16.sp, modifier = Modifier.padding(top = 8.dp))
         Text(
-            "Edit rooms on the desk site. Refreshes at sign-in.",
+            "Edit rooms on the desk site. Refreshes when you open this page.",
             color = c.muted,
             fontSize = 12.sp,
             modifier = Modifier.padding(bottom = 6.dp),

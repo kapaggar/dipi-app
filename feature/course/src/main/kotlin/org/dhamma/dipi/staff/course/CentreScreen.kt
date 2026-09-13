@@ -42,6 +42,9 @@ import org.dhamma.dipi.staff.model.CourseSummary
 import org.dhamma.dipi.staff.model.MatrixRow
 import org.dhamma.dipi.staff.model.Session
 import org.dhamma.dipi.staff.model.cardRows
+import org.dhamma.dipi.staff.model.parseCourseWindow
+import org.dhamma.dipi.staff.model.teachingNowCourse
+import org.dhamma.dipi.staff.model.teachingNowKicker
 import org.dhamma.dipi.staff.ui.theme.DeskStyle
 import org.dhamma.dipi.staff.ui.theme.DipiCondensed
 import org.dhamma.dipi.staff.ui.theme.DipiMono
@@ -86,6 +89,7 @@ fun CentreScreen(
     onCourseReport: () -> Unit = {},
     lotus: Boolean = true,
     olderCourses: List<Course> = emptyList(),
+    today: LocalDate = LocalDate.now(),
 ) {
     val c = LocalDipi.current
     val deskSkin = LocalDeskSkin.current
@@ -93,6 +97,9 @@ fun CentreScreen(
     val cid = centre?.id?.value ?: 0
     val wide = LocalConfiguration.current.screenWidthDp >= 600
     val columns = if (wide) 2 else 1
+    val teaching = teachingNowCourse(olderCourses, today)
+    val teachingKicker = teaching?.let { parseCourseWindow(it.name, today) }?.let { teachingNowKicker(it, today) }
+    val olderRest = olderCourses.filter { it.id != teaching?.id }
     Box(Modifier.fillMaxSize().background(c.background)) {
         if (lotus) {
             // The relief: large, very low-contrast, skin-tinted, behind
@@ -155,7 +162,9 @@ fun CentreScreen(
                             .padding(top = 12.dp, bottom = 8.dp),
                     ) {
                         WideLowerPane(
-                            olderCourses = olderCourses,
+                            teaching = teaching,
+                            teachingKicker = teachingKicker,
+                            olderCourses = olderRest,
                             columns = columns,
                             cid = cid,
                             onPick = onPick,
@@ -179,7 +188,9 @@ fun CentreScreen(
                 CentreHeaderBlock(session, centre, onPickCentre)
                 UpcomingCoursesBlock(courses, columns, onPick)
                 NarrowLowerPane(
-                    olderCourses = olderCourses,
+                    teaching = teaching,
+                    teachingKicker = teachingKicker,
+                    olderCourses = olderRest,
                     cid = cid,
                     onPick = onPick,
                     onLater = onLater,
@@ -289,6 +300,8 @@ private fun UpcomingCoursesBlock(
  */
 @Composable
 private fun WideLowerPane(
+    teaching: Course?,
+    teachingKicker: String?,
     olderCourses: List<Course>,
     columns: Int,
     cid: Int,
@@ -301,7 +314,7 @@ private fun WideLowerPane(
     onSettings: () -> Unit,
 ) {
     val c = LocalDipi.current
-    if (olderCourses.isEmpty()) {
+    if (teaching == null && olderCourses.isEmpty()) {
         CentreDeskColumn(
             cid = cid,
             // v5 T3: four native tiles now, so the wide branch is a 2 x 2
@@ -319,16 +332,21 @@ private fun WideLowerPane(
         return
     }
     Column(Modifier.fillMaxWidth()) {
-        Text("Older courses", color = c.muted, modifier = Modifier.padding(bottom = 10.dp))
-        olderCourses.chunked(columns).forEach { row ->
-            Row(
-                Modifier.fillMaxWidth().padding(bottom = 6.dp),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                row.forEach { course ->
-                    OlderCourseRow(course, Modifier.weight(1f)) { onPick(course) }
+        if (teaching != null && teachingKicker != null) {
+            TeachingNowBlock(teaching, teachingKicker, onPick)
+        }
+        if (olderCourses.isNotEmpty()) {
+            Text("Older courses", color = c.muted, modifier = Modifier.padding(bottom = 10.dp))
+            olderCourses.chunked(columns).forEach { row ->
+                Row(
+                    Modifier.fillMaxWidth().padding(bottom = 6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    row.forEach { course ->
+                        OlderCourseRow(course, Modifier.weight(1f)) { onPick(course) }
+                    }
+                    repeat(columns - row.size) { Spacer(Modifier.weight(1f)) }
                 }
-                repeat(columns - row.size) { Spacer(Modifier.weight(1f)) }
             }
         }
         Spacer(Modifier.height(14.dp))
@@ -356,6 +374,8 @@ private fun WideLowerPane(
  */
 @Composable
 private fun NarrowLowerPane(
+    teaching: Course?,
+    teachingKicker: String?,
     olderCourses: List<Course>,
     cid: Int,
     onPick: (Course) -> Unit,
@@ -367,11 +387,19 @@ private fun NarrowLowerPane(
     onSettings: () -> Unit,
 ) {
     val c = LocalDipi.current
+    if (teaching != null && teachingKicker != null) {
+        TeachingNowBlock(
+            teaching,
+            teachingKicker,
+            onPick,
+            modifier = Modifier.padding(top = 18.dp),
+        )
+    }
     if (olderCourses.isNotEmpty()) {
         Text(
             "Older courses",
             color = c.muted,
-            modifier = Modifier.padding(top = 18.dp, bottom = 10.dp),
+            modifier = Modifier.padding(top = if (teaching == null) 18.dp else 8.dp, bottom = 10.dp),
         )
         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
             olderCourses.forEach { course -> OlderCourseRow(course) { onPick(course) } }
@@ -389,6 +417,25 @@ private fun NarrowLowerPane(
         onCourseReport = onCourseReport,
         onSettings = onSettings,
     )
+}
+
+@Composable
+private fun TeachingNowBlock(
+    course: Course,
+    kicker: String,
+    onPick: (Course) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val c = LocalDipi.current
+    Column(modifier.fillMaxWidth().padding(bottom = 10.dp).testTag("teaching-now")) {
+        Text(
+            kicker,
+            color = c.accent,
+            fontFamily = DipiCondensed,
+            modifier = Modifier.padding(bottom = 8.dp),
+        )
+        OlderCourseRow(course) { onPick(course) }
+    }
 }
 
 /**

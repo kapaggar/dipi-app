@@ -32,6 +32,7 @@ import org.dhamma.dipi.staff.model.CentreOpsPrefs
 import org.dhamma.dipi.staff.model.CheckInRecord
 import org.dhamma.dipi.staff.model.Course
 import org.dhamma.dipi.staff.model.MAIN_DHAMMA_HALL
+import org.dhamma.dipi.staff.model.isZeroDayUnattended
 import org.dhamma.dipi.staff.ui.theme.DeskStyle
 import org.dhamma.dipi.staff.ui.theme.DipiCondensed
 import org.dhamma.dipi.staff.ui.theme.LocalDipi
@@ -56,7 +57,7 @@ fun ZeroDayScreen(
     onPullRooms: () -> Unit = {},
 ) {
     val c = LocalDipi.current
-    val unattended = rows.filter { !it.attended }
+    val unattended = rows.filter(::isZeroDayUnattended)
     val attended = rows.filter { it.attended }
     Column(
         Modifier

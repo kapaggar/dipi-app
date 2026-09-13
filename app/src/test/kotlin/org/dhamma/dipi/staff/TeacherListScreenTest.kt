@@ -323,4 +323,19 @@ class TeacherListScreenTest {
         val dest = rule.onNodeWithTag("dest-teacher-list").getUnclippedBoundsInRoot()
         assertTrue("dest height ${dest.bottom - dest.top}", dest.bottom - dest.top >= 52.dp)
     }
+
+    @Test
+    @Config(qualifiers = "w900dp-h1280dp-port")
+    fun compactRowsAreTallerThanTheLandscape52dpLine() {
+        rule.setContent {
+            DipiTheme { TeacherListScreen(roll = roll, courseLine = "Dhamma Sudha / 10 Day / 2026") }
+        }
+        val bounds = rule.onAllNodesWithTag("roll-row").onFirst().getUnclippedBoundsInRoot()
+        assertTrue(
+            "compact row height ${bounds.bottom - bounds.top}",
+            (bounds.bottom - bounds.top).value > 52.5f,
+        )
+        rule.onNodeWithText("Rakesh Iyer").assertIsDisplayed()
+        rule.onNodeWithText("CITY").assertDoesNotExist()
+    }
 }

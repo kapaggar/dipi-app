@@ -41,6 +41,50 @@ class FinalizedRoomActionsTest {
         } finally { server.shutdown() }
     }
 
+    @Test fun openSummaryUsesTheBoardSheetOnAnActiveCourse() {
+        val server = MockWebServer().apply { dispatcher = DipiMockDispatcher(); start() }
+        try {
+            val vm = buildTestVm(server).vm
+            var fetches = 0
+            vm.sheetFetch = { export, _, _, _ ->
+                assertEquals(SheetExport.Day0Summary, export)
+                fetches++
+                SheetPayload.Summary("Day 0 summary", DaySummary())
+            }
+            val course = Course(CourseId(77), CentreId(63), "Test", "", "")
+            rule.runOnIdle {
+                vm.seedForTest(DeskUiState(screen = DeskScreen.CourseHub, course = course))
+                vm.openSummary()
+            }
+            rule.awaitTrue("active hub summary opens the board sheet") { fetches == 1 }
+            assertEquals("Day 0 summary", vm.state.value.sheetView?.title)
+            assertEquals(DeskScreen.CourseHub, vm.state.value.screen)
+        } finally { server.shutdown() }
+    }
+
+    @Test fun openSummaryKeepsThePhoneScreenWhenFinalized() {
+        val server = MockWebServer().apply { dispatcher = DipiMockDispatcher(); start() }
+        try {
+            val vm = buildTestVm(server).vm
+            var fetches = 0
+            vm.sheetFetch = { _, _, _, _ -> fetches++; SheetPayload.NotAvailable("no") }
+            rule.runOnIdle {
+                vm.seedForTest(
+                    DeskUiState(
+                        screen = DeskScreen.CourseHub,
+                        course = Course(CourseId(77), CentreId(63), "Test", "", ""),
+                        courseFinalized = true,
+                    ),
+                )
+                vm.openSummary()
+            }
+            rule.waitForIdle()
+            assertEquals(DeskScreen.Summary, vm.state.value.screen)
+            assertNull(vm.state.value.sheetView)
+            assertEquals(0, fetches)
+        } finally { server.shutdown() }
+    }
+
     @Test fun finalizedCourseCannotEditUndoSyncOrFetchZeroDay() {
         val server = MockWebServer().apply { dispatcher = DipiMockDispatcher(); start() }
         try {

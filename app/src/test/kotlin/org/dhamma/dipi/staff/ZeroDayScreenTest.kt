@@ -5,6 +5,7 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import org.dhamma.dipi.staff.model.AccoRoom
 import org.dhamma.dipi.staff.model.ApplicantCard
 import org.dhamma.dipi.staff.model.ApplicantId
@@ -133,6 +134,29 @@ class ZeroDayScreenTest {
         }
         rule.onNodeWithTag("zero-day-laundry").performClick()
         assertEquals(1, n)
+    }
+
+    @Test
+    fun cancelledAndDuplicateDoNotAppearAsUnattended() {
+        rule.setContent {
+            DipiTheme {
+                ZeroDayScreen(
+                    course = course,
+                    rows = listOf(
+                        card(id = 1, given = "Meera", status = "Confirmed"),
+                        card(id = 2, given = "Cancelled", family = "Row", status = "Cancelled"),
+                        card(id = 3, given = "Duplicate", family = "Row", status = "Duplicate"),
+                        card(id = 4, given = "Left", family = "Row", status = "Left"),
+                    ),
+                    prefs = CentreOpsPrefs(),
+                )
+            }
+        }
+        rule.onNodeWithText("Meera Deshpande").assertIsDisplayed()
+        rule.onNodeWithText("Cancelled Row").assertDoesNotExist()
+        rule.onNodeWithText("Duplicate Row").assertDoesNotExist()
+        rule.onNodeWithText("Left Row").assertDoesNotExist()
+        rule.onNodeWithText("Mark attended").performScrollTo().assertIsDisplayed()
     }
 
     @Test

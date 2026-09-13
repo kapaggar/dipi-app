@@ -32,6 +32,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
@@ -101,14 +102,29 @@ fun StudentCardScreen(
         if (card == null) {
             NotCachedBody(offline)
         } else {
-            Row(
-                Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 20.dp, vertical = 12.dp),
-                horizontalArrangement = Arrangement.spacedBy(18.dp),
-            ) {
-                LeftColumn(row, card, loadPhoto)
-                RightColumn(card, group.gender, cameFrom)
+            val wide = LocalConfiguration.current.screenWidthDp >= 1100
+            if (wide) {
+                Row(
+                    Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 20.dp, vertical = 12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(18.dp),
+                ) {
+                    LeftColumn(row, card, loadPhoto, wide = true)
+                    RightColumn(card, group.gender, cameFrom, wide = true)
+                }
+            } else {
+                Column(
+                    Modifier
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = 20.dp, vertical = 12.dp)
+                        .testTag("card-stack"),
+                    verticalArrangement = Arrangement.spacedBy(18.dp),
+                ) {
+                    LeftColumn(row, card, loadPhoto, wide = false)
+                    RightColumn(card, group.gender, cameFrom, wide = false)
+                }
             }
         }
     }
@@ -264,8 +280,10 @@ private fun LeftColumn(
     row: RollRow,
     card: ApplicationCard,
     loadPhoto: suspend (ApplicantId) -> ImageBitmap?,
+    wide: Boolean,
 ) {
-    Column(Modifier.width(404.dp).testTag("card-left")) {
+    val widthMod = if (wide) Modifier.width(404.dp) else Modifier.fillMaxWidth()
+    Column(widthMod.testTag("card-left")) {
         Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
             PhotoBox(row.applicantId, card.hasPhoto, loadPhoto)
             Column(Modifier.weight(1f)) {
@@ -429,15 +447,17 @@ private fun MetaRow(key: String, value: String) {
 /* ── Right column — what the applicant wrote ────────────────────────── */
 
 @Composable
-private fun RightColumn(card: ApplicationCard, gender: Gender, cameFrom: String?) {
+private fun RightColumn(card: ApplicationCard, gender: Gender, cameFrom: String?, wide: Boolean) {
     val answered = card.health.count { healthAnswered(it, gender) }
     val names = card.health.filter { healthAnswered(it, gender) }.map { it.label }
     val whose = if (gender == Gender.F) "her" else "his"
+    val body = if (wide) {
+        Modifier.fillMaxHeight().verticalScroll(rememberScrollState())
+    } else {
+        Modifier.fillMaxWidth()
+    }
     Column(
-        Modifier
-            .fillMaxHeight()
-            .verticalScroll(rememberScrollState())
-            .testTag("card-answers"),
+        body.testTag("card-answers"),
         verticalArrangement = Arrangement.spacedBy(7.dp),
     ) {
         Column {

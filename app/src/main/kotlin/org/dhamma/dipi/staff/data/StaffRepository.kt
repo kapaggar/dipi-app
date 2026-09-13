@@ -368,6 +368,9 @@ class StaffRepository @Inject constructor(
      * in [CentreOpsPrefs.rooms]; any failure or non-Editor body (offline,
      * expired session) keeps the last fetch, so Rooms stays offline-first.
      */
+    /** Public so Centre Settings can refresh rooms without opening a course. */
+    suspend fun refreshCentreRooms(centreId: Int) = refreshRooms(centreId)
+
     private suspend fun refreshRooms(centreId: Int, generation: Long = sessionGeneration.get()) {
         runCatching {
             val resp = api.accoHandler(centreId)

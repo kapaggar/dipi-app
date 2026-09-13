@@ -125,6 +125,20 @@ class CourseDatesTest {
     // ---- the settings card's dates line
 
     @Test
+    fun teachingNowCoursePicksTheOlderWindowThatContainsToday() {
+        val lastDay = LocalDate.of(2026, 9, 13)
+        val running = course(2, "Dhamma Sudha / 10 Day / 2026 / 2nd-Sep to 13th-Sep")
+        val past = course(1, "Dhamma Sudha / 10 Day / 2026 / 5th-Aug to 16th-Aug")
+        assertEquals(running, teachingNowCourse(listOf(running, past), lastDay))
+        assertEquals("Day 11 · last day", teachingNowKicker(parseCourseWindow(running.name, lastDay)!!, lastDay))
+        assertEquals(
+            "Teaching now",
+            teachingNowKicker(parseCourseWindow(running.name, today)!!, today),
+        )
+        assertNull(teachingNowCourse(listOf(past), lastDay))
+    }
+
+    @Test
     fun windowLabelReadsAsARange() {
         assertEquals(
             "2 Sep – 13 Sep 2026",

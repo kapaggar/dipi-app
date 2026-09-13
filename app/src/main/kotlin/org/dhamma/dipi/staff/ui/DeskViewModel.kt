@@ -422,8 +422,10 @@ fun parseCourseStart(start: String?): java.time.LocalDate? {
 }
 
 /** "DAY 0 · TODAY" / "STARTS IN n DAYS" / "DAY n" — null when the start date is unknown. */
-fun deskDayChip(start: String?, today: java.time.LocalDate): String? {
-    val date = parseCourseStart(start) ?: return null
+fun deskDayChip(start: String?, today: java.time.LocalDate, courseName: String? = null): String? {
+    val date = parseCourseStart(start)
+        ?: courseName?.let { parseCourseWindow(it, today)?.start }
+        ?: return null
     val days = java.time.temporal.ChronoUnit.DAYS.between(today, date)
     return when {
         days == 0L -> "DAY 0 · TODAY"
@@ -450,18 +452,27 @@ fun roomSyncSnack(result: RoomSyncResult): FlushSnack = when {
     else -> FlushSnack("✓ Synced ${result.synced} room allocation(s) to the desk", error = false)
 }
 
+/** Relative age of an ISO last-sync instant; null when missing or unparseable. */
+fun lastSyncAgo(lastSyncIso: String?, now: java.time.Instant): String? {
+    val sync = lastSyncIso?.let { runCatching { java.time.Instant.parse(it) }.getOrNull() } ?: return null
+    val mins = java.time.temporal.ChronoUnit.MINUTES.between(sync, now)
+    return when {
+        mins < 1 -> "just now"
+        mins < 60 -> "$mins min ago"
+        else -> "${mins / 60} h ago"
+    }
+}
+
+/** Settings "Last synced" value. Raw ISO instants become "just now" / "n min ago". */
+fun lastSyncLabel(lastSyncIso: String?, now: java.time.Instant): String =
+    lastSyncAgo(lastSyncIso, now) ?: lastSyncIso?.takeIf { it.isNotBlank() } ?: "just now"
+
 /** The rail footer's truth claim about sync state. */
 fun deskSyncLine(lastSyncIso: String?, now: java.time.Instant, offline: Boolean, queued: Int): String {
     if (offline) return "offline · $queued queued"
     if (queued > 0) return "$queued queued to sync"
-    val sync = lastSyncIso?.let { runCatching { java.time.Instant.parse(it) }.getOrNull() }
-        ?: return "not synced yet"
-    val mins = java.time.temporal.ChronoUnit.MINUTES.between(sync, now)
-    return when {
-        mins < 1 -> "synced just now"
-        mins < 60 -> "synced $mins min ago"
-        else -> "synced ${mins / 60} h ago"
-    }
+    val ago = lastSyncAgo(lastSyncIso, now) ?: return "not synced yet"
+    return if (ago == "just now") "synced just now" else "synced $ago"
 }
 
 @HiltViewModel
@@ -1347,6 +1358,12 @@ class DeskViewModel @Inject constructor(
         if (cur == DeskScreen.Centre || cur == DeskScreen.CourseHub) centreOpsFrom = cur
         if (cur != DeskScreen.CentreOps) returnTo = centreOpsFrom
         _state.update { it.copy(screen = DeskScreen.CentreOps) }
+        val cid = _state.value.session?.centres?.firstOrNull()?.id?.value
+            ?: _state.value.course?.centreId?.value
+            ?: return
+        viewModelScope.launch {
+            runCatching { repo.refreshCentreRooms(cid) }
+        }
     }
 
     fun openRoomsFromZeroDay(card: ApplicantCard) {
@@ -1559,7 +1576,13 @@ class DeskViewModel @Inject constructor(
     }
 
     fun openSummary() {
-        val course = _state.value.course
+        val state = _state.value
+        val course = state.course
+        val finalized = state.courseFinalized || state.rows.any { it.courseFinalized }
+        if (course != null && !finalized) {
+            openSheet("Day 0 summary")
+            return
+        }
         _state.update { it.copy(screen = DeskScreen.Summary) }
         if (course != null) ensureWorklist(course)
     }
@@ -1786,7 +1809,9 @@ class DeskViewModel @Inject constructor(
         photoReview.resetSession(clearPixels = true)
         val running = runningCourseToday()
         returnTo = DeskScreen.TeacherRoll
-        _state.update { it.copy(mode = TabletMode.COURSE_OPS, course = running) }
+        _state.update {
+            it.copy(mode = TabletMode.COURSE_OPS, course = running, screen = DeskScreen.TeacherRoll)
+        }
         fetchTeacherRoll()
     }
 
