@@ -14,6 +14,8 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -45,7 +47,6 @@ import org.dhamma.dipi.staff.ui.theme.DipiCondensed
 import org.dhamma.dipi.staff.ui.theme.LocalIndustry
 import org.dhamma.dipi.staff.ui.theme.LocalDarkTheme
 import org.dhamma.dipi.staff.ui.theme.LocalDipi
-import org.dhamma.dipi.staff.ui.theme.LocalDipi
 import org.dhamma.dipi.staff.ui.theme.deskCard
 
 
@@ -70,6 +71,7 @@ internal fun Modifier.topHairline(color: Color): Modifier = drawBehind {
 }
 
 /** Segmented control: rounded soft-bordered track on the card fill, accent fill on the selection. */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun DeskSegmented(
     options: List<String>,
@@ -80,7 +82,7 @@ fun DeskSegmented(
     counts: Map<String, Int> = emptyMap(),
 ) {
     val industry = LocalIndustry.current
-    Row(
+    FlowRow(
         Modifier.deskCard(
             shape = DeskStyle.controlShape,
             elevation = 0.dp,
@@ -90,13 +92,14 @@ fun DeskSegmented(
             val on = label == selected
             Text(
                 counts[label]?.let { "$label $it" } ?: label,
-                fontSize = 12.5.sp,
+                fontSize = 14.sp,
                 maxLines = 1,
                 color = if (on) Color.White else industry.neutral700,
                 modifier = Modifier
                     .then(if (i > 0) Modifier.rightHairlineStart(industry.neutral300) else Modifier)
                     .background(if (on) industry.accent else Color.Transparent)
                     .clickable { onPick(label) }
+                    .heightIn(min = 48.dp)
                     .padding(horizontal = optionPadding, vertical = verticalPadding),
             )
         }
@@ -157,12 +160,14 @@ fun DeskToggle(
         animationSpec = tween(180),
         label = "knob",
     )
+    Box(Modifier.then(if (onToggle != null) Modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp)
+        .clickable(onClick = onToggle) else Modifier), contentAlignment = Alignment.Center) {
     Box(
         Modifier
             .size(trackWidth, trackHeight)
             .clip(DeskStyle.pillShape)
             .background(if (on) industry.accent else industry.neutral300)
-            .then(if (onToggle != null) Modifier.clickable(onClick = onToggle) else Modifier),
+            ,
     ) {
         Box(
             Modifier
@@ -171,6 +176,7 @@ fun DeskToggle(
                 .clip(CircleShape)
                 .background(Color.White),
         )
+    }
     }
 }
 
@@ -182,7 +188,7 @@ fun DeskPrimaryButton(label: String, onClick: () -> Unit, fontSize: Float = 14f)
         label.uppercase(),
         fontFamily = DipiCondensed,
         fontWeight = FontWeight.SemiBold,
-        fontSize = fontSize.sp,
+        fontSize = fontSize.coerceAtLeast(14f).sp,
         letterSpacing = 0.06.em,
         maxLines = 1,
         color = Color.White,
@@ -193,6 +199,7 @@ fun DeskPrimaryButton(label: String, onClick: () -> Unit, fontSize: Float = 14f)
                 border = industry.accent,
             )
             .clickable(onClick = onClick)
+            .heightIn(min = 48.dp)
             .padding(horizontal = 22.dp, vertical = 10.dp),
     )
 }
@@ -215,6 +222,7 @@ fun DeskOutlineButton(label: String, onClick: () -> Unit) {
                 elevation = 0.dp,
             )
             .clickable(onClick = onClick)
+            .heightIn(min = 48.dp)
             .padding(horizontal = 18.dp, vertical = 10.dp),
     )
 }
@@ -236,7 +244,7 @@ fun DeskSnackbar(text: String, error: Boolean, modifier: Modifier = Modifier) {
     ) {
         Text(
             text,
-            fontSize = 13.sp,
+            fontSize = 14.sp,
             lineHeight = 18.sp,
             color = Color.White,
             modifier = Modifier
@@ -360,7 +368,7 @@ private fun DrawScope.drawPhone(color: Color, stroke: Stroke, s: Float) {
 @Composable
 fun DeskSub(text: String, modifier: Modifier = Modifier) {
     val industry = LocalIndustry.current
-    Text(text, fontSize = 12.5.sp, lineHeight = 17.sp, color = industry.neutral600, modifier = modifier)
+    Text(text, fontSize = 14.sp, lineHeight = 17.sp, color = industry.neutral600, modifier = modifier)
 }
 
 /** Pane h2 — Barlow Condensed 700 / 30. */
@@ -383,9 +391,17 @@ fun DeskEmpty(text: String, modifier: Modifier = Modifier) {
     val industry = LocalIndustry.current
     Text(
         text,
-        fontSize = 13.sp,
+        fontSize = 14.sp,
         color = industry.neutral600,
         textAlign = TextAlign.Center,
         modifier = modifier,
     )
+}
+
+/** Desk2.2 accessibility floor; external screen typography is unchanged. */
+@Composable
+internal fun DeskKicker(text: String, color: Color, modifier: Modifier = Modifier) {
+    Text(text, fontFamily = org.dhamma.dipi.staff.ui.theme.DipiMono,
+        fontWeight = FontWeight.SemiBold, fontSize = 14.sp, letterSpacing = 0.06.em,
+        color = color, modifier = modifier)
 }

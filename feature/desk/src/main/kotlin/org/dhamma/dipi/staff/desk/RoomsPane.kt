@@ -5,6 +5,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
@@ -140,14 +141,13 @@ fun RoomsPane(
                 val sections = genderRooms.map { it.section }.distinct().ifEmpty { listOf("") }
                 sections.forEach { section ->
                     val block = genderRooms.filter { it.section == section }
-                    RoomBlock(
-                        label = label,
-                        section = section,
-                        block = block,
-                        columns = layout.columnsFor(gender, section),
-                        occupantByRoom = occupantByRoom,
-                        readOnly = readOnly,
-                    )
+                    BoxWithConstraints(Modifier.fillMaxWidth()) {
+                        val responsiveColumns = minOf(
+                            layout.columnsFor(gender, section),
+                            (maxWidth / 100.dp).toInt().coerceAtLeast(1),
+                        )
+                        RoomBlock(label, section, block, responsiveColumns, occupantByRoom, readOnly)
+                    }
                 }
             }
         }
@@ -300,7 +300,7 @@ private fun SyncRefusals(roll: List<ApplicantCard>, failures: List<RoomSyncFailu
             "SERVER REFUSED ${failures.size}",
             fontFamily = DipiMono,
             fontWeight = FontWeight.SemiBold,
-            fontSize = 10.sp,
+            fontSize = 14.sp,
             letterSpacing = 0.1.em,
             color = industry.accent700,
         )
@@ -310,14 +310,14 @@ private fun SyncRefusals(roll: List<ApplicantCard>, failures: List<RoomSyncFailu
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     name,
-                    fontSize = 12.5.sp,
+                    fontSize = 14.sp,
                     fontWeight = FontWeight.Medium,
                     color = industry.text,
                     modifier = Modifier.weight(1f),
                 )
                 Text(
                     failure.reason,
-                    fontSize = 12.sp,
+                    fontSize = 14.sp,
                     color = industry.neutral600,
                 )
             }
@@ -399,8 +399,8 @@ private fun RoomCell(
                         room.amenityMark,
                         fontFamily = DipiMono,
                         fontWeight = FontWeight.Medium,
-                        fontSize = 9.5.sp,
-                        lineHeight = 12.sp,
+                        fontSize = 14.sp,
+                        lineHeight = 18.sp,
                         letterSpacing = 0.1.em,
                         color = if (taken) industry.accent500 else industry.neutral300,
                         modifier = Modifier.padding(start = 6.dp),
@@ -418,7 +418,7 @@ private fun RoomCell(
                     who.forEach { student ->
                         Text(
                             student.displayName,
-                            fontSize = 13.sp,
+                            fontSize = 14.sp,
                             lineHeight = 15.sp,
                             maxLines = 2,
                             overflow = TextOverflow.Ellipsis,
@@ -447,7 +447,7 @@ private fun BoxScope.AgeCorner(ages: List<Int>) {
         ages.forEach { years ->
             Text(
                 years.toString(),
-                fontSize = 12.sp,
+                fontSize = 14.sp,
                 lineHeight = 14.sp,
                 color = industry.neutral600,
             )
@@ -541,7 +541,7 @@ private fun TypeLegendItem(label: String, fill: Color, border: Color, dashed: Bo
                     },
                 ),
         )
-        Text(label, fontSize = 12.sp, color = industry.neutral600)
+        Text(label, fontSize = 14.sp, color = industry.neutral600)
     }
 }
 
@@ -588,11 +588,11 @@ private fun AmenityLegend() {
                     mark,
                     fontFamily = DipiMono,
                     fontWeight = FontWeight.Medium,
-                    fontSize = 9.5.sp,
+                    fontSize = 14.sp,
                     letterSpacing = 0.1.em,
                     color = industry.accent500,
                 )
-                Text(meaning, fontSize = 11.5.sp, color = industry.neutral500)
+                Text(meaning, fontSize = 14.sp, color = industry.neutral600)
             }
         }
     }

@@ -14,4 +14,7 @@ android {
     kotlinOptions { jvmTarget = "17" }
     buildFeatures { compose = true }
 }
-dependencies { implementation(project(":core:ui")) }
+dependencies {
+    implementation(project(":core:ui"))
+    implementation(libs.androidx.activity.compose)
+}

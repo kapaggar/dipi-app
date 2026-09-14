@@ -11,6 +11,7 @@ import org.dhamma.dipi.staff.desk.deskCallSorted
 import org.dhamma.dipi.staff.desk.deskCallMeta
 import org.dhamma.dipi.staff.desk.deskCallRows
 import org.dhamma.dipi.staff.desk.deskWaNumber
+import org.dhamma.dipi.staff.desk.deskFilterChip
 import org.dhamma.dipi.staff.desk.deskFindings
 import org.dhamma.dipi.staff.desk.deskFreeRooms
 import org.dhamma.dipi.staff.desk.deskOccupied
@@ -79,8 +80,17 @@ class DeskDeriveTest {
             card(2, conf = null),
             card(3, conf = "NM3", status = "Cancelled"),
             card(4, conf = "OM4", status = "Expected"),
+            card(5, conf = "NF5", status = "Left"),
         )
         assertEquals(listOf(1, 4), deskRoll(rows).map { it.id.value })
+    }
+
+    @Test
+    fun deskFilterChipNamesPersistedGenderAndSeniority() {
+        assertEquals(null, deskFilterChip("Both", "Both"))
+        assertEquals("Female", deskFilterChip("Female", "Both"))
+        assertEquals("New", deskFilterChip("Both", "New"))
+        assertEquals("Female · New", deskFilterChip("Female", "New"))
     }
 
     @Test

@@ -18,9 +18,36 @@ import org.dhamma.dipi.staff.model.StatusTone
  * counts, roll table and free-room lists cannot drift apart.
  */
 
-/** The roll: applicants with a conf number who are not cancelled out. */
+/** Worklist statuses that never belong on the arriving / calling / room roll. */
+private val NOT_ON_DESK_ROLL = setOf("cancelled", "rejected", "duplicate", "left", "regret")
+
+/** Presentation-only exclusion; never invents or writes a server status. */
+fun deskOffRollStatus(status: String): Boolean = status.trim().lowercase() in NOT_ON_DESK_ROLL
+
+fun deskHeld(card: ApplicantCard): Boolean = card.status.normalize() == "waitlist"
+
+/** Calendar affects task suggestions only, never finalization or write permissions. */
+fun deskReconcile(courseName: String, finalized: Boolean, today: java.time.LocalDate): Boolean =
+    finalized || org.dhamma.dipi.staff.model.parseCourseWindow(courseName, today)?.end == today
+
+fun deskCallingRoll(
+    roll: List<ApplicantCard>,
+    records: Map<ApplicantId, CheckInRecord>,
+    reconcile: Boolean,
+): List<ApplicantCard> = if (reconcile) roll.filterNot { deskCheckedIn(it, records) } else roll
+
+/** The roll: applicants with a conf number who are not cancelled out. Left never arrives. */
 fun deskRoll(rows: List<ApplicantCard>): List<ApplicantCard> = rows.filter { card ->
-    card.confNo != null && card.status.normalize() !in setOf("cancelled", "rejected", "duplicate")
+    card.confNo != null && card.status.normalize() !in NOT_ON_DESK_ROLL
+}
+
+/** Gender · New/Old reminder when the persisted desk scope is not Both. */
+fun deskFilterChip(gender: String, seniority: String): String? {
+    val parts = listOfNotNull(
+        gender.takeIf { it.isNotBlank() && it != "Both" },
+        seniority.takeIf { it.isNotBlank() && it != "Both" },
+    )
+    return parts.takeIf { it.isNotEmpty() }?.joinToString(" · ")
 }
 
 /** UI label → gender scope; "Both" (and anything else) means no filter. */

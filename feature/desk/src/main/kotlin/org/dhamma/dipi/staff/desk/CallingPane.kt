@@ -16,6 +16,9 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
@@ -29,6 +32,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.activity.compose.BackHandler
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -85,6 +89,8 @@ fun CallingPane(
     statusChoices: List<String> = emptyList(),
     onChangeStatus: (ApplicantCard, String) -> Unit = { _, _ -> },
     onWhatsAppBatch: ((List<ApplicantCard>) -> Unit)? = null,
+    reconcile: Boolean = false,
+    originalRollTotal: Int = roll.size,
 ) {
     val scoped = deskScoped(roll, deskGenderScope(gender), deskSeniorityScope(seniority))
     val callList = deskCallList(scoped)
@@ -94,14 +100,51 @@ fun CallingPane(
     // One card open at a time — the tracker's expandedId. -1 is "none open".
     var openId by rememberSaveable { mutableStateOf(-1) }
 
-    Column(Modifier.fillMaxSize()) {
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+        val compact = maxWidth < 910.dp
+        BackHandler(enabled = compact && openId != -1) { openId = -1 }
+        val selected = shown.firstOrNull { it.id.value == openId }
+        if (compact && selected != null) {
+            Column(Modifier.fillMaxSize()) {
+                Row(
+                    Modifier.fillMaxWidth().heightIn(min = 48.dp).clickable { openId = -1 }
+                        .padding(horizontal = 20.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Text("←", fontSize = 22.sp, color = LocalIndustry.current.accent)
+                    Text("Back to list", fontSize = 14.sp, color = LocalIndustry.current.accent800)
+                }
+                Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+                CallCard(
+                    card = selected,
+                    record = outcomes[selected.id],
+                    index = shown.indexOf(selected) + 1,
+                    nowMs = nowMs,
+                    expanded = true,
+                    onToggle = { openId = -1 },
+                    onOutcome = { onOutcome(selected, it) },
+                    onDial = { onDial(selected) },
+                    onWhatsApp = { onWhatsApp(selected) },
+                    onNote = { onNote(selected, it) },
+                    statusChoices = statusChoices,
+                    onChangeStatus = { onChangeStatus(selected, it) },
+                )
+                }
+            }
+        } else {
+        Column(Modifier.fillMaxSize()) {
         Column(
             Modifier.padding(start = 26.dp, end = 26.dp, top = 20.dp, bottom = 14.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
                 DeskH2("Call round")
-                DeskSub("$logged of ${callList.size} logged")
+                DeskSub(
+                    (if (reconcile) "Attendance reconciliation · ${scoped.size} of $originalRollTotal remaining in scope · ${callList.size} with phone · ${scoped.size - callList.size} without phone"
+                    else "$logged of ${callList.size} logged · ${scoped.size} of $originalRollTotal on roll in scope") +
+                        " · showing ${shown.size} of ${callList.size} callable",
+                )
             }
             DeskSegmented(
                 listOf("To call") + CALL_OUTCOMES,
@@ -155,6 +198,8 @@ fun CallingPane(
                 }
             }
         }
+        }
+        }
     }
 }
 
@@ -164,7 +209,7 @@ private fun SortPill(priority: Boolean, onPriority: () -> Unit) {
     val industry = LocalIndustry.current
     Text(
         if (priority) "Priority order" else "A–Z",
-        fontSize = 12.5.sp,
+        fontSize = 14.sp,
         maxLines = 1,
         color = if (priority) Color.White else industry.neutral700,
         modifier = Modifier
@@ -188,7 +233,7 @@ private fun CallSearchField(search: String, onSearch: (String) -> Unit) {
     Row(
         Modifier
             .fillMaxWidth()
-            .height(46.dp)
+            .heightIn(min = 48.dp)
             .background(DeskStyle.cardFill, DeskStyle.controlShape)
             .border(
                 if (focused) 2.dp else 1.dp,
@@ -218,7 +263,7 @@ private fun CallSearchField(search: String, onSearch: (String) -> Unit) {
                         fontSize = 14.sp,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        color = industry.neutral500,
+                        color = industry.neutral600,
                     )
                 }
                 inner()
@@ -227,14 +272,14 @@ private fun CallSearchField(search: String, onSearch: (String) -> Unit) {
         if (search.isNotEmpty()) {
             Box(
                 Modifier
-                    .size(42.dp)
+                    .size(48.dp)
                     .clickable { onSearch("") }
                     .semantics { contentDescription = "Clear the call search" },
                 contentAlignment = Alignment.Center,
             ) {
                 Box(
                     Modifier
-                        .size(28.dp)
+                        .size(32.dp)
                         .clip(CircleShape)
                         .background(industry.neutral200),
                     contentAlignment = Alignment.Center,
@@ -303,8 +348,8 @@ private fun CallCard(
                 "$index.",
                 fontFamily = DipiMono,
                 fontWeight = FontWeight.Medium,
-                fontSize = 12.sp,
-                color = industry.neutral500,
+                fontSize = 14.sp,
+                color = industry.neutral600,
                 modifier = Modifier.width(28.dp),
             )
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -318,7 +363,7 @@ private fun CallCard(
                 )
                 Text(
                     meta,
-                    fontSize = 12.sp,
+                    fontSize = 14.sp,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     color = industry.neutral600,
@@ -328,7 +373,7 @@ private fun CallCard(
                 outcome.ifBlank { "To call" }.uppercase(),
                 fontFamily = DipiCondensed,
                 fontWeight = FontWeight.SemiBold,
-                fontSize = 11.sp,
+                fontSize = 14.sp,
                 letterSpacing = 0.08.em,
                 maxLines = 1,
                 color = if (outcome.isBlank()) industry.neutral600 else badgeFg,
@@ -373,7 +418,7 @@ private fun CallCard(
                 if (outcome.isNotBlank()) {
                     Text(
                         "↩ Back to To call",
-                        fontSize = 12.sp,
+                        fontSize = 14.sp,
                         color = industry.neutral600,
                         modifier = Modifier
                             .clip(DeskStyle.controlShape)
@@ -404,7 +449,7 @@ private fun ContactButton(
                 if (description == null) Modifier
                 else Modifier.semantics { contentDescription = description },
             )
-            .heightIn(min = 44.dp)
+            .heightIn(min = 48.dp)
             .padding(horizontal = 14.dp, vertical = 10.dp),
         horizontalArrangement = Arrangement.spacedBy(9.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -458,12 +503,12 @@ private fun DeskStatusChanger(
         ) {
             Text(
                 "Desk status",
-                fontSize = 12.sp,
+                fontSize = 14.sp,
                 color = industry.neutral600,
             )
             Text(
                 current.ifBlank { "-" },
-                fontSize = 12.5.sp,
+                fontSize = 14.sp,
                 fontWeight = FontWeight.Medium,
                 maxLines = 1,
                 color = industry.text,
@@ -480,13 +525,13 @@ private fun DeskStatusChanger(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text(pick, fontSize = 12.5.sp, maxLines = 1, color = industry.text)
+                    Text(pick, fontSize = 14.sp, maxLines = 1, color = industry.text)
                     DeskIcon(DeskIconKind.ChevronDown, 13.dp, industry.neutral600)
                 }
                 DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
                     choices.forEach { choice ->
                         DropdownMenuItem(
-                            text = { Text(choice, fontSize = 13.sp) },
+                            text = { Text(choice, fontSize = 14.sp) },
                             onClick = {
                                 pick = choice
                                 menuOpen = false
@@ -499,7 +544,7 @@ private fun DeskStatusChanger(
                 "UPDATE",
                 fontFamily = DipiCondensed,
                 fontWeight = FontWeight.SemiBold,
-                fontSize = 13.sp,
+                fontSize = 14.sp,
                 letterSpacing = 0.06.em,
                 maxLines = 1,
                 color = if (resolved.isBlank()) industry.neutral500 else Color.White,
@@ -515,7 +560,7 @@ private fun DeskStatusChanger(
                 value = custom,
                 onValueChange = { custom = it.take(60) },
                 singleLine = true,
-                textStyle = TextStyle(fontSize = 12.5.sp, color = industry.text),
+                textStyle = TextStyle(fontSize = 14.sp, color = industry.text),
                 cursorBrush = SolidColor(industry.accent),
                 decorationBox = { inner ->
                     Box(
@@ -525,7 +570,7 @@ private fun DeskStatusChanger(
                             .padding(horizontal = 10.dp, vertical = 8.dp),
                     ) {
                         if (custom.isEmpty()) {
-                            Text("Custom status text", fontSize = 12.5.sp, color = industry.neutral500)
+                            Text("Custom status text", fontSize = 14.sp, color = industry.neutral600)
                         }
                         inner()
                     }
@@ -555,7 +600,7 @@ private fun OutcomeGrid(outcome: String, onOutcome: (String) -> Unit) {
                     Box(
                         Modifier
                             .weight(1f)
-                            .heightIn(min = 46.dp)
+                            .heightIn(min = 48.dp)
                             .clip(DeskStyle.controlShape)
                             .background(if (on) bg else Color.Transparent)
                             .border(
@@ -568,7 +613,7 @@ private fun OutcomeGrid(outcome: String, onOutcome: (String) -> Unit) {
                     ) {
                         Text(
                             label,
-                            fontSize = 13.sp,
+                            fontSize = 14.sp,
                             fontWeight = if (on) FontWeight.Medium else FontWeight.Normal,
                             textAlign = TextAlign.Center,
                             maxLines = 1,
@@ -589,7 +634,7 @@ private fun NoteField(name: String, note: String, onNote: (String) -> Unit) {
     BasicTextField(
         value = note,
         onValueChange = { onNote(it.take(200)) },
-        textStyle = TextStyle(fontSize = 12.5.sp, color = industry.text),
+        textStyle = TextStyle(fontSize = 14.sp, color = industry.text),
         cursorBrush = SolidColor(industry.accent),
         decorationBox = { inner ->
             Box(
@@ -601,8 +646,8 @@ private fun NoteField(name: String, note: String, onNote: (String) -> Unit) {
                 if (note.isEmpty()) {
                     Text(
                         "Note (this tablet only)",
-                        fontSize = 12.5.sp,
-                        color = industry.neutral500,
+                        fontSize = 14.sp,
+                        color = industry.neutral600,
                     )
                 }
                 inner()
@@ -610,7 +655,7 @@ private fun NoteField(name: String, note: String, onNote: (String) -> Unit) {
         },
         modifier = Modifier
             .fillMaxWidth()
-            .heightIn(min = 40.dp)
+            .heightIn(min = 48.dp)
             .semantics { contentDescription = "Note for $name" },
     )
 }

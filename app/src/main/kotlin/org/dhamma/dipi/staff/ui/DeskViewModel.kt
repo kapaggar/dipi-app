@@ -310,6 +310,7 @@ data class DeskUiState(
     val deskRoomOpen: Boolean = false,
     val deskFinding: String? = null,
     val deskAppId: ApplicantId? = null,
+    val deskAppOpenRequest: Int = 0,
     /**
      * Display-only ID + health disclosures by applicant, mirrored from the
      * repository's session-scoped in-memory map. Never persisted or logged.
@@ -348,6 +349,7 @@ fun deskOpenCourse(state: DeskUiState, course: Course): DeskUiState = state.copy
     course = course,
     screen = deskAfterPickCourse(),
     deskSection = DeskSection.Board,
+    deskAppOpenRequest = 0,
     rows = emptyList(),
     courseFinalized = false,
     visible = emptyList(),
@@ -399,12 +401,14 @@ fun sheetCourseLine(courseName: String, rollSize: Int): String {
  * Rail counts for the v2 desk — derived from the worklist plus the local
  * check-in records, never stored, so the numbers cannot drift.
  */
-fun deskRailCounts(state: DeskUiState): Map<DeskSection, Int> = buildMap {
+fun deskRailCounts(state: DeskUiState, today: java.time.LocalDate = java.time.LocalDate.now()): Map<DeskSection, Int> = buildMap {
     val roll = deskRoll(state.rows)
     val applications = state.counts["All"] ?: state.rows.size
     if (applications > 0) put(DeskSection.Applications, applications)
     put(DeskSection.Audit, deskFindingCount(state.auditRows))
-    put(DeskSection.Calling, deskCallList(roll).count { !deskCallLogged(state.callState[it.id]) })
+    val reconcile = org.dhamma.dipi.staff.desk.deskReconcile(state.course?.name.orEmpty(), state.courseFinalized, today)
+    val callingRoll = org.dhamma.dipi.staff.desk.deskCallingRoll(roll, state.checkIns, reconcile)
+    put(DeskSection.Calling, if (reconcile) callingRoll.size else deskCallList(callingRoll).count { !deskCallLogged(state.callState[it.id]) })
     put(DeskSection.CheckIn, roll.count { !deskCheckedIn(it, state.checkIns) })
     val occupied = deskOccupied(roll, state.checkIns)
     put(DeskSection.Rooms, state.centreOps.rooms.count { it.code !in occupied })
@@ -666,7 +670,7 @@ class DeskViewModel @Inject constructor(
 
     /** V2 desk: rail navigation between sections. No page transition, no loading state. */
     fun setDeskSection(section: DeskSection) {
-        _state.update { it.copy(deskSection = section, sheetView = null) }
+        _state.update { it.copy(deskSection = section, sheetView = null, deskAppOpenRequest = 0) }
     }
 
     /** V2 desk: one fetch of the course's application set on open, then local. */
@@ -911,6 +915,7 @@ class DeskViewModel @Inject constructor(
             val hasHealth = cur.sensitiveById[card.id]?.health?.isNotEmpty() == true
             cur.copy(
                 deskAppId = card.id,
+                deskAppOpenRequest = cur.deskAppOpenRequest + 1,
                 card = card,
                 snack = deskHealthSnack(cur.deskAppId, card.id, hasHealth) ?: cur.snack,
             )

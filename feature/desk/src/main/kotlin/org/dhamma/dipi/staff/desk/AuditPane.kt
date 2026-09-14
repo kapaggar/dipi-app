@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
@@ -15,10 +16,16 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.activity.compose.BackHandler
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -51,18 +58,30 @@ fun AuditPane(
     val findings = deskFindings(flagged)
     val total = deskFindingCount(flagged)
     val selected = findings.firstOrNull { it.code == selectedCode } ?: findings.firstOrNull()
+    val compactDetail = LocalConfiguration.current.screenWidthDp - 190 < 910
+    var detailOpen by remember { mutableStateOf(false) }
+    BackHandler(enabled = compactDetail && detailOpen) { detailOpen = false }
 
     Row(Modifier.fillMaxSize()) {
-        Column(
+        if (compactDetail && detailOpen && selected != null) {
+            FindingDetail(
+                selected = selected,
+                modifier = Modifier.fillMaxSize(),
+                onBatch = onBatch,
+                onOpen = onOpen,
+                onBack = { detailOpen = false },
+            )
+        } else {
+            Column(
             Modifier
-                .width(410.dp)
+                .then(if (compactDetail) Modifier.weight(1f) else Modifier.width(410.dp))
                 .fillMaxHeight()
                 .rightHairline(industry.neutral300)
                 .verticalScroll(rememberScrollState())
                 .padding(20.dp),
-        ) {
+            ) {
             Column(Modifier.padding(bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                DeskH2("$total findings")
+                DeskH2("All applicants · $total findings")
                 DeskSub("Grouped by issue")
             }
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -73,22 +92,30 @@ fun AuditPane(
                         kicker,
                         fontFamily = DipiMono,
                         fontWeight = FontWeight.SemiBold,
-                        fontSize = 10.sp,
+                        fontSize = 14.sp,
                         letterSpacing = 0.08.em,
-                        color = industry.neutral500,
+                        color = industry.neutral600,
                         modifier = Modifier.padding(top = 6.dp),
                     )
                     section.forEach { finding ->
-                        FindingRow(finding, on = finding.code == selected?.code, onSelect = onSelect)
+                        FindingRow(
+                            finding,
+                            on = !compactDetail && finding.code == selected?.code,
+                            onSelect = {
+                                onSelect(it)
+                                if (compactDetail) detailOpen = true
+                            },
+                        )
                     }
                 }
                 if (findings.isEmpty()) {
                     DeskEmpty("Audit clean · nothing to fix.", Modifier.fillMaxWidth().padding(vertical = 30.dp))
                 }
             }
+            }
         }
 
-        if (selected != null) {
+        if (!compactDetail && selected != null) {
             FindingDetail(selected, Modifier.weight(1f), onBatch = onBatch, onOpen = onOpen)
         }
     }
@@ -111,14 +138,15 @@ private fun FindingRow(finding: DeskFinding, on: Boolean, onSelect: (String) -> 
                 border = if (on) industry.accent else DeskStyle.cardBorder,
             )
             .clickable { onSelect(finding.code) }
+            .heightIn(min = 48.dp)
             .padding(horizontal = 13.dp, vertical = 11.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(
                 finding.title,
-                fontSize = 13.5.sp,
-                lineHeight = 17.sp,
+                fontSize = 14.sp,
+                lineHeight = 20.sp,
                 fontWeight = FontWeight.Medium,
                 color = industry.text,
             )
@@ -126,8 +154,8 @@ private fun FindingRow(finding: DeskFinding, on: Boolean, onSelect: (String) -> 
                 finding.code,
                 fontFamily = DipiMono,
                 fontWeight = FontWeight.Medium,
-                fontSize = 10.5.sp,
-                color = industry.neutral500,
+                fontSize = 14.sp,
+                color = industry.neutral600,
             )
         }
         Column(horizontalAlignment = Alignment.End) {
@@ -143,7 +171,7 @@ private fun FindingRow(finding: DeskFinding, on: Boolean, onSelect: (String) -> 
                 severityBadge(finding).uppercase(),
                 fontFamily = DipiCondensed,
                 fontWeight = FontWeight.SemiBold,
-                fontSize = 9.5.sp,
+                fontSize = 14.sp,
                 letterSpacing = 0.1.em,
                 color = if (finding.mustFix) industry.accent800 else industry.neutral600,
             )
@@ -157,6 +185,7 @@ private fun FindingDetail(
     modifier: Modifier,
     onBatch: (code: String, label: String) -> Unit,
     onOpen: (ApplicantCard) -> Unit,
+    onBack: (() -> Unit)? = null,
 ) {
     val industry = LocalIndustry.current
     Column(
@@ -165,11 +194,24 @@ private fun FindingDetail(
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 26.dp, vertical = 24.dp),
     ) {
+        if (onBack != null) {
+            Text(
+                "← Back to list",
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Medium,
+                color = industry.accent800,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 48.dp)
+                    .clickable(onClick = onBack)
+                    .padding(vertical = 14.dp),
+            )
+        }
         Text(
             selected.code,
             fontFamily = DipiMono,
             fontWeight = FontWeight.Medium,
-            fontSize = 11.sp,
+            fontSize = 14.sp,
             color = industry.accent700,
         )
         Text(
@@ -183,7 +225,7 @@ private fun FindingDetail(
         )
         Text(
             "${severityBadge(selected)} · ${selected.people.size} applications",
-            fontSize = 12.5.sp,
+            fontSize = 14.sp,
             color = industry.neutral600,
             modifier = Modifier.padding(top = 4.dp, bottom = 16.dp),
         )
@@ -199,6 +241,7 @@ private fun FindingDetail(
                         border = industry.accent,
                     )
                     .clickable { onBatch(selected.code, batch) }
+                    .heightIn(min = 48.dp)
                     .padding(horizontal = 16.dp, vertical = 11.dp),
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
                 verticalAlignment = Alignment.CenterVertically,
@@ -230,7 +273,7 @@ private fun FindingDetail(
                         person.card.confNo?.display() ?: "-",
                         fontFamily = DipiMono,
                         fontWeight = FontWeight.Medium,
-                        fontSize = 12.5.sp,
+                        fontSize = 14.sp,
                         color = industry.neutral600,
                         modifier = Modifier.width(56.dp),
                     )
@@ -247,7 +290,7 @@ private fun FindingDetail(
                         person.offendingValue,
                         fontFamily = DipiMono,
                         fontWeight = FontWeight.Medium,
-                        fontSize = 12.5.sp,
+                        fontSize = 14.sp,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         color = industry.accent800,
@@ -255,13 +298,14 @@ private fun FindingDetail(
                     )
                     Text(
                         "Open",
-                        fontSize = 12.sp,
+                        fontSize = 14.sp,
                         textAlign = TextAlign.Center,
                         color = industry.text,
                         modifier = Modifier
                             .clip(DeskStyle.controlShape)
                             .border(1.dp, industry.neutral400, DeskStyle.controlShape)
                             .clickable { onOpen(person.card) }
+                            .heightIn(min = 48.dp)
                             .padding(horizontal = 12.dp, vertical = 6.dp),
                     )
                 }

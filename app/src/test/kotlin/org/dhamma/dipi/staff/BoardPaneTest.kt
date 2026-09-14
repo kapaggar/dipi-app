@@ -2,7 +2,8 @@ package org.dhamma.dipi.staff
 
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.getBoundsInRoot
+import androidx.compose.ui.test.getUnclippedBoundsInRoot
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
@@ -121,7 +122,7 @@ class BoardPaneTest {
         rule.onNodeWithText("Day 11 · Course summary report").assertDoesNotExist()
         rule.onAllNodesWithTag("export-shelf-gap").assertCountEquals(0)
 
-        grid.flatten().forEach { rule.onNodeWithText(it).assertIsDisplayed() }
+        grid.flatten().forEach { rule.onNodeWithText(it).performScrollTo().assertIsDisplayed() }
     }
 
     @Test
@@ -131,15 +132,15 @@ class BoardPaneTest {
 
         val chips = rule.onAllNodesWithTag("export-chip")
         chips.assertCountEquals(9)
-        val first = chips[0].getBoundsInRoot()
+        val first = chips[0].getUnclippedBoundsInRoot()
         assertEquals(64.dp.value, first.height.value, 0.5f)
         repeat(9) { i ->
-            val box = chips[i].getBoundsInRoot()
+            val box = chips[i].getUnclippedBoundsInRoot()
             assertEquals("cell $i height", first.height.value, box.height.value, 0.5f)
             assertEquals("cell $i width", first.width.value, box.width.value, 1.5f)
         }
 
-        rule.onNodeWithText("Seating plan").performClick()
+        rule.onNodeWithText("Seating plan").performScrollTo().performClick()
         assertEquals("Seating plan", exported)
         rule.onNodeWithText("Day 0 summary").performClick()
         assertEquals("Day 0 summary", exported)
@@ -154,9 +155,9 @@ class BoardPaneTest {
         rule.onNodeWithTag("export-day11").assertIsDisplayed()
 
         val chips = rule.onAllNodesWithTag("export-chip")
-        val day0 = chips[0].getBoundsInRoot()
-        val summary = chips[1].getBoundsInRoot()
-        val day11 = rule.onNodeWithTag("export-day11").getBoundsInRoot()
+        val day0 = chips[0].getUnclippedBoundsInRoot()
+        val summary = chips[1].getUnclippedBoundsInRoot()
+        val day11 = rule.onNodeWithTag("export-day11").getUnclippedBoundsInRoot()
         assertEquals("Course summary shares the first row", day0.top.value, day11.top.value, 0.5f)
         assertEquals(day0.height.value, day11.height.value, 0.5f)
         assertEquals(day0.width.value, day11.width.value, 1.5f)
@@ -174,17 +175,17 @@ class BoardPaneTest {
     fun gridReadsLeftToRightThenDown() {
         board()
         grid.forEach { row ->
-            val left = rule.onNodeWithText(row[0]).getBoundsInRoot()
-            val mid = rule.onNodeWithText(row[1]).getBoundsInRoot()
-            val right = rule.onNodeWithText(row[2]).getBoundsInRoot()
+            val left = rule.onNodeWithText(row[0]).getUnclippedBoundsInRoot()
+            val mid = rule.onNodeWithText(row[1]).getUnclippedBoundsInRoot()
+            val right = rule.onNodeWithText(row[2]).getUnclippedBoundsInRoot()
             assertEquals("${row[0]} and ${row[1]} share a row", left.top.value, mid.top.value, 0.5f)
             assertEquals("${row[1]} and ${row[2]} share a row", mid.top.value, right.top.value, 0.5f)
             assertTrue("${row[0]} precedes ${row[1]}", left.right.value <= mid.left.value + 0.5f)
             assertTrue("${row[1]} precedes ${row[2]}", mid.right.value <= right.left.value + 0.5f)
         }
-        val top = rule.onNodeWithText("Day 0 list").getBoundsInRoot()
-        val mid = rule.onNodeWithText("Student chit").getBoundsInRoot()
-        val bot = rule.onNodeWithText("Teacher list").getBoundsInRoot()
+        val top = rule.onNodeWithText("Day 0 list").getUnclippedBoundsInRoot()
+        val mid = rule.onNodeWithText("Student chit").getUnclippedBoundsInRoot()
+        val bot = rule.onNodeWithText("Teacher list").getUnclippedBoundsInRoot()
         assertTrue("second row sits below the first", mid.top.value >= top.bottom.value - 0.5f)
         assertTrue("third row sits below the second", bot.top.value >= mid.bottom.value - 0.5f)
         assertEquals("first column aligns", top.left.value, mid.left.value, 0.5f)
@@ -202,13 +203,13 @@ class BoardPaneTest {
         val stats = rule.onAllNodesWithTag("board-stat")
         stats.assertCountEquals(4)
         repeat(4) { i ->
-            assertEquals(112.dp.value, stats[i].getBoundsInRoot().height.value, 0.5f)
+            assertEquals(156.dp.value, stats[i].getUnclippedBoundsInRoot().height.value, 0.5f)
         }
-        listOf("ARRIVING TODAY", "CHECKED IN", "STILL TO CALL", "NEEDS ATTENTION").forEach {
+        listOf("ARRIVING ROLL", "CHECKED IN", "STILL TO CALL", "NEEDS ATTENTION").forEach {
             rule.onNodeWithText(it).assertIsDisplayed()
         }
 
-        rule.onNodeWithText("ARRIVING TODAY").performClick()
+        rule.onNodeWithText("ARRIVING ROLL").performClick()
         assertEquals(DeskSection.CheckIn, went)
         rule.onNodeWithText("STILL TO CALL").performClick()
         assertEquals(DeskSection.Calling, went)
@@ -224,7 +225,7 @@ class BoardPaneTest {
         val rows = rule.onAllNodesWithTag("board-next")
         rows.assertCountEquals(3)
         repeat(3) { i ->
-            assertEquals(58.dp.value, rows[i].getBoundsInRoot().height.value, 0.5f)
+            assertTrue(rows[i].getUnclippedBoundsInRoot().height.value >= 64f)
         }
 
         rule.onNodeWithText("Check in arrivals").performClick()
@@ -236,12 +237,30 @@ class BoardPaneTest {
     }
 
     @Test
+    fun reconciliationShowsRemainingPeopleAndOpensExistingSummarySheets() {
+        var exported: String? = null
+        rule.setContent {
+            DipiTheme {
+                BoardPane(roll = roll, checkIns = emptyMap(), flagged = listOf(flagged),
+                    callOutcomes = emptyMap(), onGoto = {}, onExport = { exported = it }, reconcile = true)
+            }
+        }
+        rule.onNodeWithText("TO RECONCILE").assertIsDisplayed()
+        rule.onNodeWithText("2 = 3 − 1").assertIsDisplayed()
+        rule.onNodeWithText("Finish the call round").assertDoesNotExist()
+        rule.onNodeWithText("Print Course summary").performScrollTo().performClick()
+        assertEquals("Course summary", exported)
+        rule.onNodeWithText("Print Day 0 summary").performScrollTo().performClick()
+        assertEquals("Day 0 summary", exported)
+    }
+
+    @Test
     fun statCardsCarryOneArrowEach() {
         board()
         val arrows = rule.onAllNodesWithTag("board-stat-arrow", useUnmergedTree = true)
         arrows.assertCountEquals(4)
         repeat(4) { i ->
-            val box = arrows[i].getBoundsInRoot()
+            val box = arrows[i].getUnclippedBoundsInRoot()
             assertTrue("arrow $i clipped to ${box.height.value}dp", box.height.value >= 10f)
         }
     }

@@ -974,6 +974,10 @@ On return, refresh the same course once, retaining selection and recomputing aud
 The sheet viewer remains for exports, not application editing.
 
 
+## Desk roll honesty (2.1.1 / 101)
+
+2026-09-13: Left students leave the arriving / calling / Room Chart roll the same way Cancelled, Duplicate, and Rejected already did (owner: Left never occupies a room). The desk top bar shows the persisted gender · seniority scope (`Female · New`) and tap clears both axes. Rail counts stay unfiltered totals of the arriving roll.
+
 ## Tablet stroll follow-up (2.1.0 / 100)
 
 2026-09-13: after a Pixel C Desk ops / Course ops stroll of 2.0.1, the phone Day 0 summary tile opens the same Board Day 0 summary sheet (finalized courses keep the worklist screen and count Expected with Confirmed). Zero Day no longer lists Cancelled, Duplicate, Rejected, or Left as unattended. Applications empty copy distinguishes filters from an unloaded worklist. Centre Settings refreshes `acco-handler` on open so Accommodation matches Room Chart. Course ops under 1100dp uses two-line teacher rows and a stacked student card. The centre dashboard lifts a running older course into a Teaching now / last-day band. Switching to Course ops leaves Settings for Teacher list. The desk day chip reads the course-name window when `start` is blank; Settings Last synced shows relative age instead of a raw ISO instant. `deskWide` 1100 is unchanged (owner fork).
@@ -1043,3 +1047,24 @@ Replace preview-only Photo review with source-bound local rotation, 13:14 crop, 
 ## Owner amendment: Room Chart (1.44.0)
 
 Rename the desk rail and pane to **Room Chart**. Occupied cells show name and age; Old/New is the cell border (solid / short-dashed) since 1.45.5. Cells grow for wrapped names/shared rooms. Finalized courses show **Finalized course · Read only**, historical assigned/unassigned counts, disabled allocation edits and sync. Left students retain their label in Check-in and never occupy a room. Include historical rooms removed from the current inventory. Active-course layout and pull/sync behavior remain available.
+
+
+## Desk 2.2 handover delta (2.2.0 / 102)
+
+The supplied `docs/design/desk-2.2/HANDOVER.md` and `DIPI Staff 2.2.dc.html` in the supplied handover ZIP
+are the requested delta to the existing visual authority. The rail starts at
+840dp (previously1100dp); detail splits stay at1100dp screen width. Smaller
+desks push detail and provide Back to list. The written14sp/48dp floors override
+smaller examples in the supplied HTML, for the six desk panes and controls.
+Other screen typography, Light palettes and export document bodies retain
+their existing design.
+
+Owner clarification (2026-09-13): retain confirmation-number holders with
+other active statuses; exclude only Cancelled, Left, Rejected, Regret and
+Duplicate. WaitList remains on the roll and is identified as held. This
+supersedes the handover's strict Confirmed+Expected wording. Dates select
+reconciliation guidance only; only server finalization controls read-only mode.
+Scope stays per-device. Board/app figures name their derivation and remain
+separate from the institutional sheets. Existing local check-in and room-pull
+merge behavior remain. ID reveal is transient, masked initially and reset on
+applicant/detail changes. Verification evidence is recorded in the desk2.2 plan.

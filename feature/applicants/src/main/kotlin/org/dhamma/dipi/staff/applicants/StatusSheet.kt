@@ -115,7 +115,7 @@ fun StatusSheetContent(
             "Less used",
             color = c.muted,
             fontFamily = DipiCondensed,
-            fontSize = 13.sp,
+            fontSize = 14.sp,
             modifier = Modifier.padding(top = 16.dp, bottom = 8.dp),
         )
         FlowRow(
@@ -128,11 +128,12 @@ fun StatusSheetContent(
                     text = choice,
                     color = if (selected) Color.White else c.foreground,
                     fontFamily = DipiCondensed,
-                    fontSize = 13.sp,
+                    fontSize = 14.sp,
                     modifier = Modifier
                         .border(1.dp, if (selected) c.accent else c.hairlineStrong, RoundedCornerShape(4.dp))
                         .background(if (selected) c.accent else Color.Transparent, RoundedCornerShape(4.dp))
                         .clickable { onPick(choice) }
+                        .heightIn(min = 48.dp)
                         .padding(horizontal = 10.dp, vertical = 6.dp),
                 )
             }
@@ -154,7 +155,7 @@ fun StatusSheetContent(
         Text(
             "The server may send the applicant a letter for this change.",
             color = c.muted,
-            fontSize = 13.sp,
+            fontSize = 14.sp,
             modifier = Modifier.padding(vertical = 12.dp),
         )
         Button(onConfirm, Modifier.fillMaxWidth()) { Text("Confirm change") }

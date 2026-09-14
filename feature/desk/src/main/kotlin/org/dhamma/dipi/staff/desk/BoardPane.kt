@@ -2,6 +2,8 @@ package org.dhamma.dipi.staff.desk
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -25,7 +27,6 @@ import androidx.compose.ui.unit.sp
 import org.dhamma.dipi.staff.model.ApplicantCard
 import org.dhamma.dipi.staff.model.ApplicantId
 import org.dhamma.dipi.staff.model.CheckInRecord
-import org.dhamma.dipi.staff.ui.theme.DeskKicker
 import org.dhamma.dipi.staff.ui.theme.DipiCondensed
 import org.dhamma.dipi.staff.ui.theme.DipiMono
 import org.dhamma.dipi.staff.ui.theme.LocalDeskColors
@@ -63,15 +64,21 @@ fun BoardPane(
     callOutcomes: Map<ApplicantId, String>,
     onGoto: (DeskSection) -> Unit,
     onExport: (String) -> Unit,
+    sourceRows: List<ApplicantCard> = roll,
+    reconcile: Boolean = false,
 ) {
     val industry = LocalIndustry.current
     val total = roll.size
     val inCount = roll.count { deskCheckedIn(it, checkIns) }
-    val pct = if (total == 0) 0 else (inCount * 100) / total
-    val callList = deskCallList(roll)
-    val logged = callList.count { it.id in callOutcomes }
+    val eligible = sourceRows.count { it.confNo != null }
+    val offRoll = sourceRows.filter { it.confNo != null && deskOffRollStatus(it.status.value) }
+        .groupingBy { it.status.value }.eachCount()
+    val rollFormula = "$total = $eligible" + offRoll.entries.joinToString("") { " − ${it.value} ${it.key}" }
+    val held = roll.count(::deskHeld)
+    val remaining = total - inCount
+    val callList = deskCallList(deskCallingRoll(roll, checkIns, reconcile))
+    val logged = callList.count { deskCallOutcome(callOutcomes[it.id]).isNotBlank() }
     val toCall = callList.size - logged
-    val findings = deskFindings(flagged)
     val fTotal = deskFindingCount(flagged)
     val mustFix = deskMustFixCount(flagged)
 
@@ -82,44 +89,56 @@ fun BoardPane(
             .padding(horizontal = 20.dp, vertical = 14.dp),
     ) {
         Text(
-            "$total on the roll · $inCount checked in",
+            "All applicants · $total on the roll · $inCount checked in · $held WaitList held" +
+                if (reconcile) " · reconciliation" else "",
             fontSize = 15.sp,
             lineHeight = 20.sp,
             color = industry.neutral700,
             modifier = Modifier.padding(bottom = 14.dp),
         )
 
-        Row(
-            Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            BoardTile("$total", "ARRIVING TODAY", "$total confirmed", 0, Modifier.weight(1f)) {
-                onGoto(DeskSection.CheckIn)
-            }
-            BoardTile("$inCount", "CHECKED IN", "$pct% of the roll", 1, Modifier.weight(1f)) {
-                onGoto(DeskSection.CheckIn)
-            }
-            BoardTile("$toCall", "STILL TO CALL", "$logged logged this round", 2, Modifier.weight(1f)) {
-                onGoto(DeskSection.Calling)
-            }
-            BoardTile("$fTotal", "NEEDS ATTENTION", "across ${findings.size} checks", 3, Modifier.weight(1f)) {
-                onGoto(DeskSection.Audit)
+        BoxWithConstraints {
+            val columns = if (maxWidth < 910.dp) 2 else 4
+            val tiles = listOf(
+                listOf("$total", "ARRIVING ROLL", rollFormula),
+                listOf("$inCount", "CHECKED IN", "$inCount of $total on roll"),
+                listOf(if (reconcile) "$remaining" else "$toCall",
+                    if (reconcile) "TO RECONCILE" else "STILL TO CALL",
+                    if (reconcile) "$remaining = $total − $inCount" else "$toCall = ${callList.size} − $logged logged"),
+                listOf("$fTotal", "NEEDS ATTENTION",
+                    "$fTotal = ${flagged.sumOf { c -> c.flags.count { it.severity == org.dhamma.dipi.staff.model.AuditSeverity.HARD } }} hard · ${flagged.sumOf { c -> c.flags.count { it.severity == org.dhamma.dipi.staff.model.AuditSeverity.SAFETY } }} safety · ${flagged.sumOf { c -> c.flags.count { it.severity == org.dhamma.dipi.staff.model.AuditSeverity.SOFT } }} soft"),
+            )
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                tiles.withIndex().chunked(columns).forEach { row ->
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        row.forEach { (index, t) ->
+                            BoardTile(t[0], t[1], t[2], index, Modifier.weight(1f)) {
+                                onGoto(when (index) { 2 -> DeskSection.Calling; 3 -> DeskSection.Audit; else -> DeskSection.CheckIn })
+                            }
+                        }
+                    }
+                }
             }
         }
+        Text("App roll: confirmation-number holders minus off-roll statuses. Day 0 and Course summary retain the desk site's figures.",
+            fontSize = 14.sp, lineHeight = 20.sp, color = industry.neutral600,
+            modifier = Modifier.padding(top = 10.dp))
 
-        DeskKicker("NEXT", industry.neutral600, Modifier.padding(top = 18.dp, bottom = 8.dp))
+        DeskKicker(if (reconcile) "NEXT · RECONCILE" else "NEXT", industry.neutral600, Modifier.padding(top = 18.dp, bottom = 8.dp))
         Column(
             Modifier.fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(7.dp),
         ) {
-            BoardAction("Check in arrivals", "${total - inCount} still to arrive") {
-                onGoto(DeskSection.CheckIn)
-            }
-            BoardAction("Clear audit findings", "$fTotal findings · $mustFix must fix") {
-                onGoto(DeskSection.Audit)
-            }
-            BoardAction("Finish the call round", "$toCall numbers left") {
-                onGoto(DeskSection.Calling)
+            if (reconcile) {
+                BoardAction("Attendance check", "$remaining = $total on roll − $inCount checked in") {
+                    onGoto(DeskSection.CheckIn)
+                }
+                BoardAction("Print Course summary", "Open the institutional course record") { onExport("Course summary") }
+                BoardAction("Print Day 0 summary", "Open the desk site's arrival figures") { onExport("Day 0 summary") }
+            } else {
+                BoardAction("Check in arrivals", "$remaining = $total on roll − $inCount checked in") { onGoto(DeskSection.CheckIn) }
+                BoardAction("Clear audit findings", "$fTotal findings · $mustFix must fix") { onGoto(DeskSection.Audit) }
+                BoardAction("Finish the call round", "$toCall = ${callList.size} reachable − $logged logged") { onGoto(DeskSection.Calling) }
             }
         }
 
@@ -127,7 +146,7 @@ fun BoardPane(
             "SHEETS & EXPORTS",
             fontFamily = DipiMono,
             fontWeight = FontWeight.Medium,
-            fontSize = 9.5.sp,
+            fontSize = 14.sp,
             letterSpacing = 1.7.sp,
             color = industry.neutral600,
             modifier = Modifier.padding(top = 18.dp, bottom = 10.dp),
@@ -207,13 +226,13 @@ private fun BoardTile(
     val deskColors = LocalDeskColors.current
     Box(
         modifier
-            .height(112.dp)
+            .heightIn(min = 156.dp)
             .deskCard(shape = CardShape, elevation = 1.dp)
             .clickable(onClick = onClick)
             .padding(horizontal = 15.dp, vertical = 12.dp)
             .testTag("board-stat"),
     ) {
-        Column(Modifier.fillMaxSize()) {
+        Column(Modifier.fillMaxWidth()) {
             Text(
                 number,
                 fontFamily = DipiCondensed,
@@ -227,19 +246,19 @@ private fun BoardTile(
                 label,
                 fontFamily = DipiMono,
                 fontWeight = FontWeight.Medium,
-                fontSize = 10.sp,
-                lineHeight = 10.sp,
+                fontSize = 14.sp,
+                lineHeight = 18.sp,
                 letterSpacing = 0.16.em,
                 color = industry.neutral700,
-                maxLines = 1,
+                maxLines = 4,
                 modifier = Modifier.padding(top = 9.dp),
             )
             Text(
                 note,
-                fontSize = 12.5.sp,
-                lineHeight = 12.5.sp,
+                fontSize = 14.sp,
+                lineHeight = 20.sp,
                 color = deskColors.caption,
-                maxLines = 1,
+                maxLines = 4,
                 modifier = Modifier
                     .padding(top = 7.dp, end = 18.dp)
                     .testTag("theme-board-caption-$index"),
@@ -263,10 +282,10 @@ private fun BoardAction(label: String, sub: String, onClick: () -> Unit) {
     Row(
         Modifier
             .fillMaxWidth()
-            .height(58.dp)
+            .heightIn(min = 64.dp)
             .deskCard(shape = CardShape, elevation = 1.dp)
             .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp)
+            .padding(horizontal = 16.dp, vertical = 10.dp)
             .testTag("board-next"),
         horizontalArrangement = Arrangement.spacedBy(14.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -280,14 +299,14 @@ private fun BoardAction(label: String, sub: String, onClick: () -> Unit) {
                 lineHeight = 18.sp,
                 letterSpacing = 0.01.em,
                 color = industry.text,
-                maxLines = 1,
+                maxLines = 4,
             )
             Text(
                 sub,
-                fontSize = 12.5.sp,
-                lineHeight = 12.5.sp,
+                fontSize = 14.sp,
+                lineHeight = 20.sp,
                 color = industry.neutral600,
-                maxLines = 1,
+                maxLines = 4,
                 modifier = Modifier.padding(top = 6.dp),
             )
         }
