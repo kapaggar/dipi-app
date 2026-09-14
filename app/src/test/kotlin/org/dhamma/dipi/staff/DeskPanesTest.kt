@@ -435,7 +435,7 @@ class DeskPanesTest {
         rule.onNodeWithText("Priya Nair").assertIsDisplayed()
         rule.onNodeWithText("Arun Kale").assertDoesNotExist()
         // …from the progress card ("0 of 1 checked in", "1 to arrive")…
-        rule.onNodeWithText(" of 1 checked in").assertIsDisplayed()
+        rule.onNodeWithText(" of 1 checked in", substring = true).assertIsDisplayed()
         rule.onNodeWithText("1 to arrive").assertIsDisplayed()
         // …and ROOMS FREE lists the female block only.
         rule.onNodeWithText("Female · Fbk block").assertIsDisplayed()
@@ -497,7 +497,7 @@ class DeskPanesTest {
         rule.onNodeWithText("Meera Shah").assertDoesNotExist()
         rule.onNodeWithText("Arun Kale").assertDoesNotExist()
         rule.onNodeWithText("Vikram Rao").assertDoesNotExist()
-        rule.onNodeWithText(" of 1 checked in").assertIsDisplayed()
+        rule.onNodeWithText(" of 1 checked in", substring = true).assertIsDisplayed()
         rule.onNodeWithText("1 to arrive").assertIsDisplayed()
     }
 
@@ -684,9 +684,9 @@ class DeskPanesTest {
         // The centre-name heading is gone (spec S3.3); the roll subtitle is
         // now the block's first line.
         rule.onNodeWithText("Day 0 at Dhamma Sudha").assertDoesNotExist()
-        rule.onNodeWithText("ARRIVING TODAY").assertIsDisplayed()
+        rule.onNodeWithText("ARRIVING ROLL").assertIsDisplayed()
         rule.onNodeWithText("STILL TO CALL").assertIsDisplayed()
-        rule.onNodeWithText("2 numbers left").assertIsDisplayed()
+        rule.onNodeWithText("2 = 3 reachable − 1 logged").assertIsDisplayed()
         rule.onNodeWithText("NEEDS ATTENTION").performClick()
         assertEquals(DeskSection.Audit, went)
         rule.onNodeWithText("Laundry list").performScrollTo().performClick()
@@ -718,7 +718,7 @@ class DeskPanesTest {
                 )
             }
         }
-        rule.onNodeWithText("2 findings").assertIsDisplayed()
+        rule.onNodeWithText("All applicants · 2 findings").assertIsDisplayed()
         rule.onAllNodesWithText("name_title_prefix").onFirst().assertIsDisplayed()
         rule.onNodeWithText("STRIP 1 HONORIFICS").performClick()
         assertEquals("name_title_prefix" to "Strip 1 honorifics", batch)
@@ -747,7 +747,7 @@ class DeskPanesTest {
                 )
             }
         }
-        rule.onNodeWithText("0 of 1 logged").assertIsDisplayed()
+        rule.onNodeWithText("0 of 1 logged", substring = true).assertIsDisplayed()
         // Segmented labels carry the pile sizes.
         rule.onNodeWithText("To call 1").assertIsDisplayed()
         rule.onNodeWithText("Confirmed 0").assertIsDisplayed()
@@ -787,7 +787,7 @@ class DeskPanesTest {
                 )
             }
         }
-        rule.onNodeWithText("1 of 1 logged").assertIsDisplayed()
+        rule.onNodeWithText("1 of 1 logged", substring = true).assertIsDisplayed()
         rule.onNodeWithText("NF1 · Confirmed · ×2 · just now").assertIsDisplayed()
         rule.onNodeWithText("NO ANSWER").assertIsDisplayed()
         rule.onNodeWithText("Priya Nair").performClick()
@@ -817,7 +817,7 @@ class DeskPanesTest {
         }
         rule.onNodeWithText("Priya Nair").assertIsDisplayed()
         rule.onNodeWithText("CONFIRMED").assertIsDisplayed()
-        rule.onNodeWithText("1 of 1 logged").assertIsDisplayed()
+        rule.onNodeWithText("1 of 1 logged", substring = true).assertIsDisplayed()
     }
 
     @Test
@@ -958,7 +958,7 @@ class DeskPanesTest {
         rule.onNodeWithText("Priya Nair").assertDoesNotExist()
         rule.onNodeWithText("Meera Shah").assertDoesNotExist()
         rule.onNodeWithText("Arun Kale").assertDoesNotExist()
-        rule.onNodeWithText("0 of 1 logged").assertIsDisplayed()
+        rule.onNodeWithText("0 of 1 logged", substring = true).assertIsDisplayed()
         rule.onNodeWithText("To call 1").assertIsDisplayed()
     }
 
@@ -1207,6 +1207,8 @@ class DeskPanesTest {
         }
         rule.onNodeWithText("ID VERIFICATION").assertIsDisplayed()
         rule.onNodeWithText("Aadhaar").assertIsDisplayed()
+        rule.onNodeWithText("9999 1234 5678").assertDoesNotExist()
+        rule.onNodeWithText("Reveal").performClick()
         rule.onNodeWithText("9999 1234 5678").assertIsDisplayed()
     }
 
@@ -1286,7 +1288,7 @@ class DeskPanesTest {
             }
         }
         val pending = rule.onAllNodesWithText("Pending").onFirst().getBoundsInRoot()
-        val cancelled = rule.onAllNodesWithText("Cancelled").onFirst().getBoundsInRoot()
+        val cancelled = rule.onAllNodesWithText("◦ Cancelled").onFirst().getBoundsInRoot()
         // The pill wraps its text (owner feedback: "CANCELLED", never
         // "CANCELL"): a longer status must yield a wider pill. The old
         // fixed-width pill rendered every status at the same width.

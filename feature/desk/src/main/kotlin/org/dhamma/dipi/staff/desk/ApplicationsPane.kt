@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -22,15 +23,21 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.activity.compose.BackHandler
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -45,7 +52,6 @@ import org.dhamma.dipi.staff.model.AuditFlag
 import org.dhamma.dipi.staff.model.AuditSeverity
 import org.dhamma.dipi.staff.model.SensitiveInfo
 import org.dhamma.dipi.staff.ui.ApplicantHistorySections
-import org.dhamma.dipi.staff.ui.theme.DeskKicker
 import org.dhamma.dipi.staff.ui.theme.DeskStyle
 import org.dhamma.dipi.staff.ui.theme.DipiCondensed
 import org.dhamma.dipi.staff.ui.theme.DipiMono
@@ -79,6 +85,9 @@ fun ApplicationsPane(
     selectedStatuses: Set<String> = emptySet(),
     onToggleStatus: (String) -> Unit = {},
     sensitiveById: Map<ApplicantId, SensitiveInfo> = emptyMap(),
+    totalApplications: Int = rows.size,
+    openDetailRequest: Int = 0,
+    detailTarget: ApplicantCard? = null,
     gender: String = "Both",
     seniority: String = "Both",
     onGender: (String) -> Unit = {},
@@ -89,17 +98,51 @@ fun ApplicationsPane(
 ) {
     val industry = LocalIndustry.current
     val scoped = deskScoped(rows, deskGenderScope(gender), deskSeniorityScope(seniority))
-    val selected = scoped.firstOrNull { it.id == selectedId } ?: scoped.firstOrNull()
+    // The rail is 190dp.  Keep list/detail side by side only when the pane itself
+    // can hold both; portrait desks otherwise push a detail above the list.
+    val compactDetail = LocalConfiguration.current.screenWidthDp - 190 < 910
+    var detailOpen by remember { mutableStateOf(false) }
+    var detailSession by remember { mutableStateOf(0) }
+    LaunchedEffect(openDetailRequest) { if (openDetailRequest > 0) detailOpen = true }
+    val selected = scoped.firstOrNull { it.id == selectedId }
+        ?: detailTarget?.takeIf { openDetailRequest > 0 && it.id == selectedId }
+        ?: scoped.firstOrNull()
+    val showDetail = !compactDetail || detailOpen
+    BackHandler(enabled = compactDetail && detailOpen) {
+        detailOpen = false
+        detailSession++
+    }
     val chipCounts = counts.filterKeys { it != "All" }.toList()
         .ifEmpty { rows.groupingBy { it.status.value }.eachCount().toList() }
 
     Row(Modifier.fillMaxSize()) {
         Column(
             Modifier
-                .width(396.dp)
+                .then(if (compactDetail) Modifier.weight(1f) else Modifier.width(396.dp))
                 .fillMaxHeight()
                 .rightHairline(industry.neutral300),
         ) {
+            if (compactDetail && showDetail && selected != null) {
+                AppDetail(
+                    card = selected,
+                    outsideScope = scoped.none { it.id == selected.id },
+                    flags = flagsById[selected.id].orEmpty(),
+                    sensitive = sensitiveById[selected.id],
+                    onChangeStatus = { onChangeStatus(selected) },
+                    onDial = { selected.mobile?.let(onDial) },
+                    onEdit = { onEdit(selected) },
+                    loadPhoto = loadPhoto,
+                    historyById = historyById,
+                    onExpandHistory = onExpandHistory,
+                    onOpenClarification = onOpenClarification,
+                    onBack = {
+                        detailOpen = false
+                        detailSession++
+                    },
+                    detailSession = detailSession,
+                )
+                return@Row
+            }
             if (chipCounts.isNotEmpty()) {
                 StatusChipRow(chipCounts, selectedStatuses, onToggleStatus)
             }
@@ -113,21 +156,43 @@ fun ApplicationsPane(
                     .bottomHairline(industry.neutral200)
                     .padding(horizontal = 18.dp, vertical = 8.dp),
             )
+            Text(
+                "Showing ${scoped.size} of $totalApplications applications",
+                fontSize = 14.sp,
+                color = industry.neutral600,
+                modifier = Modifier.padding(horizontal = 18.dp, vertical = 8.dp),
+            )
             LazyColumn(Modifier.weight(1f)) {
                 items(scoped, key = { it.id.value }) { card ->
                     AppListRow(
                         card = card,
                         flags = flagsById[card.id].orEmpty(),
                         health = sensitiveById[card.id]?.health?.isNotEmpty() == true,
-                        selected = card.id == selected?.id,
-                        onClick = { onSelect(card) },
+                        selected = !compactDetail && card.id == selected?.id,
+                        onClick = {
+                            onSelect(card)
+                            if (compactDetail) {
+                                detailSession++
+                                detailOpen = true
+                            }
+                        },
                     )
+                }
+                if (scoped.isEmpty()) {
+                    item {
+                        val filtersOn = selectedStatuses.isNotEmpty() || gender != "Both" || seniority != "Both"
+                        DeskEmpty(
+                            applicationsEmptyCopy(filtersOn),
+                            Modifier.fillMaxWidth().padding(vertical = 46.dp),
+                        )
+                    }
                 }
             }
         }
-        if (selected != null) {
+        if (!compactDetail && selected != null) {
             AppDetail(
                 card = selected,
+                outsideScope = scoped.none { it.id == selected.id },
                 flags = flagsById[selected.id].orEmpty(),
                 sensitive = sensitiveById[selected.id],
                 onChangeStatus = { onChangeStatus(selected) },
@@ -139,7 +204,7 @@ fun ApplicationsPane(
                 onOpenClarification = onOpenClarification,
                 modifier = Modifier.weight(1f),
             )
-        } else {
+        } else if (!compactDetail && scoped.isNotEmpty()) {
             val filtersOn = selectedStatuses.isNotEmpty() || gender != "Both" || seniority != "Both"
             DeskEmpty(applicationsEmptyCopy(filtersOn), Modifier.weight(1f).padding(vertical = 46.dp))
         }
@@ -159,38 +224,49 @@ private fun StatusChipRow(
     onToggle: (String) -> Unit,
 ) {
     val industry = LocalIndustry.current
-    FlowRow(
+    Column(
         Modifier
             .fillMaxWidth()
             .bottomHairline(industry.neutral200)
             .padding(horizontal = 18.dp, vertical = 10.dp),
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        StatusChip("All", count = null, on = selected.isEmpty()) { onToggle("All") }
-        counts.forEach { (label, n) ->
-            StatusChip(label, n, on = selected.any { it.equals(label, true) }) { onToggle(label) }
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            StatusChip("All", count = null, on = selected.isEmpty()) { onToggle("All") }
+            counts.forEach { (label, n) ->
+                StatusChip(label, n, on = selected.any { it.equals(label, true) }) { onToggle(label) }
+            }
         }
+        Text("◦ Off arriving roll", fontSize = 14.sp, color = industry.neutral600)
     }
 }
 
 @Composable
 private fun StatusChip(label: String, count: Int?, on: Boolean, onClick: () -> Unit) {
     val industry = LocalIndustry.current
+    val displayLabel = when {
+        deskOffRollStatus(label) -> "◦ $label"
+        label.replace(" ", "").equals("WaitList", ignoreCase = true) -> "$label · Held"
+        else -> label
+    }
     Row(
         Modifier
             .clip(DeskStyle.controlShape)
             .border(1.dp, if (on) industry.accent else industry.neutral400, DeskStyle.controlShape)
             .background(if (on) industry.accent100 else Color.Transparent)
             .clickable(onClick = onClick)
+            .heightIn(min = 48.dp)
             .semantics { contentDescription = "Filter $label" }
             .padding(horizontal = 10.dp, vertical = 5.dp),
         horizontalArrangement = Arrangement.spacedBy(5.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
-            label,
-            fontSize = 11.5.sp,
+            displayLabel,
+            fontSize = 14.sp,
             fontWeight = FontWeight.Medium,
             maxLines = 1,
             color = if (on) industry.accent800 else industry.neutral700,
@@ -200,7 +276,7 @@ private fun StatusChip(label: String, count: Int?, on: Boolean, onClick: () -> U
                 "$count",
                 fontFamily = DipiMono,
                 fontWeight = FontWeight.Medium,
-                fontSize = 11.sp,
+                fontSize = 14.sp,
                 color = if (on) industry.accent700 else industry.neutral500,
             )
         }
@@ -228,6 +304,7 @@ private fun AppListRow(
         Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
+            .heightIn(min = 48.dp)
             .bottomHairline(industry.neutral200)
             .padding(horizontal = 8.dp, vertical = 3.dp)
             .clip(DeskStyle.controlShape)
@@ -254,7 +331,7 @@ private fun AppListRow(
                         "!",
                         fontFamily = DipiMono,
                         fontWeight = FontWeight.SemiBold,
-                        fontSize = 11.5.sp,
+                        fontSize = 14.sp,
                         color = industry.accent,
                         modifier = Modifier.semantics { contentDescription = "Health disclosures for ${card.displayName}" },
                     )
@@ -263,7 +340,7 @@ private fun AppListRow(
             Text(
                 listOfNotNull(card.age?.toString(), card.gender.name).joinToString(" ") +
                     (card.city?.let { " · $it" } ?: ""),
-                fontSize = 11.5.sp,
+                fontSize = 14.sp,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 color = industry.neutral600,
@@ -274,8 +351,8 @@ private fun AppListRow(
                 card.confNo?.display() ?: "-",
                 fontFamily = DipiMono,
                 fontWeight = FontWeight.Medium,
-                fontSize = 11.5.sp,
-                color = industry.neutral500,
+                fontSize = 14.sp,
+                color = industry.neutral600,
             )
             StatusPill(card, fontSize = 10.5f)
         }
@@ -291,8 +368,8 @@ private fun StatusPill(card: ApplicantCard, fontSize: Float) {
     val industry = LocalIndustry.current
     val (bg, fg) = statusColors(card.status.tone, dark = LocalDarkTheme.current)
     Text(
-        card.status.value,
-        fontSize = fontSize.sp,
+        (if (deskOffRollStatus(card.status.value)) "◦ " else "") + card.status.value,
+        fontSize = maxOf(fontSize, 14f).sp,
         fontWeight = FontWeight.Medium,
         textAlign = TextAlign.Center,
         maxLines = 1,
@@ -316,6 +393,9 @@ private fun AppDetail(
     historyById: Map<ApplicantId, ApplicantDeskHistory> = emptyMap(),
     onExpandHistory: (ApplicantId, String) -> Unit = { _, _ -> },
     onOpenClarification: (ApplicantId, Int) -> Unit = { _, _ -> },
+    onBack: (() -> Unit)? = null,
+    detailSession: Int = 0,
+    outsideScope: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     val industry = LocalIndustry.current
@@ -328,6 +408,20 @@ private fun AppDetail(
                 .padding(top = 24.dp, bottom = 12.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp),
         ) {
+            if (onBack != null) {
+                Text(
+                    "← Back to list",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = industry.accent800,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 48.dp)
+                        .clickable(onClick = onBack)
+                        .padding(vertical = 14.dp),
+                )
+            }
+            if (outsideScope) Text("Outside current list filters · opened from another view", fontSize = 14.sp, color = industry.neutral600)
             Row(horizontalArrangement = Arrangement.spacedBy(18.dp)) {
                 DetailPhoto(card, loadPhoto)
                 Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
@@ -356,19 +450,19 @@ private fun AppDetail(
                             card.confNo?.display() ?: "no conf number",
                             fontFamily = DipiMono,
                             fontWeight = FontWeight.Medium,
-                            fontSize = 12.sp,
+                            fontSize = 14.sp,
                             color = industry.neutral600,
                         )
                     }
                     Text(
                         courseCountsLine(card) ?: historyLine(card),
-                        fontSize = 12.sp,
+                        fontSize = 14.sp,
                         color = industry.neutral600,
                     )
                 }
             }
 
-            IdVerificationBlock(sensitive)
+            IdVerificationBlock(card.id, sensitive, detailSession)
 
             val health = sensitive?.health.orEmpty()
             if (health.isNotEmpty()) {
@@ -391,7 +485,7 @@ private fun AppDetail(
                     Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
                         Text(
                             flag.label,
-                            fontSize = 13.5.sp,
+                            fontSize = 14.sp,
                             fontWeight = FontWeight.Medium,
                             color = industry.text,
                         )
@@ -399,7 +493,7 @@ private fun AppDetail(
                             flag.detail,
                             fontFamily = DipiMono,
                             fontWeight = FontWeight.Medium,
-                            fontSize = 11.sp,
+                            fontSize = 14.sp,
                             color = industry.neutral600,
                         )
                     }
@@ -479,13 +573,14 @@ private fun DetailPhoto(card: ApplicantCard, loadPhoto: suspend (ApplicantId) ->
 }
 
 /**
- * The physical-document check: the desk admin reads the full number off the
- * screen against the ID in the applicant's hand. Display only — the value
- * lives in the session-scoped in-memory map, never in Room or logs.
+ * The physical-document check. The number begins masked and can be revealed
+ * only for the current detail view. It lives in the session-scoped in-memory
+ * map, never in Room or logs.
  */
 @Composable
-private fun IdVerificationBlock(sensitive: SensitiveInfo?) {
+private fun IdVerificationBlock(applicantId: ApplicantId, sensitive: SensitiveInfo?, detailSession: Int) {
     val industry = LocalIndustry.current
+    var revealed by remember(applicantId, sensitive?.idLabel, sensitive?.idNumber, detailSession) { mutableStateOf(false) }
     Column(
         Modifier
             .fillMaxWidth()
@@ -493,7 +588,7 @@ private fun IdVerificationBlock(sensitive: SensitiveInfo?) {
             .padding(horizontal = 15.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(7.dp),
     ) {
-        DeskKicker("ID VERIFICATION", industry.neutral500)
+        DeskKicker("ID VERIFICATION", industry.neutral600)
         val label = sensitive?.idLabel
         val number = sensitive?.idNumber
         if (label != null && number != null) {
@@ -503,20 +598,30 @@ private fun IdVerificationBlock(sensitive: SensitiveInfo?) {
             ) {
                 Text(
                     label,
-                    fontSize = 13.sp,
+                    fontSize = 14.sp,
                     fontWeight = FontWeight.Medium,
                     color = industry.text,
                 )
                 Text(
-                    number,
+                    if (revealed) number else maskId(number),
                     fontFamily = DipiMono,
                     fontWeight = FontWeight.SemiBold,
                     fontSize = 19.sp,
                     color = industry.text,
                 )
+                Text(
+                    if (revealed) "Hide" else "Reveal",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = industry.accent800,
+                    modifier = Modifier
+                        .heightIn(min = 48.dp)
+                        .clickable { revealed = !revealed }
+                        .padding(horizontal = 12.dp, vertical = 14.dp),
+                )
             }
         } else {
-            Text("No ID on file", fontSize = 13.sp, color = industry.neutral500)
+            Text("No ID on file", fontSize = 14.sp, color = industry.neutral600)
         }
     }
 }
@@ -540,14 +645,14 @@ private fun HealthPanel(health: Map<String, String>) {
             Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
                 Text(
                     label,
-                    fontSize = 13.5.sp,
+                    fontSize = 14.sp,
                     fontWeight = FontWeight.Medium,
                     color = industry.text,
                 )
                 Text(
                     text,
-                    fontSize = 13.sp,
-                    lineHeight = 18.sp,
+                    fontSize = 14.sp,
+                    lineHeight = 20.sp,
                     color = industry.neutral800,
                 )
             }
@@ -565,14 +670,22 @@ private fun FactRow(key: String, value: String) {
             .padding(vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(key, fontSize = 12.5.sp, color = industry.neutral600, modifier = Modifier.weight(1f))
-        Text(value, fontSize = 13.sp, color = industry.text)
+        Text(key, fontSize = 14.sp, color = industry.neutral600, modifier = Modifier.weight(1f))
+        Text(value, fontSize = 14.sp, color = industry.text)
     }
 }
 
 internal fun initials(name: String): String =
     name.split(" ").filter { it.isNotBlank() }.take(2)
         .joinToString("") { it.first().uppercase() }
+
+/** Keep the original grouping while never exposing an ID until the registrar asks. */
+private fun maskId(number: String): String = number.map { char ->
+    when {
+        char.isLetterOrDigit() -> '•'
+        else -> char
+    }
+}.joinToString("")
 
 internal fun historyLine(card: ApplicantCard): String {
     val h = card.history

@@ -175,7 +175,28 @@ class DeskShellTest {
         rule.onNodeWithText("Dhamma Sudha").assertDoesNotExist()
         // The subtitle survives and is now the block's first line.
         rule.onNodeWithText(
-            "0 on the roll · 0 checked in",
+            "All applicants · 0 on the roll · 0 checked in · 0 WaitList held",
         ).assertIsDisplayed()
+    }
+
+    @Test
+    fun scopeChipClearsWhenTapped() {
+        var cleared = 0
+        rule.setContent {
+            DipiTheme {
+                DeskShell(
+                    section = DeskSection.Board,
+                    rail = rail,
+                    course = course,
+                    clock = "",
+                    onSection = {},
+                    scopeChip = "Female · New",
+                    onClearScope = { cleared++ },
+                )
+            }
+        }
+        rule.onNodeWithTag("desk-scope-chip").assertIsDisplayed()
+        rule.onNodeWithText("Female · New").performClick()
+        assertEquals(1, cleared)
     }
 }

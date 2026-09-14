@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -29,7 +30,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.dhamma.dipi.staff.ui.R
-import org.dhamma.dipi.staff.ui.theme.DeskKicker
 import org.dhamma.dipi.staff.ui.theme.DipiCondensed
 import org.dhamma.dipi.staff.ui.theme.DipiMono
 import org.dhamma.dipi.staff.ui.theme.DipiSans
@@ -81,6 +81,9 @@ fun DeskShell(
     onSection: (DeskSection) -> Unit,
     loading: Boolean = false,
     lotus: Boolean = true,
+    scopeChip: String? = null,
+    scopeCount: String? = null,
+    onClearScope: () -> Unit = {},
     content: @Composable (DeskSection) -> Unit = { DeskSectionPlaceholder(it) },
 ) {
     val industry = LocalIndustry.current
@@ -106,7 +109,7 @@ fun DeskShell(
         Row(Modifier.fillMaxSize()) {
             DeskRailPane(section, rail, onSection)
             Column(Modifier.weight(1f).fillMaxHeight()) {
-                DeskTopBar(course.line, clock)
+                DeskTopBar(course.line, clock, scopeChip, scopeCount, onClearScope)
                 if (loading) DeskProgressHairline(Modifier.testTag("desk-loading"))
                 Box(Modifier.weight(1f)) { content(section) }
             }
@@ -139,7 +142,10 @@ private fun DeskRailPane(
                 .graphicsLayer { alpha = 0.78f },
         )
 
-        DeskKicker("DESK", industry.neutral500, Modifier.padding(start = 18.dp, bottom = 6.dp))
+        DeskKicker("DESK", industry.neutral600, Modifier.padding(start = 18.dp, bottom = 6.dp))
+
+        Text("All applicants / work left", fontSize = 14.sp, color = industry.neutral600,
+            modifier = Modifier.padding(start = 18.dp, end = 10.dp, bottom = 10.dp))
 
         DeskSection.entries.forEach { s ->
             DeskNavRow(
@@ -153,12 +159,12 @@ private fun DeskRailPane(
         Spacer(Modifier.weight(1f))
 
         Column(Modifier.padding(horizontal = 18.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(rail.userName, fontFamily = DipiMono, fontSize = 12.sp, color = industry.neutral600)
+            Text(rail.userName, fontFamily = DipiMono, fontSize = 14.sp, color = industry.neutral600)
             Text(
                 rail.syncLine,
                 fontFamily = DipiMono,
-                fontSize = 12.sp,
-                color = industry.neutral500,
+                fontSize = 14.sp,
+                color = industry.neutral600,
             )
         }
     }
@@ -170,7 +176,7 @@ private fun DeskNavRow(label: String, count: Int?, active: Boolean, onClick: () 
     Row(
         Modifier
             .fillMaxWidth()
-            .height(46.dp)
+            .height(48.dp)
             .background(if (active) industry.accent100 else Color.Transparent)
             .clickable(onClick = onClick),
         verticalAlignment = Alignment.CenterVertically,
@@ -199,7 +205,7 @@ private fun DeskNavRow(label: String, count: Int?, active: Boolean, onClick: () 
                 count.toString(),
                 fontFamily = DipiMono,
                 fontWeight = FontWeight.Medium,
-                fontSize = 13.sp,
+                fontSize = 14.sp,
                 color = if (active) industry.accent700 else industry.neutral500,
                 modifier = Modifier.padding(end = 18.dp),
             )
@@ -208,33 +214,42 @@ private fun DeskNavRow(label: String, count: Int?, active: Boolean, onClick: () 
 }
 
 @Composable
-private fun DeskTopBar(courseLine: String, clock: String) {
+private fun DeskTopBar(
+    courseLine: String,
+    clock: String,
+    scopeChip: String? = null,
+    scopeCount: String? = null,
+    onClearScope: () -> Unit = {},
+) {
     val industry = LocalIndustry.current
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .height(52.dp)
-            .bottomHairline(industry.neutral300)
-            .padding(horizontal = 20.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(
-            courseLine,
-            fontFamily = DipiCondensed,
-            fontWeight = FontWeight.SemiBold,
-            fontSize = 17.sp,
-            letterSpacing = 0.2.sp,
-            color = industry.text,
-            maxLines = 1,
-        )
-        Text(
-            clock,
-            fontFamily = DipiMono,
-            fontWeight = FontWeight.Medium,
-            fontSize = 13.sp,
-            color = industry.neutral600,
-        )
+    Column(Modifier.fillMaxWidth().bottomHairline(industry.neutral300).padding(horizontal = 20.dp)) {
+        Row(Modifier.fillMaxWidth().heightIn(min = 52.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text(courseLine, fontFamily = DipiCondensed, fontWeight = FontWeight.SemiBold,
+                fontSize = 17.sp, color = industry.text, maxLines = 2,
+                modifier = Modifier.weight(1f))
+            Text(clock, fontFamily = DipiMono, fontSize = 14.sp, color = industry.neutral600)
+        }
+        if (scopeCount != null || !scopeChip.isNullOrBlank()) {
+            Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).padding(bottom = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                if (!scopeChip.isNullOrBlank()) {
+                    Row(Modifier.background(industry.accent100).clickable(onClick = onClearScope), verticalAlignment = Alignment.CenterVertically) {
+                        Text(scopeChip, fontFamily = DipiMono, fontSize = 14.sp, color = industry.accent800,
+                            modifier = Modifier.padding(horizontal = 12.dp))
+                        Box(Modifier.size(48.dp).clickable(onClick = onClearScope).testTag("desk-scope-chip"),
+                            contentAlignment = Alignment.Center) {
+                            Text("✕", fontSize = 18.sp, color = industry.accent800)
+                        }
+                    }
+                } else {
+                    Text("All students", fontSize = 14.sp, color = industry.neutral700)
+                }
+                scopeCount?.let { Text(it, fontSize = 14.sp, color = industry.neutral700,
+                    modifier = Modifier.weight(1f).testTag("desk-scope-count")) }
+            }
+        }
     }
 }
 
@@ -247,7 +262,7 @@ fun DeskSectionPlaceholder(section: DeskSection) {
         Text(
             "The ${section.label} pane arrives in a later build slice.",
             fontFamily = DipiSans,
-            fontSize = 12.5.sp,
+            fontSize = 14.sp,
             color = industry.neutral600,
         )
     }

@@ -76,6 +76,7 @@ import org.dhamma.dipi.staff.desk.DeskShell
 import org.dhamma.dipi.staff.desk.DeskSnackbar
 import org.dhamma.dipi.staff.desk.RoomsPane
 import org.dhamma.dipi.staff.desk.SheetViewerPane
+import org.dhamma.dipi.staff.desk.deskFilterChip
 import org.dhamma.dipi.staff.desk.deskRoll
 import org.dhamma.dipi.staff.desk.deskWaNumber
 import org.dhamma.dipi.staff.model.SheetPayload
@@ -120,7 +121,7 @@ fun DipiAppUi(vm: DeskViewModel, deskSiteLauncher: DeskSiteLauncher? = null) {
     }
     val wide = LocalConfiguration.current.screenWidthDp >= 600
     // The v2 desk is designed at 1240×844; below ~1100dp the phone flow keeps serving.
-    val deskWide = LocalConfiguration.current.screenWidthDp >= 1100
+    val deskWide = LocalConfiguration.current.screenWidthDp >= 840
     val deskActive = deskWide && state.screen == DeskScreen.CourseHub &&
         state.session != null && state.course != null
     // Course ops (spec 2a): once the mode is on and a session exists, the
@@ -307,6 +308,7 @@ fun DipiAppUi(vm: DeskViewModel, deskSiteLauncher: DeskSiteLauncher? = null) {
             // the DeskScreen back stack underneath is untouched.
             val sheetView = state.sheetView
             if (sheetView != null) {
+                BackHandler { vm.closeSheet() }
                 // `state` is a delegated property here, so the roll needs a
                 // local val for the null check to carry into the lambda.
                 val sheetRoll = state.teacherRoll
@@ -568,7 +570,13 @@ private fun DeskHost(
         val tel = number.filter { it.isDigit() || it == '+' }
         context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:$tel")))
     }
+    val clock = deskClock()
     val roll = deskRoll(state.rows)
+    val reconcile = org.dhamma.dipi.staff.desk.deskReconcile(course.name, state.courseFinalized, java.time.LocalDate.now())
+    val callingRoll = org.dhamma.dipi.staff.desk.deskCallingRoll(roll, state.checkIns, reconcile)
+    val scopedRoll = org.dhamma.dipi.staff.desk.deskScoped(roll,
+        org.dhamma.dipi.staff.desk.deskGenderScope(state.deskGender),
+        org.dhamma.dipi.staff.desk.deskSeniorityScope(state.deskSeniority))
     val whatsappController = LocalWhatsAppController.current
     val whatsappProfile = whatsappController?.ui?.collectAsStateWithLifecycle()?.value?.profile
     // Both feed the calling round's WhatsApp template tokens.
@@ -576,8 +584,8 @@ private fun DeskHost(
     val courseDates = listOf(course.start, course.end).filter { it.isNotBlank() }.joinToString(" – ")
     val flagsById = remember(state.auditRows) { state.auditRows.associate { it.id to it.flags } }
     val openApp: (org.dhamma.dipi.staff.model.ApplicantCard) -> Unit = { card ->
-        vm.selectDeskApp(card)
         vm.setDeskSection(DeskSection.Applications)
+        vm.selectDeskApp(card)
     }
 
     Box(Modifier.fillMaxSize()) {
@@ -585,13 +593,21 @@ private fun DeskHost(
             section = state.deskSection,
             rail = deskRail(state, session),
             course = deskCourse(session, course),
-            clock = deskClock(),
+            clock = clock,
+            scopeCount = "showing ${scopedRoll.size} of ${roll.size} on roll",
             onSection = vm::setDeskSection,
             loading = state.loading,
             lotus = state.lotus,
+            scopeChip = deskFilterChip(state.deskGender, state.deskSeniority),
+            onClearScope = {
+                vm.setDeskGender("Both")
+                vm.setDeskSeniority("Both")
+            },
         ) { section ->
             when (section) {
                 DeskSection.Board -> BoardPane(
+                    sourceRows = state.rows,
+                    reconcile = reconcile,
                     roll = roll,
                     checkIns = state.checkIns,
                     flagged = state.auditRows,
@@ -602,6 +618,8 @@ private fun DeskHost(
                     onExport = vm::openSheet,
                 )
                 DeskSection.CheckIn -> CheckInPane(
+                    excludedStatusCounts = state.rows.filter { it.confNo != null && org.dhamma.dipi.staff.desk.deskOffRollStatus(it.status.value) }
+                        .groupingBy { it.status.value }.eachCount(),
                     readOnly = state.courseFinalized,
                     roll = roll,
                     checkIns = state.checkIns,
@@ -625,7 +643,8 @@ private fun DeskHost(
                     onOpen = openApp,
                 )
                 DeskSection.Calling -> CallingPane(
-                    roll = roll,
+                    reconcile = reconcile,
+                    roll = callingRoll,
                     outcomes = state.callState,
                     filter = state.callFilter,
                     onFilter = vm::setCallFilter,
@@ -679,6 +698,9 @@ private fun DeskHost(
                     onPullRooms = vm::pullRooms,
                 )
                 DeskSection.Applications -> ApplicationsPane(
+                    totalApplications = state.rows.size,
+                    openDetailRequest = state.deskAppOpenRequest,
+                    detailTarget = state.rows.firstOrNull { it.id == state.deskAppId },
                     rows = state.visible,
                     flagsById = flagsById,
                     selectedId = state.deskAppId,
