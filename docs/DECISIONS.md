@@ -60,6 +60,26 @@ are preserved because code comments cite them.
   dialog's own fields), bulk and user-initiated, IS allowed — the client still never
   sends a status, never `Approved`, never NPI; backend PHP stays immutable.
   `RoomAllocSyncTest.paramsNeverCarryAStatus` pins this; `l`/`v` are posted empty.
+- **2026-09-16 · Allocated room is checked in; format does not matter.** If a
+  room is allocated and the application is not Left, the student is checked in
+  even when the worklist `attended` flag is still false. `Mbk 51`, `Mbk-51`,
+  `Mbk- 51` and `MBK51` are the same inventory cell (`RoomAllocSync.parseDeskRoom`
+  / `roomKey`). Dash-only `#table-attending` rows stay checked in. No allocation
+  and not on the attending table is not checked in. Left never occupies. Do not
+  invent attendance POSTs; finalized Attended stays `finalized` / `section` /
+  `acc`. Room Chart occupancy, `deskOccupied`, sync matching and Check-in room
+  chips share that key.
+- **2026-09-16 · Room Chart from live centre settings.** Chart rooms are
+  `GET /centre/{cid}/acco-handler` (`csa_gender`, `csa_section`, `csa_room`).
+  Hall Settings on `GET /centre/{cid}/edit` (`cs_hall_combined`,
+  `cs_seat_naming_conv`, `seatcfg_{male|female}_{spr,sprc,dir,pos,empty,empty_cho}`)
+  are GET-only. Centre Settings shows the Main Plan. Seats-per-row / chowky
+  width wrap the Room Chart and seed seating when a block has no local SAVE
+  ROOM LAYOUT. The live GET does not include the `cs_seat_config` INI (that
+  blob is assembled on POST). The 16 Sep 2026 HAR has no hall-name /
+  RESULT-hall / room-chart column field. SAVE HALL LAYOUT stays the local
+  override for omitted fields (depth always). Never POST acco-handler or the
+  edit form.
 - **2026-09-02 · Course-ops persistence amendment (owner decision), verbatim:**
   Course-ops application data (roll + `/application-view` answers, health
   included) MAY be persisted device-local so the hall reads offline across

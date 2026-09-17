@@ -72,17 +72,33 @@ object RoomAllocSync {
     }
 
     /**
-     * Desk RoomNo cell (`Fbk-36`) → app code (`Fbk 36`). Splits on the last
-     * dash so `A-Block-7` becomes `A-Block 7`. Already-spaced values stay;
-     * `-` / blank / empty section+acco → `""`.
+     * Occupancy / sync key: dash, space and case do not matter.
+     * `"Mbk- 51"` == `"Mbk-51"` == `"Mbk 51"` == `"MBK51"`.
+     */
+    fun roomKey(raw: String): String =
+        raw.lowercase().replace(NON_ALNUM, "")
+
+    fun sameRoom(a: String, b: String): Boolean {
+        val key = roomKey(a)
+        return key.isNotEmpty() && key == roomKey(b)
+    }
+
+    /**
+     * Desk RoomNo cell → inventory-style code (`Mbk 51`). Splits on the last
+     * dash or space so `Mbk- 51`, `Mbk-51` and `A-Block-7` become `Mbk 51` /
+     * `A-Block 7`. Glued two-letter+ codes (`MBK51`) split the trailing
+     * number. Dash-only / blank → `""`.
      */
     fun parseDeskRoom(raw: String): String {
         val trimmed = raw.trim()
-        if (trimmed.isEmpty() || trimmed == "-") return ""
-        if (' ' in trimmed) return trimmed
-        val cut = trimmed.lastIndexOf('-')
-        if (cut < 0) return ""
-        return joinRoom(trimmed.substring(0, cut), trimmed.substring(cut + 1))
+        if (trimmed.isEmpty() || DASH_ONLY.matches(trimmed)) return ""
+        val sep = LAST_SEPARATOR.matchEntire(trimmed)
+        if (sep != null) {
+            return joinRoom(sep.groupValues[1].trim().trimEnd('-').trim(), sep.groupValues[2])
+        }
+        val glued = GLUED_SECTION_NUMBER.matchEntire(trimmed)
+        if (glued != null) return joinRoom(glued.groupValues[1], glued.groupValues[2])
+        return trimmed
     }
 
     /**
@@ -116,7 +132,7 @@ object RoomAllocSync {
     }
 
     fun params(record: CheckInRecord): Map<String, String> {
-        val (section, number) = splitRoom(record.room)
+        val (section, number) = splitRoom(parseDeskRoom(record.room).ifBlank { record.room })
         return linkedMapOf(
             "s" to section,
             "r" to number,
@@ -168,4 +184,9 @@ object RoomAllocSync {
         }
         return RoomSyncResult(attempted, synced, failures, authExpired, offline)
     }
+
+    private val NON_ALNUM = Regex("[^\\p{L}\\p{N}]+")
+    private val DASH_ONLY = Regex("""^[\s\-\u2013\u2014]+$""")
+    private val LAST_SEPARATOR = Regex("""^(.*)[\s\-\u2013\u2014]+(\S+)$""")
+    private val GLUED_SECTION_NUMBER = Regex("""^(\p{L}{2,})(\d+\p{L}*)$""")
 }

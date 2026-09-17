@@ -43,6 +43,33 @@ internal object HtmlForms {
         else -> null
     }
 
+    /**
+     * The selected `<option>` value for [name], including an empty string
+     * when the desk's "Default (natural side)" option is selected. Null
+     * only when the select is missing or has no selected option.
+     */
+    fun selectValue(html: String, name: String): String? {
+        val n = Regex.escape(name)
+        val block = Regex(
+            """<select\b[^>]*\bname\s*=\s*["']$n["'][^>]*>(.*?)</select>""",
+            setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL),
+        ).find(html)?.groupValues?.get(1)
+            ?: Regex(
+                """<select\b[^>]*>(.*?)</select>""",
+                setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL),
+            ).findAll(html).firstOrNull { m ->
+                Regex("""<select\b[^>]*\bname\s*=\s*["']$n["']""", RegexOption.IGNORE_CASE)
+                    .containsMatchIn(m.value)
+            }?.groupValues?.get(1)
+            ?: return null
+        val selected = Regex(
+            """<option\b[^>]*\bselected(?:\s*=\s*["'][^"']*["'])?[^>]*>""",
+            RegexOption.IGNORE_CASE,
+        ).find(block)?.value ?: return null
+        return Regex("""value\s*=\s*["']([^"']*)["']""", RegexOption.IGNORE_CASE)
+            .find(selected)?.groupValues?.get(1)
+    }
+
     fun formAction(html: String): String? =
         Regex("""<form\b[^>]*\baction\s*=\s*["']([^"']+)["']""", RegexOption.IGNORE_CASE)
             .find(html)?.groupValues?.get(1)?.replace("&amp;", "&")

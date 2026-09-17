@@ -216,6 +216,13 @@ data class CentreOpsPrefs(
     /** Chart grid shape per gender+section block. Device-local; wiped by Erase-all. */
     val roomLayout: RoomLayout = RoomLayout(),
     /**
+     * Live-desk Hall Settings from `GET /centre/{cid}/edit` (read-only).
+     * Main Plan columns wrap the Room Chart and seed the seating grid when
+     * a block has no local SAVE ROOM LAYOUT. Combined / naming / chowky
+     * stay seating facts; no POST.
+     */
+    val hallSettings: CentreHallSettings = CentreHallSettings(),
+    /**
      * The centre's own reconfirmation wording for the calling round's WhatsApp
      * hand-off. Blank uses [WHATSAPP_DEFAULT_TEMPLATE]; see [whatsAppMessage]
      * for the tokens.
@@ -229,10 +236,145 @@ data class CentreOpsPrefs(
      */
     val hallGrid: Map<String, HallGrid> = emptyMap(),
 ) {
-    fun hallGridFor(gender: Gender): HallGrid = (hallGrid[gender.name] ?: HallGrid()).clamped()
+    /**
+     * Seating grid for [gender]. Desk Main Plan columns and chowky width win
+     * when `GET /centre/{cid}/edit` sent them; local SAVE HALL LAYOUT fills
+     * depth and any field the edit page omitted. Never invents a POST.
+     */
+    fun hallGridFor(gender: Gender): HallGrid {
+        val local = (hallGrid[gender.name] ?: HallGrid())
+        val desk = hallSettings.plan(gender)
+        return HallGrid(
+            columns = desk.columns ?: local.columns,
+            depth = local.depth,
+            chowkyRail = desk.chowkyRailOrNull() ?: local.chowkyRail,
+        ).clamped()
+    }
 
     fun withHallGrid(gender: Gender, grid: HallGrid): CentreOpsPrefs =
         copy(hallGrid = hallGrid + (gender.name to grid.clamped()))
+
+    fun roomColumns(gender: Gender, section: String): Int =
+        roomLayout.columnsFor(gender, section, hallSettings.seatsPerRow(gender))
+}
+
+/**
+ * One gender's Main Plan on `/centre/{cid}/edit` (`seatcfg_{male|female}_*`).
+ * Nulls mean that input was missing. Blank direction / chowky position is
+ * the desk's "Default (natural side)" - male right / LTR, female left / RTL.
+ */
+@kotlinx.serialization.Serializable
+data class HallSeatPlan(
+    val columns: Int? = null,
+    val chowkyColumns: Int? = null,
+    val direction: String? = null,
+    val chowkyPosition: String? = null,
+    val emptySeats: String? = null,
+    val emptyChowky: String? = null,
+) {
+    fun isPresent(): Boolean =
+        columns != null ||
+            chowkyColumns != null ||
+            direction != null ||
+            chowkyPosition != null ||
+            emptySeats != null ||
+            emptyChowky != null
+
+    fun chowkyRailOrNull(): ChowkyRailLayout? {
+        if (chowkyColumns == null && chowkyPosition == null) return null
+        val pos = chowkyPosition?.lowercase().orEmpty()
+        if (pos == "back" || (chowkyColumns != null && chowkyColumns > 1)) {
+            return ChowkyRailLayout.WRAP
+        }
+        return ChowkyRailLayout.SINGLE_ROW
+    }
+
+    fun emptySeatCount(): Int = emptyPairCount(emptySeats) + emptyPairCount(emptyChowky)
+
+    fun directionLabel(naturalSide: String): String = when (direction?.lowercase()) {
+        "right" -> "Left to right"
+        "left" -> "Right to left"
+        "" -> "Default ($naturalSide)"
+        else -> "not set"
+    }
+
+    fun chowkyPositionLabel(naturalSide: String): String = when (chowkyPosition?.lowercase()) {
+        "left" -> "Left"
+        "right" -> "Right"
+        "back" -> "Back"
+        "" -> "Default ($naturalSide)"
+        else -> "not set"
+    }
+
+    fun summaryLine(naturalSide: String): String {
+        val cols = columns?.let { "$it columns" } ?: "columns not set"
+        val cho = chowkyColumns?.let { "$it chowky" } ?: "chowky not set"
+        return "$cols · $cho · ${directionLabel(naturalSide)} · " +
+            "Chowky ${chowkyPositionLabel(naturalSide)} · Empty seats ${emptySeatCount()}"
+    }
+}
+
+/**
+ * Hall Settings on `/centre/{cid}/edit`: combined hall, seat naming, and
+ * the visual Main Plan (`seatcfg_*` columns, chowky, direction, position,
+ * empty seats). [maleSeatsPerRow] / [femaleSeatsPerRow] stay as the
+ * persisted seats-per-row aliases so an older centre_ops blob still
+ * decodes. Inventory still comes from acco-handler. Nulls mean the edit
+ * page did not send that field. The INI `cs_seat_config` is assembled
+ * only on POST - live GET HTML does not include it.
+ */
+@kotlinx.serialization.Serializable
+data class CentreHallSettings(
+    val combinedHall: Boolean? = null,
+    val seatNaming: Int? = null,
+    val maleSeatsPerRow: Int? = null,
+    val femaleSeatsPerRow: Int? = null,
+    val malePlan: HallSeatPlan = HallSeatPlan(),
+    val femalePlan: HallSeatPlan = HallSeatPlan(),
+) {
+    fun seatsPerRow(gender: Gender): Int? = when (gender) {
+        Gender.M -> malePlan.columns ?: maleSeatsPerRow
+        Gender.F -> femalePlan.columns ?: femaleSeatsPerRow
+    }
+
+    fun plan(gender: Gender): HallSeatPlan = when (gender) {
+        Gender.M -> if (malePlan.columns == null && maleSeatsPerRow != null) {
+            malePlan.copy(columns = maleSeatsPerRow)
+        } else {
+            malePlan
+        }
+        Gender.F -> if (femalePlan.columns == null && femaleSeatsPerRow != null) {
+            femalePlan.copy(columns = femaleSeatsPerRow)
+        } else {
+            femalePlan
+        }
+    }
+
+    fun isPresent(): Boolean =
+        combinedHall != null ||
+            seatNaming != null ||
+            maleSeatsPerRow != null ||
+            femaleSeatsPerRow != null ||
+            malePlan.isPresent() ||
+            femalePlan.isPresent()
+
+    fun combinedLabel(): String = when (combinedHall) {
+        true -> "Yes"
+        false -> "No"
+        null -> "not set"
+    }
+
+    fun seatNamingLabel(): String = when (seatNaming) {
+        0 -> "Numerical (running number)"
+        1 -> "Alphanumeric - columns A, B, C / rows 1, 2, 3"
+        2 -> "Alphanumeric - rows A, B, C / columns 1, 2, 3"
+        else -> "not set"
+    }
+}
+
+private fun emptyPairCount(raw: String?): Int {
+    if (raw.isNullOrBlank()) return 0
+    return raw.split(',').count { it.trim().matches(Regex("""\d+\s*-\s*\d+""")) }
 }
 
 const val MAIN_DHAMMA_HALL = "Main Dhamma Hall"

@@ -41,6 +41,14 @@ class RoomLayoutTest {
     }
 
     @Test
+    fun unsetBlockUsesHallSeatsPerRowThenDefault() {
+        assertEquals(5, RoomLayout().columnsFor(Gender.M, "Mbk", hallDefault = 5))
+        assertEquals(2, RoomLayout().columnsFor(Gender.F, "Fbk", hallDefault = 2))
+        assertEquals(RoomLayout.DEFAULT_COLUMNS, RoomLayout().columnsFor(Gender.M, "Guest", hallDefault = 99))
+        assertEquals(7, RoomLayout().withColumns(Gender.M, "Mbk", 7).columnsFor(Gender.M, "Mbk", hallDefault = 5))
+    }
+
+    @Test
     fun rewritingABlockReplacesRatherThanAccumulates() {
         val l = RoomLayout().withColumns(Gender.M, "Mbk", 7).withColumns(Gender.M, "Mbk", 3)
         assertEquals(3, l.columnsFor(Gender.M, "Mbk"))

@@ -28,6 +28,7 @@ import org.dhamma.dipi.staff.model.CentreId
 import org.dhamma.dipi.staff.model.CheckInRecord
 import org.dhamma.dipi.staff.model.CourseId
 import org.dhamma.dipi.staff.model.Gender
+import org.dhamma.dipi.staff.model.CentreHallSettings
 import org.dhamma.dipi.staff.model.RoomLayout
 import org.dhamma.dipi.staff.ui.theme.DipiTheme
 import org.junit.Assert.assertTrue
@@ -394,6 +395,59 @@ class RoomsPaneTest {
             "cell width stays the same: ${compact.width} vs ${occupied.width}",
             abs(compact.width.value - occupied.width.value) < 2f,
         )
+    }
+
+    @Test
+    fun dashSpaceRoomLightsTheInventoryCell() {
+        rule.setContent {
+            DipiTheme {
+                RoomsPane(
+                    roll = listOf(occupantCard(1, "Rahul", "Kumar")),
+                    checkIns = mapOf(ApplicantId(1) to CheckInRecord(checkedIn = false, room = "Mbk- 51")),
+                    rooms = listOf(AccoRoom("Mbk 51", Gender.M, "Mbk", number = "51"), AccoRoom("Mbk 52", Gender.M, "Mbk", number = "52")),
+                )
+            }
+        }
+        rule.onNodeWithText("1 occupied · 1 free of 2").assertIsDisplayed()
+        rule.onAllNodesWithTag("room-cell-occupied").assertCountEquals(1)
+        rule.onNodeWithText("Rahul Kumar").assertIsDisplayed()
+    }
+
+    @Test
+    fun leftStudentDoesNotLightARoom() {
+        rule.setContent {
+            DipiTheme {
+                RoomsPane(
+                    roll = listOf(occupantCard(1, "Rahul", "Kumar").copy(status = ApplicantStatus("Left"))),
+                    checkIns = mapOf(ApplicantId(1) to CheckInRecord(checkedIn = true, room = "Mbk 51")),
+                    rooms = listOf(AccoRoom("Mbk 51", Gender.M, "Mbk", number = "51")),
+                )
+            }
+        }
+        rule.onNodeWithText("0 occupied · 1 free of 1").assertIsDisplayed()
+        rule.onAllNodesWithTag("room-cell-occupied").assertCountEquals(0)
+        rule.onNodeWithText("Rahul Kumar").assertDoesNotExist()
+    }
+
+    @Test
+    fun hallSeatsPerRowShapesAnUnsetBlock() {
+        val rooms = (1..6).map { AccoRoom("Mbk %02d".format(it), Gender.M, "Mbk") }
+        rule.setContent {
+            DipiTheme {
+                RoomsPane(
+                    roll = emptyList(),
+                    checkIns = emptyMap(),
+                    rooms = rooms,
+                    hallSettings = CentreHallSettings(maleSeatsPerRow = 5),
+                )
+            }
+        }
+        rule.onNodeWithText("Mbk 06").performScrollTo()
+        val top1 = rule.onNodeWithText("Mbk 01").getUnclippedBoundsInRoot().top
+        val top5 = rule.onNodeWithText("Mbk 05").getUnclippedBoundsInRoot().top
+        val top6 = rule.onNodeWithText("Mbk 06").getUnclippedBoundsInRoot().top
+        assertSameRow(top1, top5)
+        assertDifferentRow(top1, top6)
     }
 
     @Test

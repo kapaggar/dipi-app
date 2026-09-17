@@ -5,8 +5,11 @@ import kotlinx.serialization.Serializable
 /**
  * Hall-grid config (spec 2c S1, axes flipped by the r2 orientation spec —
  * the live web seating page is the authority). Registrar-configured
- * device-locally per gender — it mirrors the server's per-centre INI, which
- * no readable endpoint exposes. **Letters are COLUMNS** (A, B, C… left to
+ * device-locally per gender. Live Main Plan columns (`seatcfg_*_spr`) and
+ * chowky width (`seatcfg_*_sprc`) on `GET /centre/{cid}/edit` seed
+ * [CentreOpsPrefs.hallGridFor] and Room Chart wrap; hall depth is still
+ * not on that page, so depth stays local.
+ * **Letters are COLUMNS** (A, B, C… left to
  * right) and **numbers are DEPTH rows** — seat 1 sits nearest the teacher.
  * Clamped 1..26 columns / 1..40 depth on read AND write (the RoomLayout
  * pattern). The config is a starting shape only: seat labels beyond it

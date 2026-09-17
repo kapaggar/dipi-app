@@ -14,9 +14,11 @@ import org.dhamma.dipi.staff.desk.deskWaNumber
 import org.dhamma.dipi.staff.desk.deskFilterChip
 import org.dhamma.dipi.staff.desk.deskFindings
 import org.dhamma.dipi.staff.desk.deskFreeRooms
+import org.dhamma.dipi.staff.desk.deskCheckedIn
 import org.dhamma.dipi.staff.desk.deskOccupied
 import org.dhamma.dipi.staff.desk.deskRecord
 import org.dhamma.dipi.staff.desk.deskRoll
+import org.dhamma.dipi.staff.desk.deskRoomTaken
 import org.dhamma.dipi.staff.desk.deskRollCell
 import org.dhamma.dipi.staff.desk.deskRosterRows
 import org.dhamma.dipi.staff.desk.deskScoped
@@ -55,6 +57,7 @@ class DeskDeriveTest {
         gender: Gender = Gender.F,
         status: String = "Confirmed",
         attended: Boolean = false,
+        historicalRoom: String = "",
         mobile: String? = "9876543210",
         flags: List<AuditFlag> = emptyList(),
     ) = ApplicantCard(
@@ -68,6 +71,7 @@ class DeskDeriveTest {
         type = ApplicantType.Student,
         oldStudent = false,
         attended = attended,
+        historicalRoom = historicalRoom,
         confNo = conf?.let { ConfNo(it) },
         mobile = mobile,
         flags = flags,
@@ -179,6 +183,38 @@ class DeskDeriveTest {
         assertEquals(2, deskRosterRows(roll, checkIns, "", "All").size)
         assertEquals(listOf(2), deskRosterRows(roll, checkIns, "meer", "All").map { it.id.value })
         assertEquals(listOf(2), deskRosterRows(roll, checkIns, "nf2", "All").map { it.id.value })
+    }
+
+    @Test
+    fun allocatedRoomCountsAsCheckedInEvenWhenAttendedFlagIsFalse() {
+        val allocated = mapOf(ApplicantId(1) to CheckInRecord(checkedIn = false, room = "Mbk- 51"))
+        val rec = deskRecord(card(1, attended = false), allocated)
+        assertTrue(rec!!.checkedIn)
+        assertEquals("Mbk 51", rec.room)
+        assertTrue(deskCheckedIn(card(1), allocated))
+        assertEquals(setOf("Mbk 51"), deskOccupied(deskRoll(listOf(card(1))), allocated))
+        assertTrue(deskRoomTaken("Mbk 51", deskOccupied(deskRoll(listOf(card(1))), allocated)))
+    }
+
+    @Test
+    fun worklistRoomWithoutAttendingRowIsCheckedIn() {
+        val rec = deskRecord(card(1, attended = false, historicalRoom = "Mbk-51"), emptyMap())
+        assertTrue(rec!!.checkedIn)
+        assertEquals("Mbk 51", rec.room)
+    }
+
+    @Test
+    fun leftNeverOccupiesAnAllocatedRoom() {
+        val rooms = mapOf(ApplicantId(1) to CheckInRecord(checkedIn = true, room = "Mbk 51"))
+        val left = card(1, status = "Left")
+        assertFalse(deskCheckedIn(left, rooms))
+        assertTrue(deskOccupied(listOf(left), rooms).isEmpty())
+    }
+
+    @Test
+    fun blankRoomWithoutAttendingFlagIsNotCheckedIn() {
+        assertNull(deskRecord(card(2), emptyMap()))
+        assertFalse(deskCheckedIn(card(2), mapOf(ApplicantId(2) to CheckInRecord(checkedIn = false, room = "-"))))
     }
 
     @Test

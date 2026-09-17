@@ -139,6 +139,14 @@ interface StaffApi {
     @GET("/centre/{cid}/acco-handler")
     suspend fun accoHandler(@Path("cid") centreId: Int): Response<ResponseBody>
 
+    /**
+     * Centre Settings form (`Hall Settings` + accommodation table chrome).
+     * GET only — the app never posts this page. Hall seats-per-row feeds the
+     * Room Chart wrap; rooms still come from [accoHandler].
+     */
+    @GET("/centre/{cid}/edit")
+    suspend fun centreEdit(@Path("cid") centreId: Int): Response<ResponseBody>
+
     @GET("/search-course/{cid}/{courseId}")
     suspend fun searchCourse(
         @Path("cid") centreId: Int,

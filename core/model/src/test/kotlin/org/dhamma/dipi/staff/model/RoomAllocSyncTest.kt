@@ -69,6 +69,18 @@ class RoomAllocSyncTest {
         assertEquals("", RoomAllocSync.joinRoom("Fbk", ""))
     }
 
+    @Test
+    fun parseDeskRoomNormalizesDashSpaceAndGluedCase() {
+        assertEquals("Mbk 51", RoomAllocSync.parseDeskRoom("Mbk- 51"))
+        assertEquals("Mbk 51", RoomAllocSync.parseDeskRoom("Mbk-51"))
+        assertEquals("Mbk 51", RoomAllocSync.parseDeskRoom("Mbk 51"))
+        assertEquals("MBK 51", RoomAllocSync.parseDeskRoom("MBK51"))
+        val keys = listOf("Mbk- 51", "Mbk-51", "Mbk 51", "MBK51").map(RoomAllocSync::roomKey)
+        assertEquals(1, keys.distinct().size)
+        assertTrue(RoomAllocSync.sameRoom("Mbk- 51", "Mbk 51"))
+        assertTrue(RoomAllocSync.sameRoom("MBK51", "Mbk 51"))
+    }
+
     /* ── pending: the queue ─────────────────────────────────────────── */
 
     @Test

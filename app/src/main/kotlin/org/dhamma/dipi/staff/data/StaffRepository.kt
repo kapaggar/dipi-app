@@ -54,6 +54,7 @@ import org.dhamma.dipi.staff.network.ApplicationViewParser
 import org.dhamma.dipi.staff.network.ApplicantHistoryParser
 import org.dhamma.dipi.staff.network.CourseHistoryTeachers
 import org.dhamma.dipi.staff.network.AttendedTableParser
+import org.dhamma.dipi.staff.network.CentreHallParser
 import org.dhamma.dipi.staff.network.CentrePageParser
 import org.dhamma.dipi.staff.network.DrupalAuthApi
 import org.dhamma.dipi.staff.network.LoginBody
@@ -95,8 +96,7 @@ internal fun rollNameKey(raw: String): String =
     raw.lowercase().replace(Regex("[^\\p{L}\\p{N}]+"), " ").trim()
 
 /** Room key ignoring separators: `"Mbk-8"` == `"Mbk 8"` == `"mbk8"`. */
-internal fun rollRoomKey(raw: String): String =
-    raw.lowercase().replace(Regex("[^\\p{L}\\p{N}]+"), "")
+internal fun rollRoomKey(raw: String): String = RoomAllocSync.roomKey(raw)
 
 /**
  * Applicant-id mapping RULING (spec 2d S2, evidence-based — Wave-1
@@ -362,11 +362,11 @@ class StaffRepository @Inject constructor(
     }.getOrElse { throw it.toApi() }
 
     /**
-     * Server room config, read-only: `GET /centre/{cid}/acco-handler` — the
-     * DataTables source behind the desk's Centre-settings Accommodation table.
-     * Refreshed on every centre-page load (login and centre pick) and cached
-     * in [CentreOpsPrefs.rooms]; any failure or non-Editor body (offline,
-     * expired session) keeps the last fetch, so Rooms stays offline-first.
+     * Server room + hall config, read-only: `GET /centre/{cid}/acco-handler`
+     * for inventory and `GET /centre/{cid}/edit` for Hall Settings (combined,
+     * naming, Main Plan columns / chowky / direction). Refreshed on every
+     * centre-page load and when Centre Settings opens; cached in
+     * [CentreOpsPrefs]. Any failure keeps the last fetch. Never POST. No `?r=`.
      */
     /** Public so Centre Settings can refresh rooms without opening a course. */
     suspend fun refreshCentreRooms(centreId: Int) = refreshRooms(centreId)
@@ -374,11 +374,23 @@ class StaffRepository @Inject constructor(
     private suspend fun refreshRooms(centreId: Int, generation: Long = sessionGeneration.get()) {
         runCatching {
             val resp = api.accoHandler(centreId)
-            if (!resp.isSuccessful) return
-            val rooms = withContext(dispatchers.computation) { AccoHandlerParser.roomsOrNull(resp.html()) } ?: return
+            val rooms = if (resp.isSuccessful) {
+                withContext(dispatchers.computation) { AccoHandlerParser.roomsOrNull(resp.html()) }
+            } else {
+                null
+            }
+            val hall = runCatching {
+                val edit = api.centreEdit(centreId)
+                if (!edit.isSuccessful) return@runCatching null
+                withContext(dispatchers.computation) { CentreHallParser.settingsOrNull(edit.html()) }
+            }.getOrNull()
             val cur = sessionStore.centreOpsOnce()
             requireSession(generation)
-            if (cur.rooms != rooms) sessionStore.setCentreOps(cur.copy(rooms = rooms))
+            val next = cur.copy(
+                rooms = rooms ?: cur.rooms,
+                hallSettings = hall ?: cur.hallSettings,
+            )
+            if (next != cur) sessionStore.setCentreOps(next)
         }.onFailure { if (it is CancellationException) throw it }
     }
 

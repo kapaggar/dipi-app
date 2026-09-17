@@ -19,9 +19,11 @@ import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTouchInput
 import org.dhamma.dipi.staff.course.CentreOpsScreen
 import org.dhamma.dipi.staff.model.AccoRoom
+import org.dhamma.dipi.staff.model.CentreHallSettings
 import org.dhamma.dipi.staff.model.CentreOpsPrefs
 import org.dhamma.dipi.staff.model.Gender
 import org.dhamma.dipi.staff.model.HallGrid
+import org.dhamma.dipi.staff.model.HallSeatPlan
 import org.dhamma.dipi.staff.ui.theme.DipiTheme
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -276,5 +278,48 @@ class CentreOpsScreenTest {
         rule.onNodeWithContentDescription("Increase rows deep · Male hall").performScrollTo().assertIsNotEnabled()
         rule.onNodeWithContentDescription("Increase columns · Male hall").performScrollTo().assertIsEnabled()
         rule.onNodeWithContentDescription("Decrease rows deep · Male hall").performScrollTo().assertIsEnabled()
+    }
+
+    @Test
+    fun deskHallSettingsShowSudhaMainPlanAndLockDeskColumns() {
+        val desk = CentreHallSettings(
+            combinedHall = false,
+            seatNaming = 1,
+            maleSeatsPerRow = 5,
+            femaleSeatsPerRow = 2,
+            malePlan = HallSeatPlan(columns = 5, chowkyColumns = 1, direction = "right", chowkyPosition = ""),
+            femalePlan = HallSeatPlan(columns = 2, chowkyColumns = 2, direction = "left", chowkyPosition = ""),
+        )
+        rule.setContent {
+            DipiTheme {
+                CentreOpsScreen(
+                    prefs = CentreOpsPrefs(hallSettings = desk),
+                    onToggleLaundry = {},
+                    onToggleValuables = {},
+                    onToggleGroups = {},
+                    onOpenRooms = {},
+                    onBack = {},
+                )
+            }
+        }
+        rule.onNodeWithText("Hall Settings").performScrollTo().assertIsDisplayed()
+        rule.onNodeWithText("Male/Female students in same hall").performScrollTo().assertIsDisplayed()
+        rule.onNodeWithText("No").performScrollTo().assertIsDisplayed()
+        rule.onNodeWithText("Alphanumeric - columns A, B, C / rows 1, 2, 3")
+            .performScrollTo()
+            .assertIsDisplayed()
+        rule.onNodeWithText("Male (Main Plan)").performScrollTo().assertIsDisplayed()
+        rule.onNodeWithText("5 columns · 1 chowky · Left to right · Chowky Default (right) · Empty seats 0")
+            .performScrollTo()
+            .assertIsDisplayed()
+        rule.onNodeWithText("Female (Main Plan)").performScrollTo().assertIsDisplayed()
+        rule.onNodeWithText("2 columns · 2 chowky · Right to left · Chowky Default (left) · Empty seats 0")
+            .performScrollTo()
+            .assertIsDisplayed()
+        rule.onNodeWithText("Male hall · 5 columns · 5 deep").performScrollTo().assertIsDisplayed()
+        rule.onNodeWithText("Female hall · 2 columns · 5 deep").performScrollTo().assertIsDisplayed()
+        rule.onNodeWithContentDescription("Increase columns · Male hall").performScrollTo().assertIsNotEnabled()
+        rule.onNodeWithContentDescription("Increase columns · Female hall").performScrollTo().assertIsNotEnabled()
+        rule.onNodeWithContentDescription("Increase rows deep · Male hall").performScrollTo().assertIsEnabled()
     }
 }

@@ -62,6 +62,7 @@ class DipiMockDispatcher : Dispatcher() {
             path.matches(Regex("/staff/courses/\\d+/photo-review")) ->
                 ok(json.encodeToString(PhotoReviewListDto(MockFixtures.photoReview)))
             path.matches(Regex("/centre/\\d+/acco-handler.*")) -> ok(MockFixtures.accoHandlerJson)
+            path.matches(Regex("/centre/\\d+/edit.*")) -> html(MockFixtures.centreEditHallHtml)
             method == "POST" && path.startsWith("/app-update-attended/") -> updateAttended(request, path)
             path.startsWith("/change-status/") -> changeStatus(path)
             path.matches(Regex("/(day0-list|teacher-list|manager-list|student-chit|checking-slip|seating|zero-day|course-pdf-[mf]|laundry-list|valuable-list|report-day11)/\\d+/\\d+(\\?.*)?")) ->

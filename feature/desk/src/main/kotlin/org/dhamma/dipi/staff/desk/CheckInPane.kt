@@ -469,7 +469,7 @@ private fun CheckInSidebar(
             ).filter { scope == null || it.first == scope }.forEach { (g, label) ->
                 val block = rooms.filter { it.gender == g }
                 if (block.isEmpty()) return@forEach
-                val free = block.count { it.code !in occupied }
+                val free = block.count { !deskRoomTaken(it.code, occupied) }
                 val sections = block.map { it.section }.distinct().filter { it.isNotBlank() }
                 Row(
                     Modifier

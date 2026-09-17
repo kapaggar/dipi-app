@@ -51,6 +51,56 @@ internal object MockFixtures {
     """.trimIndent()
 
     /**
+     * `/centre/{cid}/edit` Hall Settings shaped like the 16 Sep 2026 Sudha HAR
+     * (`/centre/63/edit`). Main Plan only; no student data. Combined is Yes
+     * on that GET (the owner screenshot later showed No - same plan numbers).
+     */
+    val centreEditHallHtml = """
+        <html><body>
+        <form action="/centre/63/edit" method="post">
+          <input type="radio" id="edit-cs-hall-combined-1" name="cs_hall_combined" value="1" checked="checked" class="form-radio" />
+          <input type="radio" id="edit-cs-hall-combined-0" name="cs_hall_combined" value="0" class="form-radio" />
+          <input type="radio" id="edit-cs-seat-naming-conv-0" name="cs_seat_naming_conv" value="0" class="form-radio" />
+          <input type="radio" id="edit-cs-seat-naming-conv-1" name="cs_seat_naming_conv" value="1" checked="checked" class="form-radio" />
+          <input type="radio" id="edit-cs-seat-naming-conv-2" name="cs_seat_naming_conv" value="2" class="form-radio" />
+          <input class="form-control form-text" type="text" id="edit-seatcfg-male-spr" name="seatcfg_male_spr" value="5" size="6" maxlength="128" />
+          <input class="form-control form-text" type="text" id="edit-seatcfg-male-sprc" name="seatcfg_male_sprc" value="1" size="6" maxlength="128" />
+          <select class="form-control form-select" id="edit-seatcfg-male-dir" name="seatcfg_male_dir"><option value="">Default (natural side)</option><option value="right" selected="selected">Left to right</option><option value="left">Right to left</option></select>
+          <select class="form-control form-select" id="edit-seatcfg-male-pos" name="seatcfg_male_pos"><option value="" selected="selected">Default (natural side)</option><option value="left">Left</option><option value="right">Right</option><option value="back">Back (row behind the seats)</option></select>
+          <input class="form-control form-text" type="text" id="edit-seatcfg-male-empty" name="seatcfg_male_empty" value="" size="60" maxlength="128" />
+          <input class="form-control form-text" type="text" id="edit-seatcfg-male-empty-cho" name="seatcfg_male_empty_cho" value="" size="60" maxlength="128" />
+          <input class="form-control form-text" type="text" id="edit-seatcfg-female-spr" name="seatcfg_female_spr" value="2" size="6" maxlength="128" />
+          <input class="form-control form-text" type="text" id="edit-seatcfg-female-sprc" name="seatcfg_female_sprc" value="2" size="6" maxlength="128" />
+          <select class="form-control form-select" id="edit-seatcfg-female-dir" name="seatcfg_female_dir"><option value="">Default (natural side)</option><option value="right">Left to right</option><option value="left" selected="selected">Right to left</option></select>
+          <select class="form-control form-select" id="edit-seatcfg-female-pos" name="seatcfg_female_pos"><option value="" selected="selected">Default (natural side)</option><option value="left">Left</option><option value="right">Right</option><option value="back">Back (row behind the seats)</option></select>
+          <input class="form-control form-text" type="text" id="edit-seatcfg-female-empty" name="seatcfg_female_empty" value="" size="60" maxlength="128" />
+          <input class="form-control form-text" type="text" id="edit-seatcfg-female-empty-cho" name="seatcfg_female_empty_cho" value="" size="60" maxlength="128" />
+        </form>
+        </body></html>
+    """.trimIndent()
+
+    /** Same Main Plan numbers as [centreEditHallHtml] with same-hall = No. */
+    val centreEditHallSeparateHtml = """
+        <html><body>
+        <form>
+          <input type="radio" name="cs_hall_combined" value="1" />
+          <input type="radio" name="cs_hall_combined" value="0" checked="checked" />
+          <input type="radio" name="cs_seat_naming_conv" value="1" checked="checked" />
+          <input type="text" name="seatcfg_male_spr" value="5" />
+          <input type="text" name="seatcfg_male_sprc" value="1" />
+          <select name="seatcfg_male_dir"><option value="right" selected="selected">Left to right</option></select>
+          <select name="seatcfg_male_pos"><option value="" selected="selected">Default</option></select>
+          <input type="text" name="seatcfg_male_empty" value="" />
+          <input type="text" name="seatcfg_female_spr" value="2" />
+          <input type="text" name="seatcfg_female_sprc" value="2" />
+          <select name="seatcfg_female_dir"><option value="left" selected="selected">Right to left</option></select>
+          <select name="seatcfg_female_pos"><option value="" selected="selected">Default</option></select>
+          <input type="text" name="seatcfg_female_empty" value="" />
+        </form>
+        </body></html>
+    """.trimIndent()
+
+    /**
      * Rooms the desk already allotted (applicant id → section, room no).
      * Posting either room for anyone else refuses like the live handler.
      */

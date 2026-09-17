@@ -346,7 +346,7 @@ Course dashboard `$modules` (fact, `dh_course_dashboard`): View Applications (`s
 
 #### 2.6 Seating — `seating/%centre_id/%course_id` — `dh_generate_seating_plan`
 
-**Regions (fact):** standalone HTML (not Drupal chrome). Reads `cs_seat_config` INI + `cs_seat_naming_conv`. LEFT/RIGHT hall grids; seat cells show acco, name, old/new course counts, age, backrest, chowky/chair, cell. Combined seating if `c_combined_seat_course > 0`. `?r=1` → `dh_auto_allocate_seats` then render. Drag-drop save → `seating-update`. Invalid INI → error page pointing at Centre Settings.
+**Regions (fact):** standalone HTML (not Drupal chrome). Reads `cs_seat_config` INI + `cs_seat_naming_conv`. LEFT/RIGHT hall grids; seat cells show acco, name, old/new course counts, age, backrest, chowky/chair, cell. Combined seating if `c_combined_seat_course > 0`. `?r=1` → `dh_auto_allocate_seats` then render. Drag-drop save → `seating-update`. Invalid INI → error page pointing at Centre Settings. Centre Settings on the live desk now edits that INI through the visual `seatcfg_*` fields on `GET /centre/{cid}/edit` (HAR 2026-09-16); the INI textarea is no longer in the GET HTML. The app reads those fields only and never POSTs the edit form.
 
 **Group-wise seating:** separate grid (`dh_generate_group_seating_plan`); does not rewrite main hall seats.
 
@@ -684,6 +684,7 @@ Webhooks (permission `access webhook`): `wa-hook`, `wa-hook-bulk`, `webhook/mail
 | `/user-mapping/handler` | User↔centre mapping |
 | `/letter-fields/handler/{cid}` | Custom merge fields |
 | `/centre/{cid}/acco-handler` | Room inventory |
+| `/centre/{cid}/edit` | Hall Settings (`cs_hall_combined`, `cs_seat_naming_conv`, `seatcfg_{male|female}_{spr,sprc,dir,pos,empty,empty_cho}`) — GET only. Visual editor; INI `cs_seat_config` is POST-assembled and not in the live GET HTML. Never send `?r=` |
 | `/autocomplete/get-{country,state,city,teacher}` | Typeahead |
 | `/get-location-from-pincode` | Zip lookup |
 | `/get-courses/{cid}` | Transfer target list |

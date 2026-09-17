@@ -33,6 +33,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.dhamma.dipi.staff.model.AccoRoom
+import org.dhamma.dipi.staff.model.CentreHallSettings
 import org.dhamma.dipi.staff.model.Gender
 import org.dhamma.dipi.staff.model.RoomLayout
 import org.dhamma.dipi.staff.ui.theme.DeskStyle
@@ -53,6 +54,7 @@ fun RoomsScreen(
     rooms: List<AccoRoom>,
     genderFilter: Gender? = null,
     layout: RoomLayout = RoomLayout(),
+    hallSettings: CentreHallSettings = CentreHallSettings(),
     onColumns: (Gender, String, Int) -> Unit = { _, _, _ -> },
     onPick: (AccoRoom) -> Unit = {},
     onBack: () -> Unit = {},
@@ -127,7 +129,7 @@ fun RoomsScreen(
         }
         blocks.forEach { blockInfo ->
             val (g, label, section, sectionRooms) = blockInfo
-            val columns = staged.columnsFor(g, section)
+            val columns = staged.columnsFor(g, section, hallSettings.seatsPerRow(g))
             val rowCount = RoomLayout.rowsFor(sectionRooms.size, columns)
             Row(
                 Modifier

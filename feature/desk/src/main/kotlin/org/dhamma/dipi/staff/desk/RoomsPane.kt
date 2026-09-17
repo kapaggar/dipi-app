@@ -46,8 +46,10 @@ import androidx.compose.ui.unit.sp
 import org.dhamma.dipi.staff.model.AccoRoom
 import org.dhamma.dipi.staff.model.ApplicantCard
 import org.dhamma.dipi.staff.model.ApplicantId
+import org.dhamma.dipi.staff.model.CentreHallSettings
 import org.dhamma.dipi.staff.model.CheckInRecord
 import org.dhamma.dipi.staff.model.Gender
+import org.dhamma.dipi.staff.model.RoomAllocSync
 import org.dhamma.dipi.staff.model.RoomLayout
 import org.dhamma.dipi.staff.model.RoomSyncFailure
 import org.dhamma.dipi.staff.ui.theme.DeskStyle
@@ -72,6 +74,7 @@ fun RoomsPane(
     checkIns: Map<ApplicantId, CheckInRecord>,
     rooms: List<AccoRoom>,
     layout: RoomLayout = RoomLayout(),
+    hallSettings: CentreHallSettings = CentreHallSettings(),
     readOnly: Boolean = false,
     pendingSync: Int = 0,
     syncBusy: Boolean = false,
@@ -117,19 +120,17 @@ fun RoomsPane(
             OccupancyTypeLegend()
         }
 
-        val occupantByRoom = roll.filter { card ->
-            val rec = deskRecord(card, checkIns)
-            rec?.checkedIn == true && rec.room.isNotBlank()
-        }.groupBy { deskRecord(it, checkIns)!!.room }
+        val occupantByRoom = deskOccupantsByRoom(roll, checkIns)
 
         // Older courses may reference rooms removed from today's inventory.
         val chartRooms = rooms + if (readOnly) roll.filter {
             it.courseFinalized && it.status.normalize() == "attended" && it.historicalRoom.isNotBlank()
         }.map { student ->
-            val code = student.historicalRoom
+            val code = deskRoomCode(student.historicalRoom).ifBlank { student.historicalRoom }
             AccoRoom(code, student.gender, code.substringBeforeLast(" "),
                 number = code.substringAfterLast(" "))
-        }.distinctBy { it.code }.filter { historical -> rooms.none { it.code == historical.code } }
+        }.distinctBy { RoomAllocSync.roomKey(it.code) }
+            .filter { historical -> rooms.none { RoomAllocSync.sameRoom(it.code, historical.code) } }
         else emptyList()
 
         // Stacked full-width, one block per gender+section — matching RoomLayout's
@@ -143,7 +144,7 @@ fun RoomsPane(
                     val block = genderRooms.filter { it.section == section }
                     BoxWithConstraints(Modifier.fillMaxWidth()) {
                         val responsiveColumns = minOf(
-                            layout.columnsFor(gender, section),
+                            layout.columnsFor(gender, section, hallSettings.seatsPerRow(gender)),
                             (maxWidth / 100.dp).toInt().coerceAtLeast(1),
                         )
                         RoomBlock(label, section, block, responsiveColumns, occupantByRoom, readOnly)
@@ -170,7 +171,7 @@ private fun RoomBlock(
 ) {
     val industry = LocalIndustry.current
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        val free = block.count { it.code !in occupantByRoom }
+        val free = block.count { RoomAllocSync.roomKey(it.code) !in occupantByRoom }
         val occupied = block.size - free
         Column(
             Modifier
@@ -204,7 +205,7 @@ private fun RoomBlock(
         // Centre Settings room-chart layout), alternate rows on a soft rounded
         // band of the neutral ground.
         block.chunked(columns).forEachIndexed { i, rowRooms ->
-            val rowOccupied = rowRooms.any { occupantByRoom[it.code].orEmpty().isNotEmpty() }
+            val rowOccupied = rowRooms.any { occupantByRoom[RoomAllocSync.roomKey(it.code)].orEmpty().isNotEmpty() }
             Row(
                 Modifier
                     .fillMaxWidth()
@@ -215,7 +216,7 @@ private fun RoomBlock(
                 verticalAlignment = Alignment.Top,
             ) {
                 rowRooms.forEach { room ->
-                    val who = occupantByRoom[room.code]
+                    val who = occupantByRoom[RoomAllocSync.roomKey(room.code)]
                     RoomCell(room, who, compactRow = !rowOccupied, Modifier.weight(1f).fillMaxHeight())
                 }
                 repeat(columns - rowRooms.size) { Spacer(Modifier.weight(1f).fillMaxHeight()) }

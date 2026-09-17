@@ -72,6 +72,18 @@ class AttendedTableParserTest {
     }
 
     @Test
+    fun spacedDashRoomBecomesInventoryCode() {
+        val html = page(
+            """<table id="table-attending">$header<tbody>
+            ${row(8, "OM2", "Suresh Nair", "Mbk- 51")}
+            </tbody></table>""",
+        )
+        val rec = AttendedTableParser.parse(html).getValue(ApplicantId(8))
+        assertTrue(rec.checkedIn)
+        assertEquals("Mbk 51", rec.room)
+    }
+
+    @Test
     fun dashOnlyRoomStillCheckedIn() {
         val html = page(
             """<table id="table-attending">$header<tbody>

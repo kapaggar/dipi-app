@@ -10,6 +10,7 @@ import org.dhamma.dipi.staff.model.ConfPrefix
 import org.dhamma.dipi.staff.model.ConfSeniority
 import org.dhamma.dipi.staff.model.FlushSnack
 import org.dhamma.dipi.staff.model.Gender
+import org.dhamma.dipi.staff.model.RoomAllocSync
 import org.dhamma.dipi.staff.model.StatusTone
 
 /**
@@ -85,22 +86,41 @@ fun deskRoll(
 ): List<ApplicantCard> = deskScoped(deskRoll(rows), gender, seniority)
 
 /**
- * The effective check-in for a card: the local record wins; a server-side
- * `attended` flag seeds one for anyone already in.
+ * The effective check-in for a card. Owner 2026-09-16: an allocated room
+ * (pulled or parsed) plus not Left is checked in, even when the worklist
+ * `attended` flag is still false. A row on `#table-attending` with a
+ * dash-only room stays checked in via [CheckInRecord.checkedIn]. Left
+ * never occupies. Finalized Attended still uses the worklist room path.
  */
 fun deskRecord(card: ApplicantCard, checkIns: Map<ApplicantId, CheckInRecord>): CheckInRecord? =
     when {
         card.status.normalize() == "left" -> CheckInRecord(synced = true)
         card.courseFinalized -> CheckInRecord(
             checkedIn = card.status.normalize() == "attended",
-            room = if (card.status.normalize() == "attended") card.historicalRoom else "",
+            room = if (card.status.normalize() == "attended") deskRoomCode(card.historicalRoom) else "",
             synced = true,
         )
-        else -> checkIns[card.id] ?: if (card.attended) CheckInRecord(checkedIn = true) else null
+        else -> {
+            val rec = checkIns[card.id]
+            if (rec != null) {
+                val room = deskRoomCode(rec.room)
+                rec.copy(checkedIn = rec.checkedIn || room.isNotBlank(), room = room)
+            } else {
+                val worklistRoom = deskRoomCode(card.historicalRoom)
+                when {
+                    worklistRoom.isNotBlank() -> CheckInRecord(checkedIn = true, room = worklistRoom)
+                    card.attended -> CheckInRecord(checkedIn = true)
+                    else -> null
+                }
+            }
+        }
     }
 
 fun deskCheckedIn(card: ApplicantCard, checkIns: Map<ApplicantId, CheckInRecord>): Boolean =
     deskRecord(card, checkIns)?.checkedIn == true
+
+/** Inventory-style room code; blank / dash-only stays empty. */
+fun deskRoomCode(raw: String): String = RoomAllocSync.parseDeskRoom(raw)
 
 /** Roster search + segmented filter: conf number or name, case-insensitive substring; rows sort by name. */
 fun deskRosterRows(
@@ -145,12 +165,25 @@ fun deskOccupied(
     rec.room.takeIf { rec.checkedIn && it.isNotBlank() }
 }.toSet()
 
+fun deskRoomTaken(code: String, occupied: Set<String>): Boolean =
+    occupied.any { RoomAllocSync.sameRoom(it, code) }
+
+/** Occupants keyed by [RoomAllocSync.roomKey] so dash/space/case variants share a cell. */
+fun deskOccupantsByRoom(
+    roll: List<ApplicantCard>,
+    checkIns: Map<ApplicantId, CheckInRecord>,
+): Map<String, List<ApplicantCard>> = roll.mapNotNull { card ->
+    val rec = deskRecord(card, checkIns) ?: return@mapNotNull null
+    val key = RoomAllocSync.roomKey(rec.room)
+    if (rec.checkedIn && key.isNotEmpty()) key to card else null
+}.groupBy({ it.first }, { it.second })
+
 /** Free rooms in the block matching the student's gender — the dialog's pre-filtered picker list. */
 fun deskFreeRooms(
     rooms: List<AccoRoom>,
     gender: Gender,
     occupied: Set<String>,
-): List<AccoRoom> = rooms.filter { it.gender == gender && it.code !in occupied }
+): List<AccoRoom> = rooms.filter { it.gender == gender && !deskRoomTaken(it.code, occupied) }
 
 fun deskSeatCount(
     roll: List<ApplicantCard>,

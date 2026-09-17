@@ -11,8 +11,12 @@ import kotlinx.serialization.Serializable
 data class RoomLayout(
     val columns: Map<String, Int> = emptyMap(),
 ) {
-    fun columnsFor(gender: Gender, section: String): Int =
-        columns[key(gender, section)]?.coerceIn(MIN_COLUMNS, MAX_COLUMNS) ?: DEFAULT_COLUMNS
+    fun columnsFor(gender: Gender, section: String, hallDefault: Int? = null): Int {
+        val stored = columns[key(gender, section)]
+        if (stored != null) return stored.coerceIn(MIN_COLUMNS, MAX_COLUMNS)
+        val fromHall = hallDefault?.takeIf { it in MIN_COLUMNS..MAX_COLUMNS }
+        return fromHall ?: DEFAULT_COLUMNS
+    }
 
     fun withColumns(gender: Gender, section: String, n: Int): RoomLayout =
         copy(columns = columns + (key(gender, section) to n.coerceIn(MIN_COLUMNS, MAX_COLUMNS)))

@@ -1068,3 +1068,7 @@ Scope stays per-device. Board/app figures name their derivation and remain
 separate from the institutional sheets. Existing local check-in and room-pull
 merge behavior remain. ID reveal is transient, masked initially and reset on
 applicant/detail changes. Verification evidence is recorded in the desk2.2 plan.
+
+## Allocated-room check-in and live Room Chart (2.3.0 / 103)
+
+Owner 2026-09-16: a parsed room plus not Left is checked in; `Mbk- 51` lights inventory `Mbk 51`. Room Chart blocks are the acco-handler rooms. Centre Settings shows live Hall Settings from `GET /centre/{cid}/edit` (same-hall, naming convention, Male/Female Main Plan columns / chowky columns / direction / chowky side / empty seats). Unset Room Chart wrap and seating columns use that plan. SAVE HALL LAYOUT stays the local override for hall depth and any field the edit page omitted. Combined-hall is displayed; the app still draws two gender blocks. Left never occupies. No new attendance POST. No `?r=`.

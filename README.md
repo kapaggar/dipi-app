@@ -6,7 +6,7 @@ Native centre-staff client for the DIPI registrar desk (`dh_manageapp`). Package
 
 **Start here:** [AGENTS.md](AGENTS.md) (current assumptions, hard rules) and [docs/LIVE-DESK.md](docs/LIVE-DESK.md).
 
-Product rules (no client ACL, no `Approved`, no attendance write, server messages verbatim, fixed URL) are the Hard rules in [AGENTS.md](AGENTS.md). Live Drupal implements no `/staff/*` layer and no Services login — the app scrapes the existing desk.
+Product rules (no client ACL, no `Approved`, no attendance write, server messages verbatim, fixed URL) are the Hard rules in [AGENTS.md](AGENTS.md). Live Drupal implements no `/staff/*` layer and no Services login — the app scrapes the existing desk. An allocated room plus not Left is checked in; room punctuation does not matter. Room Chart inventory is `GET /centre/{cid}/acco-handler` (never POST). Centre Settings shows live Hall Settings from `GET /centre/{cid}/edit` (never POST, never `?r=`).
 
 **Design:** [docs/design/DIPI-Staff.dc.html](docs/design/DIPI-Staff.dc.html) — visual source of truth (measurements and shipped-delta ledger in [docs/DESIGN.md](docs/DESIGN.md)).  
 **Historical mock contract:** [docs/openapi-staff.yaml](docs/openapi-staff.yaml) (fixtures only).  
