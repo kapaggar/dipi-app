@@ -5,6 +5,21 @@ as set in `app/build.gradle.kts`. Design measurements for each release are in th
 shipped-delta ledger of [docs/DESIGN.md](docs/DESIGN.md); owner rulings are in
 [docs/DECISIONS.md](docs/DECISIONS.md). Backend PHP is unchanged in every release.
 
+## [2.3.4] / 107 - 2026-09-17
+
+Consolidation release. The app behaves exactly as 2.3.3.
+
+### Removed
+
+- Unreached code: `Modifier.blueprintMarks` (core:ui `Blueprint.kt`, the retired registration-mark renderer), `jsonPretty` (core:network `MockFixtures.kt`), `ChipFill` (feature:desk `BoardPane.kt`).
+- Side branches `codex/desk-2.2`, `codex/theme-honesty`, `feat/dipi-v7`, `feat/room-name-type` (all already on `main` or behind it) and `dipi-v7` (never merged; preserved with its implementation package as tag `archive/dipi-v7`).
+- Shipped dated plans, specs, handovers and performance reports under `docs/` (see the docs consolidation commit); two stale stashes.
+
+### Changed
+
+- `CHANGELOG.md` is the release ledger from 2.0.0; `docs/README.md` indexes every remaining doc; `CLAUDE.md` and `AGENTS.md` headers carry only the current version and binding rules.
+- WhatsApp automation record moves to `docs/WHATSAPP.md`; the Java desktop twin set moves to `docs/java-desktop/`; open findings are collected in `docs/BACKLOG.md`.
+
 ## [2.3.3] / 106 - 2026-09-17
 
 ### Changed
@@ -122,6 +137,7 @@ Releases 1.4.1 through 1.46.2 are recorded per version in the shipped-delta ledg
 plans, specs and handovers were retired from the tree on 2026-09-17 and remain in git
 history at `c829e17`.
 
+[2.3.4]: https://github.com/kapaggar/dipi-app/compare/c829e17...main
 [2.3.3]: https://github.com/kapaggar/dipi-app/compare/v2.3.0...c829e17
 [2.3.2]: https://github.com/kapaggar/dipi-app/compare/v2.3.0...c829e17
 [2.3.1]: https://github.com/kapaggar/dipi-app/compare/v2.3.0...c829e17

@@ -6,7 +6,7 @@ Guidance for Claude Code, Cursor, Codex, Fable, Grok.
 
 Centre-staff Android client for the DIPI registrar desk. Package: `org.dhamma.dipi.staff`.
 
-**Current release 2.3.3** (`versionCode` 106). Release-by-release history from 2.0.0 is `CHANGELOG.md`; the per-release design ledger is `docs/DESIGN.md`; owner rulings, retirements and parked items are `docs/DECISIONS.md`. Nothing shippable lives outside `main`. Build-flag surfaces: photo review is off by default (`docs/PHOTO-BUILDS.md`); centre-specific WhatsApp automation is off by default and opt-in per server/centre (`docs/WHATSAPP.md`).
+**Current release 2.3.4** (`versionCode` 107). Release-by-release history from 2.0.0 is `CHANGELOG.md`; the per-release design ledger is `docs/DESIGN.md`; owner rulings, retirements and parked items are `docs/DECISIONS.md`. Nothing shippable lives outside `main`. Build-flag surfaces: photo review is off by default (`docs/PHOTO-BUILDS.md`); centre-specific WhatsApp automation is off by default and opt-in per server/centre (`docs/WHATSAPP.md`).
 
 **Layout:** `:app` (repository, `DeskViewModel`, `DipiAppUi`), `:core:{model,network,database,datastore,ui,audit}`, `:feature:{auth,course,desk,applicants,photos,summary,settings}`. Tests live in `:app`, `:core:model`, `:core:network`, `:core:datastore`, `:core:audit` only — feature modules have no test source set, so their Compose screens are covered by Robolectric tests in `:app`.
 

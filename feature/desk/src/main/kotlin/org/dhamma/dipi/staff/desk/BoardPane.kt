@@ -210,7 +210,6 @@ private fun ExportCell(label: String, modifier: Modifier, onExport: (String) -> 
     }
 }
 
-private val ChipFill = Color(0xFFFCFCFD)
 private val ChipBorder = Color(0xFFE7E7EA)
 
 @Composable

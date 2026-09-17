@@ -30,8 +30,8 @@ android {
         applicationId = "org.dhamma.dipi.staff"
         minSdk = 26
         targetSdk = 35
-        versionCode = 106
-        versionName = "2.3.3"
+        versionCode = 107
+        versionName = "2.3.4"
         buildConfigField("boolean", "PHOTO_REVIEW_ENABLED", photoReviewEnabled.toString())
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "BASE_URL", "\"${overrideUrl.trimEnd('/')}\"")
