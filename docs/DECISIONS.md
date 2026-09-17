@@ -392,14 +392,34 @@ are preserved because code comments cite them.
   `backrest = true`, so the expected string now goes through
   `backrestSeatLabel` (full-line pin kept).
 
-## Version milestones (from the documents' own headers)
+## Desk 2.2 (2026-09-13, owner clarifications during the 2.2.0 pass)
 
-1.18.0/29 pre-v3-audit baseline · 1.20.0/31 v3 conformance · 1.21.0/33 centre
-dashboard · 1.22.0/35 desk polish · 1.23.0/36 v4 design pass · 1.24.0/37 centre
-trim · 1.25.0/40 room layout + reach · 1.27.0/42 Day-11 transport ·
-1.28.0/43 T1+T3 · 1.29.0/44 T2 · 1.29.1/45 T4+T7 · 1.30.0/46 T5 · 1.30.1/47 T6+T8
-· 1.34.0 Sheets v5 · 1.36.0/58 Reach v5 · 1.37.2/62 Course ops v6 + Board 3×3 ·
-1.38.0/63 seating print + report empty-state · 1.39.0/64–1.40.2/67 ui-gaps M1–M4 ·
-1.41.0/68 desk resilience · 1.42.0/69 four-course grid · 1.42.1/70 landscape
-seating print · 1.43.1–1.43.4 WhatsApp automation + QA + batch isolation ·
-now shipping 1.43.5/86 (application Edit via browser session).
+- **Roll eligibility:** keep confirmation-number holders with any active status;
+  exclude only Cancelled, Left, Rejected, Regret and Duplicate, case-insensitively.
+  The handover's strict Confirmed + Expected rule was rejected. WaitList stays on the
+  roll and is labelled and counted separately as held; never silently drop it from
+  the fillable population.
+- **Finalization:** calendar dates change Board guidance only; they never establish
+  finalization or write attendance. Server `finalized` alone controls read-only mode.
+  Last-day reconciliation guidance fires on the exact last calendar day or on server
+  finalization; an after-end-date extension is a pending product decision.
+- **Breakpoints:** desk shell from 840dp (the handover said 1024dp); list-detail split
+  stays at 1100dp; under 840dp the phone flow and root sheet overlay remain. Course ops
+  was outside the pass.
+- **Scope:** persisted per device. Show the named scope, a separate 48dp clear, and
+  `showing scoped of total`; rail counts remain unscoped. App calculations are labelled
+  separately from the institutional sheets, whose data and exports are unchanged.
+- **Local check-in:** existing Mark attended and room-pull merge semantics are unchanged
+  and described honestly; no attendance endpoint, no new conflict rule.
+- **Floors:** 14sp text and 48dp targets win over smaller examples in the supplied HTML
+  and over earlier desk measurements. Light palettes stay; Dark uses shared Steel night
+  roles, never literal dark colours per screen.
+- **ID reveal:** masked initially, revealed in memory only; reset on applicant, detail
+  and session changes. No saved-state, Room, DataStore, logs or real-data fixtures.
+- **Supplied HTML not committed:** the 2.2 handover HTML carried an unmasked ID-shaped
+  example; only `docs/design/desk-2.2/HANDOVER.md` is retained.
+
+## Version milestones
+
+Per-release history from 2.0.0 is `CHANGELOG.md`. Releases before 2.0.0 are the
+shipped-delta ledger in `docs/DESIGN.md` and the `v1.x` git tags.

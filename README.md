@@ -2,7 +2,7 @@
 
 Native centre-staff client for the DIPI registrar desk (`dh_manageapp`). Package `org.dhamma.dipi.staff`.
 
-**Shipped:** **1.4.1** (`versionCode` 10), branch `feat/vertical-1`.
+**Shipped:** see [CHANGELOG.md](CHANGELOG.md) for the current release; everything ships from `main`. Docs index: [docs/README.md](docs/README.md).
 
 **Start here:** [AGENTS.md](AGENTS.md) (current assumptions, hard rules) and [docs/LIVE-DESK.md](docs/LIVE-DESK.md).
 

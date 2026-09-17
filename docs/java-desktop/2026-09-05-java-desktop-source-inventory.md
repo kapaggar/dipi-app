@@ -355,7 +355,7 @@ The **framework** does not.
 4. `docs/DECISIONS.md` — owner rulings (ignore the stale footer version).
 5. This inventory.
 6. `docs/design/DIPI-Staff.dc.html` — open in a browser.
-7. Course-ops specs under `docs/specs/2026-09-02-course-ops-2*.md`.
+7. Course-ops specs (`docs/specs/2026-09-02-course-ops-2*.md`, retired 2026-09-17; in git history at `c829e17`).
 8. `core/network/.../StaffApi.kt` and `SheetExport.kt` — live surface.
 9. `feature/course/.../DeskTiles.kt` — what the centre actually offers.
 10. `CLAUDE.md` — current ship line and test-command rule.

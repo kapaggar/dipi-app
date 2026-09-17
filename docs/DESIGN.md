@@ -634,8 +634,7 @@ Course ops uses the shipped **Steel** ramp with no additions:
 
 Design spec: the frame and shot index below (absorbed from the retired
 `version-5/` handover on 2026-09-05); frames `5a`–`5t` in `DIPI Sheets v5.dc.html`;
-plan and progress ledger: `docs/plans/2026-09-02-sheets-v5.md`; implementation
-handover: `docs/handovers/2026-09-02-sheets-v5-implementation.md`; transport and
+plan and implementation handover retired 2026-09-17 (git history); transport and
 markup skeletons: `docs/LIVE-DESK.md` Part 4.
 
 **The problem this pass fixed.** The twelve desk sheets arrive as print-styled
@@ -679,8 +678,8 @@ an instruction panel about dragging students that cannot work here.
 
 - **The hall grid.** The design draws rows A–E × 7 seats and records the geometry
   as *inferred, not observed*. Frames `5h`/`5i` are unbuilt. Only dead-furniture
-  removal and the chrome shipped on seating. Picked up in
-  `docs/specs/2026-09-02-seating-r2-orientation-spec.md`.
+  removal and the chrome shipped on seating. Picked up in the seating r2
+  orientation spec (retired 2026-09-17; ruling in `docs/DECISIONS.md`).
 - **A seating editor.** The desk's drag-to-reseat is JavaScript and dead here. This
   surface is read + print. **Nothing labels, implies or reaches "regenerate"** — the
   `?r=1` route is unreachable from this app by construction, not by discipline.
@@ -751,7 +750,7 @@ wiped on logout, session expiry and Erase-all.
 
 ## Reach v5 UI — Board native seating, print, visual pack (1.36.0 / 58, 2026-09-03)
 
-Plan: `docs/plans/2026-09-03-reach-v5-ui.md`. Walkthrough on tablet 1.35.0 was
+Plan retired 2026-09-17 (git history). Walkthrough on tablet 1.35.0 was
 the visual source of truth; this pass ships the remaining pack.
 
 ### What shipped — do not re-propose
@@ -787,7 +786,7 @@ the visual source of truth; this pass ships the remaining pack.
 
 ### MINOR 1.37.0 / 60 (2026-09-04) — Course ops v6 advise
 
-Plan: `docs/plans/2026-09-04-course-ops-design.md`. Visual authority:
+Plan retired 2026-09-17 (git history). Visual authority:
 `DIPI Course ops v6.dc.html`. Seating-r2 locks held (teacher at the bottom,
 letters as columns, CHOWKY / CHAIR, **66 dp** cells, sevaks hidden). No new
 GET, no search, no writes.
@@ -1007,7 +1006,7 @@ decision, then optional Zero Day. Keep-alive remains the single process-local
 20-minute token + centre pair. No new cache/freshness model, endpoints, photo
 review, WhatsApp activation, or v7 UI.
 
-Validation and measurement limits: [performance record](plans/2026-09-10-desk-performance.md).
+Validation and measurement limits: `CHANGELOG.md` 2.0.0 (the plan and both device reports were retired 2026-09-17; open follow-ups are in `BACKLOG.md`).
 Owner selected 2.0.0 / 98 for the final GitHub release on main, superseding the
 unpublished 1.46.3 / 97 preparation. Tablet installation and device after-measurements
 remain separate; the major version does not introduce v7 UI or a transport rewrite.

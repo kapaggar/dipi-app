@@ -8,7 +8,7 @@ only reviews this spec.
 
 **Android baseline:** `1.42.0` / `versionCode` 69 on `main` at
 `/Users/wizops/DIPI/dipi-app`.
-**Inventory:** `docs/handovers/2026-09-05-java-desktop-source-inventory.md`
+**Inventory:** `docs/java-desktop/2026-09-05-java-desktop-source-inventory.md`
 (re-verified against `StaffApi.kt`, `SheetExport.kt`, `DeskTiles.kt`,
 `DeskSection`, `OLDER_COURSE_LIMIT = 4` on 2026-09-05).
 

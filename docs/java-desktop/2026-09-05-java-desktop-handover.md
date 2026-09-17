@@ -23,18 +23,18 @@ Do not add a `:desktop` module inside `dipi-app`.
 
 1. `/Users/wizops/DIPI/dipi-app/AGENTS.md` — Hard rules and Current
    assumptions. These win over everything below, including JavaFX skills.
-2. `docs/handovers/2026-09-05-java-desktop-source-inventory.md` — what
+2. `docs/java-desktop/2026-09-05-java-desktop-source-inventory.md` — what
    the tablet already does. Re-verify a claim before you copy it.
-3. `docs/superpowers/specs/2026-09-05-java-desktop-design.md` — the
+3. `docs/java-desktop/2026-09-05-java-desktop-design.md` — the
    design you are implementing.
-4. `docs/superpowers/plans/2026-09-05-java-desktop.md` — phases, slices,
+4. `docs/java-desktop/2026-09-05-java-desktop-plan.md` — phases, slices,
    file ownership, named tests.
 5. `docs/DESIGN.md` — tokens and shipped-delta through 1.42.0.
 6. `docs/LIVE-DESK.md` — transport and sheet skeletons.
 7. `docs/DECISIONS.md` — owner rulings. Ignore the stale footer version
    and the stale `OLDER_COURSE_LIMIT = 3` line; the tree is **4**.
 8. `docs/design/DIPI-Staff.dc.html` — open in a browser. 1 px = 1 dp.
-9. Course-ops specs under `docs/specs/2026-09-02-course-ops-2*.md` —
+9. Course-ops specs (`docs/specs/2026-09-02-course-ops-2*.md`, retired 2026-09-17; read them from git history at `c829e17`) —
    **only if you are on P3**.
 10. `core/network/.../StaffApi.kt`, `core/model/.../SheetExport.kt`,
     `feature/course/.../DeskTiles.kt` — live surface as code.

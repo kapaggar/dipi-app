@@ -2,7 +2,7 @@
 
 > **For agentic workers:** This plan is **planning output**, not a licence
 > to start coding in the planning session. The implement session pastes
-> `docs/handovers/2026-09-05-java-desktop-handover.md` and executes **one
+> `docs/java-desktop/2026-09-05-java-desktop-handover.md` and executes **one
 > phase at a time**. REQUIRED later: scoped workers with strict file
 > ownership, then one integrator. Do not invoke `executing-plans` until
 > that handover is the session brief.
@@ -19,7 +19,7 @@ speaks Drupal HTML. JavaFX WebView is sheets-only and cookie-isolated.
 **Tech Stack:** Java 21, JavaFX 21, Gradle, JUnit 5, TestFX (hard-rule
 UI only), SQLite JDBC, OS credential store, `jpackage`.
 
-**Spec:** `docs/superpowers/specs/2026-09-05-java-desktop-design.md`
+**Spec:** `docs/java-desktop/2026-09-05-java-desktop-design.md`
 (lives in the Android repo until P0 copies the docs set into
 `dipi-desktop`).
 
