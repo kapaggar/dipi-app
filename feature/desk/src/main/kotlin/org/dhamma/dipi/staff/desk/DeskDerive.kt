@@ -145,13 +145,21 @@ fun deskRosterRows(
 }
 
 /**
- * THE ROLL table cell — old/new × M/F, derived from the conf number prefix
- * ({N|O|S}{M|F} + serial), which is why the UI never prints a
- * "New student" / "Old student" label.
+ * THE ROLL table cell — old/new × M/F from [ConfPrefix] so the New/Old
+ * filter and the table cannot disagree. `om`/`of`/`sm`/`sf` are Old;
+ * `nm`/`nf` are New; unparseable prefixes land in neither cell.
  */
-fun deskRollCell(roll: List<ApplicantCard>, gender: Char, old: Boolean): Int = roll.count { card ->
-    val conf = card.confNo?.value?.trim().orEmpty().uppercase()
-    conf.length >= 2 && conf[1] == gender && (conf[0] == 'O') == old
+fun deskRollCell(roll: List<ApplicantCard>, gender: Char, old: Boolean): Int {
+    val wantGender = when (gender) {
+        'M' -> Gender.M
+        'F' -> Gender.F
+        else -> return 0
+    }
+    val wantSeniority = if (old) ConfSeniority.OLD else ConfSeniority.NEW
+    return roll.count { card ->
+        val prefix = ConfPrefix.parse(card.confNo?.value)
+        prefix.gender == wantGender && prefix.seniority == wantSeniority
+    }
 }
 
 /** Room codes occupied tonight, optionally ignoring one applicant (the dialog's own row). */

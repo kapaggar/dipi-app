@@ -207,6 +207,37 @@ class CourseReportCsvParserTest {
     }
 
     @Test
+    fun trainingTeachersNamesFillTheTraineeCount() {
+        val csv = """
+            Course,NewMale,NewFemale,NewTotal,OldMale,OldFemale,OldTotal,StudentTotal,SevakMale,SevakFemale,SevakTotal,ConductingTeachers,AssistingTeachers,TrainingTeachers
+            "Dhamma Test / 10 Day / 2026 / 1st-Apr to 12th-Apr",10,8,18,4,3,7,25,1,1,2,"Maya Sharma (F)","Neel Joshi (F)","Ravi Menon (M)"
+            Total,10,8,18,4,3,7,25,1,1,2,,,
+        """.trimIndent()
+
+        val report = CourseReportCsvParser.parse(csv)
+        val row = report.rows.single()
+
+        assertEquals(listOf("Ravi Menon (M)"), row.traineeTeachers)
+        assertEquals(1, row.counts.teacherTrainee)
+        assertEquals(25, row.counts.rollTotal)
+        assertEquals(2, row.counts.sevakTotal)
+        assertEquals(1, report.grandTotal.teacherTrainee)
+    }
+
+    @Test
+    fun trainingTeachersNumericCountIsNotInventedFromMissingNames() {
+        val csv = """
+            Course,StudentTotal,SevakTotal,TrainingTeachers
+            "Dhamma Test / 10 Day / 2026 / 03 Jan - 14 Jan",12,2,3
+        """.trimIndent()
+
+        val c = CourseReportCsvParser.parse(csv).rows.single().counts
+        assertEquals(3, c.teacherTrainee)
+        assertEquals(12, c.rollTotal)
+        assertEquals(2, c.sevakTotal)
+    }
+
+    @Test
     fun numericTeacherCountsAreNotOverwrittenByAnEmptyNameCell() {
         val csv = "$header\n" +
             "\"Dhamma Test / 10 Day / 2026 / 03 Jan - 14 Jan\"," +

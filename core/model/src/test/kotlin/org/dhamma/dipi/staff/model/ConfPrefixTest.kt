@@ -41,13 +41,20 @@ class ConfPrefixTest {
     }
 
     @Test
-    fun sevakPrefixIsUnknownSeniorityWithGender() {
+    fun sevakPrefixIsOldWithGender() {
         val sm = ConfPrefix.parse("SM4")
-        assertEquals(ConfSeniority.UNKNOWN, sm.seniority)
-        assertEquals(Gender.M, sm.gender)
+        assertEquals(ConfPrefix(ConfSeniority.OLD, Gender.M), sm)
+        assertTrue(sm.matches(gender = null, seniority = null))
+        assertTrue(sm.matches(Gender.M, ConfSeniority.OLD))
+        assertFalse(sm.matches(Gender.M, ConfSeniority.NEW))
+        assertFalse(sm.matches(Gender.F, ConfSeniority.OLD))
+
         val sf = ConfPrefix.parse("sf12")
-        assertEquals(ConfSeniority.UNKNOWN, sf.seniority)
-        assertEquals(Gender.F, sf.gender)
+        assertEquals(ConfPrefix(ConfSeniority.OLD, Gender.F), sf)
+        assertTrue(sf.matches(gender = null, seniority = ConfSeniority.OLD))
+        assertTrue(sf.matches(Gender.F, ConfSeniority.OLD))
+        assertFalse(sf.matches(Gender.F, ConfSeniority.NEW))
+        assertFalse(sf.matches(Gender.M, ConfSeniority.OLD))
     }
 
     @Test

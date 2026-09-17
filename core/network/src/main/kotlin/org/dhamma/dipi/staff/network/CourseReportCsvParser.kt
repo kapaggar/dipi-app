@@ -40,6 +40,8 @@ object CourseReportCsvParser {
         "assistingteachers" to { c, v -> c.copy(teacherAssistant = v) },
         "teachertrainee" to { c, v -> c.copy(teacherTrainee = v) },
         "teachertrainees" to { c, v -> c.copy(teacherTrainee = v) },
+        "trainingteacher" to { c, v -> c.copy(teacherTrainee = v) },
+        "trainingteachers" to { c, v -> c.copy(teacherTrainee = v) },
     )
 
     private enum class TeacherSlot { CONDUCTING, ASSISTING, TRAINEE, ALL }
@@ -54,6 +56,8 @@ object CourseReportCsvParser {
         "assistingteachers" to TeacherSlot.ASSISTING,
         "teachertrainee" to TeacherSlot.TRAINEE,
         "teachertrainees" to TeacherSlot.TRAINEE,
+        "trainingteacher" to TeacherSlot.TRAINEE,
+        "trainingteachers" to TeacherSlot.TRAINEE,
         "teachers" to TeacherSlot.ALL,
     )
 

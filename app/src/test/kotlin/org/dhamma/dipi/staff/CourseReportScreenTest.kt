@@ -15,14 +15,17 @@ import org.dhamma.dipi.staff.course.CourseReportUi
 import org.dhamma.dipi.staff.model.CourseReport
 import org.dhamma.dipi.staff.model.CourseReportCounts
 import org.dhamma.dipi.staff.model.CourseReportRow
+import org.dhamma.dipi.staff.model.REPORT_RANGE_ERROR
 import org.dhamma.dipi.staff.ui.theme.DipiTheme
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import java.time.LocalDate
 
 /**
  * The native course report (v5 T3, frames `5n`–`5q`): the range is the only
@@ -33,6 +36,8 @@ import org.robolectric.annotation.Config
 class CourseReportScreenTest {
 
     @get:Rule val rule = createComposeRule()
+
+    private val today = LocalDate.of(2026, 9, 16)
 
     private fun counts(roll: Int) = CourseReportCounts(
         newMale = 40,
@@ -69,15 +74,19 @@ class CourseReportScreenTest {
         state: CourseReportUi,
         onRun: () -> Unit = {},
         onFrom: (String) -> Unit = {},
+        onTo: (String) -> Unit = {},
         onCopy: (String) -> Unit = {},
+        clock: LocalDate = today,
     ) {
         rule.setContent {
             DipiTheme {
                 CourseReportScreen(
                     state = state,
                     onFrom = onFrom,
+                    onTo = onTo,
                     onRun = onRun,
                     onCopyMessage = onCopy,
+                    today = clock,
                 )
             }
         }
@@ -91,6 +100,7 @@ class CourseReportScreenTest {
 
         rule.onNodeWithTag("report-first-open").assertIsDisplayed()
         rule.onNodeWithTag("report-grand-total").assertDoesNotExist()
+        rule.onNodeWithText("Choose dates, then tap RUN.").assertIsDisplayed()
         assertTrue("Opening the screen must not fetch", !ran)
 
         rule.onNodeWithTag("report-run").performClick()
@@ -105,6 +115,11 @@ class CourseReportScreenTest {
         rule.onNodeWithTag("report-from").assertIsDisplayed()
         rule.onNodeWithTag("report-to").assertIsDisplayed()
         rule.onNodeWithTag("report-run").assertIsDisplayed()
+        rule.onNodeWithText("FROM · DD-MM-YYYY").assertIsDisplayed()
+        rule.onNodeWithText("TO · DD-MM-YYYY").assertIsDisplayed()
+        listOf("This month", "This year", "Last 12 months").forEach {
+            rule.onNodeWithText(it).assertIsDisplayed()
+        }
         listOf("Course", "Status", "Sort", "Gender").forEach {
             rule.onNodeWithText(it).assertDoesNotExist()
         }
@@ -129,15 +144,17 @@ class CourseReportScreenTest {
     fun allFourteenFiguresRenderUnderFiveGroupCaps() {
         screen(CourseReportUi(from = "2026-01-01", to = "2026-03-31", ran = true, report = loaded))
 
-        listOf("NEW", "OLD", "ROLL", "SEVAK", "TEACHERS").forEach {
+        listOf("NEW", "OLD", "ROLL TOTAL", "SEVAK", "TEACHERS").forEach {
             rule.onNodeWithText(it).assertIsDisplayed()
         }
-        // 13 figure cells per row + header: two course rows and the footer.
         rule.onNodeWithText("Dhamma Sudha").assertDoesNotExist()
         rule.onNodeWithText("10 Day").assertIsDisplayed()
         rule.onAllNodesWithTag("report-grand-total").assertCountEquals(1)
         rule.onNodeWithText("GRAND TOTAL").assertIsDisplayed()
         rule.onNodeWithText("01-01-2026 → 31-03-2026 · 2 courses").assertIsDisplayed()
+        rule.onNodeWithText(
+            "ROLL TOTAL is students only; SEVAK is counted beside it, never inside it.",
+        ).assertIsDisplayed()
     }
 
     /** A course name the desk typed freehand prints raw, never as an error. */
@@ -147,7 +164,7 @@ class CourseReportScreenTest {
         rule.onNodeWithText("Long weekend for old students").assertIsDisplayed()
     }
 
-    /** An empty range is an answer, and it names the mistake worth checking. */
+    /** An empty range is an answer, and frame 03 copy stays verbatim. */
     @Test
     fun anEmptyRangeIsAnAnswerNotAFailure() {
         screen(
@@ -159,23 +176,55 @@ class CourseReportScreenTest {
             ),
         )
         rule.onNodeWithTag("report-empty").assertIsDisplayed()
+        rule.onNodeWithText("Choose dates, then tap RUN.").assertIsDisplayed()
         rule.onNodeWithText("No course started between 01-05-2026 and 02-05-2026.")
-            .assertIsDisplayed()
+            .assertDoesNotExist()
     }
 
     @Test
-    fun aReversedRangeIsCalledOut() {
+    fun aReversedRangeDisablesRunAndShowsTheInlineMessage() {
+        var ran = false
         screen(
             CourseReportUi(
                 from = "2026-09-01",
-                to = "2026-01-01",
-                ran = true,
-                report = CourseReport(),
+                to = "2026-08-31",
             ),
+            onRun = { ran = true },
         )
-        rule.onNodeWithText(
-            "FROM must be before TO. Swap the dates.",
-        ).assertIsDisplayed()
+        rule.onNodeWithTag("report-range-error").assertIsDisplayed()
+        rule.onNodeWithText(REPORT_RANGE_ERROR).assertIsDisplayed()
+        rule.onNodeWithTag("report-run").performClick()
+        assertFalse(ran)
+    }
+
+    @Test
+    fun presetsSetBothFieldsAndRun() {
+        var from = ""
+        var to = ""
+        var ran = false
+        screen(
+            CourseReportUi(from = "2026-01-01", to = "2026-12-31"),
+            onFrom = { from = it },
+            onTo = { to = it },
+            onRun = { ran = true },
+        )
+
+        rule.onNodeWithTag("report-preset-this-month").performClick()
+        assertEquals("2026-09-01", from)
+        assertEquals("2026-09-30", to)
+        assertTrue(ran)
+
+        ran = false
+        rule.onNodeWithTag("report-preset-this-year").performClick()
+        assertEquals("2026-01-01", from)
+        assertEquals("2026-12-31", to)
+        assertTrue(ran)
+
+        ran = false
+        rule.onNodeWithTag("report-preset-last-12-months").performClick()
+        assertEquals("2025-09-17", from)
+        assertEquals("2026-09-16", to)
+        assertTrue(ran)
     }
 
     /**
@@ -220,8 +269,10 @@ class CourseReportScreenTest {
         screen(CourseReportUi(ran = true, report = loaded, ranAt = "09:41"))
         rule.onNodeWithTag("report-print").assertIsDisplayed()
         rule.onNodeWithTag("report-run-strip")
-            .assertTextEquals("2 COURSES · 165 STUDENTS · RAN 09:41")
-        rule.onNodeWithText("every course the desk has in this range").assertIsDisplayed()
+            .assertTextEquals("2 COURSES · 165 STUDENTS · 11 SEVAK · RAN 09:41")
+        rule.onNodeWithText("every course the desk holds whose dates fall inside the range.")
+            .assertIsDisplayed()
+        rule.onNodeWithTag("report-column-glossary").assertIsDisplayed()
     }
 
     @Test
@@ -231,13 +282,45 @@ class CourseReportScreenTest {
         rule.onAllNodesWithTag("report-teacher-names").assertCountEquals(1)
     }
 
+    @Test
+    fun rollTotalColumnHeadsAndCellsShareTheSameFixedWidth() {
+        screen(CourseReportUi(ran = true, report = loaded))
+        val nodes = rule.onAllNodesWithTag("report-col-roll")
+        val bounds = (0 until 4).map { nodes[it].getUnclippedBoundsInRoot() }
+        val lefts = bounds.map { it.left }.toSet()
+        val rights = bounds.map { it.right }.toSet()
+        assertEquals("ROLL TOTAL left edges must not drift", 1, lefts.size)
+        assertEquals("ROLL TOTAL right edges must not drift", 1, rights.size)
+    }
+
     /** Every tap target on this screen clears the 48dp floor. */
     @Test
     fun controlsClearTheTouchFloor() {
         screen(CourseReportUi(from = "2026-01-01", to = "2026-12-31"))
-        listOf("report-run", "report-back").forEach {
+        listOf(
+            "report-run",
+            "report-back",
+            "report-from-box",
+            "report-to-box",
+            "report-preset-this-month",
+            "report-preset-this-year",
+            "report-preset-last-12-months",
+        ).forEach {
             val h = rule.onNodeWithTag(it).getUnclippedBoundsInRoot().let { b -> b.bottom - b.top }
-            assertTrue("$it is ${h.value}dp", h.value >= 44f)
+            assertTrue("$it is ${h.value}dp", h.value >= 47f)
         }
+        val fromW = rule.onNodeWithTag("report-from-box").getUnclippedBoundsInRoot()
+            .let { it.right - it.left }
+        assertTrue("FROM width ${fromW.value}", fromW.value in 166f..170f)
+    }
+
+    @Test
+    @Config(qualifiers = "w800dp-h900dp-mdpi")
+    fun presetsRemainVisibleWhenTheFilterStacks() {
+        screen(CourseReportUi(from = "2026-01-01", to = "2026-12-31"))
+        listOf("This month", "This year", "Last 12 months").forEach {
+            rule.onNodeWithText(it).assertIsDisplayed()
+        }
+        rule.onNodeWithTag("report-run").assertIsDisplayed()
     }
 }

@@ -1,13 +1,18 @@
 package org.dhamma.dipi.staff.course
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.ScrollState
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -30,23 +35,31 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
+import androidx.compose.ui.unit.max
 import androidx.compose.ui.unit.sp
+import java.time.LocalDate
 import org.dhamma.dipi.staff.model.CourseReport
 import org.dhamma.dipi.staff.model.CourseReportCounts
 import org.dhamma.dipi.staff.model.CourseReportRow
+import org.dhamma.dipi.staff.model.ReportPreset
 import org.dhamma.dipi.staff.model.displayDeskDate
 import org.dhamma.dipi.staff.model.parseDeskDate
+import org.dhamma.dipi.staff.model.reportPresetRange
+import org.dhamma.dipi.staff.model.reportRangeError
+import org.dhamma.dipi.staff.model.reportRangeIsValid
 import org.dhamma.dipi.staff.ui.theme.DeskStyle
 import org.dhamma.dipi.staff.ui.theme.DipiCondensed
 import org.dhamma.dipi.staff.ui.theme.DipiMono
-import org.dhamma.dipi.staff.ui.theme.LocalDipi
+import org.dhamma.dipi.staff.ui.theme.LocalDarkTheme
 import org.dhamma.dipi.staff.ui.theme.LocalDeskColors
+import org.dhamma.dipi.staff.ui.theme.LocalDipi
 import org.dhamma.dipi.staff.ui.theme.LocalIndustry
 import org.dhamma.dipi.staff.ui.theme.deskCard
 
@@ -66,6 +79,61 @@ data class CourseReportUi(
     val ranAt: String? = null,
 )
 
+private val DateFieldW = 168.dp
+private val DateFieldH = 48.dp
+private val FilterGap = 12.dp
+private val RunSidePad = 30.dp
+private val PresetWrapBelow = 900.dp
+private val CourseMinW = 248.dp
+private val CellW = 42.dp
+private val RollW = 80.dp
+private val GroupGap = 4.dp
+private val TablePad = 26.dp
+
+private val EmptyRangeCopy = "Choose dates, then tap RUN."
+private val ColumnGlossary =
+    "NEW / OLD students by gender · ROLL TOTAL excludes sevaks · SEVAK counted separately · TEACHERS C conducting, A assistant, TR trainee."
+private val RollOnlyNote =
+    "ROLL TOTAL is students only; SEVAK is counted beside it, never inside it."
+
+/**
+ * Light/Blossom hexes from the owner frame, remapped in Dark so the page
+ * keeps contrast on Steel night instead of shipping a light-only sheet.
+ */
+internal data class CourseReportTokens(
+    val validBorder: Color,
+    val invalidBorder: Color,
+    val invalidFill: Color,
+    val invalidOutline: Color,
+    val invalidText: Color,
+    val rollTint: Color,
+)
+
+@Composable
+internal fun courseReportTokens(): CourseReportTokens {
+    val dark = LocalDarkTheme.current
+    val c = LocalDipi.current
+    return if (dark) {
+        CourseReportTokens(
+            validBorder = Color(0xFF8E6A78),
+            invalidBorder = c.hard,
+            invalidFill = Color(0xFF3B2626),
+            invalidOutline = Color(0xFF8A4A46),
+            invalidText = c.hard,
+            rollTint = Color(0xFF2A1E24),
+        )
+    } else {
+        CourseReportTokens(
+            validBorder = Color(0xFFC99FB1),
+            invalidBorder = Color(0xFFA33A34),
+            invalidFill = Color(0xFFFBF0EF),
+            invalidOutline = Color(0xFFDFAFAB),
+            invalidText = Color(0xFF7A2B26),
+            rollTint = Color(0xFFF3E2E8),
+        )
+    }
+}
+
 /**
  * The centre course report as a native surface (v5 T3, frames `5n`–`5q`).
  *
@@ -73,9 +141,9 @@ data class CourseReportUi(
  * a CSV comes back. What changes is that the CSV is read for the registrar
  * instead of being handed to whatever app claims `text/csv`.
  *
- * **The date range is the only control.** The desk's form offers no course
- * picker, no status filter and no sort, so neither does this screen: a
- * control the server cannot honour is worse than no control.
+ * **The date range is the only control.** Presets fill FROM/TO from the
+ * device calendar and run the same POST. The desk's form offers no course
+ * picker, no status filter and no sort.
  */
 @Composable
 fun CourseReportScreen(
@@ -87,9 +155,11 @@ fun CourseReportScreen(
     onPrint: () -> Unit = {},
     onCopyMessage: (String) -> Unit = {},
     onBack: () -> Unit = {},
+    today: LocalDate = LocalDate.now(),
     modifier: Modifier = Modifier,
 ) {
     val c = LocalDipi.current
+    val rangeError = reportRangeError(state.from, state.to)
     Column(
         modifier
             .fillMaxSize()
@@ -97,13 +167,13 @@ fun CourseReportScreen(
             .testTag("course-report-screen"),
     ) {
         Header(state, onShareCsv, onPrint, onBack)
-        RangeBand(state, onFrom, onTo, onRun)
+        RangeBand(state, rangeError, today, onFrom, onTo, onRun)
         Box(Modifier.weight(1f).fillMaxWidth()) {
             when {
                 state.refusal != null -> Refusal(state, onCopyMessage)
                 state.running -> Running(state)
                 !state.ran -> FirstOpen()
-                state.report == null || state.report.isEmpty -> EmptyRange(state)
+                state.report == null || state.report.isEmpty -> EmptyRange()
                 else -> Loaded(state)
             }
         }
@@ -121,7 +191,7 @@ private fun Header(
     Row(
         Modifier
             .fillMaxWidth()
-            .height(64.dp)
+            .heightIn(min = 64.dp)
             .padding(horizontal = 16.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -142,83 +212,215 @@ private fun Header(
                 color = c.foreground,
             )
             Text(
-                "every course the desk has in this range",
+                "every course the desk holds whose dates fall inside the range.",
                 fontSize = 12.5.sp,
                 color = c.muted,
-                maxLines = 1,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
         }
         if (state.report != null && !state.report.isEmpty) {
-            Text(
-                "PRINT",
-                fontFamily = DipiCondensed,
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 14.sp,
-                letterSpacing = 0.06.em,
-                color = c.muted,
-                modifier = Modifier
-                    .deskCard(
-                        shape = DeskStyle.controlShape,
-                        fill = Color.Transparent,
-                        border = c.hairline,
-                        elevation = 0.dp,
-                    )
-                    .clickable(onClick = onPrint)
-                    .padding(horizontal = 16.dp, vertical = 12.dp)
-                    .testTag("report-print"),
-            )
+            HeaderAction("PRINT", "report-print", onPrint)
         }
-        // Secondary: the CSV is still there for anyone who wants the file.
         if (state.report?.csv != null) {
-            Text(
-                "SHARE CSV",
-                fontFamily = DipiCondensed,
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 14.sp,
-                letterSpacing = 0.06.em,
-                color = c.muted,
-                modifier = Modifier
-                    .deskCard(
-                        shape = DeskStyle.controlShape,
-                        fill = Color.Transparent,
-                        border = c.hairline,
-                        elevation = 0.dp,
-                    )
-                    .clickable(onClick = onShareCsv)
-                    .padding(horizontal = 16.dp, vertical = 12.dp)
-                    .testTag("report-share-csv"),
-            )
+            HeaderAction("SHARE CSV", "report-share-csv", onShareCsv)
         }
     }
 }
 
-/**
- * Two 44dp mono date fields and one 44dp accent RUN. The range stays
- * editable while a run is in flight — the honest response to "this is
- * taking a while" is to let the registrar narrow it, not to lock the form.
- */
+@Composable
+private fun HeaderAction(label: String, tag: String, onClick: () -> Unit) {
+    val c = LocalDipi.current
+    Box(
+        Modifier
+            .heightIn(min = 48.dp)
+            .deskCard(
+                shape = DeskStyle.controlShape,
+                fill = Color.Transparent,
+                border = c.hairline,
+                elevation = 0.dp,
+            )
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp)
+            .testTag(tag),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            label,
+            fontFamily = DipiCondensed,
+            fontWeight = FontWeight.SemiBold,
+            fontSize = 14.sp,
+            letterSpacing = 0.06.em,
+            color = c.muted,
+        )
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun RangeBand(
     state: CourseReportUi,
+    rangeError: String?,
+    today: LocalDate,
     onFrom: (String) -> Unit,
     onTo: (String) -> Unit,
     onRun: () -> Unit,
 ) {
-    val c = LocalDipi.current
     val industry = LocalIndustry.current
-    Row(
+    val tokens = courseReportTokens()
+    val invalid = rangeError != null
+    val canRun = reportRangeIsValid(state.from, state.to) && !state.running
+    Column(
         Modifier
             .fillMaxWidth()
-            .height(72.dp)
             .background(industry.neutral100)
-            .padding(horizontal = 20.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+            .padding(horizontal = 20.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(FilterGap),
     ) {
-        DateField("FROM", state.from, "report-from", onFrom)
-        DateField("TO", state.to, "report-to", onTo)
-        Spacer(Modifier.weight(1f))
+        BoxWithConstraints(Modifier.fillMaxWidth()) {
+            val stackPresets = maxWidth < PresetWrapBelow
+            if (stackPresets) {
+                Column(verticalArrangement = Arrangement.spacedBy(FilterGap)) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(FilterGap),
+                        verticalAlignment = Alignment.Bottom,
+                    ) {
+                        DateField("FROM · DD-MM-YYYY", state.from, "report-from", invalid, onFrom)
+                        DateField("TO · DD-MM-YYYY", state.to, "report-to", invalid, onTo)
+                        RunButton(state, canRun, onRun)
+                    }
+                    Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                        PresetKicker()
+                        FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(FilterGap),
+                            verticalArrangement = Arrangement.spacedBy(FilterGap),
+                        ) {
+                            PresetButtons(state, today, onFrom, onTo, onRun)
+                        }
+                    }
+                }
+            } else {
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(FilterGap),
+                    verticalAlignment = Alignment.Bottom,
+                ) {
+                    DateField("FROM · DD-MM-YYYY", state.from, "report-from", invalid, onFrom)
+                    DateField("TO · DD-MM-YYYY", state.to, "report-to", invalid, onTo)
+                    RunButton(state, canRun, onRun)
+                    Column(
+                        Modifier.padding(start = 8.dp),
+                        verticalArrangement = Arrangement.spacedBy(3.dp),
+                    ) {
+                        PresetKicker()
+                        Row(horizontalArrangement = Arrangement.spacedBy(FilterGap)) {
+                            PresetButtons(state, today, onFrom, onTo, onRun)
+                        }
+                    }
+                }
+            }
+        }
+        if (rangeError != null) {
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .background(tokens.invalidFill, DeskStyle.controlShape)
+                    .border(1.dp, tokens.invalidOutline, DeskStyle.controlShape)
+                    .padding(horizontal = 14.dp, vertical = 10.dp)
+                    .testTag("report-range-error"),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Text("!", fontFamily = DipiMono, fontWeight = FontWeight.Medium, color = tokens.invalidText)
+                Text(
+                    rangeError,
+                    fontSize = 13.sp,
+                    lineHeight = 18.sp,
+                    color = tokens.invalidText,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun PresetKicker() {
+    Text(
+        "PRESETS",
+        fontFamily = DipiMono,
+        fontWeight = FontWeight.Medium,
+        fontSize = 9.sp,
+        letterSpacing = 0.14.em,
+        color = LocalDipi.current.muted,
+    )
+}
+
+@Composable
+private fun PresetButtons(
+    state: CourseReportUi,
+    today: LocalDate,
+    onFrom: (String) -> Unit,
+    onTo: (String) -> Unit,
+    onRun: () -> Unit,
+) {
+    ReportPreset.entries.forEach { preset ->
+        PresetChip(preset, enabled = !state.running) {
+            val (from, to) = reportPresetRange(preset, today)
+            onFrom(from)
+            onTo(to)
+            onRun()
+        }
+    }
+}
+
+@Composable
+private fun PresetChip(preset: ReportPreset, enabled: Boolean, onClick: () -> Unit) {
+    val c = LocalDipi.current
+    Box(
+        Modifier
+            .height(48.dp)
+            .deskCard(
+                shape = DeskStyle.controlShape,
+                fill = c.field,
+                border = c.hairline,
+                elevation = 0.dp,
+            )
+            .clickable(enabled = enabled, onClick = onClick)
+            .padding(horizontal = 16.dp)
+            .testTag(preset.testTag),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            preset.label,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Medium,
+            color = c.foreground,
+        )
+    }
+}
+
+@Composable
+private fun RunButton(state: CourseReportUi, enabled: Boolean, onRun: () -> Unit) {
+    val c = LocalDipi.current
+    val fill = when {
+        state.running -> c.accentPressed
+        !enabled -> c.accent.copy(alpha = 0.38f)
+        else -> c.accent
+    }
+    Box(
+        Modifier
+            .height(48.dp)
+            .deskCard(
+                shape = DeskStyle.controlShape,
+                fill = fill,
+                border = fill,
+                elevation = 0.dp,
+            )
+            .clickable(enabled = enabled, onClick = onRun)
+            .padding(horizontal = RunSidePad)
+            .testTag("report-run"),
+        contentAlignment = Alignment.Center,
+    ) {
         Text(
             if (state.running) "RUNNING…" else "RUN",
             fontFamily = DipiCondensed,
@@ -226,23 +428,20 @@ private fun RangeBand(
             fontSize = 15.sp,
             letterSpacing = 0.06.em,
             color = Color.White,
-            modifier = Modifier
-                .deskCard(
-                    shape = DeskStyle.controlShape,
-                    fill = if (state.running) c.accentPressed else c.accent,
-                    border = if (state.running) c.accentPressed else c.accent,
-                    elevation = 0.dp,
-                )
-                .clickable(enabled = !state.running, onClick = onRun)
-                .padding(horizontal = 26.dp, vertical = 12.dp)
-                .testTag("report-run"),
         )
     }
 }
 
 @Composable
-private fun DateField(label: String, value: String, tag: String, onChange: (String) -> Unit) {
+private fun DateField(
+    label: String,
+    value: String,
+    tag: String,
+    invalid: Boolean,
+    onChange: (String) -> Unit,
+) {
     val c = LocalDipi.current
+    val tokens = courseReportTokens()
     Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
         Text(
             label,
@@ -254,12 +453,13 @@ private fun DateField(label: String, value: String, tag: String, onChange: (Stri
         )
         Box(
             Modifier
-                .width(140.dp)
-                .height(44.dp)
+                .width(DateFieldW)
+                .height(DateFieldH)
+                .testTag("$tag-box")
                 .deskCard(
                     shape = DeskStyle.controlShape,
                     fill = c.field,
-                    border = c.hairline,
+                    border = if (invalid) tokens.invalidBorder else tokens.validBorder,
                     elevation = 0.dp,
                 )
                 .padding(horizontal = 12.dp),
@@ -271,7 +471,8 @@ private fun DateField(label: String, value: String, tag: String, onChange: (Stri
                 singleLine = true,
                 textStyle = TextStyle(
                     fontFamily = DipiMono,
-                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium,
+                    fontSize = 17.sp,
                     color = c.foreground,
                 ),
                 cursorBrush = SolidColor(c.accent),
@@ -286,7 +487,7 @@ private fun DateField(label: String, value: String, tag: String, onChange: (Stri
 private fun FirstOpen() {
     Message(
         title = "Choose report dates",
-        body = "Choose dates, then tap RUN.",
+        body = EmptyRangeCopy,
         tag = "report-first-open",
     )
 }
@@ -300,17 +501,11 @@ private fun Running(state: CourseReportUi) {
     )
 }
 
-/** An empty range is a real answer, so it names the mistake worth checking. */
 @Composable
-private fun EmptyRange(state: CourseReportUi) {
-    val reversed = state.from.isNotBlank() && state.to.isNotBlank() && state.from > state.to
+private fun EmptyRange() {
     Message(
-        title = "No course started between ${displayDeskDate(state.from)} and ${displayDeskDate(state.to)}.",
-        body = if (reversed) {
-            "FROM must be before TO. Swap the dates."
-        } else {
-            "Try a wider date range."
-        },
+        title = EmptyRangeCopy,
+        body = "",
         tag = "report-empty",
     )
 }
@@ -332,7 +527,9 @@ private fun Message(title: String, body: String, tag: String) {
             fontSize = 18.sp,
             color = c.foreground,
         )
-        Text(body, fontSize = 13.sp, lineHeight = 19.sp, color = c.muted)
+        if (body.isNotBlank()) {
+            Text(body, fontSize = 13.sp, lineHeight = 19.sp, color = c.muted)
+        }
     }
 }
 
@@ -402,79 +599,133 @@ private fun Refusal(state: CourseReportUi, onCopyMessage: (String) -> Unit) {
 /** Danger is the fixed pair and never follows the skin (design rule). */
 private val DangerTint = Color(0x22A33A34)
 
-/**
- * Fourteen columns become five groups — NEW · OLD · ROLL TOTAL · SEVAK ·
- * TEACHERS — under the centre matrix's group caps, with the roll total
- * banded and 1dp gutters between the groups. **Nothing is dropped.**
- */
 @Composable
 private fun Loaded(state: CourseReportUi) {
     val report = state.report ?: return
     val industry = LocalIndustry.current
+    val tokens = courseReportTokens()
+    val hScroll = rememberScrollState()
     Column(Modifier.fillMaxSize()) {
-        Column(
-            Modifier
-                .weight(1f)
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 26.dp),
-        ) {
-            if (!state.ranAt.isNullOrBlank()) {
-                Text(
-                    "${report.rows.size} COURSES · ${report.grandTotal.rollTotal} STUDENTS · RAN ${state.ranAt}",
-                    fontFamily = DipiMono,
-                    fontWeight = FontWeight.Medium,
-                    fontSize = 9.sp,
-                    letterSpacing = 0.14.em,
-                    color = industry.neutral500,
-                    modifier = Modifier
-                        .padding(top = 10.dp, bottom = 6.dp)
-                        .testTag("report-run-strip"),
-                )
+        Column(Modifier.fillMaxWidth().padding(horizontal = TablePad)) {
+            val sevak = report.grandTotal.sevakTotal
+            val ran = buildString {
+                append("${report.rows.size} COURSES · ${report.grandTotal.rollTotal} STUDENTS · $sevak SEVAK")
+                if (!state.ranAt.isNullOrBlank()) append(" · RAN ${state.ranAt}")
             }
-            GroupCaps()
-            ColumnHeaders()
-            report.rows.forEach { ReportRow(it) }
-        }
-        GrandTotalFooter(report)
-    }
-}
-
-private val GROUPS = listOf(
-    "NEW" to 3f,
-    "OLD" to 3f,
-    "ROLL" to 1.2f,
-    "SEVAK" to 3f,
-    "TEACHERS" to 3f,
-)
-
-@Composable
-private fun GroupCaps() {
-    val industry = LocalIndustry.current
-    Row(Modifier.fillMaxWidth().height(22.dp), verticalAlignment = Alignment.CenterVertically) {
-        Box(Modifier.weight(4f))
-        GROUPS.forEach { (name, weight) ->
             Text(
-                name,
+                ran,
                 fontFamily = DipiMono,
                 fontWeight = FontWeight.Medium,
                 fontSize = 9.sp,
-                letterSpacing = 0.17.em,
-                textAlign = TextAlign.Center,
+                letterSpacing = 0.14.em,
                 color = industry.neutral500,
-                modifier = Modifier.weight(weight),
+                modifier = Modifier
+                    .padding(top = 10.dp, bottom = 4.dp)
+                    .testTag("report-run-strip"),
+            )
+            Text(
+                ColumnGlossary,
+                fontSize = 12.sp,
+                lineHeight = 16.sp,
+                color = industry.neutral600,
+                modifier = Modifier
+                    .padding(bottom = 8.dp)
+                    .testTag("report-column-glossary"),
             )
         }
+        BoxWithConstraints(
+            Modifier
+                .weight(1f)
+                .fillMaxWidth()
+                .padding(horizontal = TablePad),
+        ) {
+            val metrics = tableMetrics(maxWidth)
+            Column(Modifier.fillMaxSize()) {
+                Column(
+                    Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState()),
+                ) {
+                    GroupCaps(metrics, hScroll)
+                    ColumnHeaders(metrics, tokens, hScroll)
+                    report.rows.forEach { row ->
+                        ReportRow(row, metrics, tokens, hScroll)
+                    }
+                }
+                GrandTotalFooter(report, metrics, tokens, hScroll)
+            }
+        }
     }
+}
+
+private data class ReportTableMetrics(
+    val courseWidth: Dp,
+    val scroll: Boolean,
+)
+
+private fun tableMetrics(innerWidth: Dp): ReportTableMetrics {
+    val numeric = CellW * 12 + RollW + GroupGap * 4
+    val courseWidth = max(CourseMinW, innerWidth - numeric)
+    return ReportTableMetrics(
+        courseWidth = courseWidth,
+        scroll = courseWidth + numeric > innerWidth,
+    )
+}
+
+private fun Modifier.reportTableRow(hScroll: ScrollState, scroll: Boolean): Modifier =
+    fillMaxWidth().then(if (scroll) horizontalScroll(hScroll) else this)
+
+@Composable
+private fun GroupCaps(metrics: ReportTableMetrics, hScroll: ScrollState) {
+    val industry = LocalIndustry.current
+    Row(
+        Modifier
+            .reportTableRow(hScroll, metrics.scroll)
+            .height(22.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(Modifier.width(metrics.courseWidth))
+        GroupCap("NEW", CellW * 3, industry.neutral500)
+        Spacer(Modifier.width(GroupGap))
+        GroupCap("OLD", CellW * 3, industry.neutral500)
+        Spacer(Modifier.width(GroupGap))
+        GroupCap("ROLL TOTAL", RollW, industry.neutral500)
+        Spacer(Modifier.width(GroupGap))
+        GroupCap("SEVAK", CellW * 3, industry.neutral500)
+        Spacer(Modifier.width(GroupGap))
+        GroupCap("TEACHERS", CellW * 3, industry.neutral500)
+    }
+}
+
+@Composable
+private fun GroupCap(name: String, width: Dp, color: Color) {
+    Text(
+        name,
+        fontFamily = DipiMono,
+        fontWeight = FontWeight.Medium,
+        fontSize = 9.sp,
+        letterSpacing = 0.08.em,
+        textAlign = TextAlign.Center,
+        color = color,
+        maxLines = 1,
+        overflow = TextOverflow.Clip,
+        modifier = Modifier.width(width),
+    )
 }
 
 private val HEADERS = listOf("M", "F", "T", "M", "F", "T", "TOTAL", "M", "F", "T", "C", "A", "TR")
 
 @Composable
-private fun ColumnHeaders() {
+private fun ColumnHeaders(
+    metrics: ReportTableMetrics,
+    tokens: CourseReportTokens,
+    hScroll: ScrollState,
+) {
     val industry = LocalIndustry.current
     Row(
         Modifier
-            .fillMaxWidth()
+            .reportTableRow(hScroll, metrics.scroll)
             .height(28.dp)
             .bottomRule(industry.neutral400),
         verticalAlignment = Alignment.CenterVertically,
@@ -486,37 +737,47 @@ private fun ColumnHeaders() {
             fontSize = 9.sp,
             letterSpacing = 0.14.em,
             color = industry.neutral500,
-            modifier = Modifier.weight(4f),
+            modifier = Modifier.width(metrics.courseWidth),
         )
         HEADERS.forEachIndexed { i, h ->
-            Figure(h, weight = headerWeight(i), banded = i == 6, header = true)
+            if (i == 3 || i == 6 || i == 7 || i == 10) Spacer(Modifier.width(GroupGap))
+            Figure(
+                h,
+                width = if (i == 6) RollW else CellW,
+                banded = i == 6,
+                tint = tokens.rollTint,
+                header = true,
+                rollTag = i == 6,
+            )
         }
     }
 }
 
-private fun headerWeight(i: Int): Float = if (i == 6) 1.2f else 1f
-
 @Composable
-private fun ReportRow(row: CourseReportRow) {
+private fun ReportRow(
+    row: CourseReportRow,
+    metrics: ReportTableMetrics,
+    tokens: CourseReportTokens,
+    hScroll: ScrollState,
+) {
     val industry = LocalIndustry.current
     val name = row.parsed
     val teachers = row.displayTeacherNames()
     Row(
         Modifier
-            .fillMaxWidth()
+            .reportTableRow(hScroll, metrics.scroll)
             .height(IntrinsicSize.Min)
             .heightIn(min = 52.dp)
             .bottomHairline(industry.neutral200),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Column(Modifier.weight(4f).padding(end = 10.dp, top = 8.dp, bottom = 8.dp)) {
+        Column(Modifier.width(metrics.courseWidth).padding(end = 10.dp, top = 8.dp, bottom = 8.dp)) {
             Text(
-                // A parse failure prints the raw string, never an error.
                 name.type,
                 fontFamily = DipiCondensed,
                 fontWeight = FontWeight.SemiBold,
-                fontSize = 17.sp,
-                lineHeight = 19.sp,
+                fontSize = 19.sp,
+                lineHeight = 21.sp,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 color = industry.text,
@@ -526,12 +787,13 @@ private fun ReportRow(row: CourseReportRow) {
                     Text(
                         name.year,
                         fontFamily = DipiMono,
-                        fontSize = 11.5.sp,
+                        fontSize = 13.sp,
                         color = industry.neutral600,
                     )
                     Text(
                         name.dates,
-                        fontSize = 12.5.sp,
+                        fontFamily = DipiMono,
+                        fontSize = 13.sp,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         color = industry.neutral600,
@@ -541,8 +803,9 @@ private fun ReportRow(row: CourseReportRow) {
             if (teachers.isNotEmpty()) {
                 Text(
                     teachers.joinToString(" · "),
-                    fontSize = 12.sp,
-                    lineHeight = 15.sp,
+                    fontFamily = FontFamily.SansSerif,
+                    fontSize = 13.sp,
+                    lineHeight = 16.sp,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                     color = industry.neutral600,
@@ -552,12 +815,18 @@ private fun ReportRow(row: CourseReportRow) {
                 )
             }
         }
-        CountCells(row.counts)
+        CountCells(row.counts, tokens, rollTag = true, stretch = true)
     }
 }
 
 @Composable
-private fun RowScope.CountCells(c: CourseReportCounts, bold: Boolean = false) {
+private fun CountCells(
+    c: CourseReportCounts,
+    tokens: CourseReportTokens,
+    bold: Boolean = false,
+    rollTag: Boolean = false,
+    stretch: Boolean = false,
+) {
     val values = listOf(
         c.newMale, c.newFemale, c.newTotal,
         c.oldMale, c.oldFemale, c.oldTotal,
@@ -566,31 +835,50 @@ private fun RowScope.CountCells(c: CourseReportCounts, bold: Boolean = false) {
         c.teacherConducting, c.teacherAssistant, c.teacherTrainee,
     )
     values.forEachIndexed { i, v ->
-        Figure("$v", weight = headerWeight(i), banded = i == 6, bold = bold && i == 6)
+        if (i == 3 || i == 6 || i == 7 || i == 10) Spacer(Modifier.width(GroupGap))
+        Figure(
+            "$v",
+            width = if (i == 6) RollW else CellW,
+            banded = i == 6,
+            tint = tokens.rollTint,
+            bold = bold && i == 6,
+            rollTag = rollTag && i == 6,
+            stretch = stretch,
+        )
     }
 }
 
 @Composable
-private fun RowScope.Figure(
+private fun Figure(
     text: String,
-    weight: Float,
+    width: Dp,
     banded: Boolean,
+    tint: Color,
     header: Boolean = false,
     bold: Boolean = false,
+    rollTag: Boolean = false,
+    stretch: Boolean = false,
 ) {
     val industry = LocalIndustry.current
     Box(
         Modifier
-            .weight(weight)
-            .then(if (header) Modifier.height(28.dp) else Modifier.fillMaxHeight())
-            .background(if (banded) industry.neutral200 else Color.Transparent),
+            .width(width)
+            .then(
+                when {
+                    header -> Modifier.height(28.dp)
+                    stretch -> Modifier.fillMaxHeight()
+                    else -> Modifier
+                },
+            )
+            .background(if (banded) tint else Color.Transparent)
+            .then(if (rollTag) Modifier.testTag("report-col-roll") else Modifier),
         contentAlignment = Alignment.CenterEnd,
     ) {
         Text(
             text,
             fontFamily = DipiMono,
-            fontWeight = if (bold || header) FontWeight.Medium else FontWeight.Normal,
-            fontSize = if (header) 9.sp else 14.sp,
+            fontWeight = if (bold) FontWeight.SemiBold else FontWeight.Medium,
+            fontSize = if (header) 9.sp else 15.sp,
             letterSpacing = if (header) 0.14.em else 0.em,
             color = if (header) industry.neutral500 else industry.text,
             modifier = Modifier.padding(end = 6.dp),
@@ -598,25 +886,26 @@ private fun RowScope.Figure(
     }
 }
 
-/**
- * The grand total is a **footer**, not a row: on a 2dp `neutral900` rule over
- * a `#F5F5F8` ground, pinned to the bottom of the pane so it stays visible
- * however long the list is.
- */
 @Composable
-private fun GrandTotalFooter(report: CourseReport) {
+private fun GrandTotalFooter(
+    report: CourseReport,
+    metrics: ReportTableMetrics,
+    tokens: CourseReportTokens,
+    hScroll: ScrollState,
+) {
     val industry = LocalIndustry.current
     Column(Modifier.fillMaxWidth().testTag("report-grand-total")) {
         Box(Modifier.fillMaxWidth().height(2.dp).background(industry.neutral900))
         Row(
             Modifier
                 .fillMaxWidth()
-                .height(56.dp)
+                .heightIn(min = 56.dp)
                 .background(industry.neutral100)
-                .padding(horizontal = 26.dp),
+                .padding(vertical = 12.dp)
+                .reportTableRow(hScroll, metrics.scroll),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Column(Modifier.weight(4f)) {
+            Column(Modifier.width(metrics.courseWidth).padding(end = 10.dp)) {
                 Text(
                     "GRAND TOTAL",
                     fontFamily = DipiMono,
@@ -632,8 +921,15 @@ private fun GrandTotalFooter(report: CourseReport) {
                         color = industry.neutral600,
                     )
                 }
+                Text(
+                    RollOnlyNote,
+                    fontSize = 11.sp,
+                    lineHeight = 14.sp,
+                    color = industry.neutral600,
+                    modifier = Modifier.testTag("report-roll-note"),
+                )
             }
-            CountCells(report.grandTotal, bold = true)
+            CountCells(report.grandTotal, tokens, bold = true, rollTag = true, stretch = false)
         }
     }
 }

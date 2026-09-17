@@ -95,6 +95,12 @@ are preserved because code comments cite them.
 - **08-13 · Conf-number contract (C3):** `{N|O|S}{M|F}{seq}` minted server-side by
   `generate_conf_no`; Expected→Confirmed does not remint. `nf/of/nm/om/sm/sf`
   prefixes drive the gender + new/old filters (`ConfPrefix`) throughout the desk.
+- **2026-09-16 · Sevak prefixes count as Old on the desk.** `sm`/`sf` are old
+  students (typically 3+ ten-day courses). `ConfPrefix` maps `S` to Old and
+  gender from the second letter. THE ROLL and the New/Old filter share that
+  rule. Unparseable prefixes stay visible under All and hide under a specific
+  filter. Teacher-list grouping/order and seating-plan positions stay on their
+  own parse; this ruling does not move hall seats.
 
 ## Centre dashboard
 

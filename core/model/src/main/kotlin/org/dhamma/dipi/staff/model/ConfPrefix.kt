@@ -3,10 +3,12 @@ package org.dhamma.dipi.staff.model
 /**
  * Display metadata parsed from a confirmation / roll number.
  *
- * Desk + PHP encode the first two letters as `{n|o}{m|f}` plus a serial:
- * `nf1`, `of12`, `nm1`, `om12`. Sevak prefixes (`sm`/`sf`) yield a known
- * gender and unknown seniority. Anything else is unknown on that axis —
- * still visible when the axis is "all", hidden when a specific value is on.
+ * Desk + PHP encode the first two letters as `{n|o|s}{m|f}` plus a serial:
+ * `nf1`, `of12`, `nm1`, `om12`, sevak `sm`/`sf`. Owner 2026-09-16: sevaks
+ * are old students, so `S` is Old and gender is the second letter. This is
+ * the desk New/Old rule only; teacher-list groups and hall seats stay on
+ * their own parse. Anything else is unknown on that axis: still visible
+ * when the axis is "all", hidden when a specific value is on.
  */
 enum class ConfSeniority { NEW, OLD, UNKNOWN }
 
@@ -26,7 +28,7 @@ data class ConfPrefix(
             if (t.length < 2) return UNKNOWN
             val seniority = when (t[0].lowercaseChar()) {
                 'n' -> ConfSeniority.NEW
-                'o' -> ConfSeniority.OLD
+                'o', 's' -> ConfSeniority.OLD
                 else -> ConfSeniority.UNKNOWN
             }
             val gender = when (t[1].lowercaseChar()) {

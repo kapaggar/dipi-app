@@ -275,6 +275,10 @@ class SeatingPlanScreenTest {
         rule.onNodeWithText("SAT-2011").assertIsDisplayed()
         // The sevak sits on a cushion the plan does not draw — no list row.
         rule.onNodeWithText("Karan Velu").assertDoesNotExist()
+        // Hall seats stay put: Suresh A1, Vikram CW-A3. Desk New/Old is not this plan.
+        rule.onNodeWithTag("seat-cell-A1-old", useUnmergedTree = true).assertExists()
+        rule.onNodeWithText("Suresh Nair").assertIsDisplayed()
+        rule.onNodeWithText("Vikram Joshi").assertIsDisplayed()
         // The tally is untouched — the sevak stays counted.
         rule.onNodeWithText("Male hall · facing the front · 3 old, 3 new").assertIsDisplayed()
     }

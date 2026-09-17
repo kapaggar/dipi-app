@@ -1069,6 +1069,18 @@ separate from the institutional sheets. Existing local check-in and room-pull
 merge behavior remain. ID reveal is transient, masked initially and reset on
 applicant/detail changes. Verification evidence is recorded in the desk2.2 plan.
 
+## Desk sevak New/Old (2.3.3 / 106)
+
+Owner 2026-09-16: sevaks `sm`/`sf` are old students and count as Old on the desk. Gender is the second letter. `ConfPrefix` and THE ROLL (`deskRollCell`) share that rule so the New filter no longer hides them as unknown. Unparseable prefixes stay visible under All and hide under a specific filter. Teacher-list grouping/order and seating-plan positions are unchanged. Room occupancy and roomKey are unchanged.
+
+## Course report date frame (2.3.2 / 105)
+
+Owner visual amendment 2026-09-16: Course report FROM/TO are 168x48 with a 12dp gap and DD-MM-YYYY in the kicker. RUN is 48dp tall with 30dp side padding and is disabled while TO is before FROM. Presets This month / This year / Last 12 months sit on the filter row and wrap under 900dp; each fills both fields from the device calendar and runs. The reversed-range message is inline (`TO is before FROM. Swap the dates or pick a preset.`) on `#FBF0EF` / `#DFAFAB` / `#7A2B26` in Light, mapped to `LocalDipi.hard` and a night blush in Dark. Valid field border is `#C99FB1` (muted rose at night). ROLL TOTAL uses `#F3E2E8` (night blush). Empty-range copy stays `Choose dates, then tap RUN.` Table columns are fixed so heads and cells cannot drift; the grand-total bar is pinned with 12x26 padding. Teacher names stay as the CSV returned them. `TrainingTeachers` fills TR. PRINT and SHARE CSV keep the existing handlers. No new endpoint, no `?r=`.
+
+## Centre Settings two-card hall chart (2.3.1 / 104)
+
+Owner visual amendment 2026-09-16: Centre Settings matches the two-card hall frame. Male and Female hall cards sit 1fr/1fr with an 18dp gap when the screen is 800dp or wider, and stack with the same gap below that. Stepper labels stay `Columns (A, B, C …)` and `Rows (1 is nearest the teacher)`. Buttons are 48×48dp, the value is 56dp centred, and there is 12dp between the stepper rows. Check-in toggles are 48dp with an accessible name that includes what they turn on. Live Hall Settings from `GET /centre/{cid}/edit` still drive columns and the compact read-only lines under the cards (same-hall, naming, Main Plan). SAVE HALL LAYOUT remains the local depth override. Room chart, Laundry / Valuables / Groups, and the derived RESULT sentence stay. No POST and no new settings semantics.
+
 ## Allocated-room check-in and live Room Chart (2.3.0 / 103)
 
 Owner 2026-09-16: a parsed room plus not Left is checked in; `Mbk- 51` lights inventory `Mbk 51`. Room Chart blocks are the acco-handler rooms. Centre Settings shows live Hall Settings from `GET /centre/{cid}/edit` (same-hall, naming convention, Male/Female Main Plan columns / chowky columns / direction / chowky side / empty seats). Unset Room Chart wrap and seating columns use that plan. SAVE HALL LAYOUT stays the local override for hall depth and any field the edit page omitted. Combined-hall is displayed; the app still draws two gender blocks. Left never occupies. No new attendance POST. No `?r=`.

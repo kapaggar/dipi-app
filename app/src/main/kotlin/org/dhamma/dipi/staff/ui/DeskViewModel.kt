@@ -78,6 +78,7 @@ import org.dhamma.dipi.staff.model.RoomAllocSync
 import org.dhamma.dipi.staff.model.RoomSyncResult
 import org.dhamma.dipi.staff.model.DaySummary
 import org.dhamma.dipi.staff.model.parseDeskDate
+import org.dhamma.dipi.staff.model.reportRangeIsValid
 import org.dhamma.dipi.staff.model.SensitiveInfo
 import org.dhamma.dipi.staff.model.clearSyncedIfChanged
 import org.dhamma.dipi.staff.model.Session
@@ -1112,6 +1113,7 @@ class DeskViewModel @Inject constructor(
         val cid = _state.value.session?.centres?.firstOrNull()?.id?.value ?: return
         val range = _state.value.courseReport
         if (range.running) return
+        if (!reportRangeIsValid(range.from, range.to)) return
         _state.update {
             it.copy(
                 courseReport = it.courseReport.copy(

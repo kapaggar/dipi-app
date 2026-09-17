@@ -118,20 +118,25 @@ class DeskDeriveTest {
             card(4, conf = "OM4", gender = Gender.M),
             card(5, conf = "SM5", gender = Gender.M),
             card(6, conf = "xx6"),
+            card(7, conf = "SF7"),
         )
         assertEquals(listOf(1, 3), deskRoll(rows, null, ConfSeniority.NEW).map { it.id.value })
-        assertEquals(listOf(2, 4), deskRoll(rows, null, ConfSeniority.OLD).map { it.id.value })
+        assertEquals(listOf(2, 4, 5, 7), deskRoll(rows, null, ConfSeniority.OLD).map { it.id.value })
         assertEquals(listOf(1), deskRoll(rows, Gender.F, ConfSeniority.NEW).map { it.id.value })
-        assertEquals(listOf(2), deskRoll(rows, Gender.F, ConfSeniority.OLD).map { it.id.value })
+        assertEquals(listOf(2, 7), deskRoll(rows, Gender.F, ConfSeniority.OLD).map { it.id.value })
         assertEquals(listOf(3), deskRoll(rows, Gender.M, ConfSeniority.NEW).map { it.id.value })
-        assertEquals(listOf(4), deskRoll(rows, Gender.M, ConfSeniority.OLD).map { it.id.value })
-        // Sevak SM is male + unknown seniority: visible on Male/Both, hidden on New or Old.
+        assertEquals(listOf(4, 5), deskRoll(rows, Gender.M, ConfSeniority.OLD).map { it.id.value })
+        // Sevak SM/SF are Old: All + Old, not New. Gender is the second letter.
         assertEquals(listOf(3, 4, 5), deskRoll(rows, Gender.M, null).map { it.id.value })
         assertFalse(deskRoll(rows, Gender.M, ConfSeniority.NEW).any { it.id.value == 5 })
+        assertTrue(deskRoll(rows, Gender.M, ConfSeniority.OLD).any { it.id.value == 5 })
+        assertFalse(deskRoll(rows, null, ConfSeniority.NEW).any { it.id.value == 7 })
+        assertTrue(deskRoll(rows, Gender.F, ConfSeniority.OLD).any { it.id.value == 7 })
         // Garbage prefix is unknown × unknown — only visible when both axes are Both.
-        assertEquals(listOf(1, 2, 3, 4, 5, 6), deskRoll(rows, null, null).map { it.id.value })
+        assertEquals(listOf(1, 2, 3, 4, 5, 6, 7), deskRoll(rows, null, null).map { it.id.value })
         assertFalse(deskRoll(rows, Gender.F, null).any { it.id.value == 6 })
         assertFalse(deskRoll(rows, null, ConfSeniority.NEW).any { it.id.value == 6 })
+        assertFalse(deskRoll(rows, null, ConfSeniority.OLD).any { it.id.value == 6 })
     }
 
     @Test
@@ -163,11 +168,16 @@ class DeskDeriveTest {
             card(3, conf = "OF3"),
             card(4, conf = "NM4"),
             card(5, conf = "NF5"), card(6, conf = "NF6"),
+            card(7, conf = "SM7", gender = Gender.M),
+            card(8, conf = "SF8"),
+            card(9, conf = "xx9"),
         )
-        assertEquals(2, deskRollCell(roll, 'M', old = true))
-        assertEquals(1, deskRollCell(roll, 'F', old = true))
+        assertEquals(3, deskRollCell(roll, 'M', old = true))
+        assertEquals(2, deskRollCell(roll, 'F', old = true))
         assertEquals(1, deskRollCell(roll, 'M', old = false))
         assertEquals(2, deskRollCell(roll, 'F', old = false))
+        assertEquals(0, deskRollCell(listOf(card(9, conf = "xx9")), 'M', old = true))
+        assertEquals(0, deskRollCell(listOf(card(9, conf = "xx9")), 'M', old = false))
     }
 
     @Test

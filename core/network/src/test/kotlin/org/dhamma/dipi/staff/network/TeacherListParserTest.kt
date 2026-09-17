@@ -64,6 +64,18 @@ class TeacherListParserTest {
     }
 
     @Test
+    fun sevakStaysFirstInMaleOldGroupUnseated() {
+        val group = roll.groups[0]
+        assertEquals(Gender.M, group.gender)
+        assertEquals(RollSeniority.OLD, group.seniority)
+        val sevak = group.rows.single { it.roleTag == "Sevak" }
+        assertEquals("Suresh Nair", sevak.name)
+        assertEquals(0, group.rows.indexOf(sevak))
+        assertTrue(sevak.unseated)
+        assertEquals("", sevak.seat)
+    }
+
+    @Test
     fun studentSuffixesBecomeRoleTagAndLeaveTheNameClean() {
         val sevak = roll.groups[0].rows[0]
         assertEquals("Suresh Nair", sevak.name)

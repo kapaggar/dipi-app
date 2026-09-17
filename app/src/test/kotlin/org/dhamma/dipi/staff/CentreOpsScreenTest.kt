@@ -8,6 +8,7 @@ import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.centerRight
 import androidx.compose.ui.test.click
+import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
@@ -17,6 +18,9 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.height
+import androidx.compose.ui.unit.width
 import org.dhamma.dipi.staff.course.CentreOpsScreen
 import org.dhamma.dipi.staff.model.AccoRoom
 import org.dhamma.dipi.staff.model.CentreHallSettings
@@ -61,9 +65,13 @@ class CentreOpsScreenTest {
         }
         rule.onNodeWithText("Centre settings").assertIsDisplayed()
         rule.onNodeWithText(
-            "Check-in options",
+            "These settings belong to the centre and apply to every course the desk runs.",
         ).assertIsDisplayed()
-        rule.onNodeWithText("Laundry at check-in").assertIsDisplayed()
+        rule.onNodeWithText("Room chart").assertIsDisplayed()
+        rule.onNodeWithText("CHECK-IN OPTIONS").assertIsDisplayed()
+        rule.onNodeWithText(
+            "Ask for laundry at check-in and include a laundry column on the Day 0 list.",
+        ).assertIsDisplayed()
         rule.onNodeWithText("RESULT").assertIsDisplayed()
         rule.onNodeWithText(
             "Check-in: room, seating, laundry and valuables. " +
@@ -205,13 +213,15 @@ class CentreOpsScreenTest {
                 )
             }
         }
-        rule.onNodeWithText("Male hall · 7 columns · 5 deep").performScrollTo().assertIsDisplayed()
-        rule.onNodeWithText("Female hall · 7 columns · 5 deep").performScrollTo().assertIsDisplayed()
+        rule.onNodeWithText("Male hall").performScrollTo().assertIsDisplayed()
+        rule.onNodeWithText("Female hall").performScrollTo().assertIsDisplayed()
+        rule.onAllNodesWithText("7 columns · 5 deep · A1 nearest the Dhamma seat")
+            .assertCountEquals(2)
         rule.onNodeWithContentDescription("Increase columns · Male hall").performScrollTo().performClick()
         rule.onNodeWithContentDescription("Decrease rows deep · Female hall").performScrollTo().performClick()
         // The header lines reflow instantly — but nothing reached persistence.
-        rule.onNodeWithText("Male hall · 8 columns · 5 deep").performScrollTo().assertIsDisplayed()
-        rule.onNodeWithText("Female hall · 7 columns · 4 deep").performScrollTo().assertIsDisplayed()
+        rule.onNodeWithText("8 columns · 5 deep · A1 nearest the Dhamma seat").performScrollTo().assertIsDisplayed()
+        rule.onNodeWithText("7 columns · 4 deep · A1 nearest the Dhamma seat").performScrollTo().assertIsDisplayed()
         assertEquals(0, captured.size)
     }
 
@@ -316,10 +326,94 @@ class CentreOpsScreenTest {
         rule.onNodeWithText("2 columns · 2 chowky · Right to left · Chowky Default (left) · Empty seats 0")
             .performScrollTo()
             .assertIsDisplayed()
-        rule.onNodeWithText("Male hall · 5 columns · 5 deep").performScrollTo().assertIsDisplayed()
-        rule.onNodeWithText("Female hall · 2 columns · 5 deep").performScrollTo().assertIsDisplayed()
+        rule.onNodeWithText("5 columns · 5 deep · A1 nearest the Dhamma seat").performScrollTo().assertIsDisplayed()
+        rule.onNodeWithText("2 columns · 5 deep · A1 nearest the Dhamma seat").performScrollTo().assertIsDisplayed()
         rule.onNodeWithContentDescription("Increase columns · Male hall").performScrollTo().assertIsNotEnabled()
         rule.onNodeWithContentDescription("Increase columns · Female hall").performScrollTo().assertIsNotEnabled()
         rule.onNodeWithContentDescription("Increase rows deep · Male hall").performScrollTo().assertIsEnabled()
     }
+
+    @Test
+    fun twoHallCardsShowShippedStepperLabels() {
+        rule.setContent {
+            DipiTheme {
+                CentreOpsScreen(
+                    prefs = CentreOpsPrefs(),
+                    onToggleLaundry = {},
+                    onToggleValuables = {},
+                    onToggleGroups = {},
+                    onOpenRooms = {},
+                    onBack = {},
+                )
+            }
+        }
+        rule.onNodeWithTag("hall-card-male").performScrollTo().assertIsDisplayed()
+        rule.onNodeWithTag("hall-card-female").performScrollTo().assertIsDisplayed()
+        rule.onAllNodesWithText("Columns (A, B, C …)").assertCountEquals(2)
+        rule.onAllNodesWithText("Rows (1 is nearest the teacher)").assertCountEquals(2)
+        rule.onNodeWithText("HALL CHART").performScrollTo().assertIsDisplayed()
+        rule.onNodeWithText(
+            "Seat labels outside these dimensions extend the grid rather than being dropped.",
+        ).performScrollTo().assertIsDisplayed()
+        rule.onNodeWithText("RESULT").performScrollTo().assertIsDisplayed()
+        rule.onNodeWithText("Room chart").performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    fun toggleAccessibleNameIncludesWhatItTurnsOn() {
+        rule.setContent {
+            DipiTheme {
+                CentreOpsScreen(
+                    prefs = CentreOpsPrefs(),
+                    onToggleLaundry = {},
+                    onToggleValuables = {},
+                    onToggleGroups = {},
+                    onOpenRooms = {},
+                    onBack = {},
+                )
+            }
+        }
+        rule.onNodeWithContentDescription(
+            "Laundry. Ask for laundry at check-in and include a laundry column on the Day 0 list.",
+        ).assertIsDisplayed()
+        rule.onNodeWithContentDescription(
+            "Valuables. Record valuables handed in at check-in. Items are listed on the checking slip, not on the printed roll.",
+        ).assertIsDisplayed()
+        rule.onNodeWithContentDescription(
+            "Groups. Assign a sitting group at check-in. Groups still come from the desk site; this only shows the field at the desk.",
+        ).assertIsDisplayed()
+    }
+
+    @Test
+    fun togglesAndSteppersMeet48dp() {
+        rule.setContent {
+            DipiTheme {
+                CentreOpsScreen(
+                    prefs = CentreOpsPrefs(),
+                    onToggleLaundry = {},
+                    onToggleValuables = {},
+                    onToggleGroups = {},
+                    onOpenRooms = {},
+                    onBack = {},
+                )
+            }
+        }
+        val laundry = rule.onNodeWithTag("toggle-laundry").getBoundsInRoot()
+        assertTrue(laundry.height.value >= 48.dp.value)
+        val valuables = rule.onNodeWithTag("toggle-valuables").getBoundsInRoot()
+        assertTrue(valuables.height.value >= 48.dp.value)
+        val groups = rule.onNodeWithTag("toggle-groups").getBoundsInRoot()
+        assertTrue(groups.height.value >= 48.dp.value)
+        val minus = rule.onNodeWithContentDescription("Decrease columns · Male hall")
+            .performScrollTo()
+            .getBoundsInRoot()
+        assertTrue(minus.width.value >= 48.dp.value)
+        assertTrue(minus.height.value >= 48.dp.value)
+        val plus = rule.onNodeWithContentDescription("Increase rows deep · Female hall")
+            .performScrollTo()
+            .getBoundsInRoot()
+        assertTrue(plus.width.value >= 48.dp.value)
+        assertTrue(plus.height.value >= 48.dp.value)
+    }
+
 }
